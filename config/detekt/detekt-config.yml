@@ -1,0 +1,75 @@
+build:
+  maxIssues: 0
+
+complexity:
+  TooManyFunctions:
+    active: false
+  LongParameterList:
+    ignoreDefaultParameters: true
+
+exceptions:
+  active: true
+  InstanceOfCheckForException:
+    active: true
+  NotImplementedDeclaration:
+    active: true
+  PrintStackTrace:
+    active: true
+  RethrowCaughtException:
+    active: true
+  ReturnFromFinally:
+    active: true
+  SwallowedException:
+    active: true
+  ThrowingExceptionFromFinally:
+    active: true
+  ThrowingNewInstanceOfSameException:
+    active: true
+  TooGenericExceptionCaught:
+    active: false
+
+performance:
+  SpreadOperator:
+    active: false # we only ever use spread for main
+  ArrayPrimitive:
+    active: true
+
+potential-bugs:
+  EqualsAlwaysReturnsTrueOrFalse:
+    active: true
+  InvalidRange:
+    active: true
+  UnconditionalJumpStatementInLoop:
+    active: true
+  UselessPostfixExpression:
+    active: true
+  WrongEqualsTypeParameter:
+    active: true
+
+style:
+  ForbiddenComment:
+    active: false # we want to be able to write todo comments
+  MagicNumber:
+    ignoreAnnotation: true
+  FunctionOnlyReturningConstant:
+    active: true
+  PreferToOverPairSyntax:
+    active: true
+  RedundantVisibilityModifierRule:
+    active: true
+  MayBeConst:
+    active: true
+  NestedClassesVisibility:
+    active: true
+  ProtectedMemberInFinalClass:
+    active: true
+  SpacingBetweenPackageAndImports:
+    active: true
+  UnnecessaryApply:
+    active: true
+  UnnecessaryLet:
+    active: true
+  VarCouldBeVal:
+    active: true
+  WildcardImport:
+    active: true
