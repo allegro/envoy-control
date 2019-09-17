@@ -1,0 +1,127 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'pl.allegro.tech.build',   name: 'axion-release-plugin', version: '1.10.2'
+    }
+}
+
+plugins {
+    id 'pl.allegro.tech.build.axion-release' version '1.10.2'
+    id 'org.jetbrains.kotlin.jvm' version '1.3.0'
+    id 'org.jetbrains.kotlin.plugin.spring' version '1.3.0'
+    id 'org.jetbrains.kotlin.plugin.allopen' version '1.3.0'
+    id "org.jlleitschuh.gradle.ktlint" version "6.3.1"
+    id "org.jlleitschuh.gradle.ktlint-idea" version "6.3.1"
+    id "io.gitlab.arturbosch.detekt" version "1.0.0-RC11"
+}
+
+scmVersion {
+    tag {
+        prefix = project.rootProject.name
+    }
+    versionCreator 'versionWithBranch'
+}
+
+allprojects {
+
+    project.group = 'pl.allegro.tech.servicemesh'
+    project.version = scmVersion.version
+
+    repositories {
+        jcenter()
+        mavenCentral()
+    }
+
+    apply plugin: 'kotlin'
+    apply plugin: 'pl.allegro.tech.build.axion-release'
+    apply plugin: 'kotlin-spring'
+
+    project.ext.versions = [
+            kotlin            : '1.3.0',
+            java_controlplane : '0.1.16',
+            spring_boot       : '2.1.5.RELEASE',
+            grpc              : '1.21.0',
+            jaxb              : '2.3.0',
+            javaxactivation   : '1.1.1',
+            micrometer        : '1.1.2',
+            dropwizard        : '4.0.5',
+            ecwid_consul      : '1.4.1',
+            awaitility        : '3.1.3',
+            embedded_consul   : '2.0.0',
+            junit             : '5.3.2',
+            assertj           : '3.11.1',
+            jackson           : '2.9.0',
+            toxiproxy         : '2.1.3',
+            testcontainers    : '1.10.6',
+            reactor           : '3.2.5.RELEASE',
+            consul_recipes    : '0.8.3',
+            mockito           : '2.23.0',
+            cglib             : '3.2.9',
+            logback           : '1.2.3',
+            slf4j             : '1.7.25'
+    ]
+}
+
+subprojects {
+
+    apply plugin: 'maven-publish'
+    apply plugin: 'pl.allegro.tech.build.axion-release'
+    apply plugin: 'org.jlleitschuh.gradle.ktlint'
+    apply plugin: 'io.gitlab.arturbosch.detekt'
+
+    sourceCompatibility = 1.8
+    [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+
+    test {
+        useJUnitPlatform()
+        testLogging {
+            exceptionFormat = 'full'
+        }
+    }
+
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                from project.components.java
+            }
+        }
+    }
+
+    configurations {
+        compile.exclude group: 'commons-logging', module: 'commons-logging'
+        compile.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        compile.exclude group: 'org.slf4j', module: 'slf4j-jcl'
+        compile.exclude group: 'log4j', module: 'log4j'
+    }
+
+    compileKotlin {
+        kotlinOptions {
+            jvmTarget = '1.8'
+        }
+    }
+
+    compileTestKotlin {
+        kotlinOptions {
+            jvmTarget = '1.8'
+        }
+    }
+    
+    dependencies {
+        testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: versions.junit
+        testCompile group: 'org.assertj', name: 'assertj-core', version: versions.assertj
+        testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: versions.junit
+    }
+
+    detekt {
+        toolVersion = "1.0.0-RC11"
+        input = files("src/main/kotlin", "src/test/kotlin")
+        filters = ".*/resources/.*,.*/build/.*"
+        config = files("$rootDir/config/detekt/default-detekt-config.yml", "$rootDir/config/detekt/detekt-config.yml")
+    }
+}
+
+wrapper {
+    gradleVersion = '5.2.1'
+}

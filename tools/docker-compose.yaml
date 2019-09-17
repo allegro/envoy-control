@@ -1,0 +1,45 @@
+version: '3'
+
+services:
+  consul:
+    container_name: consul
+    image: consul:latest
+    ports:
+      - "18500:8500"
+      - "18300:8300"
+    volumes:
+      - /tmp/config:/config
+      - /tmp/_data/consul:/data
+    command: agent -server -data-dir=/data -bind 0.0.0.0 -client 0.0.0.0 -bootstrap-expect=1 -ui
+
+  http-echo:
+    depends_on:
+      - consul
+    build:
+      context: ./service
+      dockerfile: Dockerfile
+
+  envoy: # TODO: <GITHUB_ISSUE> - use image provided by envoy-wrapper to reduce need for config synchronization
+    build:
+      context: ./envoy
+      dockerfile: Dockerfile
+    ports:
+      - "9999:9999"
+      - "31000:80"
+      - "31001:8080"
+
+  envoy-control:
+    container_name: envoy-control
+    build:
+      context: ../
+      dockerfile: tools/envoy-control/Dockerfile
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    # here you can define path to your config by replacing /tmp/custom.yaml with your own config
+    volumes:
+      - "/tmp/custom.yaml:/var/tmp/config/application.yaml"
+    depends_on:
+      - consul
+    environment:
+      - ENVOY_CONTROL_PROPERTIES=

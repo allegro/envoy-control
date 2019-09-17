@@ -1,0 +1,6 @@
+{
+  "limits": {
+    "rpc_rate": 1,
+    "rpc_max_burst": 1
+  }
+}

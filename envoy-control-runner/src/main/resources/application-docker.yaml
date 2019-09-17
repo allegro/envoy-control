@@ -1,0 +1,5 @@
+envoy-control:
+  source:
+    consul:
+      host: consul
+      port: 8500

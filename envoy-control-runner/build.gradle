@@ -1,0 +1,36 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm'
+    id 'application'
+}
+
+mainClassName = 'pl.allegro.tech.servicemesh.envoycontrol.EnvoyControl'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile project(':source-consul')
+
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter', version: versions.spring_boot
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: versions.spring_boot
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-actuator', version: versions.spring_boot
+    compile group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: versions.micrometer
+
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: versions.kotlin
+    compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: versions.jackson
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact distZip, { classifier = "deploy" }
+        }
+    }
+}
+
+test {
+    maxParallelForks = 1
+    useJUnitPlatform()
+}
+

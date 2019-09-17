@@ -1,0 +1,5 @@
+envoy-control:
+  source:
+    consul:
+      host: localhost
+      port: 18500

@@ -1,0 +1,47 @@
+site_name: Envoy Control documentation
+site_description: Envoy Control - Service Mesh Control Plane for Envoy Proxy
+site_author: Allegro.pl
+
+docs_dir: docs
+
+#repo_url: https://github.com/allegro/envoy-control
+#repo_name: 'envoy-control'
+
+copyright: 'Allegro.pl'
+
+theme:
+  name: material
+  logo:
+    icon: code
+  palette:
+    primary: purple
+    accent: purple
+
+extra_javascript:
+  - 'assets/extra.js'
+
+markdown_extensions:
+  - codehilite
+  - admonition
+  - toc:
+      permalink: "#"
+
+nav:
+  - About: index.md
+  - Quickstart: quickstart.md
+  - Architecture: architecture.md
+  - Configuration: configuration.md
+  - Integrations:
+      - Envoy: integrations/envoy.md
+      - Consul: integrations/consul.md
+  - Features:
+      - Multi DC support: features/multi_dc_support.md
+      - Permissions: features/permissions.md
+      - Service Transformers: features/service_transformers.md
+  - Development: development.md
+  - Performance: performance.md
+  - Deployment:
+      - Observability: deployment/observability.md
+      - Deployment: deployment/deployment.md
+  - Envoy Control vs other software: ec_vs_other_software.md
+

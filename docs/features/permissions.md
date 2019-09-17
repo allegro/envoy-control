@@ -1,0 +1,58 @@
+# Permissions
+
+!!! note
+    This is an incubating feature
+
+One of the pillars of Service Mesh is security.
+Envoy Control provides a simple and fine-grained way to restrict traffic between applications.
+Using Envoy's [metadata](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/core/base.proto#core-metadata)
+section you can provide additional configuration to the Control Plane.
+The information provided in `metadata.proxy_settings` section is interpreted by Control Plane
+and it will create a corresponding configuration for `Envoy`.
+This means that Envoy Control is stateless
+but in the future there will be an override mechanism that uses a database to save the configuration.
+
+An example configuration:
+
+```yaml
+metadata:
+  ads: true
+  proxy_settings:
+    outgoing:
+      dependencies:
+        - service: service-a
+        - service: service-b
+        - domain: http://www.example.com
+    incoming:
+      endpoints:
+        - path: /example
+          methods: [GET, DELETE]
+          clients: [service-first]
+        - pathPrefix: ''
+          methods: [POST]
+          clients: [role-actor]
+      roles:
+        - clients: [service-a], service-b]
+          name: role-actor
+```
+
+In the `incoming` section this configuration defines access to routes:
+
+* `/example`
+    * using a `path` route matcher (more on this in [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/route/route.proto#route-routematch))
+    * using methods `GET` and `DELETE`
+    * to clients `service-first`
+* all other routes
+    * using `prefix` route matcher to a role called `role-actor`.
+    * using method `POST`
+    * using a role called `role-actor`
+
+Roles are just a list of clients. We support `path` and `prefix` route matchers.
+
+In the outgoing section this configuration defines that this service will be able to reach
+services: `service-a` and `service-b` and urls of domain www.example.com using http protocol 
+(at this moment only http protocol is supported).
+
+## Configuration
+
+You can see a list of settings [here](../configuration.md#permissions)

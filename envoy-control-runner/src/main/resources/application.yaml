@@ -1,0 +1,16 @@
+server.port: 8080
+
+application:
+  name: envoy-control
+
+envoy-control:
+  source:
+    consul:
+      host: localhost
+
+management:
+  endpoint:
+    metrics.enabled: true
+    prometheus.enabled: true
+  endpoints.web.exposure.include: "*"
+  metrics.export.prometheus.enabled: true

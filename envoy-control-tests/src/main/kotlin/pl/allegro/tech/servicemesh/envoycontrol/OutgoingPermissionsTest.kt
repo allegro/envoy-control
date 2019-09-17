@@ -1,0 +1,67 @@
+package pl.allegro.tech.servicemesh.envoycontrol
+
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
+import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
+
+class AdsOutgoingPermissionsTest : OutgoingPermissionsTest() {
+    companion object {
+
+        private val properties = mapOf("envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true)
+
+        @JvmStatic
+        @BeforeAll
+        fun setupTest() {
+            setup(
+                envoyConfig = Ads,
+                appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
+            )
+        }
+    }
+}
+
+class XdsOutgoingPermissionsTest : OutgoingPermissionsTest() {
+    companion object {
+
+        private val properties = mapOf("envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true)
+
+        @JvmStatic
+        @BeforeAll
+        fun setupTest() {
+            setup(
+                envoyConfig = Xds,
+                appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
+            )
+        }
+    }
+}
+
+abstract class OutgoingPermissionsTest : EnvoyControlTestConfiguration() {
+
+    @Test
+    fun `should only allow access to resources from node_metadata_dependencies`() {
+        // given
+        registerService(name = "not-accessible", container = echoContainer)
+        registerService(name = "echo")
+
+        untilAsserted {
+            // when
+            val unreachableResponse = EnvoyControlTestConfiguration.callService(service = "not-accessible")
+            val unregisteredResponse = EnvoyControlTestConfiguration.callService(service = "unregistered")
+            val reachableResponse = EnvoyControlTestConfiguration.callEcho()
+            val reachableDomainResponse = EnvoyControlTestConfiguration.callDomain("www.example.com")
+            val unreachableDomainResponse = EnvoyControlTestConfiguration.callDomain("www.another-example.com")
+
+            // then
+            assertThat(unreachableResponse).isUnreachable().hasLocationHeaderFrom("not-accessible")
+            assertThat(unregisteredResponse).isUnreachable().hasLocationHeaderFrom("unregistered")
+            assertThat(reachableResponse).isOk().isFrom(echoContainer)
+            assertThat(reachableDomainResponse).isOk()
+            assertThat(unreachableDomainResponse).isUnreachable()
+        }
+    }
+}

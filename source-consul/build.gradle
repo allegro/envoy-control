@@ -1,0 +1,17 @@
+dependencies {
+    implementation project(':envoy-control')
+
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
+    compile group: 'io.projectreactor', name: 'reactor-core', version: versions.reactor
+    compile group: 'pl.allegro.tech.discovery', name: 'consul-recipes', version: versions.consul_recipes
+    compile group: 'com.ecwid.consul', name: 'consul-api', version: versions.ecwid_consul
+
+    testCompile group: 'org.mockito', name: 'mockito-core', version: versions.mockito
+    testCompile group: 'cglib', name: 'cglib-nodep', version: versions.cglib
+
+    testCompile(group: 'com.pszymczyk.consul', name: 'embedded-consul', version: versions.embedded_consul) {
+        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
+    }
+
+    testCompile group: 'io.projectreactor', name: 'reactor-test', version: versions.reactor
+}

@@ -1,0 +1,44 @@
+dependencies {
+    implementation project(':services')
+    
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
+    compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner', version: versions.jackson
+    compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: versions.jackson
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: versions.kotlin
+    compile group: 'io.dropwizard.metrics', name: 'metrics-core', version: versions.dropwizard
+    compile group: 'io.micrometer', name: 'micrometer-core', version: versions.micrometer
+
+    compile group: 'io.envoyproxy.controlplane', name: 'server', version: versions.java_controlplane
+
+    compile group: 'io.grpc', name: 'grpc-netty', version: versions.grpc
+
+    compile group: 'io.projectreactor', name: 'reactor-core', version: versions.reactor
+
+    compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: versions.slf4j
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: versions.logback
+
+    testCompile group: 'io.grpc', name: 'grpc-testing', version: versions.grpc
+    testCompile group: 'io.projectreactor', name: 'reactor-test', version: versions.reactor
+    testCompile group: 'org.mockito', name: 'mockito-core', version: versions.mockito
+    testCompile group: 'cglib', name: 'cglib-nodep', version: versions.cglib
+
+    testCompile group: 'org.awaitility', name: 'awaitility', version: versions.awaitility
+
+    testImplementation group: 'org.testcontainers', name: 'testcontainers', version: versions.testcontainers
+    testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: versions.testcontainers
+}
+
+tasks.withType(GroovyCompile) {
+    groovyOptions.optimizationOptions.indy = true
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+test {
+    maxParallelForks = 1
+    useJUnitPlatform()
+}
+
