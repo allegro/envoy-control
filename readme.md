@@ -5,9 +5,9 @@ Data Plane that is platform agnostic.
 
 # Docs
 
-Full docs are hosted at ...
+Full docs are hosted at https://envoy-control.readthedocs.io/en/latest/
 
 # Quick start
 
-Quick start guide is located in ...
+Quick start guide is located at https://envoy-control.readthedocs.io/en/latest/quickstart/
 
