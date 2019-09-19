@@ -125,7 +125,7 @@ class DcCutOffTest : ReliabilityTest() {
         restoreConnectionBetweenECs()
         restoreConnectionBetweenConsuls()
         restoreConnectionToServicesInDc2()
-        // TODO: GITHUB-ISSUE
+        // TODO: https://github.com/allegro/envoy-control/issues/8
         // consul master has problem to reconnect to dc2 and container restart helps
         consulMastersInDc1[0].container.restart()
     }

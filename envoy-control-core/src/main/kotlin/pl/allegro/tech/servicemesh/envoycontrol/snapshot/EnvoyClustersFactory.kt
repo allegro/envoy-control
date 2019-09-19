@@ -86,7 +86,7 @@ internal class EnvoyClustersFactory(
                 CommonTlsContext.newBuilder()
                     .setValidationContext(
                         CertificateValidationContext.newBuilder().setTrustedCa(
-                            // TODO: GITHUB-ISSUE
+                            // TODO: https://github.com/allegro/envoy-control/issues/5
                             DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
                         )
                     )

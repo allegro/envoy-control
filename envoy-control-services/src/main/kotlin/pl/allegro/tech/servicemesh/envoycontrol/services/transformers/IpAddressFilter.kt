@@ -3,7 +3,8 @@ package pl.allegro.tech.servicemesh.envoycontrol.services.transformers
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 
 /**
- * TODO GITHUB-ISSUE Envoy & Envoy Control supports only IP and not hostnames
+ * TODO https://github.com/allegro/envoy-control/issues/9
+ * Envoy & Envoy Control supports only IP and not hostnames
  */
 class IpAddressFilter : ServiceInstancesTransformer {
 

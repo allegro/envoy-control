@@ -6,10 +6,7 @@ The integration is based on [java-control-plane](https://github.com/envoyproxy/j
 
 ## Sample Envoy configuration
 
-Sample Envoy configuration that is compatible with Envoy Control is available in tests (`envoy-control/src/test/resources/envoy/config_ads.yaml`).
-<!--
-// todo link to configuration.
--->
+Sample Envoy configuration that is compatible with Envoy Control is available in [tests](https://github.com/allegro/envoy-control/blob/master/envoy-control-tests/src/main/resources/envoy/config_ads.yaml).
 
 ## Routes
 

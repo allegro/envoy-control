@@ -12,7 +12,7 @@ data class ServicesState(
     fun allInstances(): Collection<ServiceInstances> = serviceNameToInstances.values
 
     fun remove(serviceName: ServiceName): ServicesState {
-        // TODO: GITHUB-ISSUE
+        // TODO: https://github.com/allegro/envoy-control/issues/11
         return change(ServiceInstances(serviceName, instances = emptySet()))
     }
 

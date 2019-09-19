@@ -19,7 +19,7 @@ services:
       context: ./service
       dockerfile: Dockerfile
 
-  envoy: # TODO: <GITHUB_ISSUE> - use image provided by envoy-wrapper to reduce need for config synchronization
+  envoy:
     build:
       context: ./envoy
       dockerfile: Dockerfile

@@ -47,11 +47,8 @@ The state is available in `LocalServiceChanges#latestServiceState`.
 
 Then build a `CrossDcServices` class providing:
 
-* `AsyncControlPlaneClient` - an HTTP client
-* `ControlPlaneInstanceFetcher` - the strategy of retrieving other Envoy Control from given DC
+* [AsyncControlPlaneClient](https://github.com/allegro/envoy-control/blob/master/envoy-control-runner/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/synchronization/AsyncRestTemplateControlPlaneClient.kt) - an HTTP client
+* [ControlPlaneInstanceFetcher](https://github.com/allegro/envoy-control/blob/master/envoy-control-source-consul/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/consul/synchronization/SimpleConsulInstanceFetcher.kt) - the strategy of retrieving other Envoy Control from given DC
 * `remoteDC` - list of remote data centers
 
-Refer to Envoy Control Runner module for a sample implementation.
-<!--
-// todo links to Github codes
--->
+Refer to [Envoy Control Runner](https://github.com/allegro/envoy-control/tree/master/envoy-control-runner) module for a sample implementation.

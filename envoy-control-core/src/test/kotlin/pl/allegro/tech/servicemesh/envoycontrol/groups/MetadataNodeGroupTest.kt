@@ -19,7 +19,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(AllServicesGroup(
             // we have to preserve all services even if wildcard is present,
             // because service may define different settings for different dependencies (for example endpoints, which
-            // will be implemented in GITHUB-ISSUE
+            // will be implemented in https://github.com/allegro/envoy-control/issues/6
             proxySettings = ProxySettings().with(serviceDependencies = setOf("*", "a", "b", "c")),
             ads = false)
         )
