@@ -4,5 +4,7 @@ data class ServiceInstance(
     val id: String,
     val tags: Set<String>,
     val address: String,
-    val port: Int
+    val port: Int,
+    val canary: Boolean = false,
+    val weight: Int = 1
 )

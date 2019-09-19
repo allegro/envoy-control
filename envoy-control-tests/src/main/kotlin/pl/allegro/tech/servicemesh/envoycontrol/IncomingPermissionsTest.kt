@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import okhttp3.Headers
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -28,7 +29,8 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
     fun `should allow access to endpoint by authorized client`() {
         untilAsserted {
             // when
-            val response = callLocalService(endpoint = "/endpoint", clientServiceName = "authorizedClient")
+            val response = callLocalService(endpoint = "/endpoint",
+                headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
 
             // then
             assertThat(response).isOk().isFrom(localServiceContainer)
@@ -39,7 +41,8 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
     fun `should deny access to endpoint by unauthorized client`() {
         untilAsserted {
             // when
-            val response = callLocalService(endpoint = "/endpoint", clientServiceName = "unauthorizedClient")
+            val response = callLocalService(endpoint = "/endpoint",
+                headers = Headers.of(mapOf("x-service-name" to "unuthorizedClient")))
 
             // then
             assertThat(response).isForbidden()

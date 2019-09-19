@@ -20,6 +20,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlProperties
 import pl.allegro.tech.servicemesh.envoycontrol.consul.ConsulProperties
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceChanges
+import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceMapper
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceChanges
@@ -58,12 +59,20 @@ class ControlPlaneConfig {
             .build(globalServiceChanges.combined())
 
     @Bean
+    fun consulServiceMapper(properties: ConsulProperties) = ConsulServiceMapper(
+        canaryTag = properties.tags.canary,
+        weightTag = properties.tags.weight,
+        defaultWeight = properties.tags.defaultWeight
+    )
+
+    @Bean
     fun consulServiceChanges(
         watcher: ConsulWatcher,
+        serviceMapper: ConsulServiceMapper,
         metrics: EnvoyControlMetrics,
         objectMapper: ObjectMapper,
         consulProperties: ConsulProperties
-    ) = ConsulServiceChanges(watcher, metrics, objectMapper, consulProperties.subscriptionDelay)
+    ) = ConsulServiceChanges(watcher, serviceMapper, metrics, objectMapper, consulProperties.subscriptionDelay)
 
     @Bean
     fun localServiceChanges(

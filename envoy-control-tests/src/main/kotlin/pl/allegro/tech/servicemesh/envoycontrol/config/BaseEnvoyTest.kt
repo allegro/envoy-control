@@ -112,7 +112,8 @@ open class BaseEnvoyTest {
             container: GenericContainer<*> = echoContainer,
             port: Int = EchoContainer.PORT,
             consulOps: ConsulOperations = consulOperationsInFirstDc,
-            registerDefaultCheck: Boolean = false
+            registerDefaultCheck: Boolean = false,
+            tags: List<String> = listOf("a")
         ): String {
             val echoContainerIp =
                 container.getContainerInfo().networkSettings.networks[(network as Network.NetworkImpl).name]!!.ipAddress
@@ -121,7 +122,8 @@ open class BaseEnvoyTest {
                 name = name,
                 address = echoContainerIp,
                 port = port,
-                registerDefaultCheck = registerDefaultCheck
+                registerDefaultCheck = registerDefaultCheck,
+                tags = tags
             )
         }
 

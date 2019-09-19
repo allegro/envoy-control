@@ -3,10 +3,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Duration
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
 import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
-import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import io.envoyproxy.envoy.api.v2.route.Route
 import io.envoyproxy.envoy.api.v2.route.VirtualCluster
 import io.envoyproxy.envoy.api.v2.route.VirtualHost
+import io.envoyproxy.envoy.api.v2.route.RedirectAction
+import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 
@@ -65,16 +66,25 @@ fun Route.matchingOnPrefix(prefix: String): Route {
     return this
 }
 
+fun Route.prefixRewrite(prefixRewrite: String): Route {
+    assertThat(this.route.prefixRewrite).isEqualTo(prefixRewrite)
+    return this
+}
+
 fun Route.matchingOnPath(path: String): Route {
     assertThat(this.match).matches { it.path == path && it.prefix == "" }
     return this
 }
 
-fun Route.matchingOnMethod(method: String): Route {
+fun Route.matchingOnHeader(name: String, value: String): Route {
     assertThat(this.match.headersList).anyMatch {
-        it.name == ":method" && it.exactMatch == method
+        it.name == name && it.exactMatch == value
     }
     return this
+}
+
+fun Route.matchingOnMethod(method: String): Route {
+    return this.matchingOnHeader(":method", method)
 }
 
 fun Route.matchingOnAnyMethod(): Route {
@@ -103,6 +113,10 @@ fun Route.directResponse(condition: (DirectResponseAction) -> Boolean) {
     assertThat(this.directResponse).satisfies { condition(it) }
 }
 
+fun Route.redirect(condition: (RedirectAction) -> Boolean) {
+    assertThat(this.redirect).satisfies { condition(it) }
+}
+
 fun Route.matchingRetryPolicy(properties: RetryPolicyProperties) {
     matchingRetryPolicy(this.route.retryPolicy, properties)
 }
@@ -123,6 +137,7 @@ fun Route.matchingOnResponseTimeout(responseTimeout: Duration): Route {
     assertThat(this.route.timeout.seconds).isEqualTo(responseTimeout.seconds)
     return this
 }
+
 fun Route.matchingOnIdleTimeout(idleTimeout: Duration): Route {
     assertThat(this.route.idleTimeout.seconds).isEqualTo(idleTimeout.seconds)
     return this
@@ -130,13 +145,6 @@ fun Route.matchingOnIdleTimeout(idleTimeout: Duration): Route {
 
 fun Route.hasNoRetryPolicy() {
     assertThat(this.route.retryPolicy).isEqualTo(RetryPolicy.newBuilder().build())
-}
-
-fun metricsRoute(): (Route) -> Unit = {
-    it.matchingOnPrefix("/status/envoy/stats/prometheus")
-        .matchingOnMethod("GET")
-        .publicAccess()
-        .toCluster("this_admin")
 }
 
 fun Route.allOpenIngressRoute() {
@@ -162,4 +170,49 @@ fun statusRoute(idleTimeout: Duration? = null, responseTimeout: Duration? = null
     if (idleTimeout != null) {
         it.matchingOnIdleTimeout(idleTimeout)
     }
+}
+
+fun configDumpAuthorizedRoute(): (Route) -> Unit = {
+    it.matchingOnPrefix("/status/envoy/config_dump")
+        .matchingOnMethod("GET")
+        .toCluster("this_admin")
+        .prefixRewrite("/config_dump")
+        .matchingOnHeader("authorization", "test_token")
+        .publicAccess()
+}
+
+fun configDumpRoute(): (Route) -> Unit = {
+    it.matchingOnPrefix("/status/envoy/config_dump")
+        .matchingOnMethod("GET")
+        .publicAccess()
+        .directResponse { it.status == 401 }
+}
+
+fun adminRoute(): (Route) -> Unit = {
+    it.matchingOnPrefix("/status/envoy/")
+        .toCluster("this_admin")
+        .prefixRewrite("/")
+        .publicAccess()
+}
+
+fun adminRedirectRoute(): (Route) -> Unit = {
+    it.matchingOnPrefix("/status/envoy")
+        .matchingOnMethod("GET")
+        .publicAccess()
+        .redirect { it.pathRedirect == "/status/envoy/" }
+}
+
+fun adminPostAuthorizedRoute(): (Route) -> Unit = {
+    it.matchingOnPrefix("/status/envoy/")
+        .matchingOnMethod("POST")
+        .toCluster("this_admin")
+        .prefixRewrite("/")
+        .matchingOnHeader("authorization", "test_token")
+        .publicAccess()
+}
+
+fun adminPostRoute(): (Route) -> Unit = {
+    it.matchingOnPrefix("/status/envoy/")
+        .matchingOnMethod("POST")
+        .directResponse { it.status == 401 }
 }

@@ -13,14 +13,15 @@ class ConsulOperations(port: Int) {
         name: String = "sample",
         address: String = "localhost",
         port: Int = 1234,
-        registerDefaultCheck: Boolean = false
+        registerDefaultCheck: Boolean = false,
+        tags: List<String> = listOf("a")
     ): String {
         val service = NewService().also {
             it.id = id
             it.name = name
             it.address = address
             it.port = port
-            it.tags = listOf("a")
+            it.tags = tags
             it.check = if (registerDefaultCheck) NewService.Check().also { check ->
                 check.http = "http://$address:$port"
                 check.interval = "3s"

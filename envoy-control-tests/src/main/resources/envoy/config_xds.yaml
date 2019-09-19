@@ -85,6 +85,15 @@ static_resources:
                 - envoy_grpc:
                     cluster_name: envoy-control-xds
           http_filters:
+          - name: envoy.filters.http.header_to_metadata
+            config:
+              request_rules:
+                - header: x-canary
+                  on_header_present:
+                    metadata_namespace: envoy.lb
+                    key: canary
+                    type: STRING
+                  remove: false
           - name: envoy.router
   - name: ingress_listener
     address:

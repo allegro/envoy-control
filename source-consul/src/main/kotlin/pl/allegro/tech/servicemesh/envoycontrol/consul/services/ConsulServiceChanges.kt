@@ -10,7 +10,6 @@ import pl.allegro.tech.discovery.consul.recipes.watch.health.HealthServiceInstan
 import pl.allegro.tech.servicemesh.envoycontrol.DefaultEnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.core.publisher.Flux
@@ -22,13 +21,14 @@ import pl.allegro.tech.discovery.consul.recipes.watch.catalog.Services as Recipe
 
 class ConsulServiceChanges(
     private val watcher: ConsulWatcher,
+    private val serviceMapper: ConsulServiceMapper = ConsulServiceMapper(),
     private val metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(),
     private val objectMapper: ObjectMapper = ObjectMapper().registerModule(KotlinModule()),
     private val subscriptionDelay: Duration = Duration.ZERO
 ) {
 
     fun watchState(): Flux<ServicesState> {
-        val watcher = StateWatcher(watcher, objectMapper, metrics, subscriptionDelay)
+        val watcher = StateWatcher(watcher, serviceMapper, objectMapper, metrics, subscriptionDelay)
         return Flux.create<ServicesState>(
             { sink ->
                 watcher.stateReceiver = { sink.next(it) }
@@ -42,6 +42,7 @@ class ConsulServiceChanges(
 
     private class StateWatcher(
         private val watcher: ConsulWatcher,
+        private val serviceMapper: ConsulServiceMapper,
         private val objectMapper: ObjectMapper,
         private val metrics: EnvoyControlMetrics,
         private val subscriptionDelay: Duration
@@ -71,7 +72,13 @@ class ConsulServiceChanges(
                         canceller = ServicesWatcher(watcher, JacksonJsonDeserializer(objectMapper))
                             .watch(
                                 { servicesResult -> handleServicesChange(servicesResult.body) },
-                                { error -> logger.warn("Error while watching services list", error) }
+                                { error ->
+                                    metrics.errorWatchingServices()
+                                    logger.warn(
+                                        "Error while watching services list",
+                                        error
+                                    )
+                                }
                             )
                     }
                 }
@@ -136,7 +143,7 @@ class ConsulServiceChanges(
             ServiceInstances(
                 serviceName,
                 instances.asSequence()
-                    .map { ServiceInstance(it.serviceId, it.serviceTags.toSet(), it.serviceAddress, it.servicePort) }
+                    .map { serviceMapper.toDomainInstance(it) }
                     .toSet()
             )
 

@@ -20,8 +20,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPath
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnResponseTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnIdleTimeout
-import pl.allegro.tech.servicemesh.envoycontrol.groups.metricsRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.statusRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRedirectRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpAuthorizedRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.toCluster
 import pl.allegro.tech.servicemesh.envoycontrol.groups.TimeoutPolicy
 import java.time.Duration
@@ -57,9 +62,22 @@ internal class EnvoyIngressRoutesFactoryTest {
     private val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
         routes.status.enabled = true
         routes.status.createVirtualCluster = true
-        routes.metrics.enabled = true
         localService.retryPolicy = retryPolicyProps
+        routes.admin.publicAccessEnabled = true
+        routes.admin.token = "test_token"
+        routes.admin.securedPaths.add(SecuredRoute().apply {
+            pathPrefix = "/config_dump"
+            method = "GET"
+        })
     })
+    private val adminRoutes = arrayOf(
+        configDumpAuthorizedRoute(),
+        configDumpRoute(),
+        adminPostAuthorizedRoute(),
+        adminPostRoute(),
+        adminRoute(),
+        adminRedirectRoute()
+    )
 
     @Test
     fun `should create legacy ingress route config`() {
@@ -75,7 +93,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasStatusVirtualClusters()
                 hasOneDomain("*")
                 hasOnlyRoutesInOrder(
-                    metricsRoute(),
+                    *adminRoutes,
                     {
                         allOpenIngressRoute()
                         matchingOnMethod("GET")
@@ -112,7 +130,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasStatusVirtualClusters()
                 hasOneDomain("*")
                 hasOnlyRoutesInOrder(
-                    metricsRoute(),
+                    *adminRoutes,
                     statusRoute(),
                     fallbackIngressRoute()
                 )
@@ -151,7 +169,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasStatusVirtualClusters()
                 hasOneDomain("*")
                 hasOnlyRoutesInOrder(
-                    metricsRoute(),
+                    *adminRoutes,
                     statusRoute(idleTimeout, responseTimeout),
                     {
                         matchingOnPath("/endpoint")
@@ -224,7 +242,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasStatusVirtualClusters()
                 hasOneDomain("*")
                 hasOnlyRoutesInOrder(
-                    metricsRoute(),
+                    *adminRoutes,
                     statusRoute(),
                     {
                         matchingOnPath("/endpoint")

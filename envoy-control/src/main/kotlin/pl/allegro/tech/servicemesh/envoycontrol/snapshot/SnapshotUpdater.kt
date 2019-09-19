@@ -19,7 +19,8 @@ class SnapshotUpdater(
         ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
         egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
         clustersFactory = EnvoyClustersFactory(properties),
-        snapshotsVersions = versions
+        snapshotsVersions = versions,
+        properties = properties
     )
 
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<LocalityAwareServicesState>> {
