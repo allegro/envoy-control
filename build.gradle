@@ -4,6 +4,7 @@ buildscript {
     }
     dependencies {
         classpath group: 'pl.allegro.tech.build',   name: 'axion-release-plugin', version: '1.10.2'
+        classpath 'io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.12.0'
     }
 }
 
@@ -15,7 +16,10 @@ plugins {
     id "org.jlleitschuh.gradle.ktlint" version "6.3.1"
     id "org.jlleitschuh.gradle.ktlint-idea" version "6.3.1"
     id "io.gitlab.arturbosch.detekt" version "1.0.0-RC11"
+    id 'com.bmuschko.nexus' version '2.3.1'
 }
+
+apply plugin: 'io.codearte.nexus-staging'
 
 scmVersion {
     tag {
@@ -124,4 +128,40 @@ subprojects {
 
 wrapper {
     gradleVersion = '5.2.1'
+}
+
+modifyPom {
+    project {
+        name project.name
+        description 'Production-ready Control Plane for Service Mesh based on Envoy Proxy.'
+        url 'https://github.com/allegro/envoy-control'
+        inceptionYear '2019'
+
+        scm {
+            url 'https://github.com/allegro/envoy-control'
+            connection 'scm:git@github.com:allegro/envoy-control.git'
+            developerConnection 'scm:git@github.com:allegro/envoy-control.git'
+        }
+
+        licenses {
+            license {
+                name 'The Apache Software License, Version 2.0'
+                url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+            }
+        }
+
+        developers {
+            developer {
+                id 'skylab'
+                name 'Team Skylab-Helix'
+            }
+        }
+    }
+}
+
+nexusStaging {
+    packageGroup = "pl.allegro"
+
+    numberOfRetries = 15
+    delayBetweenRetriesInMillis = 5000
 }
