@@ -50,11 +50,11 @@ abstract class OutgoingPermissionsTest : EnvoyControlTestConfiguration() {
 
         untilAsserted {
             // when
-            val unreachableResponse = EnvoyControlTestConfiguration.callService(service = "not-accessible")
-            val unregisteredResponse = EnvoyControlTestConfiguration.callService(service = "unregistered")
-            val reachableResponse = EnvoyControlTestConfiguration.callEcho()
-            val reachableDomainResponse = EnvoyControlTestConfiguration.callDomain("www.example.com")
-            val unreachableDomainResponse = EnvoyControlTestConfiguration.callDomain("www.another-example.com")
+            val unreachableResponse = callService(service = "not-accessible")
+            val unregisteredResponse = callService(service = "unregistered")
+            val reachableResponse = callEcho()
+            val reachableDomainResponse = callDomain("www.example.com")
+            val unreachableDomainResponse = callDomain("www.another-example.com")
 
             // then
             assertThat(unreachableResponse).isUnreachable().hasLocationHeaderFrom("not-accessible")

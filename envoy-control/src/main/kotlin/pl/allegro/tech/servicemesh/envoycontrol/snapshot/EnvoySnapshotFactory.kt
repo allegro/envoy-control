@@ -1,5 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.Struct
+import com.google.protobuf.UInt32Value
+import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
@@ -8,6 +11,7 @@ import io.envoyproxy.envoy.api.v2.RouteConfiguration
 import io.envoyproxy.envoy.api.v2.auth.Secret
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.Locality
+import io.envoyproxy.envoy.api.v2.core.Metadata
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
@@ -25,7 +29,8 @@ internal class EnvoySnapshotFactory(
     private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
     private val egressRoutesFactory: EnvoyEgressRoutesFactory,
     private val clustersFactory: EnvoyClustersFactory,
-    private val snapshotsVersions: SnapshotsVersions
+    private val snapshotsVersions: SnapshotsVersions,
+    private val properties: SnapshotProperties
 ) {
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
@@ -126,6 +131,8 @@ internal class EnvoySnapshotFactory(
             .setEndpoint(
                 buildEndpoint(serviceInstance)
             )
+            .setCanaryMetadata(serviceInstance)
+            .setLoadBalancingWeightFromInstance(serviceInstance)
             .build()
     }
 
@@ -149,6 +156,27 @@ internal class EnvoySnapshotFactory(
             .setPortValue(serviceInstance.port)
             .setProtocol(SocketAddress.Protocol.TCP)
     }
+
+    private fun LbEndpoint.Builder.setCanaryMetadata(instance: ServiceInstance): LbEndpoint.Builder {
+        if (!properties.loadBalancing.canary.enabled || !instance.canary) {
+            return this
+        }
+        return setMetadata(Metadata.newBuilder()
+            .putFilterMetadata("envoy.lb", Struct.newBuilder()
+                .putFields(
+                    properties.loadBalancing.canary.metadataKey,
+                    Value.newBuilder().setStringValue(properties.loadBalancing.canary.headerValue).build()
+                )
+                .build()
+            )
+        )
+    }
+
+    private fun LbEndpoint.Builder.setLoadBalancingWeightFromInstance(instance: ServiceInstance): LbEndpoint.Builder =
+        when (properties.loadBalancing.weights.enabled) {
+            true -> setLoadBalancingWeight(UInt32Value.of(instance.weight))
+            false -> this
+        }
 
     private fun toEnvoyPriority(locality: LocalityEnum): Int = if (locality == LocalityEnum.LOCAL) 0 else 1
 

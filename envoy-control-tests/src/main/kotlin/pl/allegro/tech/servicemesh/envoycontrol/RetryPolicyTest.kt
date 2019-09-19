@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import okhttp3.Headers
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -28,7 +29,7 @@ internal class RetryPolicyTest : EnvoyControlTestConfiguration() {
         localServiceContainer.stop()
 
         // when
-        callLocalService(endpoint = "/endpoint", clientServiceName = "authorizedClient")
+        callLocalService(endpoint = "/endpoint", headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
 
         untilAsserted {
             // then

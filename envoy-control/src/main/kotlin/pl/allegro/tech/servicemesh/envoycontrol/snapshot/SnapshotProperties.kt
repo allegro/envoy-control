@@ -10,6 +10,7 @@ class SnapshotProperties {
     var egress = EgressProperties()
     var incomingPermissions = IncomingPermissionsProperties()
     var outgoingPermissions = OutgoingPermissionsProperties()
+    var loadBalancing = LoadBalancingProperties()
     var clusterOutlierDetection = ClusterOutlierDetectionProperties()
     var xdsClusterName = "envoy-control-xds"
     var edsConnectionTimeout: Duration = Duration.ofSeconds(2)
@@ -33,9 +34,25 @@ class IncomingPermissionsProperties {
     var clientIdentityHeader = "x-service-name"
 }
 
+class LoadBalancingProperties {
+    var canary = CanaryProperties()
+    var weights = LoadBalancingWeightsProperties()
+}
+
+class CanaryProperties {
+    var enabled = false
+    var metadataKey = "canary"
+    var headerValue = "1"
+}
+
+class LoadBalancingWeightsProperties {
+    var enabled = false
+}
+
 class RoutesProperties {
-    var metrics = MetricsRouteProperties()
+    var admin = AdminRouteProperties()
     var status = StatusRouteProperties()
+    var authorization = AuthorizationProperties()
 }
 
 class ClusterOutlierDetectionProperties {
@@ -53,9 +70,16 @@ class ClusterOutlierDetectionProperties {
     var enforcingConsecutiveGatewayFailure = 0
 }
 
-class MetricsRouteProperties {
-    var enabled = false
-    var pathPrefix = "/status/envoy/stats/prometheus"
+class SecuredRoute {
+    var pathPrefix = ""
+    var method = ""
+}
+
+class AdminRouteProperties {
+    var publicAccessEnabled = false
+    var pathPrefix = "/status/envoy"
+    var token = ""
+    var securedPaths: MutableList<SecuredRoute> = ArrayList()
 }
 
 class StatusRouteProperties {
@@ -82,6 +106,11 @@ class RetryPolicyProperties {
     var perTryTimeout: Duration = Duration.ofMillis(0)
     var hostSelectionRetryMaxAttempts: Long = 1
     var retriableStatusCodes: MutableSet<Int> = mutableSetOf()
+}
+
+class AuthorizationProperties {
+    var unauthorizedStatusCode = 401
+    var unauthorizedResponseMessage = "You have to be authorized"
 }
 
 class EgressProperties {

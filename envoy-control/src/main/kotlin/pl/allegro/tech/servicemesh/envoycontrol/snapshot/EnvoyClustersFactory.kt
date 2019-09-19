@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.Snapshot
@@ -122,7 +123,21 @@ internal class EnvoyClustersFactory(
                 ).setServiceName(clusterName)
             )
             .setLbPolicy(Cluster.LbPolicy.LEAST_REQUEST)
+            .setCanarySubset()
             .build()
+    }
+
+    private fun Cluster.Builder.setCanarySubset(): Cluster.Builder {
+        if (!properties.loadBalancing.canary.enabled) {
+            return this
+        }
+        return setLbSubsetConfig(Cluster.LbSubsetConfig.newBuilder()
+            .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetFallbackPolicy.DEFAULT_SUBSET)
+            .setDefaultSubset(Struct.newBuilder())
+            .addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+                .addKeys(properties.loadBalancing.canary.metadataKey)
+            )
+        )
     }
 
     private fun configureOutlierDetection(clusterBuilder: Cluster.Builder) {

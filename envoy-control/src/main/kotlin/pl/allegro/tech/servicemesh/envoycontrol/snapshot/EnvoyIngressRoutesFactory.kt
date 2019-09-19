@@ -21,10 +21,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 internal class EnvoyIngressRoutesFactory(
     private val properties: SnapshotProperties
 ) {
-    enum class HttpMethod {
-        GET, PUT, POST, DELETE, HEAD
-    }
-
     private fun localClusterRouteAction(
         responseTimeout: Duration?,
         idleTimeout: Duration?
@@ -38,19 +34,6 @@ internal class EnvoyIngressRoutesFactory(
             .setTimeout(timeoutResponse)
             .setIdleTimeout(timeoutIdle)
     }
-
-    private val metricsRouteAction = RouteAction.newBuilder()
-        .setCluster("this_admin")
-        .setPrefixRewrite("/stats/prometheus")
-
-    private val metricsRoute = Route.newBuilder()
-        .setMatch(
-            RouteMatch.newBuilder()
-                .setPrefix(properties.routes.metrics.pathPrefix)
-                .addHeaders(httpMethodMatcher(HttpMethod.GET))
-        )
-        .setRoute(metricsRouteAction)
-        .build()
 
     private val statusPathPattern = properties.routes.status.pathPrefix + ".*"
 
@@ -128,11 +111,6 @@ internal class EnvoyIngressRoutesFactory(
         localRouteAction: RouteAction.Builder
     ) = localRouteAction.clone().setRetryPolicy(retryPolicy)
 
-    private fun permissionsDisabledRoutes(localRouteAction: RouteAction.Builder): List<Route> {
-        return if (!properties.routes.metrics.enabled) allOpenIngressRoutes(localRouteAction)
-        else listOf(metricsRoute) + allOpenIngressRoutes(localRouteAction)
-    }
-
     fun createSecuredIngressRouteConfig(proxySettings: ProxySettings): RouteConfiguration {
         val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
             true ->
@@ -150,10 +128,13 @@ internal class EnvoyIngressRoutesFactory(
                 emptyList()
         }
 
+        val adminRoutesFactory = AdminRoutesFactory(properties.routes)
+
         val virtualHost = VirtualHost.newBuilder()
             .setName("secured_local_service")
             .addDomains("*")
             .addAllVirtualClusters(virtualClusters)
+            .addAllRoutes(adminRoutesFactory.generateAdminRoutes())
             .addAllRoutes(generateSecuredIngressRoutes(proxySettings))
             .also {
                 if (properties.localService.retryPolicy.default.enabled) {
@@ -174,18 +155,16 @@ internal class EnvoyIngressRoutesFactory(
         )
 
         if (!proxySettings.incoming.permissionsEnabled) {
-            return permissionsDisabledRoutes(localRouteAction)
+            return allOpenIngressRoutes(localRouteAction)
         }
+
         val rolesByName = proxySettings.incoming.roles.associateBy { it.name.orEmpty() }
 
         val applicationRoutes = proxySettings.incoming.endpoints
             .flatMap { toRoutes(it, rolesByName, localRouteAction) }
 
-        return listOfNotNull(
-            metricsRoute.takeIf { properties.routes.metrics.enabled },
-            statusRoute(localRouteAction)
-                .takeIf { properties.routes.status.enabled }
-        ) + applicationRoutes + fallbackIngressRoute
+        return listOfNotNull(statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }) +
+            applicationRoutes + fallbackIngressRoute
     }
 
     private fun toRoutes(
@@ -234,13 +213,6 @@ internal class EnvoyIngressRoutesFactory(
         HeaderMatcher.newBuilder()
             .setName(properties.incomingPermissions.clientIdentityHeader)
             .setExactMatch(clientName)
-
-    private fun httpMethodMatcher(method: HttpMethod): HeaderMatcher = exactHeader(":method", method.name)
-
-    private fun exactHeader(name: String, value: String): HeaderMatcher = HeaderMatcher.newBuilder()
-        .setName(name)
-        .setExactMatch(value)
-        .build()
 
     private fun statusRouteVirtualClusterEnabled() =
         properties.routes.status.enabled && properties.routes.status.createVirtualCluster

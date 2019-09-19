@@ -12,7 +12,7 @@ data class ServicesState(
     fun allInstances(): Collection<ServiceInstances> = serviceNameToInstances.values
 
     fun remove(serviceName: ServiceName): ServicesState {
-        // TODO: <GITHUB_ISSUE>
+        // TODO: GITHUB-ISSUE
         return change(ServiceInstances(serviceName, instances = emptySet()))
     }
 

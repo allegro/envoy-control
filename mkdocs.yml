@@ -38,6 +38,7 @@ nav:
       - Multi DC support: features/multi_dc_support.md
       - Permissions: features/permissions.md
       - Service Transformers: features/service_transformers.md
+      - Weighted Load Balancing & Canary: features/load_balancing.md
   - Development: development.md
   - Performance: performance.md
   - Deployment:

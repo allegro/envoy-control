@@ -1,8 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import okhttp3.Response
+import okhttp3.Request
+import okhttp3.Headers
+import okhttp3.RequestBody
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility
@@ -143,14 +145,24 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         fun callDomain(domain: String, url: String = envoyContainer.egressListenerUrl()): Response =
             call(domain, url)
 
-        fun callService(service: String, url: String = envoyContainer.egressListenerUrl()): Response =
-            call(service, url)
+        fun callService(
+            service: String,
+            url: String = envoyContainer.egressListenerUrl(),
+            headers: Map<String, String> = mapOf()
+        ): Response = call(service, url, headers)
 
-        private fun call(host: String, url: String = envoyContainer.egressListenerUrl()): Response =
+        private fun call(
+            host: String,
+            url: String = envoyContainer.egressListenerUrl(),
+            headers: Map<String, String> = mapOf()
+        ): Response =
             client.newCall(
                 Request.Builder()
                     .get()
                     .header("Host", host)
+                    .apply {
+                        headers.forEach { name, value -> header(name, value) }
+                    }
                     .url(url)
                     .build()
             )
@@ -167,11 +179,21 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             )
                 .execute()
 
-        fun callLocalService(endpoint: String, clientServiceName: String): Response =
+        fun callLocalService(endpoint: String, headers: Headers): Response =
             client.newCall(
                     Request.Builder()
                         .get()
-                        .header("x-service-name", clientServiceName)
+                        .headers(headers)
+                        .url(envoyContainer.ingressListenerUrl() + endpoint)
+                        .build()
+                )
+                .execute()
+
+        fun callPostLocalService(endpoint: String, headers: Headers, body: RequestBody): Response =
+            client.newCall(
+                    Request.Builder()
+                        .post(body)
+                        .headers(headers)
                         .url(envoyContainer.ingressListenerUrl() + endpoint)
                         .build()
                 )
