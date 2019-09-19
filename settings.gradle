@@ -1,8 +1,7 @@
 rootProject.name = 'envoy-control-root'
 
-include 'services'
-include 'envoy-control'
+include 'envoy-control-services'
+include 'envoy-control-core'
 include 'envoy-control-runner'
 include 'envoy-control-tests'
-include 'source-consul'
-
+include 'envoy-control-source-consul'
