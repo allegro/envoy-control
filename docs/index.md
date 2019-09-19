@@ -26,8 +26,5 @@ across all the environments. With a proper configuration, a single instance of E
 can easily handle 1k+ Envoys connected to it.
 
 ## Reliability
-<!--
-// todo links to tests Github
--->
-Envoy Control includes a suite of reliability tests that checks the behavior of the system under unusual circumstances.
+Envoy Control includes a [suite of reliability tests](https://github.com/allegro/envoy-control/tree/master/envoy-control-tests/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/reliability) that checks the behavior of the system under unusual circumstances.
 Additionally, there are multiple metrics that help to observe the current condition of the Control Plane.

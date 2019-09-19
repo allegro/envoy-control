@@ -11,10 +11,7 @@ Envoy Control is a stateless application, which means that there can be as many 
 
 ## Envoy Configuration
 
-Example Envoy configuration that is compatible with Envoy Control is available in tests.
-<!--
-// todo link to configuration.
--->
+Example Envoy configuration that is compatible with Envoy Control is available in [tests](https://github.com/allegro/envoy-control/blob/master/envoy-control-tests/src/main/resources/envoy/config_ads.yaml).
 
 ## Envoy Control Configuration
 

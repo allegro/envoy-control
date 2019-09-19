@@ -14,7 +14,7 @@ Envoy Control and a service registered in Consul that will be propagated to Envo
 
 You can run all dependencies with docker-compose
 ```
-git clone //todo repo url
+git clone https://github.com/allegro/envoy-control.git
 cd tools
 docker-compose up
 ```
