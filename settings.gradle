@@ -1,4 +1,4 @@
-rootProject.name = 'envoy-control-root'
+rootProject.name = 'envoy-control'
 
 include 'envoy-control-services'
 include 'envoy-control-core'
