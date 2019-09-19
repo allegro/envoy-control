@@ -1,5 +1,5 @@
 dependencies {
-    implementation project(':envoy-control')
+    implementation project(':envoy-control-core')
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
     compile group: 'io.projectreactor', name: 'reactor-core', version: versions.reactor

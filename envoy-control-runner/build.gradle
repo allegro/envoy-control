@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    compile project(':source-consul')
+    compile project(':envoy-control-source-consul')
 
     implementation group: 'org.springframework.boot', name: 'spring-boot-starter', version: versions.spring_boot
     compile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: versions.spring_boot
