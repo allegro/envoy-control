@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
+import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
@@ -133,7 +134,13 @@ internal class EnvoyClustersFactory(
         }
         return setLbSubsetConfig(Cluster.LbSubsetConfig.newBuilder()
             .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetFallbackPolicy.DEFAULT_SUBSET)
-            .setDefaultSubset(Struct.newBuilder())
+            .setDefaultSubset(
+                Struct.newBuilder()
+                    .putFields(
+                        properties.loadBalancing.regularMetadataKey,
+                        Value.newBuilder().setBoolValue(true).build()
+                    )
+            )
             .addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
                 .addKeys(properties.loadBalancing.canary.metadataKey)
             )

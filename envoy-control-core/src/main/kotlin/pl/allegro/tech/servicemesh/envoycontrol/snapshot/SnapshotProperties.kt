@@ -36,6 +36,7 @@ class IncomingPermissionsProperties {
 
 class LoadBalancingProperties {
     var canary = CanaryProperties()
+    var regularMetadataKey = "lb_regular"
     var weights = LoadBalancingWeightsProperties()
 }
 

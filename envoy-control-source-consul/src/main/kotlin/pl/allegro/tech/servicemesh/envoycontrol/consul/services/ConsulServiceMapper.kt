@@ -6,7 +6,7 @@ import kotlin.text.Regex.Companion.escape
 
 typealias ConsulServiceInstance = pl.allegro.tech.discovery.consul.recipes.watch.catalog.ServiceInstance
 
-class ConsulServiceMapper(
+open class ConsulServiceMapper(
     private val canaryTag: String = "",
     weightTag: String = "",
     private val defaultWeight: Int = 1
@@ -16,21 +16,30 @@ class ConsulServiceMapper(
     private val weightEnabled = !weightTag.isEmpty()
     private val weightTagRegex: Regex = weightTag.let { """${escape(it)}:(\d+)""".toRegex() }
 
-    fun toDomainInstance(consulInstance: ConsulServiceInstance): ServiceInstance = ServiceInstance(
-        id = consulInstance.serviceId,
-        tags = consulInstance.serviceTags.toSet(),
-        address = consulInstance.serviceAddress,
-        port = consulInstance.servicePort,
-        canary = isCanary(consulInstance),
-        weight = getWeight(consulInstance)
-    )
+    open fun toDomainInstance(consulInstance: ConsulServiceInstance): ServiceInstance {
+        val canary = isCanary(consulInstance)
+        val actualWeight = getActualWeight(consulInstance)
+        return ServiceInstance(
+            id = consulInstance.serviceId,
+            tags = consulInstance.serviceTags.toSet(),
+            address = consulInstance.serviceAddress,
+            port = consulInstance.servicePort,
+            regular = true, // override this class if in some case canary are not to be included in regular set
+            canary = canary,
+            weight = getWeight(actualWeight)
+        )
+    }
 
-    private fun isCanary(consulInstance: ConsulServiceInstance): Boolean = when {
+    protected fun isCanary(consulInstance: ConsulServiceInstance): Boolean = when {
         canaryTag.isEmpty() -> false
         else -> consulInstance.serviceTags.orEmpty().contains(canaryTag)
     }
 
-    private fun getWeight(consulInstance: ConsulServiceInstance): Int {
+    protected fun getWeight(actualWeight: Int): Int {
+        return actualWeight.coerceAtLeast(1)
+    }
+
+    protected fun getActualWeight(consulInstance: ConsulServiceInstance): Int {
         if (!weightEnabled) {
             return defaultWeight
         }
@@ -45,7 +54,7 @@ class ConsulServiceMapper(
                         logger.warn("Multiple weight tags on consul instance ${consulInstance.serviceId}. " +
                             "Expected 0 or 1.")
                     }
-                    it[0].coerceAtLeast(1)
+                    it[0]
                 }
             } }
     }

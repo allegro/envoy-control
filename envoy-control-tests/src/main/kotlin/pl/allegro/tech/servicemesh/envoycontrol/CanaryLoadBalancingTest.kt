@@ -8,7 +8,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
 
-class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
+open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
 
     companion object {
         private val properties = mapOf(
@@ -103,6 +103,31 @@ class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         assertThat(callStats.regularHits).isEqualTo(0)
     }
 
+    @Test
+    open fun `should route to both canary and regular instances when canary weight is 0`() {
+        registerService(name = "echo", container = canaryContainer, tags = listOf("canary", "weight:0"))
+        registerService(name = "echo", container = regularContainer, tags = listOf("weight:20"))
+
+        untilAsserted {
+            callService("echo").also {
+                assertThat(it).isOk()
+            }
+        }
+
+        // when
+        val callStats = callServiceRepeatedly(
+            service = "echo",
+            minRepeat = 30,
+            maxRepeat = 200,
+            repeatUntil = { response -> response.isFrom(canaryContainer) }
+        )
+
+        // then
+        assertThat(callStats.canaryHits + callStats.regularHits).isEqualTo(callStats.totalHits)
+        assertThat(callStats.totalHits).isGreaterThan(29)
+        assertThat(callStats.canaryHits).isGreaterThan(0)
+    }
+
     data class CallStatistics(val canaryHits: Int = 0, val regularHits: Int = 0, val totalHits: Int = 0) {
         operator fun plus(other: CallStatistics): CallStatistics = CallStatistics(
             canaryHits = this.canaryHits + other.canaryHits,
@@ -121,7 +146,7 @@ class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         totalHits = 1
     )
 
-    private fun callServiceRepeatedly(
+    protected fun callServiceRepeatedly(
         service: String,
         minRepeat: Int = 1,
         maxRepeat: Int = 100,
