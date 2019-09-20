@@ -59,6 +59,7 @@ class ControlPlaneConfig {
             .build(globalServiceChanges.combined())
 
     @Bean
+    @ConditionalOnMissingBean(ConsulServiceMapper::class)
     fun consulServiceMapper(properties: ConsulProperties) = ConsulServiceMapper(
         canaryTag = properties.tags.canary,
         weightTag = properties.tags.weight,

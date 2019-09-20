@@ -131,7 +131,7 @@ internal class EnvoySnapshotFactory(
             .setEndpoint(
                 buildEndpoint(serviceInstance)
             )
-            .setCanaryMetadata(serviceInstance)
+            .setMetadata(serviceInstance)
             .setLoadBalancingWeightFromInstance(serviceInstance)
             .build()
     }
@@ -157,19 +157,22 @@ internal class EnvoySnapshotFactory(
             .setProtocol(SocketAddress.Protocol.TCP)
     }
 
-    private fun LbEndpoint.Builder.setCanaryMetadata(instance: ServiceInstance): LbEndpoint.Builder {
-        if (!properties.loadBalancing.canary.enabled || !instance.canary) {
-            return this
-        }
-        return setMetadata(Metadata.newBuilder()
-            .putFilterMetadata("envoy.lb", Struct.newBuilder()
-                .putFields(
-                    properties.loadBalancing.canary.metadataKey,
-                    Value.newBuilder().setStringValue(properties.loadBalancing.canary.headerValue).build()
-                )
-                .build()
+    private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance): LbEndpoint.Builder {
+        var metadataKeys = Struct.newBuilder()
+
+        if (properties.loadBalancing.canary.enabled && instance.canary) {
+            metadataKeys.putFields(
+                properties.loadBalancing.canary.metadataKey,
+                Value.newBuilder().setStringValue(properties.loadBalancing.canary.headerValue).build()
             )
-        )
+        }
+        if (instance.regular) {
+            metadataKeys = metadataKeys.putFields(
+                properties.loadBalancing.regularMetadataKey,
+                Value.newBuilder().setBoolValue(true).build()
+            )
+        }
+        return setMetadata(Metadata.newBuilder().putFilterMetadata("envoy.lb", metadataKeys.build()))
     }
 
     private fun LbEndpoint.Builder.setLoadBalancingWeightFromInstance(instance: ServiceInstance): LbEndpoint.Builder =
