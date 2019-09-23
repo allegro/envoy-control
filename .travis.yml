@@ -1,2 +1,9 @@
 language: java
 
+jobs:
+  include:
+    - stage: tests
+      script: "./gradlew test"
+    - stage: reliability tests
+      if: branch =~ /^(master|reliability\-.+)$/
+      script: "./gradlew clean -i -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20"
