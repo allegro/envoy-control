@@ -2,8 +2,9 @@ language: java
 
 jobs:
   include:
-    - stage: tests
+    - stage: "Tests"
+      name: "Unit & Integration"
       script: "./gradlew test"
-    - stage: reliability tests
+    - script: "./gradlew clean -i -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20"
       if: branch =~ /^(master|reliability\-.+)$/
-      script: "./gradlew clean -i -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20"
+      name: "Reliability"
