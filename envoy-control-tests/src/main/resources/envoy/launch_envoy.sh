@@ -21,6 +21,6 @@ echo "${CONFIG}" | sed \
 cat "${CONFIG_FILE}"
 
 shift 4
-/usr/local/bin/envoy --drain-time-s 1 -c "${CONFIG_FILE}" "$@"
+/usr/local/bin/envoy --drain-time-s 1 -l info -c "${CONFIG_FILE}" "$@"
 
 rm -rf "${CONFIG_DIR}"
