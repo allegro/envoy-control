@@ -1,6 +1,6 @@
 # Service Transformers
 
-Service Transformers are a way to filter out and modify services received from the discovery before sending it to Envoy.
+Service Transformers are a way to filter out and modify services received from the discovery service before sending it to Envoy.
 Transformers are only applied to the local state of discovery. Remote state of discovery is already transformed by other
 instance of Envoy Control.
 

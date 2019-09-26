@@ -43,7 +43,7 @@ Implements a stream of service instance changes coming from Consul discovery ser
 The core module that provides integration with Envoy and API to integrate Discovery Service system.
 
 ### Envoy Control Runner
-Example of the code that builds Control Plane and runs it. It uses [Spring Framework](https://spring.io/) to connect
+Example of code that builds Control Plane and runs it. It uses [Spring Framework](https://spring.io/) to connect
 elements and serve HTTP endpoint and HTTP client for [Cross DC Synchronization](features/multi_dc_support.md) feature.
 
 #### Why Spring?
