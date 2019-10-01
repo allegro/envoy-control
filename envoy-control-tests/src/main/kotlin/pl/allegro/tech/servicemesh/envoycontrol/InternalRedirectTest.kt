@@ -54,7 +54,7 @@ internal class InternalRedirectTest : EnvoyControlTestConfiguration() {
             val exception = assertThrows<UnknownHostException> { call(host = "service-5") }
 
             // then
-            assertThat(exception.message).contains("service-1: nodename nor servname provided, or not known")
+            assertThat(exception.message).contains("service-1")
         }
     }
 
