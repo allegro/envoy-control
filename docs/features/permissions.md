@@ -22,6 +22,7 @@ metadata:
       dependencies:
         - service: service-a
         - service: service-b
+          handleInternalRedirect: true
         - domain: http://www.example.com
     incoming:
       endpoints:
@@ -51,7 +52,8 @@ Roles are just a list of clients. We support `path` and `prefix` route matchers.
 
 In the outgoing section this configuration defines that this service will be able to reach
 services: `service-a` and `service-b` and urls of domain www.example.com using http protocol 
-(at this moment only http protocol is supported).
+(at this moment only http protocol is supported). Also it is possible to specify if redirects should
+ be handled by Envoy(by default is false). More about this in [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_connection_management#internal-redirects).
 
 ## Configuration
 

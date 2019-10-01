@@ -151,7 +151,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             headers: Map<String, String> = mapOf()
         ): Response = call(service, url, headers)
 
-        private fun call(
+        fun call(
             host: String,
             url: String = envoyContainer.egressListenerUrl(),
             headers: Map<String, String> = mapOf()

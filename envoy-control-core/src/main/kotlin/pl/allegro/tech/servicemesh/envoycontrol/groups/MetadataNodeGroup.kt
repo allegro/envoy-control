@@ -2,11 +2,10 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.envoy.api.v2.core.Node
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class MetadataNodeGroup(
-    val allServicesDependenciesValue: String = "*",
-    val outgoingPermissions: Boolean,
-    val incomingPermissions: Boolean = false
+    val properties: SnapshotProperties
 ) : NodeGroup<Group> {
 
     override fun hash(node: Node): Group {
@@ -19,7 +18,7 @@ class MetadataNodeGroup(
     }
 
     private fun createGroup(node: Node, ads: Boolean): Group {
-        val metadata = NodeMetadata(node.metadata)
+        val metadata = NodeMetadata(node.metadata, properties)
         val serviceName = serviceName(metadata)
         val proxySettings = proxySettings(metadata)
 
@@ -32,21 +31,27 @@ class MetadataNodeGroup(
     }
 
     private fun hasAllServicesDependencies(metadata: NodeMetadata): Boolean {
-        return !outgoingPermissions ||
-            metadata.proxySettings.outgoing.containsDependencyForService(allServicesDependenciesValue)
+        return !outgoingPermissionsEnabled() ||
+            metadata.proxySettings.outgoing.containsDependencyForService(allServicesDependenciesValue())
     }
 
     private fun serviceName(metadata: NodeMetadata): String {
-        return when (incomingPermissions) {
+        return when (incomingPermissionsEnabled()) {
             true -> metadata.serviceName.orEmpty()
             false -> ""
         }
     }
 
     private fun proxySettings(metadata: NodeMetadata): ProxySettings {
-        return when (incomingPermissions) {
+        return when (incomingPermissionsEnabled()) {
             true -> metadata.proxySettings
             false -> metadata.proxySettings.withIncomingPermissionsDisabled()
         }
     }
+
+    private fun incomingPermissionsEnabled() = properties.incomingPermissions.enabled
+
+    private fun outgoingPermissionsEnabled() = properties.outgoingPermissions.enabled
+
+    private fun allServicesDependenciesValue() = properties.outgoingPermissions.allServicesDependenciesValue
 }

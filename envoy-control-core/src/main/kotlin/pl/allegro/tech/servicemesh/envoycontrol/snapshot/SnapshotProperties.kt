@@ -116,4 +116,5 @@ class AuthorizationProperties {
 
 class EgressProperties {
     var clusterNotFoundStatusCode = 503
+    var handleInternalRedirect = false
 }

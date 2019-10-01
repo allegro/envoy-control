@@ -6,7 +6,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoHeaderToAdd
 
 internal class EnvoyEgressRoutesFactoryTest {
 
-    val clusters = mapOf("srv1" to "srv1")
+    val clusters = listOf(RouteSpecification(clusterName = "srv1", routeDomain = "srv1", handleInternalRedirect = true))
 
     @Test
     fun `should add client identity header if incoming permissions are enabled`() {

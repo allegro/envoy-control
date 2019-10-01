@@ -54,11 +54,11 @@ internal class EnvoyEgressRoutesFactory(
     /**
      * @see TestResources.createRoute
      */
-    fun createEgressRouteConfig(serviceName: String, routesMap: Map<String, String>): RouteConfiguration {
-        val virtualHosts = routesMap.map { (clusterName, routeDomains) ->
+    fun createEgressRouteConfig(serviceName: String, routes: Collection<RouteSpecification>): RouteConfiguration {
+        val virtualHosts = routes.map { routeSpecification ->
             VirtualHost.newBuilder()
-                .setName(clusterName)
-                .addDomains(routeDomains)
+                .setName(routeSpecification.clusterName)
+                .addDomains(routeSpecification.routeDomain)
                 .addRoutes(
                     Route.newBuilder()
                         .setMatch(
@@ -66,8 +66,7 @@ internal class EnvoyEgressRoutesFactory(
                                 .setPrefix("/")
                         )
                         .setRoute(
-                            RouteAction.newBuilder()
-                                .setCluster(clusterName)
+                            createRouteAction(routeSpecification)
                         )
                 )
                 .build()
@@ -90,5 +89,15 @@ internal class EnvoyEgressRoutesFactory(
                 }
             }
             .build()
+    }
+
+    private fun createRouteAction(routeSpecification: RouteSpecification): RouteAction.Builder {
+        val routeAction = RouteAction.newBuilder()
+            .setCluster(routeSpecification.clusterName)
+
+        if (routeSpecification.handleInternalRedirect) {
+            return routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
+        }
+        return routeAction
     }
 }

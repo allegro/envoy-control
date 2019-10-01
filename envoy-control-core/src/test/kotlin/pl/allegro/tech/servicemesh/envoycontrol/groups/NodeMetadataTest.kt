@@ -4,6 +4,7 @@ import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class NodeMetadataTest {
 
@@ -63,7 +64,7 @@ class NodeMetadataTest {
         val proto = outgoingDependencyProto()
 
         // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toDependency() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toDependency(SnapshotProperties()) }
         assertThat(exception.status.description)
             .isEqualTo("Define either 'service' or 'domain' as an outgoing dependency")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
@@ -75,7 +76,7 @@ class NodeMetadataTest {
         val proto = outgoingDependencyProto(service = "service", domain = "http://domain")
 
         // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toDependency() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toDependency(SnapshotProperties()) }
         assertThat(exception.status.description)
             .isEqualTo("Define either 'service' or 'domain' as an outgoing dependency")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
@@ -87,7 +88,7 @@ class NodeMetadataTest {
         val proto = outgoingDependencyProto(domain = "ftp://domain")
 
         // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toDependency() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toDependency(SnapshotProperties()) }
         assertThat(exception.status.description)
             .isEqualTo("Unsupported protocol for domain dependency for domain ftp://domain")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
@@ -96,7 +97,7 @@ class NodeMetadataTest {
     @Test
     fun `should check if dependency for service is defined`() {
         // given
-        val outgoing = Outgoing(listOf(ServiceDependency("service-first")))
+        val outgoing = Outgoing(listOf(ServiceDependency("service-first", true)))
 
         // expects
         assertThat(outgoing.containsDependencyForService("service-first")).isTrue()
@@ -109,7 +110,7 @@ class NodeMetadataTest {
         val proto = outgoingDependencyProto(domain = "http://domain")
 
         // expects
-        val dependency = proto.toDependency()
+        val dependency = proto.toDependency(SnapshotProperties())
         assertThat(dependency).isInstanceOf(DomainDependency::class.java)
         assertThat((dependency as DomainDependency).domain).isEqualTo("http://domain")
     }
@@ -120,7 +121,7 @@ class NodeMetadataTest {
         val proto = outgoingDependencyProto(service = "my-service")
 
         // expects
-        val dependency = proto.toDependency()
+        val dependency = proto.toDependency(SnapshotProperties())
         assertThat(dependency).isInstanceOf(ServiceDependency::class.java)
         assertThat((dependency as ServiceDependency).service).isEqualTo("my-service")
     }
@@ -129,7 +130,7 @@ class NodeMetadataTest {
     fun `should return correct host and default port for domain dependency`() {
         // given
         val proto = outgoingDependencyProto(domain = "http://domain")
-        val dependency = proto.toDependency() as DomainDependency
+        val dependency = proto.toDependency(SnapshotProperties()) as DomainDependency
 
         // expects
         assertThat(dependency.getHost()).isEqualTo("domain")
@@ -140,7 +141,7 @@ class NodeMetadataTest {
     fun `should return custom port for domain dependency if it was defined`() {
         // given
         val proto = outgoingDependencyProto(domain = "http://domain:1234")
-        val dependency = proto.toDependency() as DomainDependency
+        val dependency = proto.toDependency(SnapshotProperties()) as DomainDependency
 
         // expects
         assertThat(dependency.getPort()).isEqualTo(1234)
@@ -150,7 +151,7 @@ class NodeMetadataTest {
     fun `should return correct names for domain dependency without port specified`() {
         // given
         val proto = outgoingDependencyProto(domain = "http://domain.pl")
-        val dependency = proto.toDependency() as DomainDependency
+        val dependency = proto.toDependency(SnapshotProperties()) as DomainDependency
 
         // expects
         assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
@@ -161,10 +162,21 @@ class NodeMetadataTest {
     fun `should return correct names for domain dependency with port specified`() {
         // given
         val proto = outgoingDependencyProto(domain = "http://domain.pl:80")
-        val dependency = proto.toDependency() as DomainDependency
+        val dependency = proto.toDependency(SnapshotProperties()) as DomainDependency
 
         // expects
         assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
         assertThat(dependency.getRouteDomain()).isEqualTo("domain.pl:80")
+    }
+
+    @Test
+    fun `should accept service dependency with redirect policy defined`() {
+        // given
+        val proto = outgoingDependencyProto(service = "service-1", handleInternalRedirect = true)
+        val dependency = proto.toDependency(SnapshotProperties()) as ServiceDependency
+
+        // expects
+        assertThat(dependency.service).isEqualTo("service-1")
+        assertThat(dependency.handleInternalRedirect).isEqualTo(true)
     }
 }
