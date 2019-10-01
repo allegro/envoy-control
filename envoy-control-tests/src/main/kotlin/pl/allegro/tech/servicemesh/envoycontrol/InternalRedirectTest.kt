@@ -30,7 +30,7 @@ internal class InternalRedirectTest : EnvoyControlTestConfiguration() {
     @Test
     fun `redirect should be handled by envoy and response from service-1 is returned`() {
         // given
-        registerService(name = "service-1", container = echoContainer)
+        registerService(name = "service-1")
         // service-redirect has defined in metadata redirect policy
         registerRedirectService(serviceName = "service-redirect")
 
@@ -46,6 +46,7 @@ internal class InternalRedirectTest : EnvoyControlTestConfiguration() {
     @Test
     fun `envoy should not handle redirect`() {
         // given
+        registerService(name = "service-1")
         registerRedirectService(serviceName = "service-5")
 
         untilAsserted {
@@ -53,7 +54,7 @@ internal class InternalRedirectTest : EnvoyControlTestConfiguration() {
             val exception = assertThrows<UnknownHostException> { call(host = "service-5") }
 
             // then
-            assertThat(exception.message).isEqualTo("service-1: nodename nor servname provided, or not known")
+            assertThat(exception.message).contains("service-1: nodename nor servname provided, or not known")
         }
     }
 
