@@ -44,7 +44,7 @@ internal class InternalRedirectTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `envoy should not handle redirect`() {
+    fun `envoy should not handle redirects by default`() {
         // given
         registerService(name = "service-1")
         registerRedirectService(serviceName = "service-5")
