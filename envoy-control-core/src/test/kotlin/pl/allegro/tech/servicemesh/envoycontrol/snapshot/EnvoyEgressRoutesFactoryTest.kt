@@ -1,12 +1,19 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoHeaderToAdd
 
 internal class EnvoyEgressRoutesFactoryTest {
 
-    val clusters = listOf(RouteSpecification(clusterName = "srv1", routeDomain = "srv1", handleInternalRedirect = true))
+    val clusters = listOf(
+        RouteSpecification(
+            clusterName = "srv1",
+            routeDomain = "srv1",
+            settings = DependencySettings(handleInternalRedirect = true)
+        )
+    )
 
     @Test
     fun `should add client identity header if incoming permissions are enabled`() {

@@ -22,10 +22,10 @@ class MetadataNodeGroupTest {
             // because service may define different settings for different dependencies (for example endpoints, which
             // will be implemented in https://github.com/allegro/envoy-control/issues/6
             proxySettings = ProxySettings().with(serviceDependencies = setOf(
-                ServiceDependency("*", handleInternalRedirect = false),
-                ServiceDependency("a", handleInternalRedirect = false),
-                ServiceDependency("b", handleInternalRedirect = false),
-                ServiceDependency("c", handleInternalRedirect = false)
+                ServiceDependency("*"),
+                ServiceDependency("a"),
+                ServiceDependency("b"),
+                ServiceDependency("c")
             )), ads = false)
         )
     }
@@ -58,9 +58,9 @@ class MetadataNodeGroupTest {
             ServicesGroup(
                 proxySettings = ProxySettings().with(
                     serviceDependencies = setOf(
-                        ServiceDependency("a", handleInternalRedirect = false),
-                        ServiceDependency("b", handleInternalRedirect = false),
-                        ServiceDependency("c", handleInternalRedirect = false)
+                        ServiceDependency("a"),
+                        ServiceDependency("b"),
+                        ServiceDependency("c")
                     )
                 ),
                 ads = false
@@ -81,7 +81,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             AllServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = setOf(
-                    ServiceDependency("*", handleInternalRedirect = false))
+                    ServiceDependency("*"))
                 ),
                 ads = true
             )
@@ -102,9 +102,9 @@ class MetadataNodeGroupTest {
             ServicesGroup(
                 proxySettings = ProxySettings().with(
                     serviceDependencies = setOf(
-                        ServiceDependency("a", handleInternalRedirect = false),
-                        ServiceDependency("b", handleInternalRedirect = false),
-                        ServiceDependency("c", handleInternalRedirect = false)
+                        ServiceDependency("a"),
+                        ServiceDependency("b"),
+                        ServiceDependency("c")
                     )
                 ),
                 ads = true
@@ -127,9 +127,9 @@ class MetadataNodeGroupTest {
             // because service may define different settings for different dependencies (for example retry config)
             proxySettings = ProxySettings().with(
                 serviceDependencies = setOf(
-                    ServiceDependency("a", handleInternalRedirect = false),
-                    ServiceDependency("b", handleInternalRedirect = false),
-                    ServiceDependency("c", handleInternalRedirect = false)
+                    ServiceDependency("a"),
+                    ServiceDependency("b"),
+                    ServiceDependency("c")
                 )
             ),
             ads = true
@@ -154,9 +154,9 @@ class MetadataNodeGroupTest {
             ServicesGroup(
                 proxySettings = ProxySettings().with(
                     serviceDependencies = setOf(
-                        ServiceDependency("a", handleInternalRedirect = false),
-                        ServiceDependency("b", handleInternalRedirect = false),
-                        ServiceDependency("c", handleInternalRedirect = false)
+                        ServiceDependency("a"),
+                        ServiceDependency("b"),
+                        ServiceDependency("c")
                     )
                 ),
                 ads = false
@@ -192,8 +192,8 @@ class MetadataNodeGroupTest {
             serviceName = "app1",
             proxySettings = addedProxySettings.with(
                 serviceDependencies = setOf(
-                    ServiceDependency("a", handleInternalRedirect = false),
-                    ServiceDependency("b", handleInternalRedirect = false)
+                    ServiceDependency("a"),
+                    ServiceDependency("b")
                 )
             )
         ))
@@ -213,7 +213,7 @@ class MetadataNodeGroupTest {
             ads = false,
             serviceName = "app1",
             proxySettings = addedProxySettings.with(serviceDependencies = setOf(
-                ServiceDependency("*", handleInternalRedirect = false)
+                ServiceDependency("*")
             ))
         ))
     }

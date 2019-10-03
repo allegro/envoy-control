@@ -97,7 +97,10 @@ class NodeMetadataTest {
     @Test
     fun `should check if dependency for service is defined`() {
         // given
-        val outgoing = Outgoing(listOf(ServiceDependency("service-first", true)))
+        val outgoing = Outgoing(listOf(ServiceDependency(
+            service = "service-first",
+            settings = DependencySettings(handleInternalRedirect = true)
+        )))
 
         // expects
         assertThat(outgoing.containsDependencyForService("service-first")).isTrue()
@@ -177,6 +180,6 @@ class NodeMetadataTest {
 
         // expects
         assertThat(dependency.service).isEqualTo("service-1")
-        assertThat(dependency.handleInternalRedirect).isEqualTo(true)
+        assertThat(dependency.settings.handleInternalRedirect).isEqualTo(true)
     }
 }

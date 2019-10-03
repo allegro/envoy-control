@@ -95,9 +95,10 @@ internal class EnvoyEgressRoutesFactory(
         val routeAction = RouteAction.newBuilder()
             .setCluster(routeSpecification.clusterName)
 
-        if (routeSpecification.handleInternalRedirect) {
-            return routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
+        if (routeSpecification.settings.handleInternalRedirect) {
+            routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
         }
+
         return routeAction
     }
 }

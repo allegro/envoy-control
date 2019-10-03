@@ -17,6 +17,7 @@ import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
@@ -43,7 +44,7 @@ internal class EnvoySnapshotFactory(
                 RouteSpecification(
                     clusterName = it,
                     routeDomain = it,
-                    handleInternalRedirect = properties.egress.handleInternalRedirect
+                    settings = DependencySettings(properties.egress.handleInternalRedirect)
                 )
             }),
             ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
@@ -71,10 +72,18 @@ internal class EnvoySnapshotFactory(
     private fun getServiceNamesForGroup(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().map {
-                RouteSpecification(it.service, it.service, it.handleInternalRedirect)
+                RouteSpecification(
+                    clusterName = it.service,
+                    routeDomain = it.service,
+                    settings = it.settings
+                )
             }
             is AllServicesGroup -> globalSnapshot.clusters().resources().map {
-                RouteSpecification(it.key, it.key, handleInternalRedirect = properties.egress.handleInternalRedirect)
+                RouteSpecification(
+                    clusterName = it.key,
+                    routeDomain = it.key,
+                    settings = DependencySettings(properties.egress.handleInternalRedirect)
+                )
             }
         }
     }
@@ -82,7 +91,11 @@ internal class EnvoySnapshotFactory(
     private fun getEgressRouteMap(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
         return getServiceNamesForGroup(group, globalSnapshot) +
             group.proxySettings.outgoing.getDomainDependencies().map {
-                RouteSpecification(it.getClusterName(), it.getRouteDomain(), it.handleInternalRedirect)
+                RouteSpecification(
+                    clusterName = it.getClusterName(),
+                    routeDomain = it.getRouteDomain(),
+                    settings = it.settings
+                )
             }
     }
 
@@ -245,5 +258,5 @@ internal class EnvoySnapshotFactory(
 class RouteSpecification(
     val clusterName: String,
     val routeDomain: String,
-    val handleInternalRedirect: Boolean
+    val settings: DependencySettings
 )

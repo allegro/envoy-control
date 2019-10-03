@@ -52,14 +52,16 @@ fun Value.toDependency(properties: SnapshotProperties): Dependency {
     val handleInternalRedirect = this.field("handleInternalRedirect")?.boolValue
         ?: properties.egress.handleInternalRedirect
 
+    val settings = DependencySettings(handleInternalRedirect)
+
     return when {
         service == null && domain == null || service != null && domain != null ->
             throw NodeMetadataValidationException(
                 "Define either 'service' or 'domain' as an outgoing dependency"
             )
-        service != null -> ServiceDependency(service, handleInternalRedirect)
-        domain.orEmpty().startsWith("http://") -> DomainDependency(domain.orEmpty(), handleInternalRedirect)
-        domain.orEmpty().startsWith("https://") -> DomainDependency(domain.orEmpty(), handleInternalRedirect)
+        service != null -> ServiceDependency(service, settings)
+        domain.orEmpty().startsWith("http://") -> DomainDependency(domain.orEmpty(), settings)
+        domain.orEmpty().startsWith("https://") -> DomainDependency(domain.orEmpty(), settings)
         else -> throw NodeMetadataValidationException(
             "Unsupported protocol for domain dependency for domain $domain"
         )
@@ -138,12 +140,12 @@ interface Dependency
 
 data class ServiceDependency(
     val service: String,
-    val handleInternalRedirect: Boolean
+    val settings: DependencySettings = DependencySettings()
 ) : Dependency
 
 data class DomainDependency(
     val domain: String,
-    val handleInternalRedirect: Boolean
+    val settings: DependencySettings = DependencySettings()
 ) : Dependency {
     val uri = URL(domain)
 
@@ -160,6 +162,10 @@ data class DomainDependency(
 
     fun getRouteDomain(): String = if (uri.port != -1) getHost() + ":" + getPort() else getHost()
 }
+
+data class DependencySettings(
+    val handleInternalRedirect: Boolean = false
+)
 
 data class Role(
     val name: String?,
