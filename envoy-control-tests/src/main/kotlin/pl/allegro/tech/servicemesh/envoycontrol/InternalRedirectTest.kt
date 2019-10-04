@@ -36,7 +36,7 @@ internal class InternalRedirectTest : EnvoyControlTestConfiguration() {
 
         untilAsserted {
             // when
-            val response = call(host = "service-redirect")
+            val response = callService(service = "service-redirect")
 
             // then
             assertThat(response).isOk().isFrom(echoContainer)
@@ -51,7 +51,7 @@ internal class InternalRedirectTest : EnvoyControlTestConfiguration() {
 
         untilAsserted {
             // when
-            val exception = assertThrows<UnknownHostException> { call(host = "service-5") }
+            val exception = assertThrows<UnknownHostException> { callService(service = "service-5") }
 
             // then
             assertThat(exception.message).contains("service-1")

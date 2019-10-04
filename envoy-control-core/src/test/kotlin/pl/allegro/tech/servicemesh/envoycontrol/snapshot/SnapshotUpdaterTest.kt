@@ -9,7 +9,6 @@ import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
-import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
@@ -36,7 +35,7 @@ class SnapshotUpdaterTest {
     )
     val groupWithProxy = AllServicesGroup(ads = true, serviceName = "service", proxySettings = proxySettings)
     val groupWithServiceName = groupOf(
-        services = setOf(ServiceDependency(service = "existingService2", settings = DependencySettings()))
+        services = setOf(ServiceDependency(service = "existingService2"))
     ).copy(serviceName = "ipsum-service")
 
     @Test
@@ -49,22 +48,22 @@ class SnapshotUpdaterTest {
         cache.setSnapshot(groupWithProxy, uninitializedSnapshot)
         cache.setSnapshot(groupWithServiceName, uninitializedSnapshot)
         cache.setSnapshot(groupOf(
-            services = setOf(ServiceDependency("existingService1", settings = DependencySettings()))
+            services = setOf(ServiceDependency("existingService1"))
         ), uninitializedSnapshot)
         cache.setSnapshot(groupOf(
-            services = setOf(ServiceDependency("existingService2", settings = DependencySettings()))
+            services = setOf(ServiceDependency("existingService2"))
         ), uninitializedSnapshot)
 
         cache.setSnapshot(groupOf(
             services = setOf(
-                ServiceDependency("existingService1", settings = DependencySettings()),
-                ServiceDependency("existingService2", settings = DependencySettings())
+                ServiceDependency("existingService1"),
+                ServiceDependency("existingService2")
             ),
-            domains = setOf(DomainDependency("http://domain", settings = DependencySettings()))
+            domains = setOf(DomainDependency("http://domain"))
         ), uninitializedSnapshot)
 
         cache.setSnapshot(groupOf(
-            services = setOf(ServiceDependency("nonExistingService3", settings = DependencySettings()))
+            services = setOf(ServiceDependency("nonExistingService3"))
         ), uninitializedSnapshot)
 
         val updater = SnapshotUpdater(
@@ -88,10 +87,10 @@ class SnapshotUpdaterTest {
             .hasSecuredIngressRoute("/endpoint", "client")
             .hasServiceNameRequestHeader("service")
 
-        hasSnapshot(cache, groupOf(services = setOf(ServiceDependency("existingService1", settings = DependencySettings()))))
+        hasSnapshot(cache, groupOf(services = setOf(ServiceDependency("existingService1"))))
             .hasClusters("existingService1")
 
-        hasSnapshot(cache, groupOf(services = setOf(ServiceDependency("existingService2", settings = DependencySettings()))))
+        hasSnapshot(cache, groupOf(services = setOf(ServiceDependency("existingService2"))))
             .hasClusters("existingService2")
 
         hasSnapshot(cache, groupWithServiceName)
@@ -100,12 +99,12 @@ class SnapshotUpdaterTest {
 
         hasSnapshot(cache, groupOf(
             services = setOf(
-                ServiceDependency("existingService1", settings = DependencySettings()),
-                ServiceDependency("existingService2", settings = DependencySettings())
-            ), domains = setOf(DomainDependency("http://domain", settings = DependencySettings()))
+                ServiceDependency("existingService1"),
+                ServiceDependency("existingService2")
+            ), domains = setOf(DomainDependency("http://domain"))
         )).hasClusters("existingService1", "existingService2", "domain_80")
 
-        hasSnapshot(cache, groupOf(setOf(ServiceDependency("nonExistingService3", settings = DependencySettings()))))
+        hasSnapshot(cache, groupOf(setOf(ServiceDependency("nonExistingService3"))))
             .withoutClusters()
     }
 

@@ -31,7 +31,9 @@ internal class EnvoySnapshotFactory(
     private val egressRoutesFactory: EnvoyEgressRoutesFactory,
     private val clustersFactory: EnvoyClustersFactory,
     private val snapshotsVersions: SnapshotsVersions,
-    private val properties: SnapshotProperties
+    private val properties: SnapshotProperties,
+    private val defaultDependencySettings: DependencySettings =
+        DependencySettings(properties.egress.handleInternalRedirect)
 ) {
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
@@ -44,7 +46,7 @@ internal class EnvoySnapshotFactory(
                 RouteSpecification(
                     clusterName = it,
                     routeDomain = it,
-                    settings = DependencySettings(properties.egress.handleInternalRedirect)
+                    settings = defaultDependencySettings
                 )
             }),
             ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
@@ -69,7 +71,7 @@ internal class EnvoySnapshotFactory(
         return newSnapshotForGroup(group, globalSnapshot)
     }
 
-    private fun getServiceNamesForGroup(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
+    private fun getRouteSpecificationsForGroup(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().map {
                 RouteSpecification(
@@ -82,14 +84,14 @@ internal class EnvoySnapshotFactory(
                 RouteSpecification(
                     clusterName = it.key,
                     routeDomain = it.key,
-                    settings = DependencySettings(properties.egress.handleInternalRedirect)
+                    settings = defaultDependencySettings
                 )
             }
         }
     }
 
-    private fun getEgressRouteMap(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
-        return getServiceNamesForGroup(group, globalSnapshot) +
+    private fun getEgressRoutesSpecification(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
+        return getRouteSpecificationsForGroup(group, globalSnapshot) +
             group.proxySettings.outgoing.getDomainDependencies().map {
                 RouteSpecification(
                     clusterName = it.getClusterName(),
@@ -100,7 +102,7 @@ internal class EnvoySnapshotFactory(
     }
 
     private fun getServicesEndpointsForGroup(group: Group, globalSnapshot: Snapshot): List<ClusterLoadAssignment> {
-        return getServiceNamesForGroup(group, globalSnapshot)
+        return getRouteSpecificationsForGroup(group, globalSnapshot)
             .mapNotNull { globalSnapshot.endpoints().resources().get(it.clusterName) }
     }
 
@@ -114,7 +116,7 @@ internal class EnvoySnapshotFactory(
 
         val routes = listOf(
             egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, getEgressRouteMap(group, globalSnapshot)
+                group.serviceName, getEgressRoutesSpecification(group, globalSnapshot)
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )
