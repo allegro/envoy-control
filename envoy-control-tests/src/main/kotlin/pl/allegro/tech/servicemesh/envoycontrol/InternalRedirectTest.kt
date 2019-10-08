@@ -9,7 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfigura
 import pl.allegro.tech.servicemesh.envoycontrol.config.redirect.RedirectServiceContainer
 import java.net.UnknownHostException
 
-internal class InternalRedirectTest : EnvoyControlTestConfiguration() {
+open class InternalRedirectTest : EnvoyControlTestConfiguration() {
 
     companion object {
         private val redirectServiceContainer = RedirectServiceContainer(redirectTo = "service-1")

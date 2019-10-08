@@ -46,7 +46,7 @@ private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     )
 }
 
-fun Value.toDependency(properties: SnapshotProperties): Dependency {
+fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): Dependency {
     val service = this.field("service")?.stringValue
     val domain = this.field("domain")?.stringValue
     val handleInternalRedirect = this.field("handleInternalRedirect")?.boolValue

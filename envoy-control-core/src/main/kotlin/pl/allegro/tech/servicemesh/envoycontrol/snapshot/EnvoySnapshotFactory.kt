@@ -71,7 +71,22 @@ internal class EnvoySnapshotFactory(
         return newSnapshotForGroup(group, globalSnapshot)
     }
 
-    private fun getRouteSpecificationsForGroup(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
+    private fun getEgressRoutesSpecification(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
+        return getServiceRouteSpecifications(group, globalSnapshot) +
+            getDomainRouteSpecifications(group)
+    }
+
+    private fun getDomainRouteSpecifications(group: Group): List<RouteSpecification> {
+        return group.proxySettings.outgoing.getDomainDependencies().map {
+            RouteSpecification(
+                clusterName = it.getClusterName(),
+                routeDomain = it.getRouteDomain(),
+                settings = it.settings
+            )
+        }
+    }
+
+    private fun getServiceRouteSpecifications(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().map {
                 RouteSpecification(
@@ -90,19 +105,8 @@ internal class EnvoySnapshotFactory(
         }
     }
 
-    private fun getEgressRoutesSpecification(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
-        return getRouteSpecificationsForGroup(group, globalSnapshot) +
-            group.proxySettings.outgoing.getDomainDependencies().map {
-                RouteSpecification(
-                    clusterName = it.getClusterName(),
-                    routeDomain = it.getRouteDomain(),
-                    settings = it.settings
-                )
-            }
-    }
-
     private fun getServicesEndpointsForGroup(group: Group, globalSnapshot: Snapshot): List<ClusterLoadAssignment> {
-        return getRouteSpecificationsForGroup(group, globalSnapshot)
+        return getServiceRouteSpecifications(group, globalSnapshot)
             .mapNotNull { globalSnapshot.endpoints().resources().get(it.clusterName) }
     }
 

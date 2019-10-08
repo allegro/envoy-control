@@ -5,6 +5,7 @@ import io.envoyproxy.envoy.api.v2.core.Node
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
 
 class MetadataNodeGroupTest {
     @Test
@@ -21,13 +22,9 @@ class MetadataNodeGroupTest {
             // we have to preserve all services even if wildcard is present,
             // because service may define different settings for different dependencies (for example endpoints, which
             // will be implemented in https://github.com/allegro/envoy-control/issues/6
-            proxySettings = ProxySettings().with(serviceDependencies = setOf(
-                ServiceDependency("*"),
-                ServiceDependency("a"),
-                ServiceDependency("b"),
-                ServiceDependency("c")
-            )), ads = false)
-        )
+            proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*", "a", "b", "c")),
+            ads = false
+        ))
     }
 
     @Test
@@ -56,13 +53,7 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             ServicesGroup(
-                proxySettings = ProxySettings().with(
-                    serviceDependencies = setOf(
-                        ServiceDependency("a"),
-                        ServiceDependency("b"),
-                        ServiceDependency("c")
-                    )
-                ),
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
                 ads = false
             )
         )
@@ -80,9 +71,7 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             AllServicesGroup(
-                proxySettings = ProxySettings().with(serviceDependencies = setOf(
-                    ServiceDependency("*"))
-                ),
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*")),
                 ads = true
             )
         )
@@ -100,13 +89,7 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             ServicesGroup(
-                proxySettings = ProxySettings().with(
-                    serviceDependencies = setOf(
-                        ServiceDependency("a"),
-                        ServiceDependency("b"),
-                        ServiceDependency("c")
-                    )
-                ),
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
                 ads = true
             )
         )
@@ -125,13 +108,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(AllServicesGroup(
             // we have to preserve all services even if outgoingPermissions is disabled,
             // because service may define different settings for different dependencies (for example retry config)
-            proxySettings = ProxySettings().with(
-                serviceDependencies = setOf(
-                    ServiceDependency("a"),
-                    ServiceDependency("b"),
-                    ServiceDependency("c")
-                )
-            ),
+            proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
             ads = true
         ))
     }
@@ -152,13 +129,7 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             ServicesGroup(
-                proxySettings = ProxySettings().with(
-                    serviceDependencies = setOf(
-                        ServiceDependency("a"),
-                        ServiceDependency("b"),
-                        ServiceDependency("c")
-                    )
-                ),
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
                 ads = false
             )
         )
@@ -190,12 +161,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(ServicesGroup(
             ads = true,
             serviceName = "app1",
-            proxySettings = addedProxySettings.with(
-                serviceDependencies = setOf(
-                    ServiceDependency("a"),
-                    ServiceDependency("b")
-                )
-            )
+            proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("a", "b"))
         ))
     }
 
@@ -212,9 +178,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(AllServicesGroup(
             ads = false,
             serviceName = "app1",
-            proxySettings = addedProxySettings.with(serviceDependencies = setOf(
-                ServiceDependency("*")
-            ))
+            proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("*"))
         ))
     }
 

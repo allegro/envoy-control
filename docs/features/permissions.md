@@ -52,9 +52,9 @@ Roles are just a list of clients. We support `path` and `prefix` route matchers.
 
 In the outgoing section this configuration defines that this service will be able to reach
 services: `service-a` and `service-b` and urls of domain www.example.com using http/https protocol. 
-Also it is possible to specify if 302 redirects with absolute path in header `Location` should be
-handled by Envoy. There is global setting `envoy-control.envoy.snapshot.egress.handleInternalRedirect` which by default 
-is false and it will be used if no configuration will be provided in metadata. More about redirects in
+It is also possible to specify if 302 redirects with absolute path in header `Location` should be
+handled by Envoy. There is a global setting `envoy-control.envoy.snapshot.egress.handleInternalRedirect` which is false by default
+and will be used if no configuration is provided in metadata. More about redirects in
 [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_connection_management#internal-redirects).
 
 ## Configuration
