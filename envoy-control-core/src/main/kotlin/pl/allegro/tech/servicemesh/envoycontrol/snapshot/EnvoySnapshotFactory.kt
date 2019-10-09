@@ -33,9 +33,23 @@ internal class EnvoySnapshotFactory(
     private val properties: SnapshotProperties
 ) {
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
+        val serviceNameToEnvoyAvailability = servicesStates.flatMap {
+            it.servicesState.serviceNameToInstances.values
+        }.groupBy {
+            it.serviceName
+        }.map { (serviceName, instances) ->
+            val allHaveEnvoy = instances.flatMap {
+                it.instances
+            }.all {
+                it.tags.contains("envoy")
+            }
+
+            ServiceNameAndEnvoy(serviceName, allHaveEnvoy)
+        }
+
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
 
-        val clusters: List<Cluster> = clustersFactory.getClustersForServices(serviceNames, ads)
+        val clusters: List<Cluster> = clustersFactory.getClustersForServices(serviceNameToEnvoyAvailability, ads)
 
         val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(servicesStates)
         val routes = listOf(
@@ -230,4 +244,6 @@ internal class EnvoySnapshotFactory(
             emptyList<Secret>(),
             SecretsVersion.EMPTY_VERSION.value
         )
+
+    internal data class ServiceNameAndEnvoy(val serviceName: String, val envoyEnabled: Boolean)
 }

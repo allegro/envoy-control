@@ -7,7 +7,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 
 class EnvoyAdmin(
     val address: String,

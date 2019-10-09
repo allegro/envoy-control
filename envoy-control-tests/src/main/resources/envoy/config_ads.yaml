@@ -29,6 +29,7 @@ node:
           - service: "service-5"
           - service: "echo"
           - service: "consul"
+          - service: "proxy1"
           - domain: "https://www.example.com"
 
 static_resources:

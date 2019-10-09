@@ -9,7 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulServerConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulSetup
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import java.io.File
 import java.lang.Thread.sleep
 import java.util.UUID

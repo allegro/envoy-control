@@ -38,7 +38,7 @@ internal class RetryPolicyTest : EnvoyControlTestConfiguration() {
     }
 
     private fun hasRetriedRequest(numberOfRetries: Long): Boolean {
-        return envoyContainer.admin()
+        return envoyContainer1.admin()
             .statValue("cluster.local_service.upstream_rq_retry")
             ?.toLong()
             ?.equals(numberOfRetries)

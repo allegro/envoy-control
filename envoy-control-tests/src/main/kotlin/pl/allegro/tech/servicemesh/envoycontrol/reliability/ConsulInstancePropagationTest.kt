@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsAllDependencies
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.time.Duration
 import java.util.concurrent.Executors
@@ -142,7 +142,7 @@ class ConsulInstancePropagationTest : EnvoyControlTestConfiguration() {
             }
         }
 
-        private val admin = envoyContainer.admin()
+        private val admin = envoyContainer1.admin()
 
         private fun waitForEchosInAdmin(vararg containers: EchoContainer) {
             untilAsserted {

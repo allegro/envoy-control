@@ -85,13 +85,13 @@ class DcCutOffTest : ReliabilityTest() {
     }
 
     private fun cutOffConnectionToServicesInDc2() {
-        envoyContainer.blockTrafficTo(echoContainer.ipAddress())
-        envoyContainer.blockTrafficTo(echoContainer2.ipAddress())
+        envoyContainer1.blockTrafficTo(echoContainer.ipAddress())
+        envoyContainer1.blockTrafficTo(echoContainer2.ipAddress())
     }
 
     private fun restoreConnectionToServicesInDc2() {
-        envoyContainer.unblockTrafficTo(echoContainer.ipAddress())
-        envoyContainer.unblockTrafficTo(echoContainer2.ipAddress())
+        envoyContainer1.unblockTrafficTo(echoContainer.ipAddress())
+        envoyContainer1.unblockTrafficTo(echoContainer2.ipAddress())
     }
 
     private fun blockConsulTraffic(from: List<ConsulSetup>, to: List<ConsulSetup>) {
