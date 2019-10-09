@@ -32,7 +32,7 @@ class NodeMetadataValidator(
     }
 
     private fun validateMetadata(node: Node) {
-        // some validation logic is executed when NodeMetadata is created.
+        // Some validation logic is executed when NodeMetadata is created.
         // This may throw NodeMetadataValidationException
         val metadata = NodeMetadata(node.metadata, properties)
 
