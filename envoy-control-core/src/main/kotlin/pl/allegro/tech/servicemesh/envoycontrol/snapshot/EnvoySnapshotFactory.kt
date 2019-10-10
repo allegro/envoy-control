@@ -33,25 +33,17 @@ internal class EnvoySnapshotFactory(
     private val properties: SnapshotProperties
 ) {
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
-        val serviceNameToEnvoyAvailability = servicesStates.flatMap {
+        val clusterConfigurations = servicesStates.flatMap {
             it.servicesState.serviceNameToInstances.values
         }.groupBy {
             it.serviceName
         }.map { (serviceName, instances) ->
-            val allInstances = instances.flatMap {
-                it.instances
-            }
-
-            val allInstancesHaveEnvoyTag = allInstances.isNotEmpty() && allInstances.all {
-                it.tags.contains("envoy")
-            }
-
-            ClusterConfiguration(serviceName, allInstancesHaveEnvoyTag)
+            toClusterConfiguration(instances, serviceName)
         }
 
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
 
-        val clusters: List<Cluster> = clustersFactory.getClustersForServices(serviceNameToEnvoyAvailability, ads)
+        val clusters: List<Cluster> = clustersFactory.getClustersForServices(clusterConfigurations, ads)
 
         val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(servicesStates)
         val routes = listOf(
@@ -69,6 +61,18 @@ internal class EnvoySnapshotFactory(
             routes = routes,
             routesVersion = RoutesVersion(version.clusters.value)
         )
+    }
+
+    private fun toClusterConfiguration(instances: List<ServiceInstances>, serviceName: String): ClusterConfiguration {
+        val allInstances = instances.flatMap {
+            it.instances
+        }
+
+        val allInstancesHaveEnvoyTag = allInstances.isNotEmpty() && allInstances.all {
+            it.tags.contains("envoy")
+        }
+
+        return ClusterConfiguration(serviceName, allInstancesHaveEnvoyTag)
     }
 
     fun getSnapshotForGroup(group: Group, globalSnapshot: Snapshot): Snapshot {

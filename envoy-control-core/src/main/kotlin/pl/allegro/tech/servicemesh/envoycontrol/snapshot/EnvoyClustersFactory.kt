@@ -98,14 +98,14 @@ internal class EnvoyClustersFactory(
         return clusterBuilder.build()
     }
 
-    private fun edsCluster(clusterName: EnvoySnapshotFactory.ClusterConfiguration, ads: Boolean): Cluster {
+    private fun edsCluster(clusterConfiguration: EnvoySnapshotFactory.ClusterConfiguration, ads: Boolean): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
         if (properties.clusterOutlierDetection.enabled) {
             configureOutlierDetection(clusterBuilder)
         }
 
-        val cluster = clusterBuilder.setName(clusterName.serviceName)
+        val cluster = clusterBuilder.setName(clusterConfiguration.serviceName)
             .setType(Cluster.DiscoveryType.EDS)
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
             .setEdsClusterConfig(
@@ -122,12 +122,12 @@ internal class EnvoyClustersFactory(
                             )
                         )
                     }
-                ).setServiceName(clusterName.serviceName)
+                ).setServiceName(clusterConfiguration.serviceName)
             )
             .setLbPolicy(Cluster.LbPolicy.LEAST_REQUEST)
             .setCanarySubset()
 
-        if (clusterName.http2Enabled) {
+        if (clusterConfiguration.http2Enabled) {
             cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())
         }
 

@@ -306,19 +306,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     @AfterEach
     fun cleanupTest() {
         deregisterAllServices()
-        resetCounters(envoyContainer1)
+        envoyContainer1.admin().resetCounters()
         if (envoys == 2) {
-            resetCounters(envoyContainer2)
+            envoyContainer2.admin().resetCounters()
         }
         waitForConsulSync()
     }
 
-    private fun resetCounters(envoyContainer: EnvoyContainer) {
-        callPostLocalService(
-            endpoint = "/status/envoy/reset_counters",
-            headers = Headers.of(emptyMap()),
-            body = RequestBody.create(MediaType.get("application/json"), "{}"),
-            envoyContainer = envoyContainer
-        )
-    }
 }

@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
 @Testcontainers
 open class BaseEnvoyTest {
     companion object {
-        val defaultDuration = Duration(60, TimeUnit.SECONDS)
+        val defaultDuration = Duration(90, TimeUnit.SECONDS)
         val network: Network = Network.newNetwork()
 
         val echoContainer: EchoContainer = EchoContainer()
