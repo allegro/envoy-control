@@ -29,7 +29,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 internal class EnvoyClustersFactory(
     private val properties: SnapshotProperties
 ) {
-    fun getClustersForServices(services: List<EnvoySnapshotFactory.ServiceNameAndEnvoy>, ads: Boolean): List<Cluster> {
+    fun getClustersForServices(services: List<EnvoySnapshotFactory.ClusterConfiguration>, ads: Boolean): List<Cluster> {
         return services.map { edsCluster(it, ads) }
     }
 
@@ -98,7 +98,7 @@ internal class EnvoyClustersFactory(
         return clusterBuilder.build()
     }
 
-    private fun edsCluster(clusterName: EnvoySnapshotFactory.ServiceNameAndEnvoy, ads: Boolean): Cluster {
+    private fun edsCluster(clusterName: EnvoySnapshotFactory.ClusterConfiguration, ads: Boolean): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
         if (properties.clusterOutlierDetection.enabled) {
@@ -127,7 +127,7 @@ internal class EnvoyClustersFactory(
             .setLbPolicy(Cluster.LbPolicy.LEAST_REQUEST)
             .setCanarySubset()
 
-        if (clusterName.envoyEnabled) {
+        if (clusterName.http2Enabled) {
             cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())
         }
 

@@ -38,13 +38,15 @@ internal class EnvoySnapshotFactory(
         }.groupBy {
             it.serviceName
         }.map { (serviceName, instances) ->
-            val allHaveEnvoy = instances.flatMap {
+            val allInstances = instances.flatMap {
                 it.instances
-            }.all {
+            }
+
+            val allInstancesHaveEnvoyTag = allInstances.isNotEmpty() && allInstances.all {
                 it.tags.contains("envoy")
             }
 
-            ServiceNameAndEnvoy(serviceName, allHaveEnvoy)
+            ClusterConfiguration(serviceName, allInstancesHaveEnvoyTag)
         }
 
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
@@ -245,5 +247,5 @@ internal class EnvoySnapshotFactory(
             SecretsVersion.EMPTY_VERSION.value
         )
 
-    internal data class ServiceNameAndEnvoy(val serviceName: String, val envoyEnabled: Boolean)
+    internal data class ClusterConfiguration(val serviceName: String, val http2Enabled: Boolean)
 }
