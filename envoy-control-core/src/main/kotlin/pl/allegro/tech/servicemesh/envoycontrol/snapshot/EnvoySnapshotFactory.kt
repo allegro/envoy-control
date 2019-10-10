@@ -33,17 +33,21 @@ internal class EnvoySnapshotFactory(
     private val properties: SnapshotProperties
 ) {
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
-        val clusterConfigurations = servicesStates.flatMap {
-            it.servicesState.serviceNameToInstances.values
-        }.groupBy {
-            it.serviceName
-        }.map { (serviceName, instances) ->
-            toClusterConfiguration(instances, serviceName)
-        }
-
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
 
-        val clusters: List<Cluster> = clustersFactory.getClustersForServices(clusterConfigurations, ads)
+        val clusterConfigurations = if (properties.egress.automaticHttp2BetweenEnvoysProperties.enabled) {
+            servicesStates.flatMap {
+                it.servicesState.serviceNameToInstances.values
+            }.groupBy {
+                it.serviceName
+            }.map { (serviceName, instances) ->
+                toClusterConfiguration(instances, serviceName)
+            }
+        } else {
+            serviceNames.map { ClusterConfiguration(serviceName = it, http2Enabled = false)}
+        }
+
+        val clusters = clustersFactory.getClustersForServices(clusterConfigurations, ads)
 
         val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(servicesStates)
         val routes = listOf(
@@ -68,6 +72,8 @@ internal class EnvoySnapshotFactory(
             it.instances
         }
 
+        // Http2 support is on a cluster level so if someone decides to deploy a service in dc1 with envoy and in dc2
+        // without envoy then we can't set http2 because we do not know if the server in dc2 supports it.
         val allInstancesHaveEnvoyTag = allInstances.isNotEmpty() && allInstances.all {
             it.tags.contains("envoy")
         }

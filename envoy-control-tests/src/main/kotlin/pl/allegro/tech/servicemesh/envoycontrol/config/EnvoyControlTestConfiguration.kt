@@ -5,7 +5,6 @@ import okhttp3.Response
 import okhttp3.Request
 import okhttp3.Headers
 import okhttp3.RequestBody
-import okhttp3.MediaType
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility
@@ -82,7 +81,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             envoyContainer1.start()
 
             val envoy1EgressAddress = "http://localhost:${envoyContainer1.getMappedPort(EnvoyContainer.EGRESS_LISTENER_CONTAINER_PORT)}"
-            proxyContainer = ProxyContainer(envoy1EgressAddress).withNetwork(network)
+            proxyContainer = ProxyContainer().withNetwork(network)
             proxyContainer.start()
 
             if (envoys == 2) {

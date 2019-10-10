@@ -5,20 +5,30 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 
-internal class EnvoyControlHttp2Test : EnvoyControlTestConfiguration() {
+internal class XdsEnvoyControlHttp2Test : EnvoyControlHttp2Test() {
     companion object {
-        @BeforeAll
         @JvmStatic
-        fun setupTest() {
-            setup(
-                envoyConfig = Ads,
-                envoys = 2
-            )
+        @BeforeAll
+        fun xdsSetup() {
+            setup(envoyConfig = Xds, envoys = 2)
         }
     }
+}
 
+internal class AdsEnvoyControlHttp2Test : EnvoyControlHttp2Test() {
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun adsSetup() {
+            setup(envoyConfig = Ads, envoys = 2)
+        }
+    }
+}
+
+abstract class EnvoyControlHttp2Test : EnvoyControlTestConfiguration() {
     @Test
     fun `should establish http2 connection between envoys`() {
         // given
@@ -39,7 +49,7 @@ internal class EnvoyControlHttp2Test : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should establish http connection between envoy and a service`() {
+    fun `should establish http connection between envoy and a service by default`() {
         // given
         registerService(name = "echo")
 

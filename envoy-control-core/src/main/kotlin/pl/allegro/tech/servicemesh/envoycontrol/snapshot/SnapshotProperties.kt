@@ -116,4 +116,10 @@ class AuthorizationProperties {
 
 class EgressProperties {
     var clusterNotFoundStatusCode = 503
+    var automaticHttp2BetweenEnvoysProperties = AutomaticHttp2BetweenEnvoysProperties()
+}
+
+class AutomaticHttp2BetweenEnvoysProperties {
+    var enabled = true
+    var tagName = "envoy"
 }

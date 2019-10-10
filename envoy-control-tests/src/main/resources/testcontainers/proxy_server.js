@@ -16,15 +16,16 @@ const requestHandler = (request, response) => {
     console.log('Calling', call);
     try {
         http.get(url_parts.query.call, (res) => {
-            res.on('data', () => {});
-        res.on('end', () => {
-            response.end('Got response');
-    });
-    }).on('error', (e) => {
+            res.on('data', () => {
+            });
+            res.on('end', () => {
+                response.end('Got response');
+            });
+        }).on('error', (e) => {
             console.error('error', e.message);
-        response.statusCode = 500;
-        response.end('There was a problem');
-    });
+            response.statusCode = 500;
+            response.end('There was a problem');
+        });
     } catch (e) {
         console.error('error', e.message);
         response.statusCode = 500;
