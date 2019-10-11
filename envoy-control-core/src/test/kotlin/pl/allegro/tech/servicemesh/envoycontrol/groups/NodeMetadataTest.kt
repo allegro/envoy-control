@@ -96,7 +96,10 @@ class NodeMetadataTest {
     @Test
     fun `should check if dependency for service is defined`() {
         // given
-        val outgoing = Outgoing(listOf(ServiceDependency("service-first")))
+        val outgoing = Outgoing(listOf(ServiceDependency(
+            service = "service-first",
+            settings = DependencySettings(handleInternalRedirect = true)
+        )))
 
         // expects
         assertThat(outgoing.containsDependencyForService("service-first")).isTrue()
@@ -166,5 +169,16 @@ class NodeMetadataTest {
         // expects
         assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
         assertThat(dependency.getRouteDomain()).isEqualTo("domain.pl:80")
+    }
+
+    @Test
+    fun `should accept service dependency with redirect policy defined`() {
+        // given
+        val proto = outgoingDependencyProto(service = "service-1", handleInternalRedirect = true)
+        val dependency = proto.toDependency() as ServiceDependency
+
+        // expects
+        assertThat(dependency.service).isEqualTo("service-1")
+        assertThat(dependency.settings.handleInternalRedirect).isEqualTo(true)
     }
 }

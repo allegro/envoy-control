@@ -9,10 +9,12 @@ import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
@@ -32,7 +34,9 @@ class SnapshotUpdaterTest {
         )
     )
     val groupWithProxy = AllServicesGroup(ads = true, serviceName = "service", proxySettings = proxySettings)
-    val groupWithServiceName = groupOf(services = listOf("existingService2")).copy(serviceName = "ipsum-service")
+    val groupWithServiceName = groupOf(
+        services = setOf(ServiceDependency(service = "existingService2"))
+    ).copy(serviceName = "ipsum-service")
 
     @Test
     fun `should generate group snapshots`() {
@@ -43,13 +47,15 @@ class SnapshotUpdaterTest {
         cache.setSnapshot(AllServicesGroup(ads = false), uninitializedSnapshot)
         cache.setSnapshot(groupWithProxy, uninitializedSnapshot)
         cache.setSnapshot(groupWithServiceName, uninitializedSnapshot)
-        cache.setSnapshot(groupOf(services = listOf("existingService1")), uninitializedSnapshot)
-        cache.setSnapshot(groupOf(services = listOf("existingService2")), uninitializedSnapshot)
+        cache.setSnapshot(groupOf(services = serviceDependencies("existingService1")), uninitializedSnapshot)
+        cache.setSnapshot(groupOf(services = serviceDependencies("existingService2")), uninitializedSnapshot)
 
         cache.setSnapshot(groupOf(
-            services = listOf("existingService1", "existingService2"), domains = listOf("http://domain")
+            services = serviceDependencies("existingService1", "existingService2"),
+            domains = domainDependencies("http://domain")
         ), uninitializedSnapshot)
-        cache.setSnapshot(groupOf(services = listOf("nonExistingService3")), uninitializedSnapshot)
+
+        cache.setSnapshot(groupOf(services = serviceDependencies("nonExistingService3")), uninitializedSnapshot)
 
         val updater = SnapshotUpdater(
             cache,
@@ -72,10 +78,10 @@ class SnapshotUpdaterTest {
             .hasSecuredIngressRoute("/endpoint", "client")
             .hasServiceNameRequestHeader("service")
 
-        hasSnapshot(cache, groupOf(services = listOf("existingService1")))
+        hasSnapshot(cache, groupOf(services = serviceDependencies("existingService1")))
             .hasClusters("existingService1")
 
-        hasSnapshot(cache, groupOf(services = listOf("existingService2")))
+        hasSnapshot(cache, groupOf(services = serviceDependencies("existingService2")))
             .hasClusters("existingService2")
 
         hasSnapshot(cache, groupWithServiceName)
@@ -83,10 +89,11 @@ class SnapshotUpdaterTest {
             .hasServiceNameRequestHeader("ipsum-service")
 
         hasSnapshot(cache, groupOf(
-            services = listOf("existingService1", "existingService2"), domains = listOf("http://domain"))
-        ).hasClusters("existingService1", "existingService2", "domain_80")
+            services = serviceDependencies("existingService1", "existingService2"),
+            domains = domainDependencies("http://domain")
+        )).hasClusters("existingService1", "existingService2", "domain_80")
 
-        hasSnapshot(cache, groupOf(listOf("nonExistingService3")))
+        hasSnapshot(cache, groupOf(setOf(ServiceDependency("nonExistingService3"))))
             .withoutClusters()
     }
 
@@ -193,8 +200,9 @@ class SnapshotUpdaterTest {
         assertThat(this.routes().resources().getValue("ingress_secured_routes").virtualHostsList.first().routesList
             .map { it.match }
             .filter { it.path == endpoint }
-            .filter { it.headersList
-                .any { it.name == "x-service-name" && it.exactMatch == client }
+            .filter {
+                it.headersList
+                    .any { it.name == "x-service-name" && it.exactMatch == client }
             }
         ).isNotEmpty
         return this
@@ -213,12 +221,18 @@ class SnapshotUpdaterTest {
     }
 
     private fun groupOf(
-        services: List<String> = emptyList(),
-        domains: List<String> = emptyList()
+        services: Set<ServiceDependency> = emptySet(),
+        domains: Set<DomainDependency> = emptySet()
     ) = ServicesGroup(
         ads = false,
         proxySettings = ProxySettings().with(
-            serviceDependencies = services.toSet(), domainDependencies = domains.toSet()
+            serviceDependencies = services, domainDependencies = domains
         )
     )
 }
+
+fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
+    serviceNames.map { ServiceDependency(it) }.toSet()
+
+fun domainDependencies(vararg serviceNames: String): Set<DomainDependency> =
+    serviceNames.map { DomainDependency(it) }.toSet()

@@ -22,6 +22,7 @@ metadata:
       dependencies:
         - service: service-a
         - service: service-b
+          handleInternalRedirect: true
         - domain: http://www.example.com
     incoming:
       endpoints:
@@ -50,8 +51,11 @@ In the `incoming` section this configuration defines access to routes:
 Roles are just a list of clients. We support `path` and `prefix` route matchers.
 
 In the outgoing section this configuration defines that this service will be able to reach
-services: `service-a` and `service-b` and urls of domain www.example.com using http protocol 
-(at this moment only http protocol is supported).
+services: `service-a` and `service-b` and urls of domain www.example.com using http/https protocol. 
+It is also possible to specify if 302 redirects with absolute path in header `Location` should be
+handled by Envoy. There is a global setting `envoy-control.envoy.snapshot.egress.handleInternalRedirect` which is false by default
+and will be used if no configuration is provided in metadata. More about redirects in
+[Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_connection_management#internal-redirects).
 
 ## Configuration
 
