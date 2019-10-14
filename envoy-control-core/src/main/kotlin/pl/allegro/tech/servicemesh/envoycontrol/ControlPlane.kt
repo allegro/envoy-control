@@ -71,9 +71,7 @@ class ControlPlane private constructor(
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics()
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
-            allServicesDependenciesValue = properties.envoy.snapshot.outgoingPermissions.allServicesDependenciesValue,
-            outgoingPermissions = properties.envoy.snapshot.outgoingPermissions.enabled,
-            incomingPermissions = properties.envoy.snapshot.incomingPermissions.enabled
+            properties = properties.envoy.snapshot
         )
 
         fun build(changes: Flux<List<LocalityAwareServicesState>>): ControlPlane {
@@ -137,7 +135,7 @@ class ControlPlane private constructor(
                                 meterRegistry.gauge("grpc.connections.${type.name.toLowerCase()}", it.connections(type))
                             }
                         },
-                        NodeMetadataValidator(properties.envoy.snapshot.outgoingPermissions)
+                        NodeMetadataValidator(properties.envoy.snapshot)
                     )
                 ),
                 groupChangeWatcher,

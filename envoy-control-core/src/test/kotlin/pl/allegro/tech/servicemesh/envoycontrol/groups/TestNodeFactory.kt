@@ -38,8 +38,8 @@ fun node(
     }
 
     return Node.newBuilder()
-            .setMetadata(meta)
-            .build()
+        .setMetadata(meta)
+        .build()
 }
 
 val addedProxySettings = ProxySettings(Incoming(
@@ -50,9 +50,8 @@ val addedProxySettings = ProxySettings(Incoming(
     permissionsEnabled = true
 ))
 
-fun ProxySettings.with(serviceDependencies: Set<String> = emptySet(), domainDependencies: Set<String> = emptySet()) = copy(
-    outgoing = Outgoing(dependencies = serviceDependencies.map { ServiceDependency(service = it) } +
-        domainDependencies.map { DomainDependency(domain = it) })
+fun ProxySettings.with(serviceDependencies: Set<ServiceDependency> = emptySet(), domainDependencies: Set<DomainDependency> = emptySet()) = copy(
+    outgoing = Outgoing(dependencies = serviceDependencies.toList() + domainDependencies.toList())
 )
 
 fun proxySettingsProto(
@@ -88,9 +87,10 @@ fun proxySettingsProto(
     }
 }
 
-fun outgoingDependencyProto(service: String? = null, domain: String? = null) = struct {
+fun outgoingDependencyProto(service: String? = null, domain: String? = null, handleInternalRedirect: Boolean? = null) = struct {
     service?.also { putFields("service", string(service)) }
     domain?.also { putFields("domain", string(domain)) }
+    handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(handleInternalRedirect)) }
 }
 
 fun incomingEndpointProto(
@@ -131,6 +131,10 @@ private fun list(elements: ListValue.Builder.() -> Unit): Value {
 
 private fun string(value: String): Value {
     return Value.newBuilder().setStringValue(value).build()
+}
+
+private fun boolean(value: Boolean): Value {
+    return Value.newBuilder().setBoolValue(value).build()
 }
 
 private val nullValue: Value = Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build()

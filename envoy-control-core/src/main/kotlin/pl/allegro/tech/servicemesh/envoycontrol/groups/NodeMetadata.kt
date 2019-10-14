@@ -6,26 +6,27 @@ import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.net.URL
 
 open class NodeMetadataValidationException(message: String)
     : RequestException(Status.INVALID_ARGUMENT.withDescription(message))
 
-class NodeMetadata(metadata: Struct) {
+class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
     val serviceName: String? = metadata
-            .fieldsMap["service_name"]
-            ?.stringValue
+        .fieldsMap["service_name"]
+        ?.stringValue
 
-    val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"])
+    val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
 }
 
 data class ProxySettings(
     val incoming: Incoming = Incoming(),
     val outgoing: Outgoing = Outgoing()
 ) {
-    constructor(proto: Value?) : this(
+    constructor(proto: Value?, properties: SnapshotProperties) : this(
         incoming = proto?.field("incoming").toIncoming(),
-        outgoing = proto?.field("outgoing").toOutgoing()
+        outgoing = proto?.field("outgoing").toOutgoing(properties)
     )
 
     fun isEmpty() = this == ProxySettings()
@@ -39,24 +40,28 @@ data class ProxySettings(
     )
 }
 
-private fun Value?.toOutgoing(): Outgoing {
+private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     return Outgoing(
-        dependencies = this?.field("dependencies")?.list().orEmpty().map { it.toDependency() }
+        dependencies = this?.field("dependencies")?.list().orEmpty().map { it.toDependency(properties) }
     )
 }
 
-fun Value.toDependency(): Dependency {
+fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): Dependency {
     val service = this.field("service")?.stringValue
     val domain = this.field("domain")?.stringValue
+    val handleInternalRedirect = this.field("handleInternalRedirect")?.boolValue
+        ?: properties.egress.handleInternalRedirect
+
+    val settings = DependencySettings(handleInternalRedirect)
 
     return when {
         service == null && domain == null || service != null && domain != null ->
             throw NodeMetadataValidationException(
                 "Define either 'service' or 'domain' as an outgoing dependency"
             )
-        service != null -> ServiceDependency(service)
-        domain.orEmpty().startsWith("http://") -> DomainDependency(domain.orEmpty())
-        domain.orEmpty().startsWith("https://") -> DomainDependency(domain.orEmpty())
+        service != null -> ServiceDependency(service, settings)
+        domain.orEmpty().startsWith("http://") -> DomainDependency(domain.orEmpty(), settings)
+        domain.orEmpty().startsWith("https://") -> DomainDependency(domain.orEmpty(), settings)
         else -> throw NodeMetadataValidationException(
             "Unsupported protocol for domain dependency for domain $domain"
         )
@@ -133,9 +138,15 @@ data class Outgoing(
 
 interface Dependency
 
-data class ServiceDependency(val service: String) : Dependency
+data class ServiceDependency(
+    val service: String,
+    val settings: DependencySettings = DependencySettings()
+) : Dependency
 
-data class DomainDependency(val domain: String) : Dependency {
+data class DomainDependency(
+    val domain: String,
+    val settings: DependencySettings = DependencySettings()
+) : Dependency {
     val uri = URL(domain)
 
     fun getPort(): Int = uri.port.takeIf { it != -1 } ?: uri.defaultPort
@@ -151,6 +162,10 @@ data class DomainDependency(val domain: String) : Dependency {
 
     fun getRouteDomain(): String = if (uri.port != -1) getHost() + ":" + getPort() else getHost()
 }
+
+data class DependencySettings(
+    val handleInternalRedirect: Boolean = false
+)
 
 data class Role(
     val name: String?,

@@ -6,11 +6,11 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OutgoingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class NodeMetadataValidatorTest {
-    val validator = NodeMetadataValidator(OutgoingPermissionsProperties().apply {
-        enabled = true
-        servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2")
+    val validator = NodeMetadataValidator(SnapshotProperties().apply {
+        outgoingPermissions = createOutgoingPermissions(enabled = true, servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2"))
     })
 
     @Test
@@ -53,9 +53,8 @@ class NodeMetadataValidatorTest {
     @Test
     fun `should not fail if outgoing-permissions is disabled`() {
         // given
-        val permissionsDisabledValidator = NodeMetadataValidator(OutgoingPermissionsProperties().apply {
-            enabled = false
-            servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2")
+        val permissionsDisabledValidator = NodeMetadataValidator(SnapshotProperties().apply {
+            outgoingPermissions = createOutgoingPermissions(enabled = false, servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2"))
         })
         val node = node(
             serviceDependencies = setOf("*", "a", "b", "c"),
@@ -68,5 +67,15 @@ class NodeMetadataValidatorTest {
 
         // then
         // no exception thrown
+    }
+
+    private fun createOutgoingPermissions(
+        enabled: Boolean = false,
+        servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
+    ): OutgoingPermissionsProperties {
+        val outgoingPermissions = OutgoingPermissionsProperties()
+        outgoingPermissions.enabled = enabled
+        outgoingPermissions.servicesAllowedToUseWildcard = servicesAllowedToUseWildcard
+        return outgoingPermissions
     }
 }
