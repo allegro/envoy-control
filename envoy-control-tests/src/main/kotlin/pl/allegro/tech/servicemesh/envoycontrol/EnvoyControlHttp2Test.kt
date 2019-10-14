@@ -49,7 +49,7 @@ abstract class EnvoyControlHttp2Test : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should establish http connection between envoy and a service by default`() {
+    fun `should establish http1 connection between envoy and a service by default`() {
         // given
         registerService(name = "echo")
 

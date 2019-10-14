@@ -13,7 +13,6 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ProxyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.time.Duration
@@ -36,7 +35,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         lateinit var envoyContainer1: EnvoyContainer
         lateinit var envoyContainer2: EnvoyContainer
-        lateinit var proxyContainer: ProxyContainer
         lateinit var localServiceContainer: EchoContainer
         lateinit var envoyControl1: EnvoyControlTestApp
         lateinit var envoyControl2: EnvoyControlTestApp
@@ -80,17 +78,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             registerEnvoyControls(ec1RegisterPort, ec2RegisterPort, instancesInSameDc)
             envoyContainer1.start()
 
-            val envoy1EgressAddress = "http://localhost:${envoyContainer1.getMappedPort(EnvoyContainer.EGRESS_LISTENER_CONTAINER_PORT)}"
-            proxyContainer = ProxyContainer().withNetwork(network)
-            proxyContainer.start()
-
             if (envoys == 2) {
                 envoyContainer2 = createEnvoyContainer(
                     true,
                     envoyConfig,
                     envoyConnectGrpcPort,
                     envoyConnectGrpcPort2,
-                    proxyContainer.ipAddress()
+                    echoContainer.ipAddress()
                 )
                 envoyContainer2.start()
             }

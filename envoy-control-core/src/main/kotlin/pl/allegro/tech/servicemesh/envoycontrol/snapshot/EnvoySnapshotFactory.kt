@@ -84,7 +84,7 @@ internal class EnvoySnapshotFactory(
         // Http2 support is on a cluster level so if someone decides to deploy a service in dc1 with envoy and in dc2
         // without envoy then we can't set http2 because we do not know if the server in dc2 supports it.
         val allInstancesHaveEnvoyTag = allInstances.isNotEmpty() && allInstances.all {
-            it.tags.contains("envoy")
+            it.tags.contains(properties.egress.http2Properties.tagName)
         }
 
         return ClusterConfiguration(serviceName, allInstancesHaveEnvoyTag)
