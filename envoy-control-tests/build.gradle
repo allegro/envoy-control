@@ -42,5 +42,10 @@ task reliabilityTest(type: Test) {
     useJUnitPlatform {
         includeTags 'reliability'
     }
+
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat = 'full'
+    }
     testClassesDirs = project.sourceSets.main.output.classesDirs
 }

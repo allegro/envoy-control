@@ -22,7 +22,7 @@ internal class OriginalDestinationTest : EnvoyControlTestConfiguration() {
             // when
             val response = callServiceWithOriginalDst(
                 echoContainer.address(),
-                envoyContainer.egressListenerUrl()
+                envoyContainer1.egressListenerUrl()
             )
 
             // then

@@ -117,4 +117,10 @@ class AuthorizationProperties {
 class EgressProperties {
     var clusterNotFoundStatusCode = 503
     var handleInternalRedirect = false
+    var http2 = Http2Properties()
+}
+
+class Http2Properties {
+    var enabled = true
+    var tagName = "envoy"
 }

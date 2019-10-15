@@ -6,8 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
+import okhttp3.MediaType
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 
 class EnvoyAdmin(
     val address: String,
@@ -45,6 +47,10 @@ class EnvoyAdmin(
         it.string().lines().first().split(":").get(1).trim()
     }
 
+    fun resetCounters() {
+        post("reset_counters")
+    }
+
     private fun clusters(): List<ClusterStatus> {
         val response = get("clusters?format=json")
         return response.body().use {
@@ -64,13 +70,21 @@ class EnvoyAdmin(
         .build()
 
     private fun get(path: String): Response =
-            client.newCall(
-                Request.Builder()
-                    .get()
-                    .url("$address/$path")
-                    .build()
-            )
+        client.newCall(
+            Request.Builder()
+                .get()
+                .url("$address/$path")
+                .build()
+        )
             .execute()
+
+    private fun post(path: String): Response =
+        client.newCall(
+            Request.Builder()
+                .post(RequestBody.create(MediaType.get("application/json"), "{}"))
+                .url("$address/$path")
+                .build()
+        ).execute()
 
     data class AdminInstance(val ip: String, val zone: String)
 }

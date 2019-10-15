@@ -77,7 +77,7 @@ internal abstract class EnvoyControlTest : EnvoyControlTestConfiguration() {
 
     private fun waitForEchoServices(instances: Int) {
         untilAsserted {
-            assertThat(envoyContainer.admin().numOfEndpoints(clusterName = "echo")).isEqualTo(instances)
+            assertThat(envoyContainer1.admin().numOfEndpoints(clusterName = "echo")).isEqualTo(instances)
         }
     }
 
@@ -88,7 +88,7 @@ internal abstract class EnvoyControlTest : EnvoyControlTestConfiguration() {
 
         untilAsserted {
             // when
-            val adminInstance = envoyContainer.admin().zone(cluster = "echo", ip = echoContainer.ipAddress())
+            val adminInstance = envoyContainer1.admin().zone(cluster = "echo", ip = echoContainer.ipAddress())
 
             // then
             assertThat(adminInstance).isNotNull

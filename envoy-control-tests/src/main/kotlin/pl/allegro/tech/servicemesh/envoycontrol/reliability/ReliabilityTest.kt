@@ -80,7 +80,7 @@ open class ReliabilityTest : EnvoyControlTestConfiguration() {
     fun cleanup() {
         ((consulMastersInDc1 + consulMastersInDc2).map {
             it.container
-        } + listOf(envoyContainer, echoContainer, echoContainer2)).forEach {
+        } + listOf(envoyContainer1, echoContainer, echoContainer2)).forEach {
             it.sigcont()
             it.clearAllIptablesRules()
         }

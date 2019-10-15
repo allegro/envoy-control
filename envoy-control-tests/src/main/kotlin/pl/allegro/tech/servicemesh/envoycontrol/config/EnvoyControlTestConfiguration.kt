@@ -12,7 +12,7 @@ import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.time.Duration
@@ -33,11 +33,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             .readTimeout(Duration.ofSeconds(20))
             .build()
 
-        lateinit var envoyContainer: EnvoyContainer
+        lateinit var envoyContainer1: EnvoyContainer
+        lateinit var envoyContainer2: EnvoyContainer
         lateinit var localServiceContainer: EchoContainer
         lateinit var envoyControl1: EnvoyControlTestApp
         lateinit var envoyControl2: EnvoyControlTestApp
         var envoyControls: Int = 1
+        var envoys: Int = 1
 
         @JvmStatic
         fun setup(
@@ -45,6 +47,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             appFactoryForEc1: (Int) -> EnvoyControlTestApp = defaultAppFactory(),
             appFactoryForEc2: (Int) -> EnvoyControlTestApp = appFactoryForEc1,
             envoyControls: Int = 1,
+            envoys: Int = 1,
             envoyConnectGrpcPort: Int? = null,
             envoyConnectGrpcPort2: Int? = null,
             ec1RegisterPort: Int? = null,
@@ -52,6 +55,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             instancesInSameDc: Boolean = false
         ) {
             assertThat(envoyControls == 1 || envoyControls == 2).isTrue()
+            assertThat(envoys == 1 || envoys == 2).isTrue()
 
             localServiceContainer = EchoContainer().also { it.start() }
 
@@ -63,7 +67,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 envoyControl2 = appFactoryForEc2(consul2HttpPort).also { it.run() }
             }
 
-            envoyContainer = createEnvoyContainer(
+            envoyContainer1 = createEnvoyContainer(
                 instancesInSameDc,
                 envoyConfig,
                 envoyConnectGrpcPort,
@@ -72,13 +76,24 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
             waitForEnvoyControlsHealthy()
             registerEnvoyControls(ec1RegisterPort, ec2RegisterPort, instancesInSameDc)
-            envoyContainer.start()
+            envoyContainer1.start()
+
+            if (envoys == 2) {
+                envoyContainer2 = createEnvoyContainer(
+                    true,
+                    envoyConfig,
+                    envoyConnectGrpcPort,
+                    envoyConnectGrpcPort2,
+                    echoContainer.ipAddress()
+                )
+                envoyContainer2.start()
+            }
         }
 
         @AfterAll
         @JvmStatic
         fun teardown() {
-            envoyContainer.stop()
+            envoyContainer1.stop()
             envoyControl1.stop()
             if (envoyControls == 2) {
                 envoyControl2.stop()
@@ -89,19 +104,20 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             instancesInSameDc: Boolean,
             envoyConfig: EnvoyConfigFile,
             envoyConnectGrpcPort: Int?,
-            envoyConnectGrpcPort2: Int?
+            envoyConnectGrpcPort2: Int?,
+            localServiceIp: String = localServiceContainer.ipAddress()
         ): EnvoyContainer {
             return if (envoyControls == 2 && instancesInSameDc) {
                 EnvoyContainer(
                     envoyConfig.filePath,
-                    localServiceContainer.ipAddress(),
+                    localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort,
                     envoyConnectGrpcPort2 ?: envoyControl2.grpcPort
                 ).withNetwork(network)
             } else {
                 EnvoyContainer(
                     envoyConfig.filePath,
-                    localServiceContainer.ipAddress(),
+                    localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort
                 ).withNetwork(network)
             }
@@ -139,21 +155,21 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
-        fun callEcho(url: String = envoyContainer.egressListenerUrl()): Response =
+        fun callEcho(url: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", url)
 
-        fun callDomain(domain: String, url: String = envoyContainer.egressListenerUrl()): Response =
+        fun callDomain(domain: String, url: String = envoyContainer1.egressListenerUrl()): Response =
             call(domain, url)
 
         fun callService(
             service: String,
-            url: String = envoyContainer.egressListenerUrl(),
+            url: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf()
         ): Response = call(service, url, headers)
 
         private fun call(
             host: String,
-            url: String = envoyContainer.egressListenerUrl(),
+            url: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf()
         ): Response =
             client.newCall(
@@ -184,12 +200,12 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     Request.Builder()
                         .get()
                         .headers(headers)
-                        .url(envoyContainer.ingressListenerUrl() + endpoint)
+                        .url(envoyContainer1.ingressListenerUrl() + endpoint)
                         .build()
                 )
                 .execute()
 
-        fun callPostLocalService(endpoint: String, headers: Headers, body: RequestBody): Response =
+        fun callPostLocalService(endpoint: String, headers: Headers, body: RequestBody, envoyContainer: EnvoyContainer = envoyContainer1): Response =
             client.newCall(
                     Request.Builder()
                         .post(body)
@@ -283,6 +299,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     @AfterEach
     fun cleanupTest() {
         deregisterAllServices()
+        envoyContainer1.admin().resetCounters()
+        if (envoys == 2) {
+            envoyContainer2.admin().resetCounters()
+        }
         waitForConsulSync()
     }
+
 }
