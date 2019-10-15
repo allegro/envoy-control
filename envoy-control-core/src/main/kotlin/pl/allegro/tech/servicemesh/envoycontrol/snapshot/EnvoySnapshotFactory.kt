@@ -38,7 +38,7 @@ internal class EnvoySnapshotFactory(
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
 
-        val clusterConfigurations = if (properties.egress.http2Properties.enabled) {
+        val clusterConfigurations = if (properties.egress.http2.enabled) {
             servicesStates.flatMap {
                 it.servicesState.serviceNameToInstances.values
             }.groupBy {
@@ -84,7 +84,7 @@ internal class EnvoySnapshotFactory(
         // Http2 support is on a cluster level so if someone decides to deploy a service in dc1 with envoy and in dc2
         // without envoy then we can't set http2 because we do not know if the server in dc2 supports it.
         val allInstancesHaveEnvoyTag = allInstances.isNotEmpty() && allInstances.all {
-            it.tags.contains(properties.egress.http2Properties.tagName)
+            it.tags.contains(properties.egress.http2.tagName)
         }
 
         return ClusterConfiguration(serviceName, allInstancesHaveEnvoyTag)

@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
@@ -36,15 +36,11 @@ abstract class EnvoyControlHttp2Test : EnvoyControlTestConfiguration() {
 
         untilAsserted {
             // when
-            val response = callService("proxy1")
+            callProxy()
+
             // then
-            Assertions.assertThat(response).isOk()
-
-            val http1Connections = envoyContainer1.admin().statValue("cluster.proxy1.upstream_cx_http1_total")?.toInt()
-            Assertions.assertThat(http1Connections).isEqualTo(0)
-
-            val http2Connections = envoyContainer1.admin().statValue("cluster.proxy1.upstream_cx_http2_total")?.toInt()
-            Assertions.assertThat(http2Connections).isGreaterThan(0)
+            assertDidNotUseHttp1(envoyContainer1)
+            assertUsedHttp2(envoyContainer1)
         }
     }
 
@@ -56,14 +52,36 @@ abstract class EnvoyControlHttp2Test : EnvoyControlTestConfiguration() {
         untilAsserted {
             // when
             val response = callEcho()
+            assertThat(response).isOk().isFrom(echoContainer)
+
             // then
-            Assertions.assertThat(response).isOk().isFrom(echoContainer)
-
-            val http1Connections = envoyContainer1.admin().statValue("cluster.echo.upstream_cx_http1_total")?.toInt()
-            Assertions.assertThat(http1Connections).isGreaterThan(0)
-
-            val http2Connections = envoyContainer1.admin().statValue("cluster.echo.upstream_cx_http2_total")?.toInt()
-            Assertions.assertThat(http2Connections).isEqualTo(0)
+            assertUsedHttp1(envoyContainer1)
+            assertDidNotUseHttp2(envoyContainer1)
         }
+    }
+
+    private fun callProxy() {
+        val response = callService("proxy1")
+        assertThat(response).isOk()
+    }
+
+    private fun assertUsedHttp2(container: EnvoyContainer) {
+        val http2Connections = container.admin().statValue("cluster.proxy1.upstream_cx_http2_total")?.toInt()
+        assertThat(http2Connections).isGreaterThan(0)
+    }
+
+    private fun assertDidNotUseHttp2(container: EnvoyContainer) {
+        val http2Connections = container.admin().statValue("cluster.echo.upstream_cx_http2_total")?.toInt()
+        assertThat(http2Connections).isEqualTo(0)
+    }
+
+    private fun assertDidNotUseHttp1(container: EnvoyContainer) {
+        val http1Connections = container.admin().statValue("cluster.proxy1.upstream_cx_http1_total")?.toInt()
+        assertThat(http1Connections).isEqualTo(0)
+    }
+
+    private fun assertUsedHttp1(container: EnvoyContainer) {
+        val http1Connections = container.admin().statValue("cluster.echo.upstream_cx_http1_total")?.toInt()
+        assertThat(http1Connections).isGreaterThan(0)
     }
 }
