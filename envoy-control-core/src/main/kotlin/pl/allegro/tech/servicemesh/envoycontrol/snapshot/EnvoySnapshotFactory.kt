@@ -189,23 +189,33 @@ internal class EnvoySnapshotFactory(
     private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance): LbEndpoint.Builder {
         var metadataKeys = Struct.newBuilder()
 
-        if (properties.loadBalancing.canary.enabled && instance.canary) {
+        if (properties.egress.loadBalancing.canary.enabled && instance.canary) {
             metadataKeys.putFields(
-                properties.loadBalancing.canary.metadataKey,
-                Value.newBuilder().setStringValue(properties.loadBalancing.canary.headerValue).build()
+                properties.egress.loadBalancing.canary.metadataKey,
+                Value.newBuilder().setStringValue(properties.egress.loadBalancing.canary.headerValue).build()
             )
         }
         if (instance.regular) {
             metadataKeys = metadataKeys.putFields(
-                properties.loadBalancing.regularMetadataKey,
+                properties.egress.loadBalancing.regularMetadataKey,
                 Value.newBuilder().setBoolValue(true).build()
             )
         }
+
+        if (properties.egress.routing.serviceTags.enabled) {
+            instance.tags.forEach {
+                metadataKeys = metadataKeys.putFields(
+                    properties.egress.routing.serviceTags.metadataKey,
+                    Value.newBuilder().setStringValue(it).build()
+                )
+            }
+        }
+
         return setMetadata(Metadata.newBuilder().putFilterMetadata("envoy.lb", metadataKeys.build()))
     }
 
     private fun LbEndpoint.Builder.setLoadBalancingWeightFromInstance(instance: ServiceInstance): LbEndpoint.Builder =
-        when (properties.loadBalancing.weights.enabled) {
+        when (properties.egress.loadBalancing.weights.enabled) {
             true -> setLoadBalancingWeight(UInt32Value.of(instance.weight))
             false -> this
         }

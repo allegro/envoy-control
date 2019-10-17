@@ -10,8 +10,6 @@ class SnapshotProperties {
     var egress = EgressProperties()
     var incomingPermissions = IncomingPermissionsProperties()
     var outgoingPermissions = OutgoingPermissionsProperties()
-    var loadBalancing = LoadBalancingProperties()
-    var clusterOutlierDetection = ClusterOutlierDetectionProperties()
     var xdsClusterName = "envoy-control-xds"
     var edsConnectionTimeout: Duration = Duration.ofSeconds(2)
     var stateSampleDuration: Duration = Duration.ofSeconds(1)
@@ -114,7 +112,19 @@ class AuthorizationProperties {
     var unauthorizedResponseMessage = "You have to be authorized"
 }
 
+class ServiceTagsProperties {
+    var enabled = false
+    var metadataKey = "tag"
+}
+
+class RoutingProperties {
+    var serviceTags = ServiceTagsProperties()
+}
+
 class EgressProperties {
+    var loadBalancing = LoadBalancingProperties()
+    var clusterOutlierDetection = ClusterOutlierDetectionProperties()
+    var routing = RoutingProperties()
     var clusterNotFoundStatusCode = 503
     var handleInternalRedirect = false
 }

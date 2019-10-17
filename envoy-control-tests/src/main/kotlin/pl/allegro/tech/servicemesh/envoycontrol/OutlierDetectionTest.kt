@@ -12,7 +12,7 @@ internal class OutlierDetectionTest : EnvoyControlTestConfiguration() {
     companion object {
 
         private val properties = mapOf(
-            "envoy-control.envoy.snapshot.cluster-outlier-detection.enabled" to true
+            "envoy-control.envoy.snapshot.egress.cluster-outlier-detection.enabled" to true
         )
 
         @JvmStatic

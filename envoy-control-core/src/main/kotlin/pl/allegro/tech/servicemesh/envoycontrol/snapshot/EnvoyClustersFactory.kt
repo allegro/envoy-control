@@ -52,7 +52,7 @@ internal class EnvoyClustersFactory(
     private fun strictDnsCluster(clusterName: String, host: String, port: Int, ssl: Boolean): Cluster {
         var clusterBuilder = Cluster.newBuilder()
 
-        if (properties.clusterOutlierDetection.enabled) {
+        if (properties.egress.clusterOutlierDetection.enabled) {
             configureOutlierDetection(clusterBuilder)
         }
 
@@ -100,7 +100,7 @@ internal class EnvoyClustersFactory(
     private fun edsCluster(clusterName: String, ads: Boolean): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
-        if (properties.clusterOutlierDetection.enabled) {
+        if (properties.egress.clusterOutlierDetection.enabled) {
             configureOutlierDetection(clusterBuilder)
         }
 
@@ -124,57 +124,82 @@ internal class EnvoyClustersFactory(
                 ).setServiceName(clusterName)
             )
             .setLbPolicy(Cluster.LbPolicy.LEAST_REQUEST)
-            .setCanarySubset()
+            .configureLbSubsets()
             .build()
     }
 
-    private fun Cluster.Builder.setCanarySubset(): Cluster.Builder {
-        if (!properties.loadBalancing.canary.enabled) {
+    private fun Cluster.Builder.configureLbSubsets(): Cluster.Builder {
+        val canaryEnabled = properties.egress.loadBalancing.canary.enabled
+        val tagsEnabled = properties.egress.routing.serviceTags.enabled
+
+        if (!canaryEnabled && !tagsEnabled) {
             return this
         }
+
+        val defaultSubset = Struct.newBuilder()
+        if (canaryEnabled) {
+            defaultSubset.putFields(
+                properties.egress.loadBalancing.regularMetadataKey,
+                Value.newBuilder().setBoolValue(true).build()
+            )
+        }
+
         return setLbSubsetConfig(Cluster.LbSubsetConfig.newBuilder()
             .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetFallbackPolicy.DEFAULT_SUBSET)
-            .setDefaultSubset(
-                Struct.newBuilder()
-                    .putFields(
-                        properties.loadBalancing.regularMetadataKey,
-                        Value.newBuilder().setBoolValue(true).build()
+            .setDefaultSubset(defaultSubset)
+            .apply {
+                if (canaryEnabled) {
+                    addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+                        .addKeys(properties.egress.loadBalancing.canary.metadataKey)
                     )
-            )
-            .addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
-                .addKeys(properties.loadBalancing.canary.metadataKey)
-            )
+                }
+                if (tagsEnabled) {
+                    addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+                        .addKeys(properties.egress.routing.serviceTags.metadataKey)
+                        .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                    )
+                }
+                if (tagsEnabled && canaryEnabled) {
+                    addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+                        .addKeys(properties.egress.routing.serviceTags.metadataKey)
+                        .addKeys(properties.egress.loadBalancing.canary.metadataKey)
+                        .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                    )
+                }
+            }
+            .setListAsAny(true)  // allowing for an endpoint to have multiple tags
         )
     }
 
     private fun configureOutlierDetection(clusterBuilder: Cluster.Builder) {
+        val outlierProperties = properties.egress.clusterOutlierDetection
         clusterBuilder
             .setOutlierDetection(
                 OutlierDetection.newBuilder()
-                    .setConsecutive5Xx(UInt32Value.of(properties.clusterOutlierDetection.consecutive5xx))
-                    .setInterval(Durations.fromMillis(properties.clusterOutlierDetection.interval.toMillis()))
-                    .setMaxEjectionPercent(UInt32Value.of(properties.clusterOutlierDetection.maxEjectionPercent))
-                    .setEnforcingSuccessRate(UInt32Value.of(properties.clusterOutlierDetection.enforcingSuccessRate))
+                    .setConsecutive5Xx(UInt32Value.of(outlierProperties.consecutive5xx))
+                    .setInterval(Durations.fromMillis(outlierProperties.interval.toMillis()))
+                    .setMaxEjectionPercent(UInt32Value.of(outlierProperties.maxEjectionPercent))
+                    .setEnforcingSuccessRate(UInt32Value.of(outlierProperties.enforcingSuccessRate))
                     .setBaseEjectionTime(Durations.fromMillis(
-                        properties.clusterOutlierDetection.baseEjectionTime.toMillis())
+                        outlierProperties.baseEjectionTime.toMillis())
                     )
                     .setEnforcingConsecutive5Xx(
-                        UInt32Value.of(properties.clusterOutlierDetection.enforcingConsecutive5xx)
+                        UInt32Value.of(outlierProperties.enforcingConsecutive5xx)
                     )
                     .setSuccessRateMinimumHosts(
-                        UInt32Value.of(properties.clusterOutlierDetection.successRateMinimumHosts)
+                        UInt32Value.of(outlierProperties.successRateMinimumHosts)
                     )
                     .setSuccessRateRequestVolume(
-                        UInt32Value.of(properties.clusterOutlierDetection.successRateRequestVolume)
+                        UInt32Value.of(outlierProperties.successRateRequestVolume)
                     )
                     .setSuccessRateStdevFactor(
-                        UInt32Value.of(properties.clusterOutlierDetection.successRateStdevFactor)
+                        UInt32Value.of(outlierProperties.successRateStdevFactor)
                     )
                     .setConsecutiveGatewayFailure(
-                        UInt32Value.of(properties.clusterOutlierDetection.consecutiveGatewayFailure)
+                        UInt32Value.of(outlierProperties.consecutiveGatewayFailure)
                     )
                     .setEnforcingConsecutiveGatewayFailure(
-                        UInt32Value.of(properties.clusterOutlierDetection.enforcingConsecutiveGatewayFailure)
+                        UInt32Value.of(outlierProperties.enforcingConsecutiveGatewayFailure)
                     )
             )
     }

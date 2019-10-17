@@ -43,7 +43,7 @@ allprojects {
 
     project.ext.versions = [
             kotlin            : '1.3.0',
-            java_controlplane : '0.1.16',
+            java_controlplane : '0.1.19',
             spring_boot       : '2.1.5.RELEASE',
             grpc              : '1.21.0',
             jaxb              : '2.3.1',
