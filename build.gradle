@@ -113,6 +113,7 @@ subprojects {
     
     dependencies {
         testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: versions.junit
+        testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit
         testCompile group: 'org.assertj', name: 'assertj-core', version: versions.assertj
         testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: versions.junit
     }
