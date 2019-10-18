@@ -12,9 +12,6 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
     companion object {
         private val properties = mapOf(
-//            "envoy-control.envoy.snapshot.egress.load-balancing.weights.enabled" to true,
-//            "envoy-control.envoy.snapshot.egress.load-balancing.canary.enabled" to true,
-
             "envoy-control.envoy.snapshot.egress.routing.service-tags.enabled" to true,
             "envoy-control.envoy.snapshot.egress.routing.service-tags.metadata-key" to "tag"
         )
@@ -29,7 +26,10 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             })
+            registerServices()
+        }
 
+        protected fun registerServices() {
             registerService(name = "echo", container = regularContainer, tags = listOf())
             registerService(name = "echo", container = loremContainer, tags = listOf("lorem"))
             registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
@@ -44,16 +44,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
                 assertThat(it).isOk()
             }
         }
-        val stats = CallStats()
 
         // when
-        callServiceRepeatedly(
-            service = "echo",
-            stats = stats,
-            minRepeat = 10,
-            maxRepeat = 10,
-            headers = mapOf("service-tag" to "ipsum")
-        )
+        val stats =callEchoServiceRepeatedly(repeat = 10, tag = "ipsum")
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
@@ -70,16 +63,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
                 assertThat(it).isOk()
             }
         }
-        val stats = CallStats()
 
         // when
-        callServiceRepeatedly(
-            service = "echo",
-            stats = stats,
-            minRepeat = 20,
-            maxRepeat = 20,
-            headers = mapOf("service-tag" to "lorem")
-        )
+        val stats = callEchoServiceRepeatedly(repeat = 20, tag = "lorem")
 
         // then
         assertThat(stats.totalHits).isEqualTo(20)
@@ -97,15 +83,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
                 assertThat(it).isOk()
             }
         }
-        val stats = CallStats()
 
         // when
-        callServiceRepeatedly(
-            service = "echo",
-            stats = stats,
-            minRepeat = 20,
-            maxRepeat = 20
-        )
+        val stats = callEchoServiceRepeatedly(repeat = 20)
 
         // then
         assertThat(stats.totalHits).isEqualTo(20)
@@ -123,17 +103,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
                 assertThat(it).isOk()
             }
         }
-        val stats = CallStats()
 
         // when
-        callServiceRepeatedly(
-            service = "echo",
-            stats = stats,
-            minRepeat = 10,
-            maxRepeat = 10,
-            headers = mapOf("service-tag" to "dolom"),
-            assertNoErrors = false
-        )
+        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "dolom", assertNoErrors = false)
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
@@ -143,6 +115,18 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         assertThat(stats.loremIpsumHits).isEqualTo(0)
     }
 
+    open protected fun callEchoServiceRepeatedly(repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
+        val stats = CallStats()
+        callServiceRepeatedly(
+            service = "echo",
+            stats = stats,
+            minRepeat = repeat,
+            maxRepeat = repeat,
+            headers = tag?.let { mapOf("service-tag" to it) } ?: emptyMap(),
+            assertNoErrors = assertNoErrors
+        )
+        return stats
+    }
 
     @AfterEach
     override fun cleanupTest() {
