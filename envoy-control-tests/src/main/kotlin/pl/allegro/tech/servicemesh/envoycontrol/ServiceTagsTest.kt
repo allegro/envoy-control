@@ -147,7 +147,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
     @AfterEach
     override fun cleanupTest() {
-        // do not shutdown services
+        // do not deregister services
     }
 
     inner class CallStats(
