@@ -1,12 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
 
 open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
 
@@ -43,10 +41,12 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
                 assertThat(it).isOk()
             }
         }
+        val callStats = CallStats()
 
         // when
-        val callStats = callServiceRepeatedly(
+        callServiceRepeatedly(
             service = "echo",
+            stats = callStats,
             minRepeat = 30,
             maxRepeat = 200,
             repeatUntil = { response -> response.isFrom(canaryContainer) }
@@ -88,10 +88,12 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
                 assertThat(it).isOk()
             }
         }
+        val callStats = CallStats()
 
         // when
-        val callStats = callServiceRepeatedly(
+        callServiceRepeatedly(
             service = "echo",
+            stats = callStats,
             minRepeat = 50,
             maxRepeat = 50,
             headers = mapOf("X-Canary" to "1")
@@ -113,10 +115,12 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
                 assertThat(it).isOk()
             }
         }
+        val callStats = CallStats()
 
         // when
-        val callStats = callServiceRepeatedly(
+        callServiceRepeatedly(
             service = "echo",
+            stats = callStats,
             minRepeat = 30,
             maxRepeat = 200,
             repeatUntil = { response -> response.isFrom(canaryContainer) }
@@ -128,40 +132,11 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         assertThat(callStats.canaryHits).isGreaterThan(0)
     }
 
-    data class CallStatistics(val canaryHits: Int = 0, val regularHits: Int = 0, val totalHits: Int = 0) {
-        operator fun plus(other: CallStatistics): CallStatistics = CallStatistics(
-            canaryHits = this.canaryHits + other.canaryHits,
-            regularHits = this.regularHits + other.regularHits,
-            totalHits = this.totalHits + other.totalHits
-        )
+    inner class CallStats(var canaryHits: Int = 0, var regularHits: Int = 0, var totalHits: Int = 0) : CallStatistics {
+        override fun addResponse(response: ResponseWithBody) {
+            canaryHits += if (response.isFrom(canaryContainer)) 1 else 0
+            regularHits += if (response.isFrom(regularContainer)) 1 else 0
+            totalHits += 1
+        }
     }
-
-    data class ResponseWithBody(val response: Response, val body: String) {
-        fun isFrom(echoContainer: EchoContainer) = body.contains(echoContainer.response)
-    }
-
-    private fun mapResponseToCallStats(response: ResponseWithBody): CallStatistics = CallStatistics(
-        canaryHits = if (response.isFrom(canaryContainer)) 1 else 0,
-        regularHits = if (response.isFrom(regularContainer)) 1 else 0,
-        totalHits = 1
-    )
-
-    protected fun callServiceRepeatedly(
-        service: String,
-        minRepeat: Int = 1,
-        maxRepeat: Int = 100,
-        repeatUntil: (ResponseWithBody) -> Boolean = { false },
-        headers: Map<String, String> = mapOf()
-    ): CallStatistics =
-        (1..maxRepeat).asSequence()
-            .map { i ->
-                callService(service = service, headers = headers).also {
-                    assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
-                }
-            }
-            .map { ResponseWithBody(it, it.body()?.string() ?: "") }
-            .withIndex()
-            .takeWhile { (i, response) -> i < minRepeat || !repeatUntil(response) }
-            .map { it.value }
-            .fold(CallStatistics()) { acc, response -> acc + mapResponseToCallStats(response) }
 }

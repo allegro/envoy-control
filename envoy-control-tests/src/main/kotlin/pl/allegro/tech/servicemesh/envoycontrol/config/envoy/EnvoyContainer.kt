@@ -13,7 +13,7 @@ class EnvoyContainer(
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort
 ) : GenericContainer<EnvoyContainer>(ImageFromDockerfile().withDockerfileFromBuilder {
-    it.from("envoyproxy/envoy-alpine:latest") // TODO (https://github.com/allegro/envoy-control/issues/7): NOT latest,
+    it.from("envoyproxy/envoy-alpine:v1.11.1") // TODO (https://github.com/allegro/envoy-control/issues/7): NOT latest,
             // whatever is tagged latest in local cache is considered latest, C'MON
             // this should be possible to overcome soon: https://github.com/moby/moby/issues/13331
             // but it's not great in the long run if future updates break the build

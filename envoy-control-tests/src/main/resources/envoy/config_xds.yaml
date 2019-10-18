@@ -98,6 +98,12 @@ static_resources:
                     key: canary
                     type: STRING
                   remove: false
+                - header: service-tag
+                  on_header_present:
+                    metadata_namespace: envoy.lb
+                    key: tag
+                    type: STRING
+                  remove: false
           - name: envoy.router
   - name: ingress_listener
     address:

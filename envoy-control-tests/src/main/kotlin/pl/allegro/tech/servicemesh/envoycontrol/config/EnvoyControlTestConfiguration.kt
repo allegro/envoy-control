@@ -1,10 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
-import okhttp3.OkHttpClient
-import okhttp3.Response
-import okhttp3.Request
 import okhttp3.Headers
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility
@@ -210,6 +210,45 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 )
             }
         }
+
+        fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
+            matches { it.isSuccessful }
+            return this
+        }
+    }
+
+    data class ResponseWithBody(val response: Response, val body: String) {
+        fun isFrom(echoContainer: EchoContainer) = body.contains(echoContainer.response)
+        fun isOk() = response.isSuccessful
+    }
+
+    interface CallStatistics {
+        fun addResponse(response: ResponseWithBody)
+    }
+
+    protected fun callServiceRepeatedly(
+        service: String,
+        stats: CallStatistics,
+        minRepeat: Int = 1,
+        maxRepeat: Int = 100,
+        repeatUntil: (ResponseWithBody) -> Boolean = { false },
+        headers: Map<String, String> = mapOf(),
+        assertNoErrors: Boolean = true
+    ): CallStatistics {
+        var conditionFulfilled = false
+        (1..maxRepeat).asSequence()
+            .map { i ->
+                callService(service = service, headers = headers).also {
+                    if (assertNoErrors) assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
+                }
+            }
+            .map { ResponseWithBody(it, it.body()?.string() ?: "") }
+            .onEach { conditionFulfilled = conditionFulfilled || repeatUntil(it) }
+            .withIndex()
+            .takeWhile { (i, _) -> i < minRepeat || !conditionFulfilled }
+            .map { it.value }
+            .forEach { stats.addResponse(it) }
+        return stats
     }
 
     fun waitUntilEchoCalledThroughEnvoyResponds(target: EchoContainer) {
@@ -230,11 +269,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
     fun untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (Unit)) {
         Awaitility.await().atMost(wait).untilAsserted(fn)
-    }
-
-    fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
-        matches { it.isSuccessful }
-        return this
     }
 
     fun ObjectAssert<Response>.isFrom(echoContainer: EchoContainer): ObjectAssert<Response> {
@@ -281,7 +315,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     }
 
     @AfterEach
-    fun cleanupTest() {
+    open fun cleanupTest() {
         deregisterAllServices()
         waitForConsulSync()
     }

@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.ListValue
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
@@ -187,7 +188,7 @@ internal class EnvoySnapshotFactory(
     }
 
     private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance): LbEndpoint.Builder {
-        var metadataKeys = Struct.newBuilder()
+        val metadataKeys = Struct.newBuilder()
 
         if (properties.egress.loadBalancing.canary.enabled && instance.canary) {
             metadataKeys.putFields(
@@ -196,19 +197,20 @@ internal class EnvoySnapshotFactory(
             )
         }
         if (instance.regular) {
-            metadataKeys = metadataKeys.putFields(
+            metadataKeys.putFields(
                 properties.egress.loadBalancing.regularMetadataKey,
                 Value.newBuilder().setBoolValue(true).build()
             )
         }
 
         if (properties.egress.routing.serviceTags.enabled) {
-            instance.tags.forEach {
-                metadataKeys = metadataKeys.putFields(
-                    properties.egress.routing.serviceTags.metadataKey,
-                    Value.newBuilder().setStringValue(it).build()
-                )
-            }
+            metadataKeys.putFields(
+                properties.egress.routing.serviceTags.metadataKey,
+                Value.newBuilder()
+                    .setListValue(ListValue.newBuilder()
+                        .addAllValues(instance.tags.map { Value.newBuilder().setStringValue(it).build() })
+                    ).build()
+            )
         }
 
         return setMetadata(Metadata.newBuilder().putFilterMetadata("envoy.lb", metadataKeys.build()))
