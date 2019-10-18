@@ -18,6 +18,7 @@ import io.envoyproxy.envoy.api.v2.core.ConfigSource
 import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
+import io.envoyproxy.envoy.api.v2.core.Http2ProtocolOptions
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
@@ -28,7 +29,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 internal class EnvoyClustersFactory(
     private val properties: SnapshotProperties
 ) {
-    fun getClustersForServices(services: List<String>, ads: Boolean): List<Cluster> {
+    fun getClustersForServices(services: List<EnvoySnapshotFactory.ClusterConfiguration>, ads: Boolean): List<Cluster> {
         return services.map { edsCluster(it, ads) }
     }
 
@@ -97,14 +98,14 @@ internal class EnvoyClustersFactory(
         return clusterBuilder.build()
     }
 
-    private fun edsCluster(clusterName: String, ads: Boolean): Cluster {
+    private fun edsCluster(clusterConfiguration: EnvoySnapshotFactory.ClusterConfiguration, ads: Boolean): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
         if (properties.egress.clusterOutlierDetection.enabled) {
             configureOutlierDetection(clusterBuilder)
         }
 
-        return clusterBuilder.setName(clusterName)
+        val cluster = clusterBuilder.setName(clusterConfiguration.serviceName)
             .setType(Cluster.DiscoveryType.EDS)
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
             .setEdsClusterConfig(
@@ -121,11 +122,16 @@ internal class EnvoyClustersFactory(
                             )
                         )
                     }
-                ).setServiceName(clusterName)
+                ).setServiceName(clusterConfiguration.serviceName)
             )
             .setLbPolicy(Cluster.LbPolicy.LEAST_REQUEST)
             .configureLbSubsets()
-            .build()
+
+        if (clusterConfiguration.http2Enabled) {
+            cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())
+        }
+
+        return cluster.build()
     }
 
     private fun Cluster.Builder.configureLbSubsets(): Cluster.Builder {

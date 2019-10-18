@@ -39,7 +39,19 @@ internal class EnvoySnapshotFactory(
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
 
-        val clusters: List<Cluster> = clustersFactory.getClustersForServices(serviceNames, ads)
+        val clusterConfigurations = if (properties.egress.http2.enabled) {
+            servicesStates.flatMap {
+                it.servicesState.serviceNameToInstances.values
+            }.groupBy {
+                it.serviceName
+            }.map { (serviceName, instances) ->
+                toClusterConfiguration(instances, serviceName)
+            }
+        } else {
+            serviceNames.map { ClusterConfiguration(serviceName = it, http2Enabled = false)}
+        }
+
+        val clusters = clustersFactory.getClustersForServices(clusterConfigurations, ads)
 
         val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(servicesStates)
         val routes = listOf(
@@ -63,6 +75,20 @@ internal class EnvoySnapshotFactory(
             routes = routes,
             routesVersion = RoutesVersion(version.clusters.value)
         )
+    }
+
+    private fun toClusterConfiguration(instances: List<ServiceInstances>, serviceName: String): ClusterConfiguration {
+        val allInstances = instances.flatMap {
+            it.instances
+        }
+
+        // Http2 support is on a cluster level so if someone decides to deploy a service in dc1 with envoy and in dc2
+        // without envoy then we can't set http2 because we do not know if the server in dc2 supports it.
+        val allInstancesHaveEnvoyTag = allInstances.isNotEmpty() && allInstances.all {
+            it.tags.contains(properties.egress.http2.tagName)
+        }
+
+        return ClusterConfiguration(serviceName, allInstancesHaveEnvoyTag)
     }
 
     fun getSnapshotForGroup(group: Group, globalSnapshot: Snapshot): Snapshot {
@@ -271,6 +297,8 @@ internal class EnvoySnapshotFactory(
             emptyList<Secret>(),
             SecretsVersion.EMPTY_VERSION.value
         )
+
+    internal data class ClusterConfiguration(val serviceName: String, val http2Enabled: Boolean)
 }
 
 class RouteSpecification(

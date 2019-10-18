@@ -57,7 +57,7 @@ internal class OutlierDetectionTest : EnvoyControlTestConfiguration() {
     }
 
     private fun hasOutlierCheckFailed(cluster: String, unhealthyIp: String): Boolean {
-        return EnvoyAdmin(address = envoyContainer.adminUrl())
+        return EnvoyAdmin(address = envoyContainer1.adminUrl())
             .hostStatus(cluster, unhealthyIp)
             ?.healthStatus
             ?.failedOutlierCheck

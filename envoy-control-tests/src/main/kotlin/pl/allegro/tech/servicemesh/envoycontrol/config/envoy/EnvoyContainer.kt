@@ -28,8 +28,8 @@ class EnvoyContainer(
         private const val LAUNCH_ENVOY_SCRIPT = "envoy/launch_envoy.sh"
         private const val LAUNCH_ENVOY_SCRIPT_DEST = "/usr/local/bin/launch_envoy.sh"
 
-        private const val EGRESS_LISTENER_CONTAINER_PORT = 5000
-        private const val INGRESS_LISTENER_CONTAINER_PORT = 5001
+        const val EGRESS_LISTENER_CONTAINER_PORT = 5000
+        const val INGRESS_LISTENER_CONTAINER_PORT = 5001
         private const val ADMIN_PORT = 10000
     }
 

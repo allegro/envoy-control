@@ -8,7 +8,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
 
-
 open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
     companion object {
