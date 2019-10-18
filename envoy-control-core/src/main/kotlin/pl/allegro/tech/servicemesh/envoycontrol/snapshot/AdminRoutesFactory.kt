@@ -2,10 +2,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
+import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
+import io.envoyproxy.envoy.api.v2.route.RedirectAction
 import io.envoyproxy.envoy.api.v2.route.Route
 import io.envoyproxy.envoy.api.v2.route.RouteAction
 import io.envoyproxy.envoy.api.v2.route.RouteMatch
-import io.envoyproxy.envoy.api.v2.route.RedirectAction
 
 internal class AdminRoutesFactory(
     private val properties: RoutesProperties
@@ -53,12 +54,14 @@ internal class AdminRoutesFactory(
     }
 
     fun generateAdminRoutes(): List<Route> {
-        return generateSecuredAdminRoutes() + listOfNotNull(
-            adminPostRoute.authorized.takeIf { properties.admin.publicAccessEnabled },
-            adminPostRoute.unauthorized.takeIf { properties.admin.publicAccessEnabled },
-            adminRoute.takeIf { properties.admin.publicAccessEnabled },
-            adminRedirectRoute.takeIf { properties.admin.publicAccessEnabled }
-        )
+        return guardAccessWithDisableHeader() +
+                generateSecuredAdminRoutes() +
+                listOfNotNull(
+                        adminPostRoute.authorized.takeIf { properties.admin.publicAccessEnabled },
+                        adminPostRoute.unauthorized.takeIf { properties.admin.publicAccessEnabled },
+                        adminRoute.takeIf { properties.admin.publicAccessEnabled },
+                        adminRedirectRoute.takeIf { properties.admin.publicAccessEnabled }
+                )
     }
 
     private fun createAuthorizedRoute(
@@ -95,5 +98,38 @@ internal class AdminRoutesFactory(
             )
             .build()
         return AuthorizationRoute(authorizedRoute, unauthorizedRoute)
+    }
+
+    fun guardAccessWithDisableHeader(): List<Route> {
+        if (properties.admin.disable.onHeader.isEmpty()) {
+            return emptyList()
+        }
+
+        val routeDenyingRequestsWithDisableHeaderOnPath =
+                { matchCustomizer: (RouteMatch.Builder) -> RouteMatch.Builder ->
+                    Route.newBuilder()
+                            .setMatch(
+                                    matchCustomizer.invoke(RouteMatch.newBuilder())
+                                            .addHeaders(HeaderMatcher.newBuilder()
+                                                    .setName(properties.admin.disable.onHeader)
+                                                    .build()
+                                            )
+                            )
+                            .setDirectResponse(
+                                    DirectResponseAction.newBuilder()
+                                            .setStatus(properties.admin.disable.responseCode)
+                                            .build()
+                            )
+                            .build()
+                }
+
+        return listOf(
+                routeDenyingRequestsWithDisableHeaderOnPath { b ->
+                    b.setPath(properties.admin.pathPrefix)
+                },
+                routeDenyingRequestsWithDisableHeaderOnPath { b ->
+                    b.setPrefix(properties.admin.pathPrefix + "/")
+                }
+        )
     }
 }
