@@ -134,9 +134,9 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
 
     inner class CallStats(var canaryHits: Int = 0, var regularHits: Int = 0, var totalHits: Int = 0) : CallStatistics {
         override fun addResponse(response: ResponseWithBody) {
-            canaryHits += if (response.isFrom(canaryContainer)) 1 else 0
-            regularHits += if (response.isFrom(regularContainer)) 1 else 0
-            totalHits += 1
+            if (response.isFrom(canaryContainer)) canaryHits++
+            if (response.isFrom(regularContainer)) regularHits++
+            totalHits++
         }
     }
 }

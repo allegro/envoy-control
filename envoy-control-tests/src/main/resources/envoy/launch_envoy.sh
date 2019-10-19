@@ -18,7 +18,7 @@ echo "${CONFIG}" | sed \
  -e "s/HOST_PORT/${HOST_PORT}/g" \
  -e "s/HOST2_PORT/${HOST2_PORT}/g" \
  -e "s/LOCAL_SERVICE_IP/${LOCAL_SERVICE_IP}/g" \
- -e "s/EXTRA_DIR/${EXTRA_DIR}/g" \
+ -e "s|EXTRA_DIR|${EXTRA_DIR}|g" \
  > "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 

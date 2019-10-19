@@ -14,10 +14,7 @@ class EnvoyContainer(
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
     private val extraFiles: List<String> = emptyList()
 ) : GenericContainer<EnvoyContainer>(ImageFromDockerfile().withDockerfileFromBuilder {
-    it.from("envoyproxy/envoy-alpine:v1.11.1") // TODO (https://github.com/allegro/envoy-control/issues/7): NOT latest,
-            // whatever is tagged latest in local cache is considered latest, C'MON
-            // this should be possible to overcome soon: https://github.com/moby/moby/issues/13331
-            // but it's not great in the long run if future updates break the build
+    it.from("envoyproxy/envoy-alpine:v1.11.1")
         .run("apk --no-cache add curl iproute2")
         .build()
 }) {
@@ -58,6 +55,7 @@ class EnvoyContainer(
             Integer.toString(envoyControl2XdsPort),
             CONFIG_DEST,
             localServiceIp,
+            EXTRA_DIR_DEST,
             "-l", "debug"
         )
     }
