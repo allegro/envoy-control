@@ -25,7 +25,7 @@ class EnvoyContainer(
         private const val CONFIG_DEST = "/etc/envoy/envoy.yaml"
         private const val LAUNCH_ENVOY_SCRIPT = "envoy/launch_envoy.sh"
         private const val LAUNCH_ENVOY_SCRIPT_DEST = "/usr/local/bin/launch_envoy.sh"
-        private const val EXTRA_DIR_DEST = "/etc/envoy/extra/"
+        private const val EXTRA_DIR_DEST = "/etc/envoy/extra"
 
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
@@ -43,7 +43,7 @@ class EnvoyContainer(
         withClasspathResourceMapping(configPath, CONFIG_DEST, BindMode.READ_ONLY)
 
         for (extraFile in extraFiles) {
-            withClasspathResourceMapping(extraFile, EXTRA_DIR_DEST + extraFile, BindMode.READ_ONLY)
+            withClasspathResourceMapping(extraFile, "$EXTRA_DIR_DEST/$extraFile", BindMode.READ_ONLY)
         }
 
         withExposedPorts(EGRESS_LISTENER_CONTAINER_PORT, INGRESS_LISTENER_CONTAINER_PORT, ADMIN_PORT)
