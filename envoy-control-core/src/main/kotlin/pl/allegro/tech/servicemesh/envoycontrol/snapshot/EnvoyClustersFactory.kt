@@ -178,34 +178,33 @@ internal class EnvoyClustersFactory(
     }
 
     private fun configureOutlierDetection(clusterBuilder: Cluster.Builder) {
-        val outlierProperties = properties.clusterOutlierDetection
         clusterBuilder
             .setOutlierDetection(
                 OutlierDetection.newBuilder()
-                    .setConsecutive5Xx(UInt32Value.of(outlierProperties.consecutive5xx))
-                    .setInterval(Durations.fromMillis(outlierProperties.interval.toMillis()))
-                    .setMaxEjectionPercent(UInt32Value.of(outlierProperties.maxEjectionPercent))
-                    .setEnforcingSuccessRate(UInt32Value.of(outlierProperties.enforcingSuccessRate))
+                    .setConsecutive5Xx(UInt32Value.of(properties.clusterOutlierDetection.consecutive5xx))
+                    .setInterval(Durations.fromMillis(properties.clusterOutlierDetection.interval.toMillis()))
+                    .setMaxEjectionPercent(UInt32Value.of(properties.clusterOutlierDetection.maxEjectionPercent))
+                    .setEnforcingSuccessRate(UInt32Value.of(properties.clusterOutlierDetection.enforcingSuccessRate))
                     .setBaseEjectionTime(Durations.fromMillis(
-                        outlierProperties.baseEjectionTime.toMillis())
+                        properties.clusterOutlierDetection.baseEjectionTime.toMillis())
                     )
                     .setEnforcingConsecutive5Xx(
-                        UInt32Value.of(outlierProperties.enforcingConsecutive5xx)
+                        UInt32Value.of(properties.clusterOutlierDetection.enforcingConsecutive5xx)
                     )
                     .setSuccessRateMinimumHosts(
-                        UInt32Value.of(outlierProperties.successRateMinimumHosts)
+                        UInt32Value.of(properties.clusterOutlierDetection.successRateMinimumHosts)
                     )
                     .setSuccessRateRequestVolume(
-                        UInt32Value.of(outlierProperties.successRateRequestVolume)
+                        UInt32Value.of(properties.clusterOutlierDetection.successRateRequestVolume)
                     )
                     .setSuccessRateStdevFactor(
-                        UInt32Value.of(outlierProperties.successRateStdevFactor)
+                        UInt32Value.of(properties.clusterOutlierDetection.successRateStdevFactor)
                     )
                     .setConsecutiveGatewayFailure(
-                        UInt32Value.of(outlierProperties.consecutiveGatewayFailure)
+                        UInt32Value.of(properties.clusterOutlierDetection.consecutiveGatewayFailure)
                     )
                     .setEnforcingConsecutiveGatewayFailure(
-                        UInt32Value.of(outlierProperties.enforcingConsecutiveGatewayFailure)
+                        UInt32Value.of(properties.clusterOutlierDetection.enforcingConsecutiveGatewayFailure)
                     )
             )
     }

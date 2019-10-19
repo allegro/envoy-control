@@ -53,7 +53,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             envoyConnectGrpcPort2: Int? = null,
             ec1RegisterPort: Int? = null,
             ec2RegisterPort: Int? = null,
-            instancesInSameDc: Boolean = false
+            instancesInSameDc: Boolean = false,
+            envoyExtraFiles: List<String> = emptyList()
         ) {
             assertThat(envoyControls == 1 || envoyControls == 2).isTrue()
             assertThat(envoys == 1 || envoys == 2).isTrue()
@@ -72,7 +73,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 instancesInSameDc,
                 envoyConfig,
                 envoyConnectGrpcPort,
-                envoyConnectGrpcPort2
+                envoyConnectGrpcPort2,
+                extraFiles = envoyExtraFiles
             )
 
             waitForEnvoyControlsHealthy()
@@ -85,7 +87,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     envoyConfig,
                     envoyConnectGrpcPort,
                     envoyConnectGrpcPort2,
-                    echoContainer.ipAddress()
+                    echoContainer.ipAddress(),
+                    extraFiles = envoyExtraFiles
                 )
                 envoyContainer2.start()
             }
@@ -95,10 +98,14 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         @JvmStatic
         fun teardown() {
             envoyContainer1.stop()
+            if (envoys == 2) {
+                envoyContainer2.stop()
+            }
             envoyControl1.stop()
             if (envoyControls == 2) {
                 envoyControl2.stop()
             }
+            localServiceContainer.stop()
         }
 
         private fun createEnvoyContainer(
@@ -106,20 +113,23 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             envoyConfig: EnvoyConfigFile,
             envoyConnectGrpcPort: Int?,
             envoyConnectGrpcPort2: Int?,
-            localServiceIp: String = localServiceContainer.ipAddress()
+            localServiceIp: String = localServiceContainer.ipAddress(),
+            extraFiles: List<String> = emptyList()
         ): EnvoyContainer {
             return if (envoyControls == 2 && instancesInSameDc) {
                 EnvoyContainer(
                     envoyConfig.filePath,
                     localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort,
-                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort
+                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort,
+                    extraFiles = extraFiles
                 ).withNetwork(network)
             } else {
                 EnvoyContainer(
                     envoyConfig.filePath,
                     localServiceIp,
-                    envoyConnectGrpcPort ?: envoyControl1.grpcPort
+                    envoyConnectGrpcPort ?: envoyControl1.grpcPort,
+                    extraFiles = extraFiles
                 ).withNetwork(network)
             }
         }
@@ -229,11 +239,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 )
             }
         }
-
-        fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
-            matches { it.isSuccessful }
-            return this
-        }
     }
 
     data class ResponseWithBody(val response: Response, val body: String) {
@@ -289,6 +294,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
     fun untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (Unit)) {
         Awaitility.await().atMost(wait).untilAsserted(fn)
+    }
+
+    fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
+        matches { it.isSuccessful }
+        return this
     }
 
     fun ObjectAssert<Response>.isFrom(echoContainer: EchoContainer): ObjectAssert<Response> {

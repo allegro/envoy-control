@@ -11,7 +11,8 @@ class EnvoyContainer(
     private val configPath: String,
     private val localServiceIp: String,
     private val envoyControl1XdsPort: Int,
-    private val envoyControl2XdsPort: Int = envoyControl1XdsPort
+    private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
+    private val extraFiles: List<String> = emptyList()
 ) : GenericContainer<EnvoyContainer>(ImageFromDockerfile().withDockerfileFromBuilder {
     it.from("envoyproxy/envoy-alpine:v1.11.1") // TODO (https://github.com/allegro/envoy-control/issues/7): NOT latest,
             // whatever is tagged latest in local cache is considered latest, C'MON
@@ -27,6 +28,7 @@ class EnvoyContainer(
         private const val CONFIG_DEST = "/etc/envoy/envoy.yaml"
         private const val LAUNCH_ENVOY_SCRIPT = "envoy/launch_envoy.sh"
         private const val LAUNCH_ENVOY_SCRIPT_DEST = "/usr/local/bin/launch_envoy.sh"
+        private const val EXTRA_DIR_DEST = "/etc/envoy/extra/"
 
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
@@ -42,6 +44,10 @@ class EnvoyContainer(
             BindMode.READ_ONLY
         )
         withClasspathResourceMapping(configPath, CONFIG_DEST, BindMode.READ_ONLY)
+
+        for (extraFile in extraFiles) {
+            withClasspathResourceMapping(extraFile, EXTRA_DIR_DEST + extraFile, BindMode.READ_ONLY)
+        }
 
         withExposedPorts(EGRESS_LISTENER_CONTAINER_PORT, INGRESS_LISTENER_CONTAINER_PORT, ADMIN_PORT)
         withPrivilegedMode(true)
