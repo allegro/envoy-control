@@ -177,7 +177,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             address: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
-        ): Response = call(service, address, headers)
+        ): Response = call(service, address, headers, pathAndQuery)
 
         private fun call(
             host: String,
