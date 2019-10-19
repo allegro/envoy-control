@@ -28,7 +28,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     private val loremContainer = echoContainer2
     private val loremIpsumContainer = EchoContainer().also { it.start() }
 
-    protected fun registerServices() {
+    open protected fun registerServices() {
         registerService(name = "echo", container = regularContainer, tags = listOf())
         registerService(name = "echo", container = loremContainer, tags = listOf("lorem"))
         registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
@@ -45,7 +45,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val stats =callEchoServiceRepeatedly(repeat = 10, tag = "ipsum")
+        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum")
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
