@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
 import okhttp3.Headers
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -155,22 +156,24 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
-        fun callEcho(url: String = envoyContainer1.egressListenerUrl()): Response =
-            call("echo", url)
+        fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
+            call("echo", address)
 
-        fun callDomain(domain: String, url: String = envoyContainer1.egressListenerUrl()): Response =
-            call(domain, url)
+        fun callDomain(domain: String, address: String = envoyContainer1.egressListenerUrl()): Response =
+            call(domain, address)
 
         fun callService(
             service: String,
-            url: String = envoyContainer1.egressListenerUrl(),
-            headers: Map<String, String> = mapOf()
-        ): Response = call(service, url, headers)
+            address: String = envoyContainer1.egressListenerUrl(),
+            headers: Map<String, String> = mapOf(),
+            pathAndQuery: String = ""
+        ): Response = call(service, address, headers)
 
         private fun call(
             host: String,
-            url: String = envoyContainer1.egressListenerUrl(),
-            headers: Map<String, String> = mapOf()
+            address: String = envoyContainer1.egressListenerUrl(),
+            headers: Map<String, String> = mapOf(),
+            pathAndQuery: String = ""
         ): Response =
             client.newCall(
                 Request.Builder()
@@ -179,7 +182,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     .apply {
                         headers.forEach { name, value -> header(name, value) }
                     }
-                    .url(url)
+                    .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
                     .build()
             )
                 .execute()
@@ -249,12 +252,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         maxRepeat: Int = 100,
         repeatUntil: (ResponseWithBody) -> Boolean = { false },
         headers: Map<String, String> = mapOf(),
+        pathAndQuery: String = "",
         assertNoErrors: Boolean = true
     ): CallStatistics {
         var conditionFulfilled = false
         (1..maxRepeat).asSequence()
             .map { i ->
-                callService(service = service, headers = headers).also {
+                callService(service = service, headers = headers, pathAndQuery = pathAndQuery).also {
                     if (assertNoErrors) assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
                 }
             }
@@ -331,7 +335,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     }
 
     @AfterEach
-    open fun cleanupTest() {
+    fun cleanupTest() {
         deregisterAllServices()
         envoyContainer1.admin().resetCounters()
         if (envoys == 2) {

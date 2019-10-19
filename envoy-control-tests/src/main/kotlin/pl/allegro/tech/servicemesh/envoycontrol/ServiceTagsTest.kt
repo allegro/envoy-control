@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
@@ -16,29 +15,29 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.egress.routing.service-tags.metadata-key" to "tag"
         )
 
-        private val regularContainer = echoContainer
-        private val loremContainer = echoContainer2
-        private val loremIpsumContainer = EchoContainer().also { it.start() }
-
         @JvmStatic
         @BeforeAll
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             })
-            registerServices()
         }
+    }
 
-        protected fun registerServices() {
-            registerService(name = "echo", container = regularContainer, tags = listOf())
-            registerService(name = "echo", container = loremContainer, tags = listOf("lorem"))
-            registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
-        }
+    private val regularContainer = echoContainer
+    private val loremContainer = echoContainer2
+    private val loremIpsumContainer = EchoContainer().also { it.start() }
+
+    protected fun registerServices() {
+        registerService(name = "echo", container = regularContainer, tags = listOf())
+        registerService(name = "echo", container = loremContainer, tags = listOf("lorem"))
+        registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
     }
 
     @Test
     fun `should route requests to instance with tag ipsum`() {
         // given
+        registerServices()
         untilAsserted {
             callService("echo").also {
                 assertThat(it).isOk()
@@ -58,6 +57,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should route requests to instances with tag lorem`() {
         // given
+        registerServices()
         untilAsserted {
             callService("echo").also {
                 assertThat(it).isOk()
@@ -78,6 +78,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should route requests to all instances`() {
         // given
+        registerServices()
         untilAsserted {
             callService("echo").also {
                 assertThat(it).isOk()
@@ -98,6 +99,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should return 503 if instance with requested tag is not found`() {
         // given
+        registerServices()
         untilAsserted {
             callService("echo").also {
                 assertThat(it).isOk()
@@ -126,11 +128,6 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             assertNoErrors = assertNoErrors
         )
         return stats
-    }
-
-    @AfterEach
-    override fun cleanupTest() {
-        // do not deregister services
     }
 
     inner class CallStats(
