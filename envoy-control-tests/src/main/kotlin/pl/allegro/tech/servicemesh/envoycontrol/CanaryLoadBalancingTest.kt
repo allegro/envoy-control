@@ -12,10 +12,10 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         private val properties = mapOf(
             "envoy-control.source.consul.tags.weight" to "weight",
             "envoy-control.source.consul.tags.canary" to "canary",
-            "envoy-control.envoy.snapshot.egress.load-balancing.weights.enabled" to true,
-            "envoy-control.envoy.snapshot.egress.load-balancing.canary.enabled" to true,
-            "envoy-control.envoy.snapshot.egress.load-balancing.canary.metadata-key" to "canary",
-            "envoy-control.envoy.snapshot.egress.load-balancing.canary.metadata-value" to "1"
+            "envoy-control.envoy.snapshot.load-balancing.weights.enabled" to true,
+            "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to true,
+            "envoy-control.envoy.snapshot.load-balancing.canary.metadata-key" to "canary",
+            "envoy-control.envoy.snapshot.load-balancing.canary.metadata-value" to "1"
         )
 
         @JvmStatic

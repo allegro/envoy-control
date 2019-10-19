@@ -10,6 +10,9 @@ class SnapshotProperties {
     var egress = EgressProperties()
     var incomingPermissions = IncomingPermissionsProperties()
     var outgoingPermissions = OutgoingPermissionsProperties()
+    var loadBalancing = LoadBalancingProperties()
+    var clusterOutlierDetection = ClusterOutlierDetectionProperties()
+    var routing = RoutingProperties()
     var xdsClusterName = "envoy-control-xds"
     var edsConnectionTimeout: Duration = Duration.ofSeconds(2)
     var stateSampleDuration: Duration = Duration.ofSeconds(1)
@@ -122,9 +125,6 @@ class RoutingProperties {
 }
 
 class EgressProperties {
-    var loadBalancing = LoadBalancingProperties()
-    var clusterOutlierDetection = ClusterOutlierDetectionProperties()
-    var routing = RoutingProperties()
     var clusterNotFoundStatusCode = 503
     var handleInternalRedirect = false
     var http2 = Http2Properties()

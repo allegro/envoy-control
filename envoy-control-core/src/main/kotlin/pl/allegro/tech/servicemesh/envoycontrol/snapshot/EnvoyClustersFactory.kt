@@ -17,8 +17,8 @@ import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
 import io.envoyproxy.envoy.api.v2.core.ConfigSource
 import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
-import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.core.Http2ProtocolOptions
+import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
@@ -53,7 +53,7 @@ internal class EnvoyClustersFactory(
     private fun strictDnsCluster(clusterName: String, host: String, port: Int, ssl: Boolean): Cluster {
         var clusterBuilder = Cluster.newBuilder()
 
-        if (properties.egress.clusterOutlierDetection.enabled) {
+        if (properties.clusterOutlierDetection.enabled) {
             configureOutlierDetection(clusterBuilder)
         }
 
@@ -101,7 +101,7 @@ internal class EnvoyClustersFactory(
     private fun edsCluster(clusterConfiguration: EnvoySnapshotFactory.ClusterConfiguration, ads: Boolean): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
-        if (properties.egress.clusterOutlierDetection.enabled) {
+        if (properties.clusterOutlierDetection.enabled) {
             configureOutlierDetection(clusterBuilder)
         }
 
@@ -135,8 +135,8 @@ internal class EnvoyClustersFactory(
     }
 
     private fun Cluster.Builder.configureLbSubsets(): Cluster.Builder {
-        val canaryEnabled = properties.egress.loadBalancing.canary.enabled
-        val tagsEnabled = properties.egress.routing.serviceTags.enabled
+        val canaryEnabled = properties.loadBalancing.canary.enabled
+        val tagsEnabled = properties.routing.serviceTags.enabled
 
         if (!canaryEnabled && !tagsEnabled) {
             return this
@@ -145,7 +145,7 @@ internal class EnvoyClustersFactory(
         val defaultSubset = Struct.newBuilder()
         if (canaryEnabled) {
             defaultSubset.putFields(
-                properties.egress.loadBalancing.regularMetadataKey,
+                properties.loadBalancing.regularMetadataKey,
                 Value.newBuilder().setBoolValue(true).build()
             )
         }
@@ -156,19 +156,19 @@ internal class EnvoyClustersFactory(
             .apply {
                 if (canaryEnabled) {
                     addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
-                        .addKeys(properties.egress.loadBalancing.canary.metadataKey)
+                        .addKeys(properties.loadBalancing.canary.metadataKey)
                     )
                 }
                 if (tagsEnabled) {
                     addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
-                        .addKeys(properties.egress.routing.serviceTags.metadataKey)
+                        .addKeys(properties.routing.serviceTags.metadataKey)
                         .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
                     )
                 }
                 if (tagsEnabled && canaryEnabled) {
                     addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
-                        .addKeys(properties.egress.routing.serviceTags.metadataKey)
-                        .addKeys(properties.egress.loadBalancing.canary.metadataKey)
+                        .addKeys(properties.routing.serviceTags.metadataKey)
+                        .addKeys(properties.loadBalancing.canary.metadataKey)
                         .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
                     )
                 }
@@ -178,7 +178,7 @@ internal class EnvoyClustersFactory(
     }
 
     private fun configureOutlierDetection(clusterBuilder: Cluster.Builder) {
-        val outlierProperties = properties.egress.clusterOutlierDetection
+        val outlierProperties = properties.clusterOutlierDetection
         clusterBuilder
             .setOutlierDetection(
                 OutlierDetection.newBuilder()

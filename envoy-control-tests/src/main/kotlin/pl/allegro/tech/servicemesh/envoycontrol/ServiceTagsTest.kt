@@ -11,8 +11,8 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
     companion object {
         private val properties = mapOf(
-            "envoy-control.envoy.snapshot.egress.routing.service-tags.enabled" to true,
-            "envoy-control.envoy.snapshot.egress.routing.service-tags.metadata-key" to "tag"
+            "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag"
         )
 
         @JvmStatic
@@ -28,7 +28,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     private val loremContainer = echoContainer2
     private val loremIpsumContainer = EchoContainer().also { it.start() }
 
-    open protected fun registerServices() {
+    protected fun registerServices() {
         registerService(name = "echo", container = regularContainer, tags = listOf())
         registerService(name = "echo", container = loremContainer, tags = listOf("lorem"))
         registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
