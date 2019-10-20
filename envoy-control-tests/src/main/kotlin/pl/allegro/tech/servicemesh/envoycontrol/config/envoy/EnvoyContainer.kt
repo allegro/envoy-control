@@ -25,7 +25,7 @@ class EnvoyContainer(
         private const val CONFIG_DEST = "/etc/envoy/envoy.yaml"
         private const val LAUNCH_ENVOY_SCRIPT = "envoy/launch_envoy.sh"
         private const val LAUNCH_ENVOY_SCRIPT_DEST = "/usr/local/bin/launch_envoy.sh"
-        private const val EXTRA_DIR = "extra"
+        private const val EXTRA_DIR = "envoy/extra"
         private const val EXTRA_DIR_DEST = "/etc/envoy/extra"
 
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
