@@ -82,12 +82,18 @@ class AdminRouteProperties {
     var pathPrefix = "/status/envoy"
     var token = ""
     var securedPaths: MutableList<SecuredRoute> = ArrayList()
+    var disable = AdminDisableProperties()
 }
 
 class StatusRouteProperties {
     var enabled = false
     var pathPrefix = "/status/"
     var createVirtualCluster = false
+}
+
+class AdminDisableProperties {
+    var onHeader = ""
+    var responseCode = 403
 }
 
 class LocalServiceProperties {
