@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
 import com.github.dockerjava.api.command.InspectContainerResponse
+import org.springframework.core.io.ClassPathResource
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.images.builder.ImageFromDockerfile
@@ -11,8 +12,7 @@ class EnvoyContainer(
     private val configPath: String,
     private val localServiceIp: String,
     private val envoyControl1XdsPort: Int,
-    private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
-    private val extraFiles: List<String> = emptyList()
+    private val envoyControl2XdsPort: Int = envoyControl1XdsPort
 ) : GenericContainer<EnvoyContainer>(ImageFromDockerfile().withDockerfileFromBuilder {
     it.from("envoyproxy/envoy-alpine:v1.11.1")
         .run("apk --no-cache add curl iproute2")
@@ -25,6 +25,7 @@ class EnvoyContainer(
         private const val CONFIG_DEST = "/etc/envoy/envoy.yaml"
         private const val LAUNCH_ENVOY_SCRIPT = "envoy/launch_envoy.sh"
         private const val LAUNCH_ENVOY_SCRIPT_DEST = "/usr/local/bin/launch_envoy.sh"
+        private const val EXTRA_DIR = "extra"
         private const val EXTRA_DIR_DEST = "/etc/envoy/extra"
 
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
@@ -42,8 +43,8 @@ class EnvoyContainer(
         )
         withClasspathResourceMapping(configPath, CONFIG_DEST, BindMode.READ_ONLY)
 
-        for (extraFile in extraFiles) {
-            withClasspathResourceMapping(extraFile, "$EXTRA_DIR_DEST/$extraFile", BindMode.READ_ONLY)
+        if (ClassPathResource(EXTRA_DIR).exists()) {
+            withClasspathResourceMapping(EXTRA_DIR, EXTRA_DIR_DEST, BindMode.READ_ONLY)
         }
 
         withExposedPorts(EGRESS_LISTENER_CONTAINER_PORT, INGRESS_LISTENER_CONTAINER_PORT, ADMIN_PORT)
@@ -55,7 +56,6 @@ class EnvoyContainer(
             Integer.toString(envoyControl2XdsPort),
             CONFIG_DEST,
             localServiceIp,
-            EXTRA_DIR_DEST,
             "-l", "debug"
         )
     }

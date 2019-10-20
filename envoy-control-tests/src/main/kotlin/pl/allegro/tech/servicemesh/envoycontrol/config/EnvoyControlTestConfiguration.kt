@@ -53,8 +53,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             envoyConnectGrpcPort2: Int? = null,
             ec1RegisterPort: Int? = null,
             ec2RegisterPort: Int? = null,
-            instancesInSameDc: Boolean = false,
-            envoyExtraFiles: List<String> = emptyList()
+            instancesInSameDc: Boolean = false
         ) {
             assertThat(envoyControls == 1 || envoyControls == 2).isTrue()
             assertThat(envoys == 1 || envoys == 2).isTrue()
@@ -73,8 +72,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 instancesInSameDc,
                 envoyConfig,
                 envoyConnectGrpcPort,
-                envoyConnectGrpcPort2,
-                extraFiles = envoyExtraFiles
+                envoyConnectGrpcPort2
             )
 
             waitForEnvoyControlsHealthy()
@@ -87,8 +85,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     envoyConfig,
                     envoyConnectGrpcPort,
                     envoyConnectGrpcPort2,
-                    echoContainer.ipAddress(),
-                    extraFiles = envoyExtraFiles
+                    echoContainer.ipAddress()
                 )
                 envoyContainer2.start()
             }
@@ -113,23 +110,20 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             envoyConfig: EnvoyConfigFile,
             envoyConnectGrpcPort: Int?,
             envoyConnectGrpcPort2: Int?,
-            localServiceIp: String = localServiceContainer.ipAddress(),
-            extraFiles: List<String> = emptyList()
+            localServiceIp: String = localServiceContainer.ipAddress()
         ): EnvoyContainer {
             return if (envoyControls == 2 && instancesInSameDc) {
                 EnvoyContainer(
                     envoyConfig.filePath,
                     localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort,
-                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort,
-                    extraFiles = extraFiles
+                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort
                 ).withNetwork(network)
             } else {
                 EnvoyContainer(
                     envoyConfig.filePath,
                     localServiceIp,
-                    envoyConnectGrpcPort ?: envoyControl1.grpcPort,
-                    extraFiles = extraFiles
+                    envoyConnectGrpcPort ?: envoyControl1.grpcPort
                 ).withNetwork(network)
             }
         }
