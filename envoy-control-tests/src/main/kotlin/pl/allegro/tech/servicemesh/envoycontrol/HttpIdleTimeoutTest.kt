@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.awaitility.Awaitility
 import org.awaitility.Duration.FIVE_SECONDS
 import org.awaitility.Duration.TEN_SECONDS
 import org.junit.jupiter.api.BeforeAll
@@ -40,7 +39,9 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
         untilAsserted {
             assertHasActiveConnection(envoyContainer1)
         }
-        untilAsserted {
+
+        // 5 seconds drain time + 1 idle + 4 padding
+        untilAsserted(wait = TEN_SECONDS) {
             assertHasNoActiveConnections(envoyContainer1)
         }
     }
@@ -59,7 +60,9 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
         untilAsserted {
             assertHasActiveConnection(envoyContainer1)
         }
-        untilAsserted {
+
+        // 1 idle + 4 padding
+        untilAsserted(wait = FIVE_SECONDS) {
             assertHasNoActiveConnections(envoyContainer1)
         }
     }
