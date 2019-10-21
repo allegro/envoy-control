@@ -246,7 +246,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     inline fun <reified T> bean(): T = envoyControl1.bean(T::class.java)
 
     fun untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (Unit)) {
-        await().atMost(wait).pollInterval(FIVE_HUNDRED_MILLISECONDS).untilAsserted(fn)
+        await().atMost(wait).untilAsserted(fn)
     }
 
     fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
