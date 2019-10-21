@@ -33,6 +33,7 @@ internal class EnvoySnapshotFactory(
     private val clustersFactory: EnvoyClustersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
+    private val serviceTagFilter: ServiceTagFilter = DefaultServiceTagFilter(),
     private val defaultDependencySettings: DependencySettings =
         DependencySettings(properties.egress.handleInternalRedirect)
 ) {
@@ -230,16 +231,24 @@ internal class EnvoySnapshotFactory(
         }
 
         if (properties.routing.serviceTags.enabled) {
-            metadataKeys.putFields(
-                properties.routing.serviceTags.metadataKey,
-                Value.newBuilder()
-                    .setListValue(ListValue.newBuilder()
-                        .addAllValues(instance.tags.map { Value.newBuilder().setStringValue(it).build() })
-                    ).build()
-            )
+            addServiceTagsToMetadata(metadataKeys, instance)
         }
 
         return setMetadata(Metadata.newBuilder().putFilterMetadata("envoy.lb", metadataKeys.build()))
+    }
+
+    private fun addServiceTagsToMetadata(metadata: Struct.Builder, instance: ServiceInstance) {
+        val filteredTags = serviceTagFilter.filterTagsForRouting(instance.tags)
+        if (filteredTags.isEmpty()) {
+            return
+        }
+        metadata.putFields(
+            properties.routing.serviceTags.metadataKey,
+            Value.newBuilder()
+                .setListValue(ListValue.newBuilder()
+                    .addAllValues(filteredTags.map { Value.newBuilder().setStringValue(it).build() })
+                ).build()
+        )
     }
 
     private fun LbEndpoint.Builder.setLoadBalancingWeightFromInstance(instance: ServiceInstance): LbEndpoint.Builder =

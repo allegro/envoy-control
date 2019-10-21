@@ -164,6 +164,7 @@ internal class EnvoyClustersFactory(
                         .addKeys(properties.routing.serviceTags.metadataKey)
                         .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
                     )
+                    setListAsAny(true) // allowing for an endpoint to have multiple tags
                 }
                 if (tagsEnabled && canaryEnabled) {
                     addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
@@ -173,7 +174,6 @@ internal class EnvoyClustersFactory(
                     )
                 }
             }
-            .setListAsAny(true)  // allowing for an endpoint to have multiple tags
         )
     }
 

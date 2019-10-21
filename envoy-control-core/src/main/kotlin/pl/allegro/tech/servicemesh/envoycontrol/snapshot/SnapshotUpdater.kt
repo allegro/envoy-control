@@ -12,7 +12,8 @@ class SnapshotUpdater(
     private val cache: SnapshotCache<Group>,
     private val properties: SnapshotProperties,
     private val scheduler: Scheduler,
-    private val onGroupAdded: Flux<out Any>
+    private val onGroupAdded: Flux<out Any>,
+    serviceTagFilter: ServiceTagFilter = DefaultServiceTagFilter()
 ) {
     private val versions = SnapshotsVersions()
     private val snapshotFactory = EnvoySnapshotFactory(
@@ -20,7 +21,8 @@ class SnapshotUpdater(
         egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
         clustersFactory = EnvoyClustersFactory(properties),
         snapshotsVersions = versions,
-        properties = properties
+        properties = properties,
+        serviceTagFilter = serviceTagFilter
     )
 
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<LocalityAwareServicesState>> {
