@@ -19,6 +19,7 @@ import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.core.Http2ProtocolOptions
+import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
@@ -29,6 +30,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 internal class EnvoyClustersFactory(
     private val properties: SnapshotProperties
 ) {
+    private val httpProtocolOptions: HttpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(
+            Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
+    ).build()
+
     fun getClustersForServices(services: List<EnvoySnapshotFactory.ClusterConfiguration>, ads: Boolean): List<Cluster> {
         return services.map { edsCluster(it, ads) }
     }
@@ -126,6 +131,8 @@ internal class EnvoyClustersFactory(
             )
             .setLbPolicy(Cluster.LbPolicy.LEAST_REQUEST)
             .setCanarySubset()
+
+        cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
 
         if (clusterConfiguration.http2Enabled) {
             cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())

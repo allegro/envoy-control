@@ -124,6 +124,11 @@ class EgressProperties {
     var clusterNotFoundStatusCode = 503
     var handleInternalRedirect = false
     var http2 = Http2Properties()
+    var commonHttp = CommonHttpProperties()
+}
+
+class CommonHttpProperties {
+    var idleTimeout: Duration = Duration.ofSeconds(120)
 }
 
 class Http2Properties {
