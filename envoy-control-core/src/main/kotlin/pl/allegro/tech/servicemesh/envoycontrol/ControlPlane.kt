@@ -149,7 +149,8 @@ class ControlPlane private constructor(
                     cache,
                     properties.envoy.snapshot,
                     Schedulers.fromExecutor(updateSnapshotExecutor!!),
-                    groupChangeWatcher.onGroupAdded()
+                    groupChangeWatcher.onGroupAdded(),
+                    meterRegistry
                 ),
                 changes
             )
