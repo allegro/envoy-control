@@ -36,9 +36,9 @@ services:
     ports:
       - "8080:8080"
       - "50000:50000"
-    # here you can define path to your config by replacing /tmp/custom.yaml with your own config
+    # here you can define path to your own config
     volumes:
-      - "/tmp/custom.yaml:/var/tmp/config/application.yaml"
+      - "../envoy-control-runner/src/main/resources/application-docker.yaml:/var/tmp/config/application.yaml"
     depends_on:
       - consul
     environment:
