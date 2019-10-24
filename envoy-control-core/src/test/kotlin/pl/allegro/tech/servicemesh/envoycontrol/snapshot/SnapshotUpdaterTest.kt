@@ -39,6 +39,8 @@ class SnapshotUpdaterTest {
         services = setOf(ServiceDependency(service = "existingService2"))
     ).copy(serviceName = "ipsum-service")
 
+    val simpleMeterRegistry = SimpleMeterRegistry()
+
     @Test
     fun `should generate group snapshots`() {
         val cache = newCache()
@@ -57,7 +59,6 @@ class SnapshotUpdaterTest {
         ), uninitializedSnapshot)
 
         cache.setSnapshot(groupOf(services = serviceDependencies("nonExistingService3")), uninitializedSnapshot)
-        val simpleMeterRegistry = SimpleMeterRegistry()
 
         val updater = SnapshotUpdater(
             cache,
@@ -109,7 +110,6 @@ class SnapshotUpdaterTest {
         val cache = newCache()
         cache.setSnapshot(emptyGroup, uninitializedSnapshot)
 
-        val simpleMeterRegistry = SimpleMeterRegistry()
 
         val updater = SnapshotUpdater(
             cache,
@@ -141,7 +141,6 @@ class SnapshotUpdaterTest {
     @Test
     fun `should not crash on bad snapshot generation`() {
         // given
-        val simpleMeterRegistry = SimpleMeterRegistry()
         val servicesGroup = servicesGroupWithAnError("example-service")
         val cache = newCache()
         cache.setSnapshot(servicesGroup, null)

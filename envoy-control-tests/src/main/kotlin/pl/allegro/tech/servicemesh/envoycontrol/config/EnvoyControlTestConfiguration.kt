@@ -95,10 +95,14 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         @JvmStatic
         fun teardown() {
             envoyContainer1.stop()
+            if (envoys == 2) {
+                envoyContainer2.stop()
+            }
             envoyControl1.stop()
             if (envoyControls == 2) {
                 envoyControl2.stop()
             }
+            localServiceContainer.stop()
         }
 
         private fun createEnvoyContainer(

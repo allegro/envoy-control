@@ -47,7 +47,7 @@ class SnapshotUpdater(
                 updateSnapshots(states)
             }
             .onErrorResume { e ->
-                meterRegistry.counter("snapshot-updater.updates.errors").increment()
+                meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
                 logger.error("Unable to process service changes", e)
                 Mono.justOrEmpty(listOf())
             }
