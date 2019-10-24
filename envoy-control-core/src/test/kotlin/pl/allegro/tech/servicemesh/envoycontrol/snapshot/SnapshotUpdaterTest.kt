@@ -6,6 +6,7 @@ import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.StatusInfo
 import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
@@ -56,6 +57,7 @@ class SnapshotUpdaterTest {
         ), uninitializedSnapshot)
 
         cache.setSnapshot(groupOf(services = serviceDependencies("nonExistingService3")), uninitializedSnapshot)
+        val simpleMeterRegistry = SimpleMeterRegistry()
 
         val updater = SnapshotUpdater(
             cache,
@@ -63,7 +65,8 @@ class SnapshotUpdaterTest {
                 incomingPermissions.enabled = true
             },
             scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(true)
+            onGroupAdded = Flux.just(true),
+            meterRegistry = simpleMeterRegistry
         )
 
         // when
@@ -106,11 +109,14 @@ class SnapshotUpdaterTest {
         val cache = newCache()
         cache.setSnapshot(emptyGroup, uninitializedSnapshot)
 
+        val simpleMeterRegistry = SimpleMeterRegistry()
+
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties(),
             scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(true)
+            onGroupAdded = Flux.just(true),
+            meterRegistry = simpleMeterRegistry
         )
 
         // when
@@ -130,6 +136,47 @@ class SnapshotUpdaterTest {
         assertThat(snapshot.routes().resources().values
             .first { it.name == "default_routes" }.virtualHostsCount)
             .isEqualTo(2)
+    }
+
+    @Test
+    fun `should not crash on bad snapshot generation`() {
+        // given
+        val simpleMeterRegistry = SimpleMeterRegistry()
+        val servicesGroup = servicesGroupWithAnError("example-service")
+        val cache = newCache()
+        cache.setSnapshot(servicesGroup, null)
+        val updater = SnapshotUpdater(
+                cache,
+                properties = SnapshotProperties(),
+                scheduler = Schedulers.newSingle("update-snapshot"),
+                onGroupAdded = Flux.just(true),
+                meterRegistry = simpleMeterRegistry
+        )
+
+        // when
+        updater.start(
+                Flux.just(emptyList())
+        ).blockFirst()
+
+        // then
+        val snapshot = cache.getSnapshot(servicesGroup)
+        assertThat(snapshot).isEqualTo(null)
+        assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
+                .counter()?.count()).isEqualTo(1.0)
+    }
+
+    private fun servicesGroupWithAnError(name: String): ServicesGroup {
+        val proxySettings = ProxySettings(
+                incoming = Incoming(
+                        endpoints = listOf(
+                                IncomingEndpoint(
+                                        methods = setOf("INVALID")
+                                )
+                        ),
+                        permissionsEnabled = true
+                )
+        )
+        return ServicesGroup(true, name, proxySettings)
     }
 
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
