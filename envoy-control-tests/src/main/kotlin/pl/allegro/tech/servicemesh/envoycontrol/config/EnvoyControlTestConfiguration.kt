@@ -21,6 +21,7 @@ import kotlin.random.Random
 
 sealed class EnvoyConfigFile(val filePath: String)
 object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.yaml")
+object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
 object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
 object RandomConfigFile :
@@ -94,10 +95,14 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         @JvmStatic
         fun teardown() {
             envoyContainer1.stop()
+            if (envoys == 2) {
+                envoyContainer2.stop()
+            }
             envoyControl1.stop()
             if (envoyControls == 2) {
                 envoyControl2.stop()
             }
+            localServiceContainer.stop()
         }
 
         private fun createEnvoyContainer(
@@ -121,6 +126,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort
                 ).withNetwork(network)
             }
+        }
+
+        fun createEnvoyContainerWithFaultyConfig(): EnvoyContainer {
+            return createEnvoyContainer(true, FaultyConfig, null, null)
+                    .withStartupTimeout(Duration.ofSeconds(10))
         }
 
         fun registerEnvoyControls(
@@ -228,6 +238,30 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
     }
 
+    private fun waitForEchoServices(instances: Int) {
+        untilAsserted {
+            assertThat(envoyContainer1.admin().numOfEndpoints(clusterName = "echo")).isEqualTo(instances)
+        }
+    }
+
+    fun checkTrafficRoutedToSecondInstance(id: String) {
+        // given
+        // we first register a new instance and then remove other to maintain cluster presence in Envoy
+        registerService(name = "echo", container = echoContainer2)
+        waitForEchoServices(instances = 2)
+
+        deregisterService(id)
+        waitForEchoServices(instances = 1)
+
+        untilAsserted {
+            // when
+            val response = callEcho()
+
+            // then
+            assertThat(response).isOk().isFrom(echoContainer2)
+        }
+    }
+
     fun waitUntilEchoCalledThroughEnvoyResponds(target: EchoContainer) {
         untilAsserted {
             // when
@@ -245,7 +279,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     inline fun <reified T> bean(): T = envoyControl1.bean(T::class.java)
 
     fun untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (Unit)) {
-        Awaitility.await().atMost(wait).untilAsserted(fn)
+        await().atMost(wait).untilAsserted(fn)
     }
 
     fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
