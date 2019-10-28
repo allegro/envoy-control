@@ -340,5 +340,4 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
         waitForConsulSync()
     }
-
 }
