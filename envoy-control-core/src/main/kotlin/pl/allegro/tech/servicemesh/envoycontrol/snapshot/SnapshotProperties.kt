@@ -129,6 +129,7 @@ class EgressProperties {
 
 class CommonHttpProperties {
     var idleTimeout: Duration = Duration.ofSeconds(120)
+    var requestTimeout: Duration = Duration.ofSeconds(120)
 }
 
 class Http2Properties {
