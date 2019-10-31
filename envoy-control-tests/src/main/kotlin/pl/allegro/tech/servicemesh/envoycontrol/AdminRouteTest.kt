@@ -137,8 +137,8 @@ internal class AdminRouteTest : EnvoyControlTestConfiguration() {
     @ParameterizedTest
     @MethodSource("disableOnHeaderTestCases")
     fun `should block access to all admin endpoints when request contains the disable header`(
-            caseDescription: String,
-            request: () -> Response
+        caseDescription: String,
+        request: () -> Response
     ) {
         // expect
         assertThat(request.invoke().code()).describedAs(caseDescription).isEqualTo(403)

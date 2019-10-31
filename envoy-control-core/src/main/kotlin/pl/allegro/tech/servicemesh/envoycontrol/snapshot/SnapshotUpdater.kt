@@ -2,8 +2,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
-import io.envoyproxy.controlplane.server.exception.RequestException
-import io.grpc.Status
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
