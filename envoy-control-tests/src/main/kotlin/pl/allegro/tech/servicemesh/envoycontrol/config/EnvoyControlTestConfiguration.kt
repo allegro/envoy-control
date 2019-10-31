@@ -7,9 +7,7 @@ import okhttp3.Headers
 import okhttp3.RequestBody
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
-import org.awaitility.Awaitility
 import org.awaitility.Awaitility.await
-import org.awaitility.Duration.FIVE_HUNDRED_MILLISECONDS
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status

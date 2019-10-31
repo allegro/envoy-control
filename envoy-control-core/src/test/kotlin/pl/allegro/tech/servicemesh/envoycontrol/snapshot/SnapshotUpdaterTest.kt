@@ -110,7 +110,6 @@ class SnapshotUpdaterTest {
         val cache = newCache()
         cache.setSnapshot(emptyGroup, uninitializedSnapshot)
 
-
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties(),

@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
-import org.junit.jupiter.api.assertThrows
-import org.testcontainers.containers.ContainerLaunchException
 
 internal class AdsEnvoyControlTest : EnvoyControlTest() {
     companion object {
@@ -18,7 +16,6 @@ internal class AdsEnvoyControlTest : EnvoyControlTest() {
             setup(envoyConfig = Ads)
         }
     }
-
 }
 
 internal class XdsEnvoyControlTest : EnvoyControlTest() {
@@ -78,5 +75,4 @@ internal abstract class EnvoyControlTest : EnvoyControlTestConfiguration() {
             assertThat(adminInstance!!.zone).isEqualTo("dc1")
         }
     }
-
 }
