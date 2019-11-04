@@ -10,21 +10,19 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
 internal class ClusterCircuitBreakerDefaultSettingsTest : EnvoyControlTestConfiguration() {
 
     companion object {
-
         private val properties = mapOf(
-            "envoy-control.envoy.snapshot.egress.commonHttp.circuitBreakers.thresholds" to listOf(Threshold().also {
-                it.priority = "DEFAULT"
+            "envoy-control.envoy.snapshot.egress.commonHttp.circuitBreakers.defaultThreshold" to Threshold("DEFAULT").also {
                 it.maxConnections = 1
                 it.maxPendingRequests = 2
                 it.maxRequests = 3
                 it.maxRetries = 4
-            }, Threshold().also {
-                it.priority = "HIGH"
+            },
+            "envoy-control.envoy.snapshot.egress.commonHttp.circuitBreakers.highThreshold" to Threshold("HIGH").also {
                 it.maxConnections = 5
                 it.maxPendingRequests = 6
                 it.maxRequests = 7
                 it.maxRetries = 8
-            })
+            }
         )
 
         @JvmStatic

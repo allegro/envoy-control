@@ -147,22 +147,24 @@ internal class EnvoyClustersFactory(
     }
 
     private fun mapPropertiesToThresholds(): List<CircuitBreakers.Thresholds> {
-        return properties.egress.commonHttp.circuitBreakers.thresholds.map {
-            val thresholdsBuilder = CircuitBreakers.Thresholds.newBuilder()
-            thresholdsBuilder.maxConnections = UInt32Value.of(it.maxConnections)
-            thresholdsBuilder.maxPendingRequests = UInt32Value.of(it.maxPendingRequests)
-            thresholdsBuilder.maxRequests = UInt32Value.of(it.maxRequests)
-            thresholdsBuilder.maxRetries = UInt32Value.of(it.maxRetries)
-            val priority = it.priority.toUpperCase()
-            if (priority == "DEFAULT") {
-                thresholdsBuilder.priority = RoutingPriority.DEFAULT
-            } else if (priority == "HIGH") {
-                thresholdsBuilder.priority = RoutingPriority.HIGH
-            } else {
-                thresholdsBuilder.priority = RoutingPriority.UNRECOGNIZED
-            }
-            thresholdsBuilder.build()
+        return listOf(
+                convertThreshold(properties.egress.commonHttp.circuitBreakers.defaultThreshold),
+                convertThreshold(properties.egress.commonHttp.circuitBreakers.highThreshold)
+        )
+    }
+
+    private fun convertThreshold(threshold: Threshold): CircuitBreakers.Thresholds {
+        val thresholdsBuilder = CircuitBreakers.Thresholds.newBuilder()
+        thresholdsBuilder.maxConnections = UInt32Value.of(threshold.maxConnections)
+        thresholdsBuilder.maxPendingRequests = UInt32Value.of(threshold.maxPendingRequests)
+        thresholdsBuilder.maxRequests = UInt32Value.of(threshold.maxRequests)
+        thresholdsBuilder.maxRetries = UInt32Value.of(threshold.maxRetries)
+        when (threshold.priority.toUpperCase()) {
+            "DEFAULT" -> thresholdsBuilder.priority = RoutingPriority.DEFAULT
+            "HIGH" -> thresholdsBuilder.priority = RoutingPriority.HIGH
+            else -> thresholdsBuilder.priority = RoutingPriority.UNRECOGNIZED
         }
+        return thresholdsBuilder.build()
     }
 
     private fun Cluster.Builder.setCanarySubset(): Cluster.Builder {

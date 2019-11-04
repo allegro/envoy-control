@@ -133,11 +133,11 @@ class CommonHttpProperties {
 }
 
 class CircuitBreakers {
-    var thresholds = listOf<Threshold>()
+    var highThreshold = Threshold("HIGH")
+    var defaultThreshold = Threshold("DEFAULT")
 }
 
-class Threshold {
-    var priority = "DEFAULT"
+class Threshold(var priority: String) {
     var maxConnections = 1024
     var maxPendingRequests = 1024
     var maxRequests = 1024
