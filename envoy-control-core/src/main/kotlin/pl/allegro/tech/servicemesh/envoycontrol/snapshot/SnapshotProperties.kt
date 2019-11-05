@@ -129,6 +129,19 @@ class EgressProperties {
 
 class CommonHttpProperties {
     var idleTimeout: Duration = Duration.ofSeconds(120)
+    var circuitBreakers: CircuitBreakers = CircuitBreakers()
+}
+
+class CircuitBreakers {
+    var highThreshold = Threshold("HIGH")
+    var defaultThreshold = Threshold("DEFAULT")
+}
+
+class Threshold(var priority: String) {
+    var maxConnections = 1024
+    var maxPendingRequests = 1024
+    var maxRequests = 1024
+    var maxRetries = 3
 }
 
 class Http2Properties {
