@@ -51,6 +51,7 @@ class LoadBalancingWeightsProperties {
 }
 
 class RoutesProperties {
+    var initialVersion = "empty"
     var admin = AdminRouteProperties()
     var status = StatusRouteProperties()
     var authorization = AuthorizationProperties()
