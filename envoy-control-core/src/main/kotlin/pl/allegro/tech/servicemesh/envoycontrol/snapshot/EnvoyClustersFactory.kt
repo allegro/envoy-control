@@ -37,6 +37,7 @@ internal class EnvoyClustersFactory(
     ).build()
 
     private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
+    private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
 
     fun getClustersForServices(services: List<EnvoySnapshotFactory.ClusterConfiguration>, ads: Boolean): List<Cluster> {
         return services.map { edsCluster(it, ads) }
@@ -137,7 +138,7 @@ internal class EnvoyClustersFactory(
             .setCanarySubset()
 
         cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
-        cluster.setCircuitBreakers(CircuitBreakers.newBuilder().addAllThresholds(thresholds))
+        cluster.setCircuitBreakers(allThresholds)
 
         if (clusterConfiguration.http2Enabled) {
             cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())
