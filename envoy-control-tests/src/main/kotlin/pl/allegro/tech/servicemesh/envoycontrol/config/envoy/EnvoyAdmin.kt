@@ -58,6 +58,18 @@ class EnvoyAdmin(
         }
     }
 
+    fun circuitBreakerSetting(
+        cluster: String,
+        setting: String,
+        priority: String = "default_priority"
+    ): Int {
+        val regex = "$cluster::$priority::$setting::(.+)".toRegex()
+        val response = get("clusters")
+        return response.body()?.use { it.string().lines() }
+                ?.find { it.matches(regex) }
+                ?.let { regex.find(it)!!.groupValues[1].toInt() }!!
+    }
+
     fun zone(cluster: String, ip: String): AdminInstance? {
         val regex = "$cluster::$ip:${EchoContainer.PORT}::zone::(.+)".toRegex()
         val response = get("clusters")
