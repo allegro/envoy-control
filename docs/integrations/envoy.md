@@ -11,6 +11,10 @@ Sample Envoy configuration that is compatible with Envoy Control is available in
 ## Routes
 
 Envoy Control can add some default routes via Route Discovery Service (RDS).
+After changes to default routes Envoys **using only default routes** won't receive updated routes until restart. Because of this problem
+we introduced property `envoy-control.envoy.snapshot.routes.initialVersion`. At the beginning EC sets version of each route
+to the value of property `envoy-control.envoy.snapshot.routes.initialVersion`. By default it's value is `empty`. To propagate
+this change you can set the property value to a different one and redeploy EC. Envoys connecting to that EC will receive updates.
 
 ### Original destination
 
