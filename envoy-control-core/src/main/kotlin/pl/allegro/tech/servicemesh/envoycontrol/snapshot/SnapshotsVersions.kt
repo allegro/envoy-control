@@ -80,7 +80,7 @@ data class EndpointsVersion(val value: String) {
 
 data class RoutesVersion(val value: String) {
     companion object {
-        val EMPTY_VERSION = RoutesVersion(UUID.randomUUID().toString().replace("-", ""))
+        val EMPTY_VERSION = RoutesVersion("empty")
     }
 }
 

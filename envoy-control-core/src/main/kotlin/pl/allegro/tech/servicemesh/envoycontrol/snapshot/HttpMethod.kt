@@ -1,5 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 enum class HttpMethod {
-    GET, PUT, POST, DELETE, HEAD
+    GET, HEAD, POST, PUT, DELETE, OPTIONS, TRACE, CONNECT, PATCH
 }
