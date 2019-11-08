@@ -12,7 +12,9 @@ fun node(
     serviceName: String? = null,
     incomingSettings: Boolean = false,
     idleTimeout: String? = null,
-    responseTimeout: String? = null
+    responseTimeout: String? = null,
+    healthCheckPath: String? = null,
+    healthCheckClusterName: String? = null
 ): Node {
     val meta = Node.newBuilder().metadataBuilder
 
@@ -32,7 +34,9 @@ fun node(
                 serviceDependencies = serviceDependencies,
                 incomingSettings = incomingSettings,
                 idleTimeout = idleTimeout,
-                responseTimeout = responseTimeout
+                responseTimeout = responseTimeout,
+                healthCheckPath = healthCheckPath,
+                healthCheckClusterName = healthCheckClusterName
             )
         )
     }
@@ -59,10 +63,20 @@ fun proxySettingsProto(
     path: String? = null,
     serviceDependencies: Set<String> = emptySet(),
     idleTimeout: String? = null,
-    responseTimeout: String? = null
+    responseTimeout: String? = null,
+    healthCheckPath: String? = null,
+    healthCheckClusterName: String? = null
 ): Value = struct {
     if (incomingSettings) {
         putFields("incoming", struct {
+            putFields("healthCheck", struct {
+                healthCheckPath?.let {
+                    putFields("path", string(it))
+                }
+                healthCheckClusterName?.let {
+                    putFields("clusterName", string(it))
+                }
+            })
             putFields("endpoints", list {
                 addValues(incomingEndpointProto(path = path))
             })

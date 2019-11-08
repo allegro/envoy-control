@@ -3,11 +3,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Duration
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
 import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
+import io.envoyproxy.envoy.api.v2.route.RedirectAction
+import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import io.envoyproxy.envoy.api.v2.route.Route
 import io.envoyproxy.envoy.api.v2.route.VirtualCluster
 import io.envoyproxy.envoy.api.v2.route.VirtualHost
-import io.envoyproxy.envoy.api.v2.route.RedirectAction
-import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 
@@ -159,11 +159,16 @@ fun fallbackIngressRoute(): (Route) -> Unit = {
         .directResponse { it.status == 503 }
 }
 
-fun statusRoute(idleTimeout: Duration? = null, responseTimeout: Duration? = null): (Route) -> Unit = {
-    it.matchingOnPrefix("/status/")
+fun statusRoute(
+    idleTimeout: Duration? = null,
+    responseTimeout: Duration? = null,
+    clusterName: String = "local_service",
+    healthCheckPath: String = "/status/"
+): (Route) -> Unit = {
+    it.matchingOnPrefix(healthCheckPath)
         .matchingOnMethod("GET")
         .publicAccess()
-        .toCluster("local_service")
+        .toCluster(clusterName)
     if (responseTimeout != null) {
         it.matchingOnResponseTimeout(responseTimeout)
     }

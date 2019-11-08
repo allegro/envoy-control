@@ -68,15 +68,33 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
     }
 }
 
-private fun Value?.toIncoming(): Incoming {
+fun Value?.toIncoming(): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     return Incoming(
         endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
+        healthCheck = this?.field("healthCheck").toHealthCheck(),
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
         timeoutPolicy = this?.field("timeoutPolicy").toTimeoutPolicy()
     )
+}
+
+fun Value?.toHealthCheck(): HealthCheck {
+    val path = this?.field("path")?.stringValue
+    val clusterName = this?.field("clusterName")?.stringValue
+
+    if (clusterName != null && path == null) {
+        throw NodeMetadataValidationException(
+            "HealthCheck definition is not complete: 'path' cannot be empty when 'clusterName' is defined"
+        )
+    }
+
+    return when {
+        path != null && clusterName != null -> HealthCheck(path, clusterName)
+        path != null && clusterName == null -> HealthCheck(path)
+        else -> HealthCheck()
+    }
 }
 
 fun Value.toIncomingEndpoint(): IncomingEndpoint {
@@ -111,6 +129,7 @@ private fun Value?.toTimeoutPolicy(): TimeoutPolicy {
 data class Incoming(
     val endpoints: List<IncomingEndpoint> = emptyList(),
     val permissionsEnabled: Boolean = false,
+    val healthCheck: HealthCheck = HealthCheck(),
     val roles: List<Role> = emptyList(),
     val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(idleTimeout = null, responseTimeout = null)
 )
@@ -181,6 +200,13 @@ data class TimeoutPolicy(
     val idleTimeout: Duration?,
     val responseTimeout: Duration?
 )
+
+data class HealthCheck(
+    val path: String = "",
+    val clusterName: String = "local_service"
+) {
+    fun hasHealthCheck() = !path.isBlank()
+}
 
 data class IncomingEndpoint(
     override val path: String = "",

@@ -20,6 +20,7 @@ import kotlin.random.Random
 
 sealed class EnvoyConfigFile(val filePath: String)
 object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.yaml")
+object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_check.yaml")
 object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
 object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
