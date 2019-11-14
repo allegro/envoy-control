@@ -10,15 +10,18 @@ import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
 import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
+import io.envoyproxy.envoy.api.v2.cluster.CircuitBreakers
 import io.envoyproxy.envoy.api.v2.cluster.OutlierDetection
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
 import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
 import io.envoyproxy.envoy.api.v2.core.ConfigSource
+import io.envoyproxy.envoy.api.v2.core.RoutingPriority
 import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http2ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
+import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
@@ -29,6 +32,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 internal class EnvoyClustersFactory(
     private val properties: SnapshotProperties
 ) {
+    private val httpProtocolOptions: HttpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(
+            Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
+    ).build()
+
+    private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
+    private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
+
     fun getClustersForServices(services: List<EnvoySnapshotFactory.ClusterConfiguration>, ads: Boolean): List<Cluster> {
         return services.map { edsCluster(it, ads) }
     }
@@ -127,6 +137,9 @@ internal class EnvoyClustersFactory(
             .setLbPolicy(Cluster.LbPolicy.LEAST_REQUEST)
             .configureLbSubsets()
 
+        cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
+        cluster.setCircuitBreakers(allThresholds)
+
         if (clusterConfiguration.http2Enabled) {
             cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())
         }
@@ -175,6 +188,27 @@ internal class EnvoyClustersFactory(
                 }
             }
         )
+    }
+
+    private fun mapPropertiesToThresholds(): List<CircuitBreakers.Thresholds> {
+        return listOf(
+            convertThreshold(properties.egress.commonHttp.circuitBreakers.defaultThreshold),
+            convertThreshold(properties.egress.commonHttp.circuitBreakers.highThreshold)
+        )
+    }
+
+    private fun convertThreshold(threshold: Threshold): CircuitBreakers.Thresholds {
+        val thresholdsBuilder = CircuitBreakers.Thresholds.newBuilder()
+        thresholdsBuilder.maxConnections = UInt32Value.of(threshold.maxConnections)
+        thresholdsBuilder.maxPendingRequests = UInt32Value.of(threshold.maxPendingRequests)
+        thresholdsBuilder.maxRequests = UInt32Value.of(threshold.maxRequests)
+        thresholdsBuilder.maxRetries = UInt32Value.of(threshold.maxRetries)
+        when (threshold.priority.toUpperCase()) {
+            "DEFAULT" -> thresholdsBuilder.priority = RoutingPriority.DEFAULT
+            "HIGH" -> thresholdsBuilder.priority = RoutingPriority.HIGH
+            else -> thresholdsBuilder.priority = RoutingPriority.UNRECOGNIZED
+        }
+        return thresholdsBuilder.build()
     }
 
     private fun configureOutlierDetection(clusterBuilder: Cluster.Builder) {

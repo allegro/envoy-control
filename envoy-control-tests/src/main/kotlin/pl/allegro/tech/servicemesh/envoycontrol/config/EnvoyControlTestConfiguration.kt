@@ -8,7 +8,6 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
-import org.awaitility.Awaitility
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
@@ -22,6 +21,7 @@ import kotlin.random.Random
 
 sealed class EnvoyConfigFile(val filePath: String)
 object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.yaml")
+object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
 object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
 object RandomConfigFile :
@@ -126,6 +126,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort
                 ).withNetwork(network)
             }
+        }
+
+        fun createEnvoyContainerWithFaultyConfig(): EnvoyContainer {
+            return createEnvoyContainer(true, FaultyConfig, null, null)
+                    .withStartupTimeout(Duration.ofSeconds(10))
         }
 
         fun registerEnvoyControls(
@@ -270,6 +275,30 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         return stats
     }
 
+    private fun waitForEchoServices(instances: Int) {
+        untilAsserted {
+            assertThat(envoyContainer1.admin().numOfEndpoints(clusterName = "echo")).isEqualTo(instances)
+        }
+    }
+
+    fun checkTrafficRoutedToSecondInstance(id: String) {
+        // given
+        // we first register a new instance and then remove other to maintain cluster presence in Envoy
+        registerService(name = "echo", container = echoContainer2)
+        waitForEchoServices(instances = 2)
+
+        deregisterService(id)
+        waitForEchoServices(instances = 1)
+
+        untilAsserted {
+            // when
+            val response = callEcho()
+
+            // then
+            assertThat(response).isOk().isFrom(echoContainer2)
+        }
+    }
+
     fun waitUntilEchoCalledThroughEnvoyResponds(target: EchoContainer) {
         untilAsserted {
             // when
@@ -287,7 +316,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     inline fun <reified T> bean(): T = envoyControl1.bean(T::class.java)
 
     fun untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (Unit)) {
-        Awaitility.await().atMost(wait).untilAsserted(fn)
+        await().atMost(wait).untilAsserted(fn)
     }
 
     fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
@@ -347,5 +376,4 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
         waitForConsulSync()
     }
-
 }

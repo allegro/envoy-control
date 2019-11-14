@@ -58,27 +58,7 @@ internal abstract class EnvoyControlTest : EnvoyControlTestConfiguration() {
             assertThat(response).isOk().isFrom(echoContainer)
         }
 
-        // given
-        // we first register a new instance and then remove other to maintain cluster presence in Envoy
-        registerService(name = "echo", container = echoContainer2)
-        waitForEchoServices(instances = 2)
-
-        deregisterService(id)
-        waitForEchoServices(instances = 1)
-
-        untilAsserted {
-            // when
-            val response = callEcho()
-
-            // then
-            assertThat(response).isOk().isFrom(echoContainer2)
-        }
-    }
-
-    private fun waitForEchoServices(instances: Int) {
-        untilAsserted {
-            assertThat(envoyContainer1.admin().numOfEndpoints(clusterName = "echo")).isEqualTo(instances)
-        }
+        checkTrafficRoutedToSecondInstance(id)
     }
 
     @Test

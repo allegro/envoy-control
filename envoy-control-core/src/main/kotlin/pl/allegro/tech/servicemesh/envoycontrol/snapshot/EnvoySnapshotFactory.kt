@@ -49,7 +49,7 @@ internal class EnvoySnapshotFactory(
                 toClusterConfiguration(instances, serviceName)
             }
         } else {
-            serviceNames.map { ClusterConfiguration(serviceName = it, http2Enabled = false)}
+            serviceNames.map { ClusterConfiguration(serviceName = it, http2Enabled = false) }
         }
 
         val clusters = clustersFactory.getClustersForServices(clusterConfigurations, ads)
@@ -292,7 +292,7 @@ internal class EnvoySnapshotFactory(
         endpoints: List<ClusterLoadAssignment> = emptyList(),
         endpointsVersions: EndpointsVersion = EndpointsVersion.EMPTY_VERSION,
         routes: List<RouteConfiguration> = emptyList(),
-        routesVersion: RoutesVersion = RoutesVersion.EMPTY_VERSION
+        routesVersion: RoutesVersion = RoutesVersion(properties.routes.initialVersion)
     ): Snapshot =
         Snapshot.create(
             clusters,
