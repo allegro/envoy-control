@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
@@ -12,7 +13,8 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     companion object {
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
-            "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag"
+            "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
+            "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to false
         )
 
         @JvmStatic
@@ -22,14 +24,22 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             })
         }
+
+        private val regularContainer = echoContainer
+        private val loremContainer = echoContainer2
+        private val loremIpsumContainer = EchoContainer().also { it.start() }
+
+        @JvmStatic
+        @AfterAll
+        fun cleanup() {
+            loremIpsumContainer.stop()
+        }
     }
 
     protected open val loremTag = "lorem"
     protected open val ipsumTag = "ipsum"
 
-    private val regularContainer = echoContainer
-    private val loremContainer = echoContainer2
-    private val loremIpsumContainer = EchoContainer().also { it.start() }
+
 
     protected fun registerServices() {
         registerService(name = "echo", container = regularContainer, tags = listOf())
@@ -133,7 +143,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         return stats
     }
 
-    inner class CallStats(
+    class CallStats(
         var regularHits: Int = 0,
         var loremHits: Int = 0,
         var loremIpsumHits: Int = 0,
