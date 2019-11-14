@@ -44,8 +44,6 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     protected open val loremTag = "lorem"
     protected open val ipsumTag = "ipsum"
 
-
-
     protected fun registerServices() {
         registerService(name = "echo", container = regularContainer, tags = listOf())
         registerService(name = "echo", container = loremContainer, tags = listOf(loremTag))
@@ -148,7 +146,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val stats = callServiceRepeatedly(service = "echo2", repeat = 10, tag = "${ipsumTag},${loremTag}")
+        val stats = callServiceRepeatedly(service = "echo2", repeat = 10, tag = "$ipsumTag,$loremTag")
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
@@ -167,7 +165,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "${ipsumTag},${loremTag}", assertNoErrors = false)
+        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "$ipsumTag,$loremTag", assertNoErrors = false)
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)

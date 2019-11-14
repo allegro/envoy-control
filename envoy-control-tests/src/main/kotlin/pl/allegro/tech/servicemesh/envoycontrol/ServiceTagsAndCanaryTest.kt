@@ -8,7 +8,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 
-
 open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
 
     companion object {
@@ -130,7 +129,10 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
     }
 
     protected open fun callEchoServiceRepeatedly(
-        repeat: Int, tag: String? = null, canary: Boolean, assertNoErrors: Boolean = true
+        repeat: Int,
+        tag: String? = null,
+        canary: Boolean,
+        assertNoErrors: Boolean = true
     ): CallStats {
         val stats = CallStats()
         val tagHeader = tag?.let { mapOf("service-tag" to it) } ?: emptyMap()
