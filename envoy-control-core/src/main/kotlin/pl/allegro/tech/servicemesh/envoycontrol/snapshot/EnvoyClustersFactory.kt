@@ -16,12 +16,12 @@ import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
 import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
 import io.envoyproxy.envoy.api.v2.core.ConfigSource
-import io.envoyproxy.envoy.api.v2.core.RoutingPriority
 import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http2ProtocolOptions
-import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
+import io.envoyproxy.envoy.api.v2.core.RoutingPriority
+import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
@@ -175,7 +175,8 @@ internal class EnvoyClustersFactory(
                 if (tagsEnabled) {
                     addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
                         .addKeys(properties.routing.serviceTags.metadataKey)
-                        .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                        .setFallbackPolicy(
+                            Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
                     )
                     setListAsAny(true) // allowing for an endpoint to have multiple tags
                 }
@@ -183,7 +184,8 @@ internal class EnvoyClustersFactory(
                     addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
                         .addKeys(properties.routing.serviceTags.metadataKey)
                         .addKeys(properties.loadBalancing.canary.metadataKey)
-                        .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                        .setFallbackPolicy(
+                            Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
                     )
                 }
             }

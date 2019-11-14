@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-
 interface ServiceTagFilter {
     fun filterTagsForRouting(tags: Set<String>): Set<String>
 }

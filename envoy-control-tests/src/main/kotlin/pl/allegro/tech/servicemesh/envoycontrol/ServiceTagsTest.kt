@@ -120,7 +120,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         assertThat(stats.loremIpsumHits).isEqualTo(0)
     }
 
-    open protected fun callEchoServiceRepeatedly(repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
+    protected open fun callEchoServiceRepeatedly(repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
         val stats = CallStats()
         callServiceRepeatedly(
             service = "echo",
