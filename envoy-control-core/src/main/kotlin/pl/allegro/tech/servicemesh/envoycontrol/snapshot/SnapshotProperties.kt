@@ -125,6 +125,9 @@ class AuthorizationProperties {
 class ServiceTagsProperties {
     var enabled = false
     var metadataKey = "tag"
+    var routingExcludedTags: MutableList<String> = mutableListOf()
+    var twoTagsRoutingAllowedServices: MutableSet<String> = mutableSetOf()
+    var threeTagsRoutingAllowedServices: MutableSet<String> = mutableSetOf()
 }
 
 class RoutingProperties {

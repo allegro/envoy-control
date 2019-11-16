@@ -71,7 +71,7 @@ class ControlPlane private constructor(
         var executorGroup: ExecutorGroup? = null
         var updateSnapshotExecutor: Executor? = null
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics()
-        var serviceTagFilter: ServiceTagFilter = DefaultServiceTagFilter()
+        var serviceTagFilter: ServiceTagFilter = DefaultServiceTagFilter(properties.envoy.snapshot.routing.serviceTags)
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot

@@ -14,7 +14,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
-            "envoy-control.envoy.snapshot.routing.service-tags.two-tags-routing-allowed-services" to "echo2",
+            "envoy-control.envoy.snapshot.routing.service-tags.two-tags-routing-allowed-services" to "service-1",
             "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to false
         )
 
@@ -29,15 +29,15 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         private val regularContainer = echoContainer
         private val loremContainer = echoContainer2
         private val loremIpsumContainer = EchoContainer().also { it.start() }
-        private val echo2LoremContainer = EchoContainer().also { it.start() }
-        private val echo2LoremIpsumContainer = EchoContainer().also { it.start() }
+        private val service1LoremContainer = EchoContainer().also { it.start() }
+        private val service1LoremIpsumContainer = EchoContainer().also { it.start() }
 
         @JvmStatic
         @AfterAll
         fun cleanup() {
             loremIpsumContainer.stop()
-            echo2LoremContainer.stop()
-            echo2LoremIpsumContainer.stop()
+            service1LoremContainer.stop()
+            service1LoremIpsumContainer.stop()
         }
     }
 
@@ -48,8 +48,8 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         registerService(name = "echo", container = regularContainer, tags = listOf())
         registerService(name = "echo", container = loremContainer, tags = listOf(loremTag))
         registerService(name = "echo", container = loremIpsumContainer, tags = listOf(loremTag, ipsumTag))
-        registerService(name = "echo2", container = echo2LoremContainer, tags = listOf(loremTag))
-        registerService(name = "echo2", container = echo2LoremIpsumContainer, tags = listOf(loremTag, ipsumTag))
+        registerService(name = "service-1", container = service1LoremContainer, tags = listOf(loremTag))
+        registerService(name = "service-1", container = service1LoremIpsumContainer, tags = listOf(loremTag, ipsumTag))
     }
 
     @Test
@@ -140,18 +140,18 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         // given
         registerServices()
         untilAsserted {
-            callService("echo").also {
+            callService("service-1").also {
                 assertThat(it).isOk()
             }
         }
 
         // when
-        val stats = callServiceRepeatedly(service = "echo2", repeat = 10, tag = "$ipsumTag,$loremTag")
+        val stats = callServiceRepeatedly(service = "service-1", repeat = 10, tag = "$ipsumTag,$loremTag")
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.echo2LoremIpsumHits).isEqualTo(10)
-        assertThat(stats.echo2LoremHits).isEqualTo(0)
+        assertThat(stats.service1LoremIpsumHits).isEqualTo(10)
+        assertThat(stats.service1LoremHits).isEqualTo(0)
     }
 
     @Test
@@ -202,16 +202,16 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         var loremHits: Int = 0,
         var loremIpsumHits: Int = 0,
         var totalHits: Int = 0,
-        var echo2LoremHits: Int = 0,
-        var echo2LoremIpsumHits: Int = 0,
+        var service1LoremHits: Int = 0,
+        var service1LoremIpsumHits: Int = 0,
         var failedHits: Int = 0
     ) : CallStatistics {
         override fun addResponse(response: ResponseWithBody) {
             if (response.isFrom(regularContainer)) regularHits++
             if (response.isFrom(loremContainer)) loremHits++
             if (response.isFrom(loremIpsumContainer)) loremIpsumHits++
-            if (response.isFrom(echo2LoremContainer)) echo2LoremHits++
-            if (response.isFrom(echo2LoremIpsumContainer)) echo2LoremIpsumHits++
+            if (response.isFrom(service1LoremContainer)) service1LoremHits++
+            if (response.isFrom(service1LoremIpsumContainer)) service1LoremIpsumHits++
             if (!response.isOk()) failedHits++
             totalHits ++
         }

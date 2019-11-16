@@ -179,16 +179,16 @@ internal class EnvoySnapshotFactory(
     ): LocalityLbEndpoints =
         LocalityLbEndpoints.newBuilder()
             .setLocality(Locality.newBuilder().setZone(zone).build())
-            .addAllLbEndpoints(serviceInstances.instances.map { createLbEndpoint(it) })
+            .addAllLbEndpoints(serviceInstances.instances.map { createLbEndpoint(it, serviceInstances.serviceName) })
             .setPriority(priority)
             .build()
 
-    private fun createLbEndpoint(serviceInstance: ServiceInstance): LbEndpoint {
+    private fun createLbEndpoint(serviceInstance: ServiceInstance, serviceName: String): LbEndpoint {
         return LbEndpoint.newBuilder()
             .setEndpoint(
                 buildEndpoint(serviceInstance)
             )
-            .setMetadata(serviceInstance)
+            .setMetadata(serviceInstance, serviceName)
             .setLoadBalancingWeightFromInstance(serviceInstance)
             .build()
     }
@@ -214,7 +214,7 @@ internal class EnvoySnapshotFactory(
             .setProtocol(SocketAddress.Protocol.TCP)
     }
 
-    private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance): LbEndpoint.Builder {
+    private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance, serviceName: String): LbEndpoint.Builder {
         val metadataKeys = Struct.newBuilder()
 
         if (properties.loadBalancing.canary.enabled && instance.canary) {
@@ -231,22 +231,59 @@ internal class EnvoySnapshotFactory(
         }
 
         if (properties.routing.serviceTags.enabled) {
-            addServiceTagsToMetadata(metadataKeys, instance)
+            addServiceTagsToMetadata(metadataKeys, instance, serviceName)
         }
 
         return setMetadata(Metadata.newBuilder().putFilterMetadata("envoy.lb", metadataKeys.build()))
     }
 
-    private fun addServiceTagsToMetadata(metadata: Struct.Builder, instance: ServiceInstance) {
-        val filteredTags = serviceTagFilter.filterTagsForRouting(instance.tags)
-        if (filteredTags.isEmpty()) {
+    private fun addServiceTagsToMetadata(metadata: Struct.Builder, instance: ServiceInstance, serviceName: String) {
+        val tags = serviceTagFilter.filterTagsForRouting(instance.tags)
+        if (tags.isEmpty()) {
             return
         }
+
+        val addPairs = serviceTagFilter.isAllowedToMatchOnTwoTags(serviceName)
+        val addTriples = serviceTagFilter.isAllowedToMatchOnThreeTags(serviceName)
+        val generatePairs = addPairs || addTriples
+
+        val tagsPairs = if (generatePairs) {
+            tags
+                .flatMap { tag1 -> tags
+                    .filter { it > tag1 }
+                    .filter { tag2 -> serviceTagFilter.canBeCombined(tag1, tag2) }
+                    .map { tag2 -> tag1 to tag2 }
+                }
+        } else {
+            emptyList()
+        }
+
+        val tagsPairsJoined = if (addPairs) {
+            tagsPairs.map { "${it.first},${it.second}" }.asSequence()
+        } else {
+            emptySequence()
+        }
+        val tagsTriplesJoined = if (addTriples) {
+            tagsPairs
+                .flatMap { pair -> tags
+                    .filter { it > pair.second }
+                    .filter { tag -> serviceTagFilter.canBeCombined(pair.first, tag) }
+                    .filter { tag -> serviceTagFilter.canBeCombined(pair.second, tag) }
+                    .map { tag -> "${pair.first},${pair.second},$tag" }
+                }
+                .asSequence()
+        } else {
+            emptySequence()
+        }
+
+        // concatenating sequences avoids unnecessary list allocation
+        val allTags = tags.asSequence() + tagsPairsJoined + tagsTriplesJoined
+
         metadata.putFields(
             properties.routing.serviceTags.metadataKey,
             Value.newBuilder()
                 .setListValue(ListValue.newBuilder()
-                    .addAllValues(filteredTags.map { Value.newBuilder().setStringValue(it).build() })
+                    .addAllValues(allTags.map { Value.newBuilder().setStringValue(it).build() }.asIterable())
                 ).build()
         )
     }
