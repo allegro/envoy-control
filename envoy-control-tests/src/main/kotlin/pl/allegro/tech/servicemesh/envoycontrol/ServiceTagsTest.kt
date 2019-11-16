@@ -15,6 +15,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
             "envoy-control.envoy.snapshot.routing.service-tags.two-tags-routing-allowed-services" to "service-1",
+            "envoy-control.envoy.snapshot.routing.service-tags.three-tags-routing-allowed-services" to "service-2",
             "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to false
         )
 
@@ -31,6 +32,8 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         private val loremIpsumContainer = EchoContainer().also { it.start() }
         private val service1LoremContainer = EchoContainer().also { it.start() }
         private val service1LoremIpsumContainer = EchoContainer().also { it.start() }
+        private val service2LoremIpsumContainer = EchoContainer().also { it.start() }
+        private val service2LoremIpsumDolomContainer = EchoContainer().also { it.start() }
 
         @JvmStatic
         @AfterAll
@@ -38,18 +41,20 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             loremIpsumContainer.stop()
             service1LoremContainer.stop()
             service1LoremIpsumContainer.stop()
+            service2LoremIpsumContainer.stop()
+            service2LoremIpsumDolomContainer.stop()
         }
     }
 
-    protected open val loremTag = "lorem"
-    protected open val ipsumTag = "ipsum"
-
     protected fun registerServices() {
         registerService(name = "echo", container = regularContainer, tags = listOf())
-        registerService(name = "echo", container = loremContainer, tags = listOf(loremTag))
-        registerService(name = "echo", container = loremIpsumContainer, tags = listOf(loremTag, ipsumTag))
-        registerService(name = "service-1", container = service1LoremContainer, tags = listOf(loremTag))
-        registerService(name = "service-1", container = service1LoremIpsumContainer, tags = listOf(loremTag, ipsumTag))
+        registerService(name = "echo", container = loremContainer, tags = listOf("lorem"))
+        registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
+        registerService(name = "service-1", container = service1LoremContainer, tags = listOf("lorem"))
+        registerService(name = "service-1", container = service1LoremIpsumContainer, tags = listOf("lorem", "ipsum"))
+        registerService(name = "service-2", container = service2LoremIpsumContainer, tags = listOf("lorem", "ipsum"))
+        registerService(name = "service-2", container = service2LoremIpsumDolomContainer,
+            tags = listOf("lorem", "ipsum", "dolom"))
     }
 
     @Test
@@ -63,7 +68,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val stats = callEchoServiceRepeatedly(repeat = 10, tag = ipsumTag)
+        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum")
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
@@ -83,7 +88,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val stats = callEchoServiceRepeatedly(repeat = 20, tag = loremTag)
+        val stats = callEchoServiceRepeatedly(repeat = 20, tag = "lorem")
 
         // then
         assertThat(stats.totalHits).isEqualTo(20)
@@ -146,7 +151,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val stats = callServiceRepeatedly(service = "service-1", repeat = 10, tag = "$ipsumTag,$loremTag")
+        val stats = callServiceRepeatedly(service = "service-1", repeat = 10, tag = "ipsum,lorem")
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
@@ -165,7 +170,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "$ipsumTag,$loremTag", assertNoErrors = false)
+        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum,lorem", assertNoErrors = false)
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
@@ -173,6 +178,45 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         assertThat(stats.regularHits).isEqualTo(0)
         assertThat(stats.loremHits).isEqualTo(0)
         assertThat(stats.loremIpsumHits).isEqualTo(0)
+    }
+
+    @Test
+    fun `should route request with three tags if service is on the whitelist`() {
+        // given
+        registerServices()
+        untilAsserted {
+            callService("service-2").also {
+                assertThat(it).isOk()
+            }
+        }
+
+        // when
+        val stats = callServiceRepeatedly(service = "service-2", repeat = 10, tag = "dolom,ipsum,lorem")
+
+        // then
+        assertThat(stats.totalHits).isEqualTo(10)
+        assertThat(stats.service2LoremIpsumDolomHits).isEqualTo(10)
+        assertThat(stats.service2LoremIpsumHits).isEqualTo(0)
+    }
+
+    @Test
+    fun `should return 503 for request with three tags is service is not on the whitelist`() {
+        // given
+        registerServices()
+        untilAsserted {
+            callService("service-1").also {
+                assertThat(it).isOk()
+            }
+        }
+
+        // when
+        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "dolom,ipsum,lorem", assertNoErrors = false)
+
+        // then
+        assertThat(stats.totalHits).isEqualTo(10)
+        assertThat(stats.failedHits).isEqualTo(10)
+        assertThat(stats.service1LoremIpsumHits).isEqualTo(0)
+        assertThat(stats.service1LoremHits).isEqualTo(0)
     }
 
     protected fun callEchoServiceRepeatedly(repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
@@ -204,6 +248,8 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         var totalHits: Int = 0,
         var service1LoremHits: Int = 0,
         var service1LoremIpsumHits: Int = 0,
+        var service2LoremIpsumHits: Int = 0,
+        var service2LoremIpsumDolomHits: Int = 0,
         var failedHits: Int = 0
     ) : CallStatistics {
         override fun addResponse(response: ResponseWithBody) {
@@ -212,8 +258,10 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             if (response.isFrom(loremIpsumContainer)) loremIpsumHits++
             if (response.isFrom(service1LoremContainer)) service1LoremHits++
             if (response.isFrom(service1LoremIpsumContainer)) service1LoremIpsumHits++
+            if (response.isFrom(service2LoremIpsumContainer)) service2LoremIpsumHits++
+            if (response.isFrom(service2LoremIpsumDolomContainer)) service2LoremIpsumDolomHits++
             if (!response.isOk()) failedHits++
-            totalHits ++
+            totalHits++
         }
     }
 }
