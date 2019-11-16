@@ -14,7 +14,7 @@ class EnvoyContainer(
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort
 ) : GenericContainer<EnvoyContainer>(ImageFromDockerfile().withDockerfileFromBuilder {
-    it.from("envoyproxy/envoy-alpine:v1.12.0")
+    it.from("envoyproxy/envoy-alpine-dev:b7bef67c256090919a4585a1a06c42f15d640a09")
         .run("apk --no-cache add curl iproute2")
         .build()
 }) {

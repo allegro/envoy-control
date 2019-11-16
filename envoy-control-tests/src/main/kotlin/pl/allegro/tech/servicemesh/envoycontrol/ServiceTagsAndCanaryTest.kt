@@ -38,13 +38,10 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
         }
     }
 
-    protected open val loremTag = "lorem"
-    protected open val ipsumTag = "ipsum"
-
     protected fun registerServices() {
-        registerService(name = "echo", container = loremRegularContainer, tags = listOf(loremTag))
-        registerService(name = "echo", container = loremCanaryContainer, tags = listOf(loremTag, "canary"))
-        registerService(name = "echo", container = ipsumRegularContainer, tags = listOf(ipsumTag))
+        registerService(name = "echo", container = loremRegularContainer, tags = listOf("lorem"))
+        registerService(name = "echo", container = loremCanaryContainer, tags = listOf("lorem", "canary"))
+        registerService(name = "echo", container = ipsumRegularContainer, tags = listOf("ipsum"))
     }
 
     @Test
@@ -58,7 +55,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val stats = callEchoServiceRepeatedly(repeat = 10, tag = loremTag, canary = true)
+        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "lorem", canary = true)
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
@@ -78,7 +75,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val stats = callEchoServiceRepeatedly(repeat = 10, tag = ipsumTag, canary = true)
+        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum", canary = true)
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)

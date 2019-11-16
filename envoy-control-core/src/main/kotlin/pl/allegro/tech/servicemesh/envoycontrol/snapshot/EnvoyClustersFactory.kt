@@ -185,7 +185,8 @@ internal class EnvoyClustersFactory(
                         .addKeys(properties.routing.serviceTags.metadataKey)
                         .addKeys(properties.loadBalancing.canary.metadataKey)
                         .setFallbackPolicy(
-                            Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                            Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.KEYS_SUBSET)
+                        .addFallbackKeysSubset(properties.routing.serviceTags.metadataKey)
                     )
                 }
             }
