@@ -16,6 +16,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
             "envoy-control.envoy.snapshot.routing.service-tags.two-tags-routing-allowed-services" to "service-1",
             "envoy-control.envoy.snapshot.routing.service-tags.three-tags-routing-allowed-services" to "service-2",
+            "envoy-control.envoy.snapshot.routing.service-tags.routing-excluded-tags" to "blacklist.*",
             "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to false
         )
 
@@ -48,7 +49,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
     protected fun registerServices() {
         registerService(name = "echo", container = regularContainer, tags = listOf())
-        registerService(name = "echo", container = loremContainer, tags = listOf("lorem"))
+        registerService(name = "echo", container = loremContainer, tags = listOf("lorem", "blacklisted"))
         registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
         registerService(name = "service-1", container = service1LoremContainer, tags = listOf("lorem"))
         registerService(name = "service-1", container = service1LoremIpsumContainer, tags = listOf("lorem", "ipsum"))
@@ -131,6 +132,27 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "dolom", assertNoErrors = false)
+
+        // then
+        assertThat(stats.totalHits).isEqualTo(10)
+        assertThat(stats.failedHits).isEqualTo(10)
+        assertThat(stats.regularHits).isEqualTo(0)
+        assertThat(stats.loremHits).isEqualTo(0)
+        assertThat(stats.loremIpsumHits).isEqualTo(0)
+    }
+
+    @Test
+    fun `should return 503 if requested tag is blacklisted`() {
+        // given
+        registerServices()
+        untilAsserted {
+            callService("echo").also {
+                assertThat(it).isOk()
+            }
+        }
+
+        // when
+        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "blacklisted", assertNoErrors = false)
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
