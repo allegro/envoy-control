@@ -77,9 +77,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.regularHits).isEqualTo(0)
-        assertThat(stats.loremHits).isEqualTo(0)
-        assertThat(stats.loremIpsumHits).isEqualTo(10)
+        assertThat(stats.hits(regularContainer)).isEqualTo(0)
+        assertThat(stats.hits(loremContainer)).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumContainer)).isEqualTo(10)
     }
 
     @Test
@@ -97,10 +97,10 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
         // then
         assertThat(stats.totalHits).isEqualTo(20)
-        assertThat(stats.regularHits).isEqualTo(0)
-        assertThat(stats.loremHits).isGreaterThan(2)
-        assertThat(stats.loremIpsumHits).isGreaterThan(2)
-        assertThat(stats.loremHits + stats.loremIpsumHits).isEqualTo(20)
+        assertThat(stats.hits(regularContainer)).isEqualTo(0)
+        assertThat(stats.hits(loremContainer)).isGreaterThan(2)
+        assertThat(stats.hits(loremIpsumContainer)).isGreaterThan(2)
+        assertThat(stats.hits(loremContainer) + stats.hits(loremIpsumContainer)).isEqualTo(20)
     }
 
     @Test
@@ -118,10 +118,10 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
         // then
         assertThat(stats.totalHits).isEqualTo(20)
-        assertThat(stats.regularHits).isGreaterThan(1)
-        assertThat(stats.loremHits).isGreaterThan(1)
-        assertThat(stats.loremIpsumHits).isGreaterThan(1)
-        assertThat(stats.regularHits + stats.loremHits + stats.loremIpsumHits).isEqualTo(20)
+        assertThat(stats.hits(regularContainer)).isGreaterThan(1)
+        assertThat(stats.hits(loremContainer)).isGreaterThan(1)
+        assertThat(stats.hits(loremIpsumContainer)).isGreaterThan(1)
+        assertThat(stats.hits(regularContainer) + stats.hits(loremContainer) + stats.hits(loremIpsumContainer)).isEqualTo(20)
     }
 
     @Test
@@ -140,9 +140,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.regularHits).isEqualTo(0)
-        assertThat(stats.loremHits).isEqualTo(0)
-        assertThat(stats.loremIpsumHits).isEqualTo(0)
+        assertThat(stats.hits(regularContainer)).isEqualTo(0)
+        assertThat(stats.hits(loremContainer)).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumContainer)).isEqualTo(0)
     }
 
     @Test
@@ -161,9 +161,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.regularHits).isEqualTo(0)
-        assertThat(stats.loremHits).isEqualTo(0)
-        assertThat(stats.loremIpsumHits).isEqualTo(0)
+        assertThat(stats.hits(regularContainer)).isEqualTo(0)
+        assertThat(stats.hits(loremContainer)).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumContainer)).isEqualTo(0)
     }
 
     @Test
@@ -181,9 +181,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.service1LoremIpsumHits).isEqualTo(10)
-        assertThat(stats.service1LoremHits).isEqualTo(0)
-        assertThat(stats.service1IpsumHits).isEqualTo(0)
+        assertThat(stats.hits(service1LoremIpsumContainer)).isEqualTo(10)
+        assertThat(stats.hits(service1LoremContainer)).isEqualTo(0)
+        assertThat(stats.hits(service1IpsumContainer)).isEqualTo(0)
     }
 
     @Test
@@ -202,9 +202,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.regularHits).isEqualTo(0)
-        assertThat(stats.loremHits).isEqualTo(0)
-        assertThat(stats.loremIpsumHits).isEqualTo(0)
+        assertThat(stats.hits(regularContainer)).isEqualTo(0)
+        assertThat(stats.hits(loremContainer)).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumContainer)).isEqualTo(0)
     }
 
     @Test
@@ -222,9 +222,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.service2LoremIpsumDolomHits).isEqualTo(10)
-        assertThat(stats.service2LoremIpsumHits).isEqualTo(0)
-        assertThat(stats.service2DolomHits).isEqualTo(0)
+        assertThat(stats.hits(service2LoremIpsumDolomContainer)).isEqualTo(10)
+        assertThat(stats.hits(service2LoremIpsumContainer)).isEqualTo(0)
+        assertThat(stats.hits(service2DolomContainer)).isEqualTo(0)
     }
 
     @Test
@@ -243,8 +243,8 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.service1LoremIpsumHits).isEqualTo(0)
-        assertThat(stats.service1LoremHits).isEqualTo(0)
+        assertThat(stats.hits(service1LoremIpsumContainer)).isEqualTo(0)
+        assertThat(stats.hits(service1LoremContainer)).isEqualTo(0)
     }
 
     protected fun callEchoServiceRepeatedly(repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
@@ -269,29 +269,19 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         return stats
     }
 
-    class CallStats(
-        var regularHits: Int = 0,
-        var loremHits: Int = 0,
-        var loremIpsumHits: Int = 0,
-        var totalHits: Int = 0,
-        var service1LoremHits: Int = 0,
-        var service1IpsumHits: Int = 0,
-        var service1LoremIpsumHits: Int = 0,
-        var service2DolomHits: Int = 0,
-        var service2LoremIpsumHits: Int = 0,
-        var service2LoremIpsumDolomHits: Int = 0,
+    class CallStats : CallStatistics {
         var failedHits: Int = 0
-    ) : CallStatistics {
+        var totalHits: Int = 0
+
+        private val containers = listOf(regularContainer, loremContainer) + containersToStart
+        private var containerHits: MutableMap<String, Int> = containers.associate { it.containerId to 0 }.toMutableMap()
+
+        fun hits(container: EchoContainer) = containerHits[container.containerId] ?: 0
+
         override fun addResponse(response: ResponseWithBody) {
-            if (response.isFrom(regularContainer)) regularHits++
-            if (response.isFrom(loremContainer)) loremHits++
-            if (response.isFrom(loremIpsumContainer)) loremIpsumHits++
-            if (response.isFrom(service1LoremContainer)) service1LoremHits++
-            if (response.isFrom(service1IpsumContainer)) service1IpsumHits++
-            if (response.isFrom(service1LoremIpsumContainer)) service1LoremIpsumHits++
-            if (response.isFrom(service2DolomContainer)) service2DolomHits++
-            if (response.isFrom(service2LoremIpsumContainer)) service2LoremIpsumHits++
-            if (response.isFrom(service2LoremIpsumDolomContainer)) service2LoremIpsumDolomHits++
+            regularContainer.containerId
+            containers.firstOrNull { response.isFrom(it) }
+                ?.let { containerHits.compute(it.containerId) { _, i -> i?.inc() } }
             if (!response.isOk()) failedHits++
             totalHits++
         }
