@@ -69,7 +69,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should route requests to instance with tag ipsum`() {
+    open fun `should route requests to instance with tag ipsum`() {
         // given
         registerServices()
         untilAsserted {
@@ -89,7 +89,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should route requests to instances with tag lorem`() {
+    open fun `should route requests to instances with tag lorem`() {
         // given
         registerServices()
         untilAsserted {
@@ -110,7 +110,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should route requests to all instances`() {
+    open fun `should route requests to all instances`() {
         // given
         registerServices()
         untilAsserted {
@@ -131,7 +131,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should return 503 if instance with requested tag is not found`() {
+    open fun `should return 503 if instance with requested tag is not found`() {
         // given
         registerServices()
         untilAsserted {
@@ -193,7 +193,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should return 503 for request with two tags is service is not on the whitelist`() {
+    open fun `should return 503 for request with two tags is service is not on the whitelist`() {
         // given
         registerServices()
         untilAsserted {
@@ -234,7 +234,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should return 503 for request with three tags is service is not on the whitelist`() {
+    open fun `should return 503 for request with three tags is service is not on the whitelist`() {
         // given
         registerServices()
         untilAsserted {
