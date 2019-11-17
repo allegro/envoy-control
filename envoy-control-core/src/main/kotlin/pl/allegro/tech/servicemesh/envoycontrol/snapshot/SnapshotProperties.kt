@@ -2,6 +2,7 @@
 
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import io.envoyproxy.envoy.api.v2.Cluster
 import java.time.Duration
 
 class SnapshotProperties {
@@ -39,6 +40,7 @@ class LoadBalancingProperties {
     var canary = CanaryProperties()
     var regularMetadataKey = "lb_regular"
     var weights = LoadBalancingWeightsProperties()
+    var loadBalancingPolicy = Cluster.LbPolicy.LEAST_REQUEST
 }
 
 class CanaryProperties {
