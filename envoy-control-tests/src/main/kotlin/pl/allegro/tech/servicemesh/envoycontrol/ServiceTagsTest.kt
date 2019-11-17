@@ -29,15 +29,15 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             containersToStart.parallelStream().forEach { it.start() }
         }
 
-        private val regularContainer = echoContainer
-        private val loremContainer = echoContainer2
-        private val loremIpsumContainer = EchoContainer()
-        private val service1LoremContainer = EchoContainer()
-        private val service1IpsumContainer = EchoContainer()
-        private val service1LoremIpsumContainer = EchoContainer()
-        private val service2DolomContainer = EchoContainer()
-        private val service2LoremIpsumContainer = EchoContainer()
-        private val service2LoremIpsumDolomContainer = EchoContainer()
+        protected val regularContainer = echoContainer
+        protected val loremContainer = echoContainer2
+        protected val loremIpsumContainer = EchoContainer()
+        protected val service1LoremContainer = EchoContainer()
+        protected val service1IpsumContainer = EchoContainer()
+        protected val service1LoremIpsumContainer = EchoContainer()
+        protected val service2DolomContainer = EchoContainer()
+        protected val service2LoremIpsumContainer = EchoContainer()
+        protected val service2LoremIpsumDolomContainer = EchoContainer()
 
         private val containersToStart = listOf(
             loremIpsumContainer, service1LoremContainer, service1IpsumContainer, service1LoremIpsumContainer,
