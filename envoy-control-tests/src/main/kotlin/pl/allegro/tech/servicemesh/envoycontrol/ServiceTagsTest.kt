@@ -62,6 +62,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         registerService(name = "service-1", container = service1LoremContainer, tags = listOf("lorem"))
         registerService(name = "service-1", container = service1IpsumContainer, tags = listOf("ipsum"))
         registerService(name = "service-1", container = service1LoremIpsumContainer, tags = listOf("lorem", "ipsum"))
+        registerService(name = "service-2", container = service2DolomContainer, tags = listOf("dolom"))
         registerService(name = "service-2", container = service2LoremIpsumContainer, tags = listOf("lorem", "ipsum"))
         registerService(name = "service-2", container = service2LoremIpsumDolomContainer,
             tags = listOf("lorem", "ipsum", "dolom"))
@@ -172,7 +173,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should route request with two tags if service is on the whitelist`() {
+    open fun `should route request with two tags if service is on the whitelist`() {
         // given
         registerServices()
         untilAsserted {
@@ -213,7 +214,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should route request with three tags if service is on the whitelist`() {
+    open fun `should route request with three tags if service is on the whitelist`() {
         // given
         registerServices()
         untilAsserted {
