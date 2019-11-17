@@ -38,6 +38,7 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
         // then
         untilAsserted {
             assertHasActiveConnection(envoyContainer1)
+            callProxy()
         }
 
         // 5 seconds drain time + 1 idle + 4 padding
@@ -59,6 +60,7 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
         // then
         untilAsserted {
             assertHasActiveConnection(envoyContainer1)
+            callProxy()
         }
 
         // 1 idle + 4 padding
