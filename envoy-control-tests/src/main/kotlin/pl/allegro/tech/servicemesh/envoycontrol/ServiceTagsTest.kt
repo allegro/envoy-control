@@ -26,24 +26,27 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             })
+            containersToStart.parallelStream().forEach { it.start() }
         }
 
         private val regularContainer = echoContainer
         private val loremContainer = echoContainer2
-        private val loremIpsumContainer = EchoContainer().also { it.start() }
-        private val service1LoremContainer = EchoContainer().also { it.start() }
-        private val service1LoremIpsumContainer = EchoContainer().also { it.start() }
-        private val service2LoremIpsumContainer = EchoContainer().also { it.start() }
-        private val service2LoremIpsumDolomContainer = EchoContainer().also { it.start() }
+        private val loremIpsumContainer = EchoContainer()
+        private val service1LoremContainer = EchoContainer()
+        private val service1IpsumContainer = EchoContainer()
+        private val service1LoremIpsumContainer = EchoContainer()
+        private val service2DolomContainer = EchoContainer()
+        private val service2LoremIpsumContainer = EchoContainer()
+        private val service2LoremIpsumDolomContainer = EchoContainer()
+
+        private val containersToStart = listOf(
+            loremIpsumContainer, service1LoremContainer, service1IpsumContainer, service1LoremIpsumContainer,
+            service2DolomContainer, service2LoremIpsumContainer, service2LoremIpsumDolomContainer)
 
         @JvmStatic
         @AfterAll
         fun cleanup() {
-            loremIpsumContainer.stop()
-            service1LoremContainer.stop()
-            service1LoremIpsumContainer.stop()
-            service2LoremIpsumContainer.stop()
-            service2LoremIpsumDolomContainer.stop()
+            containersToStart.parallelStream().forEach { it.stop() }
         }
     }
 
@@ -52,6 +55,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         registerService(name = "echo", container = loremContainer, tags = listOf("lorem", "blacklisted"))
         registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
         registerService(name = "service-1", container = service1LoremContainer, tags = listOf("lorem"))
+        registerService(name = "service-1", container = service1IpsumContainer, tags = listOf("ipsum"))
         registerService(name = "service-1", container = service1LoremIpsumContainer, tags = listOf("lorem", "ipsum"))
         registerService(name = "service-2", container = service2LoremIpsumContainer, tags = listOf("lorem", "ipsum"))
         registerService(name = "service-2", container = service2LoremIpsumDolomContainer,
@@ -179,6 +183,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.service1LoremIpsumHits).isEqualTo(10)
         assertThat(stats.service1LoremHits).isEqualTo(0)
+        assertThat(stats.service1IpsumHits).isEqualTo(0)
     }
 
     @Test
@@ -219,6 +224,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.service2LoremIpsumDolomHits).isEqualTo(10)
         assertThat(stats.service2LoremIpsumHits).isEqualTo(0)
+        assertThat(stats.service2DolomHits).isEqualTo(0)
     }
 
     @Test
@@ -269,7 +275,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         var loremIpsumHits: Int = 0,
         var totalHits: Int = 0,
         var service1LoremHits: Int = 0,
+        var service1IpsumHits: Int = 0,
         var service1LoremIpsumHits: Int = 0,
+        var service2DolomHits: Int = 0,
         var service2LoremIpsumHits: Int = 0,
         var service2LoremIpsumDolomHits: Int = 0,
         var failedHits: Int = 0
@@ -279,7 +287,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             if (response.isFrom(loremContainer)) loremHits++
             if (response.isFrom(loremIpsumContainer)) loremIpsumHits++
             if (response.isFrom(service1LoremContainer)) service1LoremHits++
+            if (response.isFrom(service1IpsumContainer)) service1IpsumHits++
             if (response.isFrom(service1LoremIpsumContainer)) service1LoremIpsumHits++
+            if (response.isFrom(service2DolomContainer)) service2DolomHits++
             if (response.isFrom(service2LoremIpsumContainer)) service2LoremIpsumHits++
             if (response.isFrom(service2LoremIpsumDolomContainer)) service2LoremIpsumDolomHits++
             if (!response.isOk()) failedHits++
