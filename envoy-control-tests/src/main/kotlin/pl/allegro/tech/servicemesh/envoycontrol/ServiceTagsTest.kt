@@ -26,7 +26,6 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             })
-            containersToStart.parallelStream().forEach { it.start() }
         }
 
         val regularContainer = echoContainer
@@ -42,6 +41,12 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         private val containersToStart = listOf(
             loremIpsumContainer, service1LoremContainer, service1IpsumContainer, service1LoremIpsumContainer,
             service2DolomContainer, service2LoremIpsumContainer, service2LoremIpsumDolomContainer)
+
+        @JvmStatic
+        @BeforeAll
+        fun startContainers() {
+            containersToStart.parallelStream().forEach { it.start() }
+        }
 
         @JvmStatic
         @AfterAll
