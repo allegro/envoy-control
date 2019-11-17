@@ -146,7 +146,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should return 503 if requested tag is blacklisted`() {
+    open fun `should return 503 if requested tag is blacklisted`() {
         // given
         registerServices()
         untilAsserted {
