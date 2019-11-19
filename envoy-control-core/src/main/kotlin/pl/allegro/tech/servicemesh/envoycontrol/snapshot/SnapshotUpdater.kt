@@ -16,8 +16,7 @@ class SnapshotUpdater(
     private val properties: SnapshotProperties,
     private val scheduler: Scheduler,
     private val onGroupAdded: Flux<out Any>,
-    private val meterRegistry: MeterRegistry,
-    serviceTagFilter: ServiceTagFilter = DefaultServiceTagFilter()
+    private val meterRegistry: MeterRegistry
 ) {
     companion object {
         private val logger by logger()
@@ -29,8 +28,7 @@ class SnapshotUpdater(
         egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
         clustersFactory = EnvoyClustersFactory(properties),
         snapshotsVersions = versions,
-        properties = properties,
-        serviceTagFilter = serviceTagFilter
+        properties = properties
     )
 
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<LocalityAwareServicesState>> {

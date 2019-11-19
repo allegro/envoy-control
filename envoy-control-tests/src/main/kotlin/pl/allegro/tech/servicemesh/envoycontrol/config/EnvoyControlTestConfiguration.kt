@@ -315,6 +315,16 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
      */
     inline fun <reified T> bean(): T = envoyControl1.bean(T::class.java)
 
+    fun waitForReadyServices(vararg serviceNames: String) {
+        serviceNames.forEach {
+            untilAsserted {
+                callService(it).also {
+                    assertThat(it).isOk()
+                }
+            }
+        }
+    }
+
     fun untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (Unit)) {
         await().atMost(wait).untilAsserted(fn)
     }

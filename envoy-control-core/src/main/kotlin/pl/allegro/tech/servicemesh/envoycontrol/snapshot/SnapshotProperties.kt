@@ -128,8 +128,12 @@ class ServiceTagsProperties {
     var enabled = false
     var metadataKey = "tag"
     var routingExcludedTags: MutableList<String> = mutableListOf()
-    var twoTagsRoutingAllowedServices: MutableSet<String> = mutableSetOf()
-    var threeTagsRoutingAllowedServices: MutableSet<String> = mutableSetOf()
+    var allowedTagsCombinations: List<ServiceTagsCombinationsProperties> = mutableListOf()
+}
+
+class ServiceTagsCombinationsProperties {
+    var serviceName: String = ""
+    var tags: List<String> = mutableListOf()
 }
 
 class RoutingProperties {

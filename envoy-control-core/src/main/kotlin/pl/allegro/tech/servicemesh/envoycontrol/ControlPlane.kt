@@ -21,8 +21,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.CompositeDiscov
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.DefaultServiceTagFilter
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagFilter
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
@@ -71,7 +69,6 @@ class ControlPlane private constructor(
         var executorGroup: ExecutorGroup? = null
         var updateSnapshotExecutor: Executor? = null
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics()
-        var serviceTagFilter: ServiceTagFilter = DefaultServiceTagFilter(properties.envoy.snapshot.routing.serviceTags)
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
@@ -153,16 +150,10 @@ class ControlPlane private constructor(
                     properties.envoy.snapshot,
                     Schedulers.fromExecutor(updateSnapshotExecutor!!),
                     groupChangeWatcher.onGroupAdded(),
-                    meterRegistry,
-                    serviceTagFilter = serviceTagFilter
+                    meterRegistry
                 ),
                 changes
             )
-        }
-
-        fun withServiceTagFilter(serviceTagFilter: ServiceTagFilter): ControlPlaneBuilder {
-            this.serviceTagFilter = serviceTagFilter
-            return this
         }
 
         fun withNodeGroup(nodeGroup: NodeGroup<Group>): ControlPlaneBuilder {

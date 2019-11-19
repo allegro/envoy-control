@@ -33,7 +33,7 @@ internal class EnvoySnapshotFactory(
     private val clustersFactory: EnvoyClustersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
-    private val serviceTagFilter: ServiceTagFilter = DefaultServiceTagFilter(),
+    private val serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags),
     private val defaultDependencySettings: DependencySettings =
         DependencySettings(properties.egress.handleInternalRedirect)
 ) {
@@ -251,7 +251,7 @@ internal class EnvoySnapshotFactory(
             tags
                 .flatMap { tag1 -> tags
                     .filter { it > tag1 }
-                    .filter { tag2 -> serviceTagFilter.canBeCombined(tag1, tag2) }
+                    .filter { tag2 -> serviceTagFilter.canBeCombined(serviceName, tag1, tag2) }
                     .map { tag2 -> tag1 to tag2 }
                 }
         } else {
@@ -267,8 +267,7 @@ internal class EnvoySnapshotFactory(
             tagsPairs
                 .flatMap { pair -> tags
                     .filter { it > pair.second }
-                    .filter { tag -> serviceTagFilter.canBeCombined(pair.first, tag) }
-                    .filter { tag -> serviceTagFilter.canBeCombined(pair.second, tag) }
+                    .filter { tag -> serviceTagFilter.canBeCombined(serviceName, pair.first, pair.second, tag) }
                     .map { tag -> "${pair.first},${pair.second},$tag" }
                 }
                 .asSequence()

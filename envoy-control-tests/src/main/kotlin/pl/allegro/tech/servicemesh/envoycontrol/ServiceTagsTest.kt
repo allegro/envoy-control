@@ -14,8 +14,12 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
-            "envoy-control.envoy.snapshot.routing.service-tags.two-tags-routing-allowed-services" to "service-1",
-            "envoy-control.envoy.snapshot.routing.service-tags.three-tags-routing-allowed-services" to "service-2",
+            "envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations[0].service-name" to "service-1",
+            "envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations[0].tags" to "version:.*,hardware:.*,role:.*",
+            "envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations[1].service-name" to "service-2",
+            "envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations[1].tags" to "version:.*,role:.*",
+            "envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations[2].service-name" to "service-2",
+            "envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations[2].tags" to "version:.*,hardware:.*",
             "envoy-control.envoy.snapshot.routing.service-tags.routing-excluded-tags" to "blacklist.*",
             "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to false
         )
@@ -31,16 +35,9 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         val regularContainer = echoContainer
         val loremContainer = echoContainer2
         val loremIpsumContainer = EchoContainer()
-        val service1LoremContainer = EchoContainer()
-        val service1IpsumContainer = EchoContainer()
-        val service1LoremIpsumContainer = EchoContainer()
-        val service2DolomContainer = EchoContainer()
-        val service2LoremIpsumContainer = EchoContainer()
-        val service2LoremIpsumDolomContainer = EchoContainer()
+        val genericContainer = EchoContainer()
 
-        private val containersToStart = listOf(
-            loremIpsumContainer, service1LoremContainer, service1IpsumContainer, service1LoremIpsumContainer,
-            service2DolomContainer, service2LoremIpsumContainer, service2LoremIpsumDolomContainer)
+        private val containersToStart = listOf(loremIpsumContainer, genericContainer)
 
         @JvmStatic
         @BeforeAll
@@ -59,24 +56,13 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         registerService(name = "echo", container = regularContainer, tags = listOf())
         registerService(name = "echo", container = loremContainer, tags = listOf("lorem", "blacklisted"))
         registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
-        registerService(name = "service-1", container = service1LoremContainer, tags = listOf("lorem"))
-        registerService(name = "service-1", container = service1IpsumContainer, tags = listOf("ipsum"))
-        registerService(name = "service-1", container = service1LoremIpsumContainer, tags = listOf("lorem", "ipsum"))
-        registerService(name = "service-2", container = service2DolomContainer, tags = listOf("dolom"))
-        registerService(name = "service-2", container = service2LoremIpsumContainer, tags = listOf("lorem", "ipsum"))
-        registerService(name = "service-2", container = service2LoremIpsumDolomContainer,
-            tags = listOf("lorem", "ipsum", "dolom"))
     }
 
     @Test
     open fun `should route requests to instance with tag ipsum`() {
         // given
         registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum")
@@ -92,11 +78,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     open fun `should route requests to instances with tag lorem`() {
         // given
         registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 20, tag = "lorem")
@@ -113,11 +95,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     open fun `should route requests to all instances`() {
         // given
         registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 20)
@@ -134,11 +112,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     open fun `should return 503 if instance with requested tag is not found`() {
         // given
         registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "dolom", assertNoErrors = false)
@@ -155,11 +129,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     open fun `should return 503 if requested tag is blacklisted`() {
         // given
         registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "blacklisted", assertNoErrors = false)
@@ -173,84 +143,155 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    open fun `should route request with two tags if service is on the whitelist`() {
+    open fun `should route request with three tags if combination is valid`() {
         // given
-        registerServices()
-        untilAsserted {
-            callService("service-1").also {
-                assertThat(it).isOk()
-            }
-        }
+        val matchingContainer = loremContainer
+        val notMatchingContainer = loremIpsumContainer
+
+        registerService(
+            name = "service-1", container = matchingContainer,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
+        registerService(
+            name = "service-1", container = notMatchingContainer,
+            tags = listOf("version:v1.5", "hardware:c64", "role:master"))
+
+        waitForReadyServices("service-1")
 
         // when
-        val stats = callServiceRepeatedly(service = "service-1", repeat = 10, tag = "ipsum,lorem")
+        val stats = callServiceRepeatedly(
+            service = "service-1", repeat = 10, tag = "hardware:c32,role:master,version:v1.5")
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.hits(service1LoremIpsumContainer)).isEqualTo(10)
-        assertThat(stats.hits(service1LoremContainer)).isEqualTo(0)
-        assertThat(stats.hits(service1IpsumContainer)).isEqualTo(0)
+        assertThat(stats.hits(matchingContainer)).isEqualTo(10)
+        assertThat(stats.hits(notMatchingContainer)).isEqualTo(0)
     }
 
     @Test
-    open fun `should return 503 for request with two tags is service is not on the whitelist`() {
+    open fun `should not route request with multiple tags if service is not whitelisted`() {
         // given
-        registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        val matchingContainer = loremContainer
+
+        registerService(
+            name = "service-3", container = matchingContainer,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
+
+        waitForReadyServices("service-3")
 
         // when
-        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum,lorem", assertNoErrors = false)
+        val threeTagsStats = callServiceRepeatedly(
+            service = "service-3", repeat = 10, tag = "hardware:c32,role:master,version:v1.5", assertNoErrors = false)
+        val twoTagsStats = callServiceRepeatedly(
+            service = "service-3", repeat = 10, tag = "hardware:c32,role:master", assertNoErrors = false)
+        val oneTagStats = callServiceRepeatedly(
+            service = "service-3", repeat = 10, tag = "role:master")
+
+        // then
+        assertThat(threeTagsStats.totalHits).isEqualTo(10)
+        assertThat(threeTagsStats.failedHits).isEqualTo(10)
+        assertThat(threeTagsStats.hits(matchingContainer)).isEqualTo(0)
+
+        assertThat(twoTagsStats.totalHits).isEqualTo(10)
+        assertThat(twoTagsStats.failedHits).isEqualTo(10)
+        assertThat(twoTagsStats.hits(matchingContainer)).isEqualTo(0)
+
+        assertThat(oneTagStats.totalHits).isEqualTo(10)
+        assertThat(oneTagStats.failedHits).isEqualTo(0)
+        assertThat(oneTagStats.hits(matchingContainer)).isEqualTo(10)
+    }
+
+    @Test
+    open fun `should not route request with three tags if combination is not allowed`() {
+        // given
+        val service1MatchingContainer = loremContainer
+        val service2MatchingContainer = loremIpsumContainer
+
+        registerService(
+            name = "service-1", container = service1MatchingContainer,
+            tags = listOf("version:v1.5", "hardware:c32", "ram:512"))
+        registerService(
+            name = "service-2", container = service2MatchingContainer,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
+
+        waitForReadyServices("service-1", "service-2")
+
+        // when
+        val service1Stats = callServiceRepeatedly(
+            service = "service-1", repeat = 10, tag = "hardware:c32,ram:512,version:v1.5", assertNoErrors = false)
+        val service2Stats = callServiceRepeatedly(
+            service = "service-2", repeat = 10, tag = "hardware:c32,role:master,version:v1.5", assertNoErrors = false)
+
+        // then
+        assertThat(service1Stats.totalHits).isEqualTo(10)
+        assertThat(service1Stats.failedHits).isEqualTo(10)
+        assertThat(service1Stats.hits(service1MatchingContainer)).isEqualTo(0)
+
+        assertThat(service2Stats.totalHits).isEqualTo(10)
+        assertThat(service2Stats.failedHits).isEqualTo(10)
+        assertThat(service2Stats.hits(service1MatchingContainer)).isEqualTo(0)
+    }
+
+    @Test
+    open fun `should route request with two tags if combination is valid`() {
+        // given
+        val service1MatchingContainer = loremContainer
+        val service1NotMatchingContainer = regularContainer
+        val service2MasterContainer = loremIpsumContainer
+        val service2SecondaryContainer = genericContainer
+
+        registerService(
+            name = "service-1", container = service1MatchingContainer,
+            tags = listOf("version:v2.0", "hardware:c32", "role:master"))
+        registerService(
+            name = "service-1", container = service1NotMatchingContainer,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
+        registerService(
+            name = "service-2", container = service2MasterContainer,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
+        registerService(
+            name = "service-2", container = service2SecondaryContainer,
+            tags = listOf("version:v2.0", "hardware:c32", "role:secondary"))
+
+        waitForReadyServices("service-1", "service-2")
+
+        // when
+        val service1Stats = callServiceRepeatedly(
+            service = "service-1", repeat = 10, tag = "hardware:c32,version:v2.0")
+        val service2MasterStats = callServiceRepeatedly(
+            service = "service-2", repeat = 10, tag = "hardware:c32,version:v1.5")
+        val service2SecondaryStats = callServiceRepeatedly(
+            service = "service-2", repeat = 10, tag = "role:secondary,version:v2.0")
+
+        // then
+        assertThat(service1Stats.totalHits).isEqualTo(10)
+        assertThat(service1Stats.hits(service1MatchingContainer)).isEqualTo(10)
+
+        assertThat(service2MasterStats.totalHits).isEqualTo(10)
+        assertThat(service2MasterStats.hits(service2MasterContainer)).isEqualTo(10)
+
+        assertThat(service2SecondaryStats.totalHits).isEqualTo(10)
+        assertThat(service2SecondaryStats.hits(service2SecondaryContainer)).isEqualTo(10)
+    }
+
+    @Test
+    open fun `should not route request with two tags if combination is not allowed`() {
+        // given
+        val matchingContainer = loremContainer
+
+        registerService(
+            name = "service-2", container = matchingContainer,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
+
+        waitForReadyServices("service-2")
+
+        // when
+        val stats = callServiceRepeatedly(
+            service = "service-2", repeat = 10, tag = "hardware:c32,role:master", assertNoErrors = false)
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.hits(regularContainer)).isEqualTo(0)
-        assertThat(stats.hits(loremContainer)).isEqualTo(0)
-        assertThat(stats.hits(loremIpsumContainer)).isEqualTo(0)
-    }
-
-    @Test
-    open fun `should route request with three tags if service is on the whitelist`() {
-        // given
-        registerServices()
-        untilAsserted {
-            callService("service-2").also {
-                assertThat(it).isOk()
-            }
-        }
-
-        // when
-        val stats = callServiceRepeatedly(service = "service-2", repeat = 10, tag = "dolom,ipsum,lorem")
-
-        // then
-        assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.hits(service2LoremIpsumDolomContainer)).isEqualTo(10)
-        assertThat(stats.hits(service2LoremIpsumContainer)).isEqualTo(0)
-        assertThat(stats.hits(service2DolomContainer)).isEqualTo(0)
-    }
-
-    @Test
-    open fun `should return 503 for request with three tags is service is not on the whitelist`() {
-        // given
-        registerServices()
-        untilAsserted {
-            callService("service-1").also {
-                assertThat(it).isOk()
-            }
-        }
-
-        // when
-        val stats = callEchoServiceRepeatedly(repeat = 10, tag = "dolom,ipsum,lorem", assertNoErrors = false)
-
-        // then
-        assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.hits(service1LoremIpsumContainer)).isEqualTo(0)
-        assertThat(stats.hits(service1LoremContainer)).isEqualTo(0)
+        assertThat(stats.hits(matchingContainer)).isEqualTo(0)
     }
 
     protected fun callEchoServiceRepeatedly(repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
