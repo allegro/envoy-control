@@ -51,8 +51,13 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
     val domain = this.field("domain")?.stringValue
     val handleInternalRedirect = this.field("handleInternalRedirect")?.boolValue
         ?: properties.egress.handleInternalRedirect
+    val timeoutPolicy = this.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(properties)
+        ?: Outgoing.TimeoutPolicy(
+            idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
+            requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
+        )
 
-    val settings = DependencySettings(handleInternalRedirect)
+    val settings = DependencySettings(handleInternalRedirect, timeoutPolicy)
 
     return when {
         service == null && domain == null || service != null && domain != null ->
@@ -75,7 +80,7 @@ private fun Value?.toIncoming(): Incoming {
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
-        timeoutPolicy = this?.field("timeoutPolicy").toTimeoutPolicy()
+        timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy()
     )
 }
 
@@ -97,7 +102,7 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     }
 }
 
-private fun Value?.toTimeoutPolicy(): TimeoutPolicy {
+private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
     val idleTimeout: Duration? = this?.field("idleTimeout")?.stringValue
         ?.takeIf { it.isNotBlank() }
         ?.let { Durations.parse(it) }
@@ -105,7 +110,20 @@ private fun Value?.toTimeoutPolicy(): TimeoutPolicy {
         ?.takeIf { it.isNotBlank() }
         ?.let { Durations.parse(it) }
 
-    return TimeoutPolicy(idleTimeout, responseTimeout)
+    return Incoming.TimeoutPolicy(idleTimeout, responseTimeout)
+}
+
+private fun Value?.toOutgoingTimeoutPolicy(properties: SnapshotProperties): Outgoing.TimeoutPolicy {
+    val idleTimeout: Duration? = this?.field("idleTimeout")?.stringValue
+        ?.takeIf { it.isNotBlank() }
+        ?.let { Durations.parse(it) }
+        ?: Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
+    val requestTimeout: Duration? = this?.field("requestTimeout")?.stringValue
+        ?.takeIf { it.isNotBlank() }
+        ?.let { Durations.parse(it) }
+        ?: Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
+
+    return Outgoing.TimeoutPolicy(idleTimeout, requestTimeout)
 }
 
 data class Incoming(
@@ -113,7 +131,13 @@ data class Incoming(
     val permissionsEnabled: Boolean = false,
     val roles: List<Role> = emptyList(),
     val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(idleTimeout = null, responseTimeout = null)
-)
+) {
+
+    data class TimeoutPolicy(
+        val idleTimeout: Duration?,
+        val responseTimeout: Duration?
+    )
+}
 
 data class Outgoing(
     val dependencies: List<Dependency> = emptyList()
@@ -134,6 +158,11 @@ data class Outgoing(
     fun getDomainDependencies(): Collection<DomainDependency> = domainDependencies.values
 
     fun getServiceDependencies(): Collection<ServiceDependency> = serviceDependencies.values
+
+    data class TimeoutPolicy(
+        val idleTimeout: Duration?,
+        val requestTimeout: Duration?
+    )
 }
 
 interface Dependency
@@ -164,7 +193,8 @@ data class DomainDependency(
 }
 
 data class DependencySettings(
-    val handleInternalRedirect: Boolean = false
+    val handleInternalRedirect: Boolean = false,
+    val timeoutPolicy: Outgoing.TimeoutPolicy? = null
 )
 
 data class Role(
@@ -176,11 +206,6 @@ data class Role(
         clients = proto.field("clients")?.list().orEmpty().map { it.stringValue }.toSet()
     )
 }
-
-data class TimeoutPolicy(
-    val idleTimeout: Duration?,
-    val responseTimeout: Duration?
-)
 
 data class IncomingEndpoint(
     override val path: String = "",

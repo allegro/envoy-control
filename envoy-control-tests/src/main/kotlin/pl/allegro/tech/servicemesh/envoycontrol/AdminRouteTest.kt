@@ -48,50 +48,50 @@ internal class AdminRouteTest : EnvoyControlTestConfiguration() {
             val disableHeader = "to-disable" to ""
 
             return Stream.of(
-                    Arguments.of("admin root", {
-                        callLocalService(
-                                endpoint = "/status/envoy/",
-                                headers = Headers.of(mapOf(disableHeader))
-                        )
-                    }),
-                    Arguments.of("admin root without trailing slash", {
-                        callLocalService(
-                                endpoint = "/status/envoy",
-                                headers = Headers.of(mapOf(disableHeader))
-                        )
-                    }),
-                    Arguments.of("clusters", {
-                        callLocalService(
-                                endpoint = "/status/envoy/clusters",
-                                headers = Headers.of(mapOf(disableHeader))
-                        )
-                    }),
-                    Arguments.of("config dump as unauthorized", {
-                        callLocalService(
-                                endpoint = "/status/envoy/config_dump",
-                                headers = Headers.of(mapOf(disableHeader))
-                        )
-                    }),
-                    Arguments.of("config dump as authorized", {
-                        callLocalService(
-                                endpoint = "/status/envoy/config_dump",
-                                headers = Headers.of(mapOf(disableHeader, "authorization" to "admin_secret_token"))
-                        )
-                    }),
-                    Arguments.of("reset counters as unauthorized", {
-                        callPostLocalService(
-                                endpoint = "/status/envoy/reset_counters",
-                                headers = Headers.of(mapOf(disableHeader)),
-                                body = RequestBody.create(MediaType.get("application/json"), "{}")
-                        )
-                    }),
-                    Arguments.of("reset counters as authorized", {
-                        callPostLocalService(
-                                endpoint = "/status/envoy/reset_counters",
-                                headers = Headers.of(mapOf(disableHeader, "authorization" to "admin_secret_token")),
-                                body = RequestBody.create(MediaType.get("application/json"), "{}")
-                        )
-                    })
+                Arguments.of("admin root", {
+                    callLocalService(
+                        endpoint = "/status/envoy/",
+                        headers = Headers.of(mapOf(disableHeader))
+                    )
+                }),
+                Arguments.of("admin root without trailing slash", {
+                    callLocalService(
+                        endpoint = "/status/envoy",
+                        headers = Headers.of(mapOf(disableHeader))
+                    )
+                }),
+                Arguments.of("clusters", {
+                    callLocalService(
+                        endpoint = "/status/envoy/clusters",
+                        headers = Headers.of(mapOf(disableHeader))
+                    )
+                }),
+                Arguments.of("config dump as unauthorized", {
+                    callLocalService(
+                        endpoint = "/status/envoy/config_dump",
+                        headers = Headers.of(mapOf(disableHeader))
+                    )
+                }),
+                Arguments.of("config dump as authorized", {
+                    callLocalService(
+                        endpoint = "/status/envoy/config_dump",
+                        headers = Headers.of(mapOf(disableHeader, "authorization" to "admin_secret_token"))
+                    )
+                }),
+                Arguments.of("reset counters as unauthorized", {
+                    callPostLocalService(
+                        endpoint = "/status/envoy/reset_counters",
+                        headers = Headers.of(mapOf(disableHeader)),
+                        body = RequestBody.create(MediaType.get("application/json"), "{}")
+                    )
+                }),
+                Arguments.of("reset counters as authorized", {
+                    callPostLocalService(
+                        endpoint = "/status/envoy/reset_counters",
+                        headers = Headers.of(mapOf(disableHeader, "authorization" to "admin_secret_token")),
+                        body = RequestBody.create(MediaType.get("application/json"), "{}")
+                    )
+                })
             )
         }
     }

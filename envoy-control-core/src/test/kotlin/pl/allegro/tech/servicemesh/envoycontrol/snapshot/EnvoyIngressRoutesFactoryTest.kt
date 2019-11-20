@@ -3,11 +3,18 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming.TimeoutPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.groups.accessOnlyForClient
+import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostAuthorizedRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRedirectRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.allOpenIngressRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpAuthorizedRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.fallbackIngressRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOneDomain
@@ -15,20 +22,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOnlyRoutesInOrder
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasSingleVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
+import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnIdleTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPath
-import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnResponseTimeout
-import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnIdleTimeout
+import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.statusRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRedirectRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpAuthorizedRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.toCluster
-import pl.allegro.tech.servicemesh.envoycontrol.groups.TimeoutPolicy
 import java.time.Duration
 
 internal class EnvoyIngressRoutesFactoryTest {

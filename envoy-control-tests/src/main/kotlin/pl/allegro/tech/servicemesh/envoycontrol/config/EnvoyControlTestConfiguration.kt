@@ -1,10 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
-import okhttp3.OkHttpClient
-import okhttp3.Response
-import okhttp3.Request
 import okhttp3.Headers
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility.await
@@ -129,7 +129,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         fun createEnvoyContainerWithFaultyConfig(): EnvoyContainer {
             return createEnvoyContainer(true, FaultyConfig, null, null)
-                    .withStartupTimeout(Duration.ofSeconds(10))
+                .withStartupTimeout(Duration.ofSeconds(10))
         }
 
         fun registerEnvoyControls(
@@ -206,22 +206,22 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         fun callLocalService(endpoint: String, headers: Headers): Response =
             client.newCall(
-                    Request.Builder()
-                        .get()
-                        .headers(headers)
-                        .url(envoyContainer1.ingressListenerUrl() + endpoint)
-                        .build()
-                )
+                Request.Builder()
+                    .get()
+                    .headers(headers)
+                    .url(envoyContainer1.ingressListenerUrl() + endpoint)
+                    .build()
+            )
                 .execute()
 
         fun callPostLocalService(endpoint: String, headers: Headers, body: RequestBody, envoyContainer: EnvoyContainer = envoyContainer1): Response =
             client.newCall(
-                    Request.Builder()
-                        .post(body)
-                        .headers(headers)
-                        .url(envoyContainer.ingressListenerUrl() + endpoint)
-                        .build()
-                )
+                Request.Builder()
+                    .post(body)
+                    .headers(headers)
+                    .url(envoyContainer.ingressListenerUrl() + endpoint)
+                    .build()
+            )
                 .execute()
 
         private fun waitForConsulSync() {
