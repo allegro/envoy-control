@@ -47,6 +47,18 @@ class EnvoyAdmin(
         it.string().lines().first().split(":").get(1).trim()
     }
 
+    fun statsValue(statNames: List<String>): List<String>? {
+        require(statNames.sorted() == statNames) { "Stats have to be sorted because Envoy's filter sorts them." }
+
+        return get("stats?filter=(${statNames.joinToString("|")})").body()?.use { response ->
+            val lines = response.string().lines().filter { it.isNotBlank() }
+            require(lines.size == statNames.size) { "All of requested Envoy stats are not available yet." }
+            lines.map { line ->
+                line.split(":").get(1).trim()
+            }
+        }
+    }
+
     fun resetCounters() {
         post("reset_counters")
     }

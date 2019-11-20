@@ -72,11 +72,14 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
     }
 
     private fun assertHasOrHadActiveConnection(container: EnvoyContainer, protocol: String) {
-        val activeConnections = container.admin().statValue("cluster.proxy1.upstream_cx_active")?.toInt()
+        val stats = container.admin().statsValue(
+                listOf("cluster.proxy1.upstream_cx_active", "cluster.proxy1.upstream_cx_${protocol}_total")
+        )
+        val activeConnections = (stats?.getOrElse(0) { "-1" } ?: "-1").toInt()
+        val totalConnections = (stats?.getOrElse(1) { "-1" } ?: "-1").toInt()
 
         // on CI sometimes the connection is already terminated so we just want to make sure the connection was active
         if (activeConnections == 0) {
-            val totalConnections = container.admin().statValue("cluster.proxy1.upstream_cx_${protocol}_total")?.toInt()
             assertThat(totalConnections).isEqualTo(1)
         } else {
             assertThat(activeConnections).isEqualTo(1)
