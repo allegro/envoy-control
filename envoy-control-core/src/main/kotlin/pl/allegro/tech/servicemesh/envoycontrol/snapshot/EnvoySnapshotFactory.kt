@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.ListValue
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
@@ -32,6 +33,7 @@ internal class EnvoySnapshotFactory(
     private val clustersFactory: EnvoyClustersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
+    private val serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags),
     private val defaultDependencySettings: DependencySettings =
         DependencySettings(properties.egress.handleInternalRedirect)
 ) {
@@ -177,16 +179,16 @@ internal class EnvoySnapshotFactory(
     ): LocalityLbEndpoints =
         LocalityLbEndpoints.newBuilder()
             .setLocality(Locality.newBuilder().setZone(zone).build())
-            .addAllLbEndpoints(serviceInstances.instances.map { createLbEndpoint(it) })
+            .addAllLbEndpoints(serviceInstances.instances.map { createLbEndpoint(it, serviceInstances.serviceName) })
             .setPriority(priority)
             .build()
 
-    private fun createLbEndpoint(serviceInstance: ServiceInstance): LbEndpoint {
+    private fun createLbEndpoint(serviceInstance: ServiceInstance, serviceName: String): LbEndpoint {
         return LbEndpoint.newBuilder()
             .setEndpoint(
                 buildEndpoint(serviceInstance)
             )
-            .setMetadata(serviceInstance)
+            .setMetadata(serviceInstance, serviceName)
             .setLoadBalancingWeightFromInstance(serviceInstance)
             .build()
     }
@@ -212,8 +214,8 @@ internal class EnvoySnapshotFactory(
             .setProtocol(SocketAddress.Protocol.TCP)
     }
 
-    private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance): LbEndpoint.Builder {
-        var metadataKeys = Struct.newBuilder()
+    private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance, serviceName: String): LbEndpoint.Builder {
+        val metadataKeys = Struct.newBuilder()
 
         if (properties.loadBalancing.canary.enabled && instance.canary) {
             metadataKeys.putFields(
@@ -222,12 +224,67 @@ internal class EnvoySnapshotFactory(
             )
         }
         if (instance.regular) {
-            metadataKeys = metadataKeys.putFields(
+            metadataKeys.putFields(
                 properties.loadBalancing.regularMetadataKey,
                 Value.newBuilder().setBoolValue(true).build()
             )
         }
+
+        if (properties.routing.serviceTags.enabled) {
+            addServiceTagsToMetadata(metadataKeys, instance, serviceName)
+        }
+
         return setMetadata(Metadata.newBuilder().putFilterMetadata("envoy.lb", metadataKeys.build()))
+    }
+
+    private fun addServiceTagsToMetadata(metadata: Struct.Builder, instance: ServiceInstance, serviceName: String) {
+        val tags = serviceTagFilter.filterTagsForRouting(instance.tags)
+        if (tags.isEmpty()) {
+            return
+        }
+
+        val addPairs = serviceTagFilter.isAllowedToMatchOnTwoTags(serviceName)
+        val addTriples = serviceTagFilter.isAllowedToMatchOnThreeTags(serviceName)
+        val generatePairs = addPairs || addTriples
+
+        val tagsPairs = if (generatePairs) {
+            tags
+                .flatMap { tag1 -> tags
+                    .filter { it > tag1 }
+                    .filter { tag2 -> serviceTagFilter.canBeCombined(serviceName, tag1, tag2) }
+                    .map { tag2 -> tag1 to tag2 }
+                }
+        } else {
+            emptyList()
+        }
+
+        val tagsPairsJoined = if (addPairs) {
+            tagsPairs.map { "${it.first},${it.second}" }.asSequence()
+        } else {
+            emptySequence()
+        }
+        val tagsTriplesJoined = if (addTriples) {
+            tagsPairs
+                .flatMap { pair -> tags
+                    .filter { it > pair.second }
+                    .filter { tag -> serviceTagFilter.canBeCombined(serviceName, pair.first, pair.second, tag) }
+                    .map { tag -> "${pair.first},${pair.second},$tag" }
+                }
+                .asSequence()
+        } else {
+            emptySequence()
+        }
+
+        // concatenating sequences avoids unnecessary list allocation
+        val allTags = tags.asSequence() + tagsPairsJoined + tagsTriplesJoined
+
+        metadata.putFields(
+            properties.routing.serviceTags.metadataKey,
+            Value.newBuilder()
+                .setListValue(ListValue.newBuilder()
+                    .addAllValues(allTags.map { Value.newBuilder().setStringValue(it).build() }.asIterable())
+                ).build()
+        )
     }
 
     private fun LbEndpoint.Builder.setLoadBalancingWeightFromInstance(instance: ServiceInstance): LbEndpoint.Builder =

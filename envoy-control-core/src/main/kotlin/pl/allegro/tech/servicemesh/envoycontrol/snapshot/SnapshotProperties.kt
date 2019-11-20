@@ -2,6 +2,7 @@
 
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import io.envoyproxy.envoy.api.v2.Cluster
 import java.time.Duration
 
 class SnapshotProperties {
@@ -12,6 +13,7 @@ class SnapshotProperties {
     var outgoingPermissions = OutgoingPermissionsProperties()
     var loadBalancing = LoadBalancingProperties()
     var clusterOutlierDetection = ClusterOutlierDetectionProperties()
+    var routing = RoutingProperties()
     var xdsClusterName = "envoy-control-xds"
     var edsConnectionTimeout: Duration = Duration.ofSeconds(2)
     var stateSampleDuration: Duration = Duration.ofSeconds(1)
@@ -38,6 +40,7 @@ class LoadBalancingProperties {
     var canary = CanaryProperties()
     var regularMetadataKey = "lb_regular"
     var weights = LoadBalancingWeightsProperties()
+    var loadBalancingPolicy = Cluster.LbPolicy.LEAST_REQUEST
 }
 
 class CanaryProperties {
@@ -119,6 +122,22 @@ class RetryPolicyProperties {
 class AuthorizationProperties {
     var unauthorizedStatusCode = 401
     var unauthorizedResponseMessage = "You have to be authorized"
+}
+
+class ServiceTagsProperties {
+    var enabled = false
+    var metadataKey = "tag"
+    var routingExcludedTags: MutableList<String> = mutableListOf()
+    var allowedTagsCombinations: List<ServiceTagsCombinationsProperties> = mutableListOf()
+}
+
+class ServiceTagsCombinationsProperties {
+    var serviceName: String = ""
+    var tags: List<String> = mutableListOf()
+}
+
+class RoutingProperties {
+    var serviceTags = ServiceTagsProperties()
 }
 
 class EgressProperties {

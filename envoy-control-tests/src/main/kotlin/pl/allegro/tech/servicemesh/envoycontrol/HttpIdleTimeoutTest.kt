@@ -1,21 +1,20 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.awaitility.Duration.FIVE_SECONDS
-import org.awaitility.Duration.TEN_SECONDS
+import org.awaitility.Duration
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
-import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
 
     companion object {
 
         private val properties = mapOf(
-            "envoy-control.envoy.snapshot.egress.commonHttp.idleTimeout" to Duration.ofSeconds(1)
+            "envoy-control.envoy.snapshot.egress.commonHttp.idleTimeout" to java.time.Duration.ofSeconds(10)
         )
 
         @JvmStatic
@@ -40,8 +39,8 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
             assertHasActiveConnection(envoyContainer1)
         }
 
-        // 5 seconds drain time + 1 idle + 4 padding
-        untilAsserted(wait = TEN_SECONDS) {
+        // 5 seconds drain time + 10 idle + 5 padding
+        untilAsserted(wait = Duration(20, TimeUnit.SECONDS)) {
             assertHasNoActiveConnections(envoyContainer1)
         }
     }
@@ -61,8 +60,8 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
             assertHasActiveConnection(envoyContainer1)
         }
 
-        // 1 idle + 4 padding
-        untilAsserted(wait = FIVE_SECONDS) {
+        // 10 idle + 5 padding
+        untilAsserted(wait = Duration(15, TimeUnit.SECONDS)) {
             assertHasNoActiveConnections(envoyContainer1)
         }
     }
