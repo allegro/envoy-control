@@ -148,7 +148,7 @@ open class BaseEnvoyTest {
             consulOperationsInFirstDc.deregisterAll()
             consulOperationsInSecondDc.deregisterAll()
             consulAgentInDc1.consulOperations.deregisterAll()
-            sleep(1000) // todo remove it?
+            sleep(5000) // todo remove it?
         }
     }
 }

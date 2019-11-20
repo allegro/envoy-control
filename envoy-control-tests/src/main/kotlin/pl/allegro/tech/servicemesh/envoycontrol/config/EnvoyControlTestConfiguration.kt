@@ -331,11 +331,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
     @AfterEach
     fun cleanupTest() {
-        deregisterAllServices()
         envoyContainer1.admin().resetCounters()
         if (envoys == 2) {
             envoyContainer2.admin().resetCounters()
         }
+        deregisterAllServices()
         waitForConsulSync()
     }
 }
