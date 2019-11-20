@@ -102,7 +102,7 @@ internal class EnvoyClustersFactory(
                             DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
                         )
                     )
-            )
+            ).setSni(host)
             clusterBuilder = clusterBuilder.setTlsContext(tlsContextBuilder.build())
         }
         return clusterBuilder.build()
