@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import java.util.concurrent.TimeUnit
 
 internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
-
+    private val logger by logger()
     companion object {
 
         private val properties = mapOf(
@@ -36,6 +36,8 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
 
         // then
         untilAsserted {
+            val stats = envoyContainer1.admin().allStats("cluster.proxy1.")
+            logger.warn(stats)
             assertHasOrHadActiveConnection(envoyContainer1, "http2")
         }
 
