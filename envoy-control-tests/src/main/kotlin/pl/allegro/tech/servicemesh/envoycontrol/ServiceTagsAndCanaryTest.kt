@@ -131,7 +131,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
         canary: Boolean,
         assertNoErrors: Boolean = true
     ): CallStats {
-        val stats = CallStats()
+        val stats = CallStats(listOf(loremCanaryContainer, loremRegularContainer, ipsumRegularContainer))
         val tagHeader = tag?.let { mapOf("service-tag" to it) } ?: emptyMap()
         val canaryHeader = if (canary) mapOf("x-canary" to "1") else emptyMap()
 
@@ -146,19 +146,10 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
         return stats
     }
 
-    class CallStats(
-        var loremRegularHits: Int = 0,
-        var loremCanaryHits: Int = 0,
-        var ipsumRegularHits: Int = 0,
-        var totalHits: Int = 0,
-        var failedHits: Int = 0
-    ) : CallStatistics {
-        override fun addResponse(response: ResponseWithBody) {
-            if (response.isFrom(loremRegularContainer)) loremRegularHits++
-            if (response.isFrom(loremCanaryContainer)) loremCanaryHits++
-            if (response.isFrom(ipsumRegularContainer)) ipsumRegularHits++
-            if (!response.isOk()) failedHits++
-            totalHits ++
-        }
-    }
+    val CallStats.loremCanaryHits: Int
+        get() = this.hits(loremCanaryContainer)
+    val CallStats.loremRegularHits: Int
+        get() = this.hits(loremRegularContainer)
+    val CallStats.ipsumRegularHits: Int
+        get() = this.hits(ipsumRegularContainer)
 }

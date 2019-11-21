@@ -25,6 +25,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.LocalServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.EmptyAddressFilter
+import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMerger
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServiceInstancesFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
@@ -102,6 +103,9 @@ class ControlPlaneConfig {
 
     @Bean
     fun emptyAddressFilter() = EmptyAddressFilter()
+
+    @Bean
+    fun instanceMerger() = InstanceMerger()
 
     @Bean
     fun ipAddressFilter() = IpAddressFilter()

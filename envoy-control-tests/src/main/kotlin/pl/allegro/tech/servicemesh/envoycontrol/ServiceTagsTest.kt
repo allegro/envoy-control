@@ -304,7 +304,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     protected open fun callServiceRepeatedly(service: String, repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
-        val stats = CallStats()
+        val stats = CallStats(listOf(regularContainer, loremContainer) + containersToStart)
         callServiceRepeatedly(
             service = service,
             stats = stats,
@@ -314,23 +314,5 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             assertNoErrors = assertNoErrors
         )
         return stats
-    }
-
-    class CallStats : CallStatistics {
-        var failedHits: Int = 0
-        var totalHits: Int = 0
-
-        private val containers = listOf(regularContainer, loremContainer) + containersToStart
-        private var containerHits: MutableMap<String, Int> = containers.associate { it.containerId to 0 }.toMutableMap()
-
-        fun hits(container: EchoContainer) = containerHits[container.containerId] ?: 0
-
-        override fun addResponse(response: ResponseWithBody) {
-            regularContainer.containerId
-            containers.firstOrNull { response.isFrom(it) }
-                ?.let { containerHits.compute(it.containerId) { _, i -> i?.inc() } }
-            if (!response.isOk()) failedHits++
-            totalHits++
-        }
     }
 }

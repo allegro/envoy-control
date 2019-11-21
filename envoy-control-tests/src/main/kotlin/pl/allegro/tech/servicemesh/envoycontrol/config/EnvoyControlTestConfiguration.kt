@@ -245,20 +245,32 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         fun isOk() = response.isSuccessful
     }
 
-    interface CallStatistics {
-        fun addResponse(response: ResponseWithBody)
+    class CallStats(private val containers: List<EchoContainer>) {
+        var failedHits: Int = 0
+        var totalHits: Int = 0
+
+        private var containerHits: MutableMap<String, Int> = containers.associate { it.containerId to 0 }.toMutableMap()
+
+        fun hits(container: EchoContainer) = containerHits[container.containerId] ?: 0
+
+        fun addResponse(response: ResponseWithBody) {
+            containers.firstOrNull { response.isFrom(it) }
+                ?.let { containerHits.compute(it.containerId) { _, i -> i?.inc() } }
+            if (!response.isOk()) failedHits++
+            totalHits++
+        }
     }
 
     protected fun callServiceRepeatedly(
         service: String,
-        stats: CallStatistics,
+        stats: CallStats,
         minRepeat: Int = 1,
         maxRepeat: Int = 100,
         repeatUntil: (ResponseWithBody) -> Boolean = { false },
         headers: Map<String, String> = mapOf(),
         pathAndQuery: String = "",
         assertNoErrors: Boolean = true
-    ): CallStatistics {
+    ): CallStats {
         var conditionFulfilled = false
         (1..maxRepeat).asSequence()
             .map { i ->
