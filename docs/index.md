@@ -11,6 +11,7 @@ Data Plane that is platform agnostic.
 * [Permission management](features/permissions.md)
 * [Observability](deployment/observability.md)
 * [Weighted load balancing and canary support](features/load_balancing.md)
+* [Service tags routing support](features/service_tags.md)
 
 ## Why another Control Plane?
 Our use case for Service Mesh is running 800 microservices on [Mesos](https://mesos.apache.org/) / [Marathon](https://mesosphere.github.io/marathon/) stack.
