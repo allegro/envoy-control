@@ -5,6 +5,3 @@ jobs:
     - stage: "Tests"
       name: "Unit & Integration"
       script: "./gradlew :envoy-control-tests:cleanTest :envoy-control-tests:test --tests pl.allegro.tech.servicemesh.envoycontrol.HttpIdleTimeoutTest"
-    - script: "travis_wait 120 ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20"
-      if: branch =~ /^(master|reliability\-.+)$/
-      name: "Reliability"
