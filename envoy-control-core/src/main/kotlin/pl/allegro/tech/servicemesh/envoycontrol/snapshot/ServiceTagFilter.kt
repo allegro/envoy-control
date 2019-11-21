@@ -39,18 +39,70 @@ class ServiceTagFilter(properties: ServiceTagsProperties = ServiceTagsProperties
             .filterValues { it.isNotEmpty() }
     }
 
-    fun filterTagsForRouting(tags: Set<String>): Set<String> = tags
+    /**
+     * Transforms raw instance's tags to tags that should actually be add to instance metadata.
+     *  - discards tags that are not suitable for routing
+     *  - generates tags combinations that may be used for routing
+     *
+     * @return sequence of tags that should be add to instance's metadata or null if tag entry should not be add to
+     * instance's metadata.
+     */
+    fun getAllTagsForRouting(serviceName: String, instanceTags: Set<String>): Sequence<String>? {
+        val tags = filterTagsForRouting(instanceTags)
+        if (tags.isEmpty()) {
+            return null
+        }
+
+        val addPairs = isAllowedToMatchOnTwoTags(serviceName)
+        val addTriples = isAllowedToMatchOnThreeTags(serviceName)
+        val generatePairs = addPairs || addTriples
+
+        val tagsPairs = if (generatePairs) {
+            tags
+                .flatMap { tag1 -> tags
+                    .filter { it > tag1 }
+                    .filter { tag2 -> canBeCombined(serviceName, tag1, tag2) }
+                    .map { tag2 -> tag1 to tag2 }
+                }
+        } else {
+            emptyList()
+        }
+
+        val tagsPairsJoined = if (addPairs) {
+            tagsPairs.map { "${it.first},${it.second}" }.asSequence()
+        } else {
+            emptySequence()
+        }
+        val tagsTriplesJoined = if (addTriples) {
+            tagsPairs
+                .flatMap { pair -> tags
+                    .filter { it > pair.second }
+                    .filter { tag -> canBeCombined(serviceName, pair.first, pair.second, tag) }
+                    .map { tag -> "${pair.first},${pair.second},$tag" }
+                }
+                .asSequence()
+        } else {
+            emptySequence()
+        }
+
+        // concatenating sequences avoids unnecessary list allocation
+        return tags.asSequence() + tagsPairsJoined + tagsTriplesJoined
+    }
+
+    private fun filterTagsForRouting(tags: Set<String>): Set<String> = tags
         .filter { tag -> tagsBlacklist.none { tag.matches(it) } }
         .toSet()
 
-    fun isAllowedToMatchOnTwoTags(serviceName: String): Boolean = twoTagsCombinationsByService.contains(serviceName)
+    private fun isAllowedToMatchOnTwoTags(serviceName: String): Boolean = twoTagsCombinationsByService
+        .contains(serviceName)
 
-    fun isAllowedToMatchOnThreeTags(serviceName: String): Boolean = threeTagsCombinationsByService.contains(serviceName)
+    private fun isAllowedToMatchOnThreeTags(serviceName: String): Boolean = threeTagsCombinationsByService
+        .contains(serviceName)
 
     /**
      * Assuming tags are sorted lexicographically, that is: tag1 < tag2
      */
-    fun canBeCombined(serviceName: String, tag1: String, tag2: String): Boolean {
+    private fun canBeCombined(serviceName: String, tag1: String, tag2: String): Boolean {
         return twoTagsCombinationsByService[serviceName].orEmpty()
             .any { (pattern1, pattern2) ->
                 tag1.matches(pattern1) && tag2.matches(pattern2)
@@ -60,7 +112,7 @@ class ServiceTagFilter(properties: ServiceTagsProperties = ServiceTagsProperties
     /**
      * Assuming tags are sorted lexicographically, that is: tag1 < tag2 < tag3
      */
-    fun canBeCombined(serviceName: String, tag1: String, tag2: String, tag3: String): Boolean {
+    private fun canBeCombined(serviceName: String, tag1: String, tag2: String, tag3: String): Boolean {
         return threeTagsCombinationsByService[serviceName].orEmpty()
             .any { (pattern1, pattern2, pattern3) ->
                 tag1.matches(pattern1) && tag2.matches(pattern2) && tag3.matches(pattern3)

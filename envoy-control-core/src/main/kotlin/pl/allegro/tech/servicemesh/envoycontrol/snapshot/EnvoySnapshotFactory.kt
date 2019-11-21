@@ -246,53 +246,15 @@ internal class EnvoySnapshotFactory(
     }
 
     private fun addServiceTagsToMetadata(metadata: Struct.Builder, instance: ServiceInstance, serviceName: String) {
-        val tags = serviceTagFilter.filterTagsForRouting(instance.tags)
-        if (tags.isEmpty()) {
-            return
+        serviceTagFilter.getAllTagsForRouting(serviceName, instance.tags)?.let { tags ->
+            metadata.putFields(
+                properties.routing.serviceTags.metadataKey,
+                Value.newBuilder()
+                    .setListValue(ListValue.newBuilder()
+                        .addAllValues(tags.map { Value.newBuilder().setStringValue(it).build() }.asIterable())
+                    ).build()
+            )
         }
-
-        val addPairs = serviceTagFilter.isAllowedToMatchOnTwoTags(serviceName)
-        val addTriples = serviceTagFilter.isAllowedToMatchOnThreeTags(serviceName)
-        val generatePairs = addPairs || addTriples
-
-        val tagsPairs = if (generatePairs) {
-            tags
-                .flatMap { tag1 -> tags
-                    .filter { it > tag1 }
-                    .filter { tag2 -> serviceTagFilter.canBeCombined(serviceName, tag1, tag2) }
-                    .map { tag2 -> tag1 to tag2 }
-                }
-        } else {
-            emptyList()
-        }
-
-        val tagsPairsJoined = if (addPairs) {
-            tagsPairs.map { "${it.first},${it.second}" }.asSequence()
-        } else {
-            emptySequence()
-        }
-        val tagsTriplesJoined = if (addTriples) {
-            tagsPairs
-                .flatMap { pair -> tags
-                    .filter { it > pair.second }
-                    .filter { tag -> serviceTagFilter.canBeCombined(serviceName, pair.first, pair.second, tag) }
-                    .map { tag -> "${pair.first},${pair.second},$tag" }
-                }
-                .asSequence()
-        } else {
-            emptySequence()
-        }
-
-        // concatenating sequences avoids unnecessary list allocation
-        val allTags = tags.asSequence() + tagsPairsJoined + tagsTriplesJoined
-
-        metadata.putFields(
-            properties.routing.serviceTags.metadataKey,
-            Value.newBuilder()
-                .setListValue(ListValue.newBuilder()
-                    .addAllValues(allTags.map { Value.newBuilder().setStringValue(it).build() }.asIterable())
-                ).build()
-        )
     }
 
     private fun LbEndpoint.Builder.setLoadBalancingWeightFromInstance(instance: ServiceInstance): LbEndpoint.Builder =
