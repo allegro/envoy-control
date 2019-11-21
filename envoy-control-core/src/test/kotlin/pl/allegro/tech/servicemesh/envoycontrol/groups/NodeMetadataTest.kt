@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.util.Durations
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -180,5 +181,39 @@ class NodeMetadataTest {
         // expects
         assertThat(dependency.service).isEqualTo("service-1")
         assertThat(dependency.settings.handleInternalRedirect).isEqualTo(true)
+    }
+
+    @Test
+    fun `should accept service dependency with idleTimeout defined`() {
+        // given
+        val proto = outgoingDependencyProto(service = "service-1", idleTimeout = "10s")
+        val dependency = proto.toDependency() as ServiceDependency
+
+        // expects
+        assertThat(dependency.service).isEqualTo("service-1")
+        assertThat(dependency.settings.timeoutPolicy!!.idleTimeout).isEqualTo(Durations.fromSeconds(10L))
+    }
+
+    @Test
+    fun `should accept service dependency with requestTimeout defined`() {
+        // given
+        val proto = outgoingDependencyProto(service = "service-1", requestTimeout = "10s")
+        val dependency = proto.toDependency() as ServiceDependency
+
+        // expects
+        assertThat(dependency.service).isEqualTo("service-1")
+        assertThat(dependency.settings.timeoutPolicy!!.requestTimeout).isEqualTo(Durations.fromSeconds(10L))
+    }
+
+    @Test
+    fun `should accept service dependency with idleTimeout and requestTimeout defined`() {
+        // given
+        val proto = outgoingDependencyProto(service = "service-1", idleTimeout = "10s", requestTimeout = "10s")
+        val dependency = proto.toDependency() as ServiceDependency
+
+        // expects
+        assertThat(dependency.service).isEqualTo("service-1")
+        assertThat(dependency.settings.timeoutPolicy!!.idleTimeout).isEqualTo(Durations.fromSeconds(10L))
+        assertThat(dependency.settings.timeoutPolicy!!.requestTimeout).isEqualTo(Durations.fromSeconds(10L))
     }
 }

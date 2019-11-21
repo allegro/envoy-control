@@ -28,7 +28,11 @@ node:
           - service: "service-4"
           - service: "service-5"
           - service: "echo"
+            timeoutPolicy:
+              requestTimeout: "15s"
           - service: "consul"
+            timeoutPolicy:
+              requestTimeout: "15s"
           - service: "proxy1"
           - service: "service-redirect"
             handleInternalRedirect: true

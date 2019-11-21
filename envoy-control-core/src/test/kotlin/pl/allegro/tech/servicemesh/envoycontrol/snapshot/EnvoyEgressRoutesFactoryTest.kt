@@ -1,7 +1,11 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomIdleTimeout
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomRequestTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoHeaderToAdd
 
@@ -11,7 +15,13 @@ internal class EnvoyEgressRoutesFactoryTest {
         RouteSpecification(
             clusterName = "srv1",
             routeDomain = "srv1",
-            settings = DependencySettings(handleInternalRedirect = true)
+            settings = DependencySettings(
+                handleInternalRedirect = true,
+                timeoutPolicy = Outgoing.TimeoutPolicy(
+                    idleTimeout = Durations.fromSeconds(10L),
+                    requestTimeout = Durations.fromSeconds(10L)
+                )
+            )
         )
     )
 
@@ -28,6 +38,13 @@ internal class EnvoyEgressRoutesFactoryTest {
         // then
         routeConfig
             .hasHeaderToAdd("x-service-name", "client1")
+
+        routeConfig
+            .virtualHostsList[0]
+            .routesList[0]
+            .route
+            .hasCustomIdleTimeout(Durations.fromSeconds(10L))
+            .hasCustomRequestTimeout(Durations.fromSeconds(10L))
     }
 
     @Test
@@ -43,5 +60,12 @@ internal class EnvoyEgressRoutesFactoryTest {
         // then
         routeConfig
             .hasNoHeaderToAdd("x-service-name")
+
+        routeConfig
+            .virtualHostsList[0]
+            .routesList[0]
+            .route
+            .hasCustomIdleTimeout(Durations.fromSeconds(10L))
+            .hasCustomRequestTimeout(Durations.fromSeconds(10L))
     }
 }
