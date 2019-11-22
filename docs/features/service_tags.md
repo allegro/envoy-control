@@ -11,14 +11,14 @@ For this feature to work correctly, you have to extract a tag from request
 data in some way.
 To achieve it, appropriate static Envoy config is required.
 
-You can found the reference implementation in
+You can find the reference implementation in
 [config_ads.yaml](https://github.com/allegro/envoy-control/blob/master/envoy-control-tests/src/main/resources/envoy/config_ads.yaml)
 file.
-In that implementation, service tags are gathered from `service-tag: <tag>`
+In that implementation, service tags are gathered from `x-service-tag: <tag>`
 request header:
 
 ```yaml
-- header: service-tag
+- header: x-service-tag
   on_header_present:
     metadata_namespace: envoy.lb
     key: tag
@@ -42,7 +42,7 @@ Given we have a following instances of service `lorem`:
 
 The request:
 ```
-curl -H "host: lorem" -H "service-tag: hardware:c32" <address of envoy>
+curl -H "host: lorem" -H "x-service-tag: hardware:c32" <address of envoy>
 ```
 
 will be routed to one of the instances:
@@ -51,7 +51,7 @@ will be routed to one of the instances:
 
 The request:
 ```
-curl -H "host: lorem" -H "service-tag: version:v1.5" <address of envoy>
+curl -H "host: lorem" -H "x-service-tag: version:v1.5" <address of envoy>
 ```
 
 will be routed to one of the instances:

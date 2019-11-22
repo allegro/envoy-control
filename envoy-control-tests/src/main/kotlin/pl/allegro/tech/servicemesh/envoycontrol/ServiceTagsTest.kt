@@ -310,7 +310,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             stats = stats,
             minRepeat = repeat,
             maxRepeat = repeat,
-            headers = tag?.let { mapOf("service-tag" to it) } ?: emptyMap(),
+            headers = tag?.let { mapOf("x-service-tag" to it) } ?: emptyMap(),
             assertNoErrors = assertNoErrors
         )
         return stats

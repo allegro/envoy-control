@@ -66,14 +66,14 @@ Property                                                                        
 **envoy-control.envoy.snapshot.load-balancing.canary.header-value**                         | only when *canary header* is set to this value request will be routed to canary instances (*canary header* name is set in Envoy static config, see [docs](../features/load_balancing))    | 1
 
 ## Routing
-Property                                                                                    | Description
-------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
-**envoy-control.envoy.snapshot.routing.service-tags.enabled**                               | if set to true, service tags routing will be enabled (default false)
-**envoy-control.envoy.snapshot.routing.service-tags.metadata-key**                          | What key to use in endpoint metadata to store its service tags (default: tag)
-**envoy-control.envoy.snapshot.routing.service-tags.routing-excluded-tags**                 | List of tags, that cannot be used for routing. Tags matching these patterns will be not saved in endpoint metadata 
-**envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations**             | List of rules, which tags can be conbined together and requested together. Details below
-**(...).allowed-tags-combinations[].service-name**                                          | The rule will apply only for this service
-**(...).allowed-tags-combinations[].tags**                                                  | List of tag patterns, that can be combined and requested together
+Property                                                                                    | Description                                                                                                                                                                               | Default value
+------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------
+**envoy-control.envoy.snapshot.routing.service-tags.enabled**                               | if set to true, service tags routing will be enabled                                                                                                                                      | false
+**envoy-control.envoy.snapshot.routing.service-tags.metadata-key**                          | What key to use in endpoint metadata to store its service tags                                                                                                                            | tag
+**envoy-control.envoy.snapshot.routing.service-tags.routing-excluded-tags**                 | List of tags, that cannot be used for routing. Tags matching these patterns will be not saved in endpoint metadata                                                                        | empty list
+**envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations**             | List of rules, which tags can be conbined together and requested together. Details below                                                                                                  | empty list
+**(...).allowed-tags-combinations[].service-name**                                          | The rule will apply only for this service                                                                                                                                                 | ""
+**(...).allowed-tags-combinations[].tags**                                                  | List of tag patterns, that can be combined and requested together                                                                                                                         | empty list
 
 ## Outlier detection
 Property                                                                                      | Description                                                                                                                                                                               | Default value
