@@ -29,11 +29,11 @@ request header:
 There is no fallback - if no instance with requested tag is found,
 "no healthy upstream" error will be returned.
 
-Request with no service tags will be routed to any instance of the service.
+Request without service tags will be routed to any instance of the service.
 
 ## Example
 
-We assume the reference static config presented above.
+Assume the reference static config presented above.
 Given we have a following instances of service `lorem`:
 
 * address: `192.168.0.2:4000`, tags: `hardware:c32`, `version:v1.5`

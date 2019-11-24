@@ -90,7 +90,7 @@ internal class EnvoyClustersFactory(
                     )
                 )
             )
-            .setLbPolicy(properties.loadBalancing.loadBalancingPolicy)
+            .setLbPolicy(properties.loadBalancing.policy)
 
         if (ssl) {
             var tlsContextBuilder = UpstreamTlsContext.newBuilder()
@@ -134,7 +134,7 @@ internal class EnvoyClustersFactory(
                     }
                 ).setServiceName(clusterConfiguration.serviceName)
             )
-            .setLbPolicy(properties.loadBalancing.loadBalancingPolicy)
+            .setLbPolicy(properties.loadBalancing.policy)
             .configureLbSubsets()
 
         cluster.setCommonHttpProtocolOptions(httpProtocolOptions)

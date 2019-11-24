@@ -40,7 +40,7 @@ class LoadBalancingProperties {
     var canary = CanaryProperties()
     var regularMetadataKey = "lb_regular"
     var weights = LoadBalancingWeightsProperties()
-    var loadBalancingPolicy = Cluster.LbPolicy.LEAST_REQUEST
+    var policy = Cluster.LbPolicy.LEAST_REQUEST
 }
 
 class CanaryProperties {

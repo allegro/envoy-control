@@ -64,6 +64,7 @@ Property                                                                        
 **envoy-control.envoy.snapshot.load-balancing.canary.enabled**                              | if set to true, routing to canary instances based on *canary header* will be enabled (corresponding Envoy static config is required, see [docs](../features/load_balancing))              | false
 **envoy-control.envoy.snapshot.load-balancing.canary.metadata-key**                         | metadata that will be set for canary EDS endpoints - key (must match Envoy static `header_to_metadata` filter config, see [docs](../features/load_balancing))                             | canary
 **envoy-control.envoy.snapshot.load-balancing.canary.header-value**                         | only when *canary header* is set to this value request will be routed to canary instances (*canary header* name is set in Envoy static config, see [docs](../features/load_balancing))    | 1
+**envoy-control.envoy.snapshot.load-balancing.policy**                                      | load balancing policy used for clusters. [Accepted values](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/cds.proto.html#enum-cluster-lbpolicy)                                | LEAST_REQUEST
 
 ## Routing
 Property                                                                                    | Description                                                                                                                                                                               | Default value

@@ -40,11 +40,11 @@ class ServiceTagFilter(properties: ServiceTagsProperties = ServiceTagsProperties
     }
 
     /**
-     * Transforms raw instance's tags to tags that should actually be add to instance metadata.
+     * Transforms raw instance's tags to tags that should actually be added to instance metadata.
      *  - discards tags that are not suitable for routing
      *  - generates tags combinations that may be used for routing
      *
-     * @return sequence of tags that should be add to instance's metadata or null if tag entry should not be add to
+     * @return sequence of tags that should be added to instance's metadata or null if tag entry should not be added to
      * instance's metadata.
      */
     fun getAllTagsForRouting(serviceName: String, instanceTags: Set<String>): Sequence<String>? {
@@ -55,39 +55,46 @@ class ServiceTagFilter(properties: ServiceTagsProperties = ServiceTagsProperties
 
         val addPairs = isAllowedToMatchOnTwoTags(serviceName)
         val addTriples = isAllowedToMatchOnThreeTags(serviceName)
-        val generatePairs = addPairs || addTriples
 
-        val tagsPairs = if (generatePairs) {
-            tags
-                .flatMap { tag1 -> tags
-                    .filter { it > tag1 }
-                    .filter { tag2 -> canBeCombined(serviceName, tag1, tag2) }
-                    .map { tag2 -> tag1 to tag2 }
-                }
-        } else {
-            emptyList()
+        val tagsPairs = when (addPairs || addTriples) {
+            true -> generatePairs(tags, serviceName)
+            false -> emptyList()
         }
-
-        val tagsPairsJoined = if (addPairs) {
-            tagsPairs.map { "${it.first},${it.second}" }.asSequence()
-        } else {
-            emptySequence()
+        val tagsPairsJoined = when (addPairs) {
+            true -> generateJoinedPairs(tagsPairs)
+            false -> emptySequence()
         }
-        val tagsTriplesJoined = if (addTriples) {
-            tagsPairs
-                .flatMap { pair -> tags
-                    .filter { it > pair.second }
-                    .filter { tag -> canBeCombined(serviceName, pair.first, pair.second, tag) }
-                    .map { tag -> "${pair.first},${pair.second},$tag" }
-                }
-                .asSequence()
-        } else {
-            emptySequence()
+        val tagsTriplesJoined = when (addTriples) {
+            true -> generateJoinedTriples(tagsPairs, tags, serviceName)
+            false -> emptySequence()
         }
 
         // concatenating sequences avoids unnecessary list allocation
         return tags.asSequence() + tagsPairsJoined + tagsTriplesJoined
     }
+
+    private fun generatePairs(tags: Set<String>, serviceName: String): List<Pair<String, String>> = tags
+        .flatMap { tag1 ->
+            tags
+                .filter { it > tag1 }
+                .filter { tag2 -> canBeCombined(serviceName, tag1, tag2) }
+                .map { tag2 -> tag1 to tag2 }
+        }
+
+    private fun generateJoinedPairs(tagsPairs: List<Pair<String, String >>): Sequence<String> = tagsPairs
+        .map { "${it.first},${it.second}" }.asSequence()
+
+    private fun generateJoinedTriples(
+        tagsPairs: List<Pair<String, String >>,
+        tags: Set<String>,
+        serviceName: String
+    ): Sequence<String> = tagsPairs
+        .flatMap { pair -> tags
+            .filter { it > pair.second }
+            .filter { tag -> canBeCombined(serviceName, pair.first, pair.second, tag) }
+            .map { tag -> "${pair.first},${pair.second},$tag" }
+        }
+        .asSequence()
 
     private fun filterTagsForRouting(tags: Set<String>): Set<String> = tags
         .filter { tag -> tagsBlacklist.none { tag.matches(it) } }

@@ -48,11 +48,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
     fun `should route requests to canary instance with tag lorem`() {
         // given
         registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "lorem", canary = true)
@@ -68,11 +64,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
     fun `should fallback to regular instance with tag ipsum if canary instance doesn't exist`() {
         // given
         registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum", canary = true)
@@ -88,11 +80,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
     fun `should route requests to canary instance`() {
         // given
         registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, canary = true)
@@ -108,11 +96,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
     fun `should return 503 if no instance with requested tag is found`() {
         // given
         registerServices()
-        untilAsserted {
-            callService("echo").also {
-                assertThat(it).isOk()
-            }
-        }
+        waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "not-found", canary = true, assertNoErrors = false)

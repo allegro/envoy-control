@@ -48,7 +48,7 @@ class EnvoyControlRunnerTestApp(
         "envoy-control.sync.polling-interval" to Duration.ofSeconds(1).seconds,
         "envoy-control.server.port" to grpcPort,
         // Round robin gives much more predictable results in tests than LEAST_REQUEST
-        "envoy-control.envoy.snapshot.load-balancing.load-balancing-policy" to "ROUND_ROBIN"
+        "envoy-control.envoy.snapshot.load-balancing.policy" to "ROUND_ROBIN"
     )
 
     override fun run() {
