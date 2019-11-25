@@ -6,9 +6,7 @@ version: 2.1
 
 executors:
   my-executor:
-    machine:
-      - image: circleci/openjdk:8-jdk
-        docker_layer_caching: true
+    machine: true
     environment:
       JVM_OPTS: -Xmx3200m
       TERM: dumb
