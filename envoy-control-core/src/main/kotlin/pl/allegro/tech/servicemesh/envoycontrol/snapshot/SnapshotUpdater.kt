@@ -93,8 +93,8 @@ class SnapshotUpdater(
     ): List<ServiceName> {
         val d1 = (newState - oldState)
         val d2 = (oldState - newState)
-        val difference = d1.union(d2)
-        return difference.flatMap {
+        val symmetricDifference = d1.union(d2)
+        return symmetricDifference.flatMap {
             it.servicesState.serviceNames()
         }
     }
