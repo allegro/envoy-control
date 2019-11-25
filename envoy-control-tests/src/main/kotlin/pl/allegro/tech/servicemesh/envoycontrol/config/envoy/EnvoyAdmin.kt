@@ -43,7 +43,7 @@ class EnvoyAdmin(
                 it.address?.socketAddress?.address == ip
             }
 
-    fun allStats(filter: String = "") = get("stats?filter=$filter").body()?.use {it.string()}
+    fun allStats(filter: String = "") = get("stats?filter=$filter").body()?.use { it.string() }
 
     fun statValue(statName: String): String? = get("stats?filter=$statName").body()?.use {
         it.string().lines().first().split(":").get(1).trim()
