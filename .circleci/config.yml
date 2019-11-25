@@ -68,12 +68,12 @@ workflows:
   build:
     jobs:
       - build
-#      - failing_resilice_test:
-#          requires:
-#            - build
+      - failing_resilice_test:
+          requires:
+            - build
 #      - test:
 #          requires:
 #            - build
-      - resilience_test:
-          requires:
-            - build
+#      - resilience_test:
+#          requires:
+#            - build
