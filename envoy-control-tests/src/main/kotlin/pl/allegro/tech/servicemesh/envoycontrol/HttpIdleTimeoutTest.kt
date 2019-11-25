@@ -37,9 +37,7 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
 
         // then
         untilAsserted {
-            val stats = envoyContainer1.admin().allStats("cluster.proxy1.")
-            logger.warn(stats)
-            assertHasOrHadActiveConnection(envoyContainer1, "http2", name)
+            assertHasActiveConnection(envoyContainer1, name)
         }
 
         // 5 seconds drain time + 10 idle + 5 padding
@@ -61,7 +59,7 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
 
         // then
         untilAsserted {
-            assertHasOrHadActiveConnection(envoyContainer1, "http1", name)
+            assertHasActiveConnection(envoyContainer1, name)
         }
 
         // 10 idle + 5 padding
@@ -75,23 +73,12 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
         assertThat(response).isOk()
     }
 
-    private fun assertHasOrHadActiveConnection(
+    private fun assertHasActiveConnection(
             container: EnvoyContainer,
-            protocol: String,
             name: String
     ) {
-        val stats = container.admin().statsValue(
-                listOf("cluster.$name.upstream_cx_active", "cluster.$name.upstream_cx_${protocol}_total")
-        )
-        val activeConnections = (stats?.getOrElse(0) { "-1" } ?: "-1").toInt()
-        val totalConnections = (stats?.getOrElse(1) { "-1" } ?: "-1").toInt()
-
-        // on CI sometimes the connection is already terminated so we just want to make sure the connection was active
-        if (activeConnections == 0) {
-            assertThat(totalConnections).isEqualTo(1)
-        } else {
-            assertThat(activeConnections).isEqualTo(1)
-        }
+        val activeConnections = container.admin().statValue("cluster.$name.upstream_cx_active")?.toInt()
+        assertThat(activeConnections).isEqualTo(1)
     }
 
     private fun assertHasNoActiveConnections(container: EnvoyContainer, name: String) {
