@@ -80,12 +80,9 @@ workflows:
   build:
     jobs:
       - build
-      - failing_resilice_test:
+      - test:
           requires:
             - build
-#      - test:
-#          requires:
-#            - build
-#      - resilience_test:
-#          requires:
-#            - build
+      - resilience_test:
+          requires:
+            - build
