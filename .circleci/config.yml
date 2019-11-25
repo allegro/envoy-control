@@ -3,25 +3,21 @@
 # Check https://circleci.com/docs/2.0/language-java/ for more details
 #
 version: 2
-executorType: machine
-jobs:
-  build:
+
+executors:
+  default-executor:
+    executorType: machine
     docker:
-      # specify the version you desire here
       - image: circleci/openjdk:8-jdk
-
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      # - image: circleci/postgres:9.4
-
-    working_directory: ~/repo
-
     environment:
       # Customize the JVM maximum heap limit
       JVM_OPTS: -Xmx3200m
       TERM: dumb
+    working_directory: ~/repo
 
+jobs:
+  build:
+    executor: default-executor
     steps:
       - checkout
 
@@ -40,10 +36,7 @@ jobs:
           key: v1-dependencies-{{ checksum "build.gradle" }}
 
   test:
-    docker:
-      # specify the version you desire here
-      - image: circleci/openjdk:8-jdk
-    working_directory: ~/repo
+    executor: default-executor
     steps:
       # run tests!
       - run:
@@ -51,11 +44,7 @@ jobs:
           command: ./gradlew check
 
   resilience_test:
-    docker:
-      # specify the version you desire here
-      - image: circleci/openjdk:8-jdk
-      # run reliability tests
-    working_directory: ~/repo
+    executor: default-executor
     steps:
       - run:
           name: reliability tests
@@ -63,10 +52,7 @@ jobs:
           no_output_timeout: 20m
 
   failing_resilice_test:
-    docker:
-      # specify the version you desire here
-      - image: circleci/openjdk:8-jdk
-    working_directory: ~/repo
+    executor: default-executor
     steps:
       - run:
           command: "./gradlew :envoy-control-tests:cleanTest :envoy-control-tests:test --tests pl.allegro.tech.servicemesh.envoycontrol.HttpIdleTimeoutTest"
