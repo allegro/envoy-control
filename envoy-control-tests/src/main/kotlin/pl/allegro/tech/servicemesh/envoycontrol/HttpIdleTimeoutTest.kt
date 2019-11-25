@@ -27,55 +27,61 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should close idle connections after 1s for HTTP2`() {
         // given
+        val name = "proxy1"
         registerService(name = "proxy1", port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT, container = envoyContainer2, tags = listOf("envoy"))
 
         // when
         untilAsserted {
-            callProxy()
+            callProxy(name)
         }
 
         // then
         untilAsserted {
             val stats = envoyContainer1.admin().allStats("cluster.proxy1.")
             logger.warn(stats)
-            assertHasOrHadActiveConnection(envoyContainer1, "http2")
+            assertHasOrHadActiveConnection(envoyContainer1, "http2", name)
         }
 
         // 5 seconds drain time + 10 idle + 5 padding
         untilAsserted(wait = Duration(20, TimeUnit.SECONDS)) {
-            assertHasNoActiveConnections(envoyContainer1)
+            assertHasNoActiveConnections(envoyContainer1, name)
         }
     }
 
     @Test
     fun `should close idle connections after 1s for HTTP1`() {
         // given
-        registerService(name = "proxy1", port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT, container = envoyContainer2)
+        val name = "proxy2"
+        registerService(name = name, port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT, container = envoyContainer2)
 
         // when
         untilAsserted {
-            callProxy()
+            callProxy(name)
         }
 
         // then
         untilAsserted {
-            assertHasOrHadActiveConnection(envoyContainer1, "http1")
+            assertHasOrHadActiveConnection(envoyContainer1, "http1", name)
         }
 
         // 10 idle + 5 padding
         untilAsserted(wait = Duration(15, TimeUnit.SECONDS)) {
-            assertHasNoActiveConnections(envoyContainer1)
+            assertHasNoActiveConnections(envoyContainer1, name)
         }
     }
 
-    private fun callProxy() {
-        val response = callService("proxy1")
+    private fun callProxy(name: String) {
+        val response = callService(name)
         assertThat(response).isOk()
     }
 
-    private fun assertHasOrHadActiveConnection(container: EnvoyContainer, protocol: String) {
+    private fun assertHasOrHadActiveConnection(
+            container: EnvoyContainer,
+            protocol: String,
+            name: String
+    ) {
         val stats = container.admin().statsValue(
-                listOf("cluster.proxy1.upstream_cx_active", "cluster.proxy1.upstream_cx_${protocol}_total")
+                listOf("cluster.$name.upstream_cx_active", "cluster.$name.upstream_cx_${protocol}_total")
         )
         val activeConnections = (stats?.getOrElse(0) { "-1" } ?: "-1").toInt()
         val totalConnections = (stats?.getOrElse(1) { "-1" } ?: "-1").toInt()
@@ -88,8 +94,8 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
         }
     }
 
-    private fun assertHasNoActiveConnections(container: EnvoyContainer) {
-        val activeConnections = container.admin().statValue("cluster.proxy1.upstream_cx_active")?.toInt()
+    private fun assertHasNoActiveConnections(container: EnvoyContainer, name: String) {
+        val activeConnections = container.admin().statValue("cluster.$name.upstream_cx_active")?.toInt()
         assertThat(activeConnections).isEqualTo(0)
     }
 }
