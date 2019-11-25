@@ -165,17 +165,27 @@ data class Outgoing(
     )
 }
 
-interface Dependency
+interface Dependency {
+    fun getName(): String
+}
 
 data class ServiceDependency(
     val service: String,
     val settings: DependencySettings = DependencySettings()
-) : Dependency
+) : Dependency {
+    override fun getName(): String {
+        return service
+    }
+}
 
 data class DomainDependency(
     val domain: String,
     val settings: DependencySettings = DependencySettings()
 ) : Dependency {
+    override fun getName(): String {
+        return domain
+    }
+
     val uri = URL(domain)
 
     fun getPort(): Int = uri.port.takeIf { it != -1 } ?: uri.defaultPort

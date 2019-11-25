@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceName
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -31,7 +32,7 @@ class SnapshotUpdater(
         properties = properties
     )
 
-    fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<LocalityAwareServicesState>> {
+    fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<List<LocalityAwareServicesState>>> {
         // see GroupChangeWatcher
         return Flux.combineLatest(
             onGroupAdded,
@@ -39,10 +40,14 @@ class SnapshotUpdater(
             BiFunction<Any, List<LocalityAwareServicesState>, List<LocalityAwareServicesState>> { _, states -> states }
         )
             .sample(properties.stateSampleDuration)
+            .startWith(emptyList<LocalityAwareServicesState>())
+            .buffer(2, 1)
             .publishOn(scheduler)
             .doOnNext { states ->
+                val oldState = states[0]
+                val newState = states[1]
                 versions.retainGroups(cache.groups())
-                updateSnapshots(states)
+                updateSnapshots(oldState, newState)
             }
             .onErrorResume { e ->
                 meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
@@ -51,11 +56,48 @@ class SnapshotUpdater(
             }
     }
 
-    private fun updateSnapshots(states: List<LocalityAwareServicesState>) {
-        val snapshot = snapshotFactory.newSnapshot(states, ads = false)
-        val adsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
+    private fun updateSnapshots(
+        oldState: List<LocalityAwareServicesState>,
+        newState: List<LocalityAwareServicesState>
+    ) {
+        cache.groups().forEach { group ->
+            // low cost path
+            if (group.isGlobalGroup() || (cache.getSnapshot(group) == null)) {
+                chooseSnapshot(group, newState)
+            } else {
+                // high cost path
+                val changedServiceNames = getServiceNamesOfInstancesThatChanged(newState, oldState)
+                val serviceDependenciesNames = group.proxySettings.outgoing.dependencies.map { it.getName() }
 
-        cache.groups().forEach { group -> updateSnapshotForGroup(group, if (group.ads) adsSnapshot else snapshot) }
+                if (dependencyChanged(changedServiceNames, serviceDependenciesNames)) {
+                    chooseSnapshot(group, newState)
+                }
+            }
+        }
+    }
+
+    private fun dependencyChanged(
+        changedServiceNames: List<ServiceName>,
+        serviceDependenciesNames: List<String>
+    ): Boolean {
+        return (changedServiceNames.intersect(serviceDependenciesNames)).isNotEmpty()
+    }
+
+    private fun getServiceNamesOfInstancesThatChanged(
+        newState: List<LocalityAwareServicesState>,
+        oldState: List<LocalityAwareServicesState>
+    ): List<ServiceName> {
+        return (newState - oldState).flatMap {
+            it.servicesState.serviceNames()
+        }
+    }
+
+    private fun chooseSnapshot(group: Group, newState: List<LocalityAwareServicesState>) {
+        updateSnapshotForGroup(group, if (group.ads) {
+            snapshotFactory.newSnapshot(newState, ads = true)
+        } else {
+            snapshotFactory.newSnapshot(newState, ads = false)
+        })
     }
 
     private fun updateSnapshotForGroup(group: Group, snapshot: Snapshot) {

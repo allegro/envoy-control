@@ -156,7 +156,9 @@ class SnapshotUpdaterTest {
 
         // when
         updater.start(
-            Flux.just(emptyList())
+            Flux.just(listOf(LocalityAwareServicesState(ServicesState(mapOf(
+                    "example-service" to ServiceInstances("example-service", emptySet())
+            )), Locality.LOCAL, "dc1")))
         ).blockFirst()
 
         // then
