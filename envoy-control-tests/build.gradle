@@ -47,6 +47,7 @@ task reliabilityTest(type: Test) {
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat = 'full'
+        showStandardStreams = true
     }
     testClassesDirs = project.sourceSets.main.output.classesDirs
 }
