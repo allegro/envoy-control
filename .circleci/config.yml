@@ -41,3 +41,7 @@ jobs:
 
       # run tests!
       - run: ./gradlew check
+
+      # run reliability tests
+      - run: ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20
+        no_output_timeout: 20m
