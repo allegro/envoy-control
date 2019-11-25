@@ -39,13 +39,49 @@ jobs:
             - ~/.gradle
           key: v1-dependencies-{{ checksum "build.gradle" }}
 
+  test:
+    docker:
+      # specify the version you desire here
+      - image: circleci/openjdk:8-jdk
+    working_directory: ~/repo
+    steps:
       # run tests!
       - run:
           name: unit and integration tests
           command: ./gradlew check
 
+  resilience_test:
+    docker:
+      # specify the version you desire here
+      - image: circleci/openjdk:8-jdk
       # run reliability tests
+    working_directory: ~/repo
+    steps:
       - run:
           name: reliability tests
           command: sleep 10 && ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20
           no_output_timeout: 20m
+
+  failing_resilice_test:
+    docker:
+      # specify the version you desire here
+      - image: circleci/openjdk:8-jdk
+    working_directory: ~/repo
+    steps:
+      - run:
+          command: "./gradlew :envoy-control-tests:cleanTest :envoy-control-tests:test --tests pl.allegro.tech.servicemesh.envoycontrol.HttpIdleTimeoutTest"
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
+      - failing_resilice_test:
+          requires:
+            - build
+      - test:
+          requires:
+            - build
+      - resilience_test:
+          requires:
+            - build
