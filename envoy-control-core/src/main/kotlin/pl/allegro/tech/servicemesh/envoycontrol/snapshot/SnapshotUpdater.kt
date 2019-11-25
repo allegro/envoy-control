@@ -91,7 +91,10 @@ class SnapshotUpdater(
         newState: List<LocalityAwareServicesState>,
         oldState: List<LocalityAwareServicesState>
     ): List<ServiceName> {
-        return (newState - oldState).flatMap {
+        val d1 = (newState - oldState)
+        val d2 = (oldState - newState)
+        val difference = d1.union(d2)
+        return difference.flatMap {
             it.servicesState.serviceNames()
         }
     }
