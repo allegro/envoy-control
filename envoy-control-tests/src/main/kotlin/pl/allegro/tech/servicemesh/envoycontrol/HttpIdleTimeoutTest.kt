@@ -74,8 +74,8 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
     }
 
     private fun assertHasActiveConnection(
-            container: EnvoyContainer,
-            name: String
+        container: EnvoyContainer,
+        name: String
     ) {
         val activeConnections = container.admin().statValue("cluster.$name.upstream_cx_active")?.toInt()
         assertThat(activeConnections).isEqualTo(1)
