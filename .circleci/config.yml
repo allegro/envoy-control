@@ -63,18 +63,6 @@ jobs:
           command: ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20
           no_output_timeout: 20m
 
-  failing_resilice_test:
-    executor: my-executor
-    steps:
-      - attach_workspace:
-          at: .
-      - restore_cache:
-          keys:
-            - v1-dependencies-{{ checksum "build.gradle" }}
-            - v1-dependencies-
-      - run:
-          command: "./gradlew :envoy-control-tests:cleanTest :envoy-control-tests:test --tests pl.allegro.tech.servicemesh.envoycontrol.HttpIdleTimeoutTest"
-
 workflows:
   version: 2
   build:
