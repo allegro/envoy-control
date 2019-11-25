@@ -47,5 +47,5 @@ jobs:
       # run reliability tests
       - run:
           name: reliability tests
-          command: ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20
+          command: sleep 10 && ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20
           no_output_timeout: 20m
