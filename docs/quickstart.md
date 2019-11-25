@@ -16,7 +16,7 @@ You can run all dependencies with docker-compose
 ```
 git clone https://github.com/allegro/envoy-control.git
 cd tools
-docker-compose up
+./run-with-local-ec.sh
 ```
 
 To check the environment, go to Consul UI: [http://localhost:18500](http://localhost:18500) and see whether there is

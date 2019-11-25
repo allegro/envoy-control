@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
 import okhttp3.Headers
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -164,22 +165,24 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
-        fun callEcho(url: String = envoyContainer1.egressListenerUrl()): Response =
-            call("echo", url)
+        fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
+            call("echo", address)
 
-        fun callDomain(domain: String, url: String = envoyContainer1.egressListenerUrl()): Response =
-            call(domain, url)
+        fun callDomain(domain: String, address: String = envoyContainer1.egressListenerUrl()): Response =
+            call(domain, address)
 
         fun callService(
             service: String,
-            url: String = envoyContainer1.egressListenerUrl(),
-            headers: Map<String, String> = mapOf()
-        ): Response = call(service, url, headers)
+            address: String = envoyContainer1.egressListenerUrl(),
+            headers: Map<String, String> = mapOf(),
+            pathAndQuery: String = ""
+        ): Response = call(service, address, headers, pathAndQuery)
 
         private fun call(
             host: String,
-            url: String = envoyContainer1.egressListenerUrl(),
-            headers: Map<String, String> = mapOf()
+            address: String = envoyContainer1.egressListenerUrl(),
+            headers: Map<String, String> = mapOf(),
+            pathAndQuery: String = ""
         ): Response =
             client.newCall(
                 Request.Builder()
@@ -188,7 +191,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     .apply {
                         headers.forEach { name, value -> header(name, value) }
                     }
-                    .url(url)
+                    .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
                     .build()
             )
                 .execute()
@@ -237,6 +240,53 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
     }
 
+    data class ResponseWithBody(val response: Response, val body: String) {
+        fun isFrom(echoContainer: EchoContainer) = body.contains(echoContainer.response)
+        fun isOk() = response.isSuccessful
+    }
+
+    class CallStats(private val containers: List<EchoContainer>) {
+        var failedHits: Int = 0
+        var totalHits: Int = 0
+
+        private var containerHits: MutableMap<String, Int> = containers.associate { it.containerId to 0 }.toMutableMap()
+
+        fun hits(container: EchoContainer) = containerHits[container.containerId] ?: 0
+
+        fun addResponse(response: ResponseWithBody) {
+            containers.firstOrNull { response.isFrom(it) }
+                ?.let { containerHits.compute(it.containerId) { _, i -> i?.inc() } }
+            if (!response.isOk()) failedHits++
+            totalHits++
+        }
+    }
+
+    protected fun callServiceRepeatedly(
+        service: String,
+        stats: CallStats,
+        minRepeat: Int = 1,
+        maxRepeat: Int = 100,
+        repeatUntil: (ResponseWithBody) -> Boolean = { false },
+        headers: Map<String, String> = mapOf(),
+        pathAndQuery: String = "",
+        assertNoErrors: Boolean = true
+    ): CallStats {
+        var conditionFulfilled = false
+        (1..maxRepeat).asSequence()
+            .map { i ->
+                callService(service = service, headers = headers, pathAndQuery = pathAndQuery).also {
+                    if (assertNoErrors) assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
+                }
+            }
+            .map { ResponseWithBody(it, it.body()?.string() ?: "") }
+            .onEach { conditionFulfilled = conditionFulfilled || repeatUntil(it) }
+            .withIndex()
+            .takeWhile { (i, _) -> i < minRepeat || !conditionFulfilled }
+            .map { it.value }
+            .forEach { stats.addResponse(it) }
+        return stats
+    }
+
     private fun waitForEchoServices(instances: Int) {
         untilAsserted {
             assertThat(envoyContainer1.admin().numOfEndpoints(clusterName = "echo")).isEqualTo(instances)
@@ -276,6 +326,16 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
      * instead of using the JUnit Spring Extension
      */
     inline fun <reified T> bean(): T = envoyControl1.bean(T::class.java)
+
+    fun waitForReadyServices(vararg serviceNames: String) {
+        serviceNames.forEach {
+            untilAsserted {
+                callService(it).also {
+                    assertThat(it).isOk()
+                }
+            }
+        }
+    }
 
     fun untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (Unit)) {
         await().atMost(wait).untilAsserted(fn)
