@@ -2,22 +2,21 @@
 #
 # Check https://circleci.com/docs/2.0/language-java/ for more details
 #
-version: 2
+version: 2.1
 
 executors:
-  default-executor:
+  my-executor:
     executorType: machine
     docker:
       - image: circleci/openjdk:8-jdk
     environment:
-      # Customize the JVM maximum heap limit
       JVM_OPTS: -Xmx3200m
       TERM: dumb
     working_directory: ~/repo
 
 jobs:
   build:
-    executor: default-executor
+    executor: my-executor
     steps:
       - checkout
 
@@ -36,15 +35,14 @@ jobs:
           key: v1-dependencies-{{ checksum "build.gradle" }}
 
   test:
-    executor: default-executor
+    executor: my-executor
     steps:
-      # run tests!
       - run:
           name: unit and integration tests
           command: ./gradlew check
 
   resilience_test:
-    executor: default-executor
+    executor: my-executor
     steps:
       - run:
           name: reliability tests
@@ -52,7 +50,7 @@ jobs:
           no_output_timeout: 20m
 
   failing_resilice_test:
-    executor: default-executor
+    executor: my-executor
     steps:
       - run:
           command: "./gradlew :envoy-control-tests:cleanTest :envoy-control-tests:test --tests pl.allegro.tech.servicemesh.envoycontrol.HttpIdleTimeoutTest"
