@@ -62,7 +62,7 @@ class SnapshotUpdater(
     ) {
         cache.groups().forEach { group ->
             // low cost path
-            if (group.isGlobalGroup() || (cache.getSnapshot(group) == null)) {
+            if (group.isGlobalGroup() || (cache.getSnapshot(group) == null) || hasWildcardDependency(group)) {
                 chooseSnapshot(group, newState)
             } else {
                 // high cost path
@@ -74,6 +74,10 @@ class SnapshotUpdater(
                 }
             }
         }
+    }
+
+    private fun hasWildcardDependency(group: Group): Boolean {
+        return group.proxySettings.outgoing.dependencies.map { it.getName() }.contains("*")
     }
 
     private fun dependencyChanged(
