@@ -51,6 +51,7 @@ style:
     active: false # we want to be able to write todo comments
   MagicNumber:
     ignoreAnnotation: true
+    ignoreNumbers: '-1,0,1,2,3'
   FunctionOnlyReturningConstant:
     active: true
   PreferToOverPairSyntax:

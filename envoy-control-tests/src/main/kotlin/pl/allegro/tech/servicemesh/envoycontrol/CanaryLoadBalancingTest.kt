@@ -1,12 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 
 open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
 
@@ -45,17 +43,16 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val callStats = callServiceRepeatedly(
-            service = "echo",
+        val stats = callEchoServiceRepeatedly(
             minRepeat = 30,
             maxRepeat = 200,
             repeatUntil = { response -> response.isFrom(canaryContainer) }
         )
 
         // then
-        assertThat(callStats.canaryHits + callStats.regularHits).isEqualTo(callStats.totalHits)
-        assertThat(callStats.totalHits).isGreaterThan(29)
-        assertThat(callStats.canaryHits).isGreaterThan(0)
+        assertThat(stats.canaryHits + stats.regularHits).isEqualTo(stats.totalHits)
+        assertThat(stats.totalHits).isGreaterThan(29)
+        assertThat(stats.canaryHits).isGreaterThan(0)
         /**
          * The condition below tests if the regular instance received at least 3x more requests than the canary
          * instance.
@@ -74,7 +71,7 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
          * False negative -> if weighted load balancing works correctly, with at least 30 requests, the chance that
          * the regular instance will receive less than 3/4 of them is very small.
          */
-        assertThat(callStats.regularHits).isGreaterThan(callStats.canaryHits * 3)
+        assertThat(stats.regularHits).isGreaterThan(stats.canaryHits * 3)
     }
 
     @Test
@@ -90,17 +87,16 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val callStats = callServiceRepeatedly(
-            service = "echo",
+        val stats = callEchoServiceRepeatedly(
             minRepeat = 50,
             maxRepeat = 50,
             headers = mapOf("X-Canary" to "1")
         )
 
         // then
-        assertThat(callStats.totalHits).isEqualTo(50)
-        assertThat(callStats.canaryHits).isEqualTo(50)
-        assertThat(callStats.regularHits).isEqualTo(0)
+        assertThat(stats.totalHits).isEqualTo(50)
+        assertThat(stats.canaryHits).isEqualTo(50)
+        assertThat(stats.regularHits).isEqualTo(0)
     }
 
     @Test
@@ -115,53 +111,38 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         }
 
         // when
-        val callStats = callServiceRepeatedly(
-            service = "echo",
+        val stats = callEchoServiceRepeatedly(
             minRepeat = 30,
             maxRepeat = 200,
             repeatUntil = { response -> response.isFrom(canaryContainer) }
         )
 
         // then
-        assertThat(callStats.canaryHits + callStats.regularHits).isEqualTo(callStats.totalHits)
-        assertThat(callStats.totalHits).isGreaterThan(29)
-        assertThat(callStats.canaryHits).isGreaterThan(0)
+        assertThat(stats.canaryHits + stats.regularHits).isEqualTo(stats.totalHits)
+        assertThat(stats.totalHits).isGreaterThan(29)
+        assertThat(stats.canaryHits).isGreaterThan(0)
     }
 
-    data class CallStatistics(val canaryHits: Int = 0, val regularHits: Int = 0, val totalHits: Int = 0) {
-        operator fun plus(other: CallStatistics): CallStatistics = CallStatistics(
-            canaryHits = this.canaryHits + other.canaryHits,
-            regularHits = this.regularHits + other.regularHits,
-            totalHits = this.totalHits + other.totalHits
-        )
-    }
-
-    data class ResponseWithBody(val response: Response, val body: String) {
-        fun isFrom(echoContainer: EchoContainer) = body.contains(echoContainer.response)
-    }
-
-    private fun mapResponseToCallStats(response: ResponseWithBody): CallStatistics = CallStatistics(
-        canaryHits = if (response.isFrom(canaryContainer)) 1 else 0,
-        regularHits = if (response.isFrom(regularContainer)) 1 else 0,
-        totalHits = 1
-    )
-
-    protected fun callServiceRepeatedly(
-        service: String,
-        minRepeat: Int = 1,
-        maxRepeat: Int = 100,
+    fun callEchoServiceRepeatedly(
+        minRepeat: Int,
+        maxRepeat: Int,
         repeatUntil: (ResponseWithBody) -> Boolean = { false },
         headers: Map<String, String> = mapOf()
-    ): CallStatistics =
-        (1..maxRepeat).asSequence()
-            .map { i ->
-                callService(service = service, headers = headers).also {
-                    assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
-                }
-            }
-            .map { ResponseWithBody(it, it.body()?.string() ?: "") }
-            .withIndex()
-            .takeWhile { (i, response) -> i < minRepeat || !repeatUntil(response) }
-            .map { it.value }
-            .fold(CallStatistics()) { acc, response -> acc + mapResponseToCallStats(response) }
+    ): CallStats {
+        val stats = CallStats(listOf(canaryContainer, regularContainer))
+        callServiceRepeatedly(
+            service = "echo",
+            stats = stats,
+            minRepeat = minRepeat,
+            maxRepeat = maxRepeat,
+            repeatUntil = repeatUntil,
+            headers = headers
+        )
+        return stats
+    }
+
+    val CallStats.regularHits: Int
+        get() = this.hits(regularContainer)
+    val CallStats.canaryHits: Int
+        get() = this.hits(canaryContainer)
 }
