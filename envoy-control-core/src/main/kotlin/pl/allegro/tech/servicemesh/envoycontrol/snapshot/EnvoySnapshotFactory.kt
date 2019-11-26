@@ -1,8 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.ListValue
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
+import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
@@ -19,6 +21,7 @@ import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
@@ -32,8 +35,15 @@ internal class EnvoySnapshotFactory(
     private val clustersFactory: EnvoyClustersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
+    private val serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags),
     private val defaultDependencySettings: DependencySettings =
-        DependencySettings(properties.egress.handleInternalRedirect)
+        DependencySettings(
+            handleInternalRedirect = properties.egress.handleInternalRedirect,
+            timeoutPolicy = Outgoing.TimeoutPolicy(
+                idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
+                requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
+            )
+        )
 ) {
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
@@ -177,16 +187,16 @@ internal class EnvoySnapshotFactory(
     ): LocalityLbEndpoints =
         LocalityLbEndpoints.newBuilder()
             .setLocality(Locality.newBuilder().setZone(zone).build())
-            .addAllLbEndpoints(serviceInstances.instances.map { createLbEndpoint(it) })
+            .addAllLbEndpoints(serviceInstances.instances.map { createLbEndpoint(it, serviceInstances.serviceName) })
             .setPriority(priority)
             .build()
 
-    private fun createLbEndpoint(serviceInstance: ServiceInstance): LbEndpoint {
+    private fun createLbEndpoint(serviceInstance: ServiceInstance, serviceName: String): LbEndpoint {
         return LbEndpoint.newBuilder()
             .setEndpoint(
                 buildEndpoint(serviceInstance)
             )
-            .setMetadata(serviceInstance)
+            .setMetadata(serviceInstance, serviceName)
             .setLoadBalancingWeightFromInstance(serviceInstance)
             .build()
     }
@@ -212,8 +222,8 @@ internal class EnvoySnapshotFactory(
             .setProtocol(SocketAddress.Protocol.TCP)
     }
 
-    private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance): LbEndpoint.Builder {
-        var metadataKeys = Struct.newBuilder()
+    private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance, serviceName: String): LbEndpoint.Builder {
+        val metadataKeys = Struct.newBuilder()
 
         if (properties.loadBalancing.canary.enabled && instance.canary) {
             metadataKeys.putFields(
@@ -222,12 +232,29 @@ internal class EnvoySnapshotFactory(
             )
         }
         if (instance.regular) {
-            metadataKeys = metadataKeys.putFields(
+            metadataKeys.putFields(
                 properties.loadBalancing.regularMetadataKey,
                 Value.newBuilder().setBoolValue(true).build()
             )
         }
+
+        if (properties.routing.serviceTags.enabled) {
+            addServiceTagsToMetadata(metadataKeys, instance, serviceName)
+        }
+
         return setMetadata(Metadata.newBuilder().putFilterMetadata("envoy.lb", metadataKeys.build()))
+    }
+
+    private fun addServiceTagsToMetadata(metadata: Struct.Builder, instance: ServiceInstance, serviceName: String) {
+        serviceTagFilter.getAllTagsForRouting(serviceName, instance.tags)?.let { tags ->
+            metadata.putFields(
+                properties.routing.serviceTags.metadataKey,
+                Value.newBuilder()
+                    .setListValue(ListValue.newBuilder()
+                        .addAllValues(tags.map { Value.newBuilder().setStringValue(it).build() }.asIterable())
+                    ).build()
+            )
+        }
     }
 
     private fun LbEndpoint.Builder.setLoadBalancingWeightFromInstance(instance: ServiceInstance): LbEndpoint.Builder =
