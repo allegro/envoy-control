@@ -303,8 +303,10 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         )
     }
 
+    protected open fun callStats() = CallStats(listOf(regularContainer, loremContainer) + containersToStart)
+
     protected open fun callServiceRepeatedly(service: String, repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
-        val stats = CallStats(listOf(regularContainer, loremContainer) + containersToStart)
+        val stats = callStats()
         callServiceRepeatedly(
             service = service,
             stats = stats,

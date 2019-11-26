@@ -109,13 +109,15 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
         assertThat(stats.ipsumRegularHits).isEqualTo(0)
     }
 
+    protected open fun callStats() = CallStats(listOf(loremCanaryContainer, loremRegularContainer, ipsumRegularContainer))
+
     protected open fun callEchoServiceRepeatedly(
         repeat: Int,
         tag: String? = null,
         canary: Boolean,
         assertNoErrors: Boolean = true
     ): CallStats {
-        val stats = CallStats(listOf(loremCanaryContainer, loremRegularContainer, ipsumRegularContainer))
+        val stats = callStats()
         val tagHeader = tag?.let { mapOf("x-service-tag" to it) } ?: emptyMap()
         val canaryHeader = if (canary) mapOf("x-canary" to "1") else emptyMap()
 
