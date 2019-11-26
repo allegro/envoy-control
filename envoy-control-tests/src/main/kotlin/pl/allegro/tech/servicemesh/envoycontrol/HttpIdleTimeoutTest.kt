@@ -10,7 +10,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import java.util.concurrent.TimeUnit
 
 internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
-
     companion object {
 
         private val properties = mapOf(
@@ -27,57 +26,62 @@ internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should close idle connections after 1s for HTTP2`() {
         // given
+        val name = "proxy1"
         registerService(name = "proxy1", port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT, container = envoyContainer2, tags = listOf("envoy"))
 
         // when
         untilAsserted {
-            callProxy()
+            callProxy(name)
         }
 
         // then
         untilAsserted {
-            assertHasActiveConnection(envoyContainer1)
+            assertHasActiveConnection(envoyContainer1, name)
         }
 
         // 5 seconds drain time + 10 idle + 5 padding
         untilAsserted(wait = Duration(20, TimeUnit.SECONDS)) {
-            assertHasNoActiveConnections(envoyContainer1)
+            assertHasNoActiveConnections(envoyContainer1, name)
         }
     }
 
     @Test
     fun `should close idle connections after 1s for HTTP1`() {
         // given
-        registerService(name = "proxy1", port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT, container = envoyContainer2)
+        val name = "proxy2"
+        registerService(name = name, port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT, container = envoyContainer2)
 
         // when
         untilAsserted {
-            callProxy()
+            callProxy(name)
         }
 
         // then
         untilAsserted {
-            assertHasActiveConnection(envoyContainer1)
+            assertHasActiveConnection(envoyContainer1, name)
         }
 
         // 10 idle + 5 padding
         untilAsserted(wait = Duration(15, TimeUnit.SECONDS)) {
-            assertHasNoActiveConnections(envoyContainer1)
+            assertHasNoActiveConnections(envoyContainer1, name)
         }
     }
 
-    private fun callProxy() {
-        val response = callService("proxy1")
+    private fun callProxy(name: String) {
+        val response = callService(name)
         assertThat(response).isOk()
     }
 
-    private fun assertHasActiveConnection(container: EnvoyContainer) {
-        val http2Connections = container.admin().statValue("cluster.proxy1.upstream_cx_active")?.toInt()
-        assertThat(http2Connections).isGreaterThan(0)
+    private fun assertHasActiveConnection(
+        container: EnvoyContainer,
+        name: String
+    ) {
+        val activeConnections = container.admin().statValue("cluster.$name.upstream_cx_active")?.toInt()
+        assertThat(activeConnections).isEqualTo(1)
     }
 
-    private fun assertHasNoActiveConnections(container: EnvoyContainer) {
-        val http2Connections = container.admin().statValue("cluster.proxy1.upstream_cx_active")?.toInt()
-        assertThat(http2Connections).isEqualTo(0)
+    private fun assertHasNoActiveConnections(container: EnvoyContainer, name: String) {
+        val activeConnections = container.admin().statValue("cluster.$name.upstream_cx_active")?.toInt()
+        assertThat(activeConnections).isEqualTo(0)
     }
 }
