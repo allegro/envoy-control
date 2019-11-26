@@ -181,17 +181,28 @@ internal class EnvoyClustersFactory(
                     setListAsAny(true) // allowing for an endpoint to have multiple tags
                 }
                 if (tagsEnabled && canaryEnabled) {
-                    addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
-                        .addKeys(properties.routing.serviceTags.metadataKey)
-                        .addKeys(properties.loadBalancing.canary.metadataKey)
-                        .setFallbackPolicy(
-                            Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.KEYS_SUBSET)
-                        .addFallbackKeysSubset(properties.routing.serviceTags.metadataKey)
-                    )
+                    addTagsAndCanarySelector()
                 }
             }
         )
     }
+
+    private fun Cluster.LbSubsetConfig.Builder.addTagsAndCanarySelector() = this.addSubsetSelectors(
+        Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+            .addKeys(properties.routing.serviceTags.metadataKey)
+            .addKeys(properties.loadBalancing.canary.metadataKey)
+            .run {
+                if (properties.loadBalancing.useKeysSubsetFallbackPolicy) {
+                    setFallbackPolicy(
+                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.KEYS_SUBSET)
+                    addFallbackKeysSubset(properties.routing.serviceTags.metadataKey)
+                } else {
+                    // optionally don't use KEYS_SUBSET for compatibility with envoy version <= 1.12.x
+                    setFallbackPolicy(
+                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                }
+            }
+    )
 
     private fun mapPropertiesToThresholds(): List<CircuitBreakers.Thresholds> {
         return listOf(
