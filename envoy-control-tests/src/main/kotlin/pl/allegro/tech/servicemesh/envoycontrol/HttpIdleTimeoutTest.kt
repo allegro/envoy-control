@@ -10,7 +10,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import java.util.concurrent.TimeUnit
 
 internal class HttpIdleTimeoutTest : EnvoyControlTestConfiguration() {
-    private val logger by logger()
     companion object {
 
         private val properties = mapOf(
