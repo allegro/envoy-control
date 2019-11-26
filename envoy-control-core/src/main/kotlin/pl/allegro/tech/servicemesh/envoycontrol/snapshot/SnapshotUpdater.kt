@@ -15,13 +15,15 @@ class SnapshotUpdater(
     private val cache: SnapshotCache<Group>,
     private val properties: SnapshotProperties,
     private val scheduler: Scheduler,
-    private val onGroupAdded: Flux<out Any>,
+    private val onGroupAdded: Flux<List<Group>>,
     private val meterRegistry: MeterRegistry
 ) {
     companion object {
         private val logger by logger()
     }
 
+    private lateinit var lastAdsSnapshot: Snapshot
+    private lateinit var lastXdsSnapshot: Snapshot
     private val versions = SnapshotsVersions()
     private val snapshotFactory = EnvoySnapshotFactory(
         ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
@@ -32,12 +34,39 @@ class SnapshotUpdater(
     )
 
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<LocalityAwareServicesState>> {
-        // see GroupChangeWatcher
         return Flux.combineLatest(
-            onGroupAdded,
-            changes,
+            groups(),
+            services(changes),
             BiFunction<Any, List<LocalityAwareServicesState>, List<LocalityAwareServicesState>> { _, states -> states }
         )
+    }
+
+    fun groups(): Flux<List<Group>> {
+        // see GroupChangeWatcher
+        return onGroupAdded
+                .publishOn(scheduler)
+                .doOnNext { groups ->
+                    groups.forEach { group ->
+                        if (group.ads) {
+                            if (::lastAdsSnapshot.isInitialized) {
+                                updateSnapshotForGroup(group, lastAdsSnapshot)
+                            }
+                        } else {
+                            if (::lastXdsSnapshot.isInitialized) {
+                                updateSnapshotForGroup(group, lastXdsSnapshot)
+                            }
+                        }
+                    }
+                }
+                .onErrorResume { e ->
+                    meterRegistry.counter("snapshot-updater.groups.updates.errors").increment()
+                    logger.error("Unable to process new group", e)
+                    Mono.justOrEmpty(listOf())
+                }
+    }
+
+    fun services(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<LocalityAwareServicesState>> {
+        return changes
             .sample(properties.stateSampleDuration)
             .publishOn(scheduler)
             .doOnNext { states ->
@@ -52,19 +81,21 @@ class SnapshotUpdater(
     }
 
     private fun updateSnapshots(states: List<LocalityAwareServicesState>) {
-        val snapshot = snapshotFactory.newSnapshot(states, ads = false)
-        val adsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
+        lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
+        lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
 
-        cache.groups().forEach { group -> updateSnapshotForGroup(group, if (group.ads) adsSnapshot else snapshot) }
+        cache.groups().forEach { group ->
+            updateSnapshotForGroup(group, if (group.ads) lastAdsSnapshot else lastXdsSnapshot)
+        }
     }
 
-    private fun updateSnapshotForGroup(group: Group, snapshot: Snapshot) {
+    private fun updateSnapshotForGroup(group: Group, globalSnapshot: Snapshot) {
         try {
-            val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, snapshot)
+            val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, globalSnapshot)
             cache.setSnapshot(group, groupSnapshot)
         } catch (e: Throwable) {
             meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()
-            logger.error("Unable to create snapshot for group ${group.serviceName}", e)
+            logger.error("Unable to create globalSnapshot for group ${group.serviceName}", e)
         }
     }
 }
