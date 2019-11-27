@@ -185,11 +185,9 @@ internal class EnvoyIngressRoutesFactory(
         val applicationRoutes = proxySettings.incoming.endpoints
             .flatMap { toRoutes(it, rolesByName, localRouteAction) }
 
-        return listOfNotNull(
-            statusRoute(localRouteAction).takeIf {
-                properties.routes.status.enabled && !proxySettings.incoming.healthCheck.hasCustomHealthCheck()
-            }
-        ) + customHealthCheckRoute + applicationRoutes + fallbackIngressRoute
+        return customHealthCheckRoute + listOfNotNull(
+            statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }
+        ) + applicationRoutes + fallbackIngressRoute
     }
 
     private fun toRoutes(

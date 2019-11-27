@@ -253,6 +253,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
                     statusRoute(clusterName = "local_service_health_check", healthCheckPath = "/status/custom"),
+                    statusRoute(),
                     {
                         matchingOnPath("/endpoint")
                         matchingOnMethod("GET")

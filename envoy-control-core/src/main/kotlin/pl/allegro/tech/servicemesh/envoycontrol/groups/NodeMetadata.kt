@@ -230,7 +230,7 @@ data class HealthCheck(
     val path: String = "",
     val clusterName: String = "local_service"
 ) {
-    fun hasHealthCheck() = !path.isBlank()
+    fun hasCustomHealthCheck() = !path.isBlank()
 }
 
 data class IncomingEndpoint(

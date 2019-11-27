@@ -196,7 +196,7 @@ class NodeMetadataTest {
         // expects
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service")
         assertThat(incoming.healthCheck.path).isEqualTo("/status/ping")
-        assertThat(incoming.healthCheck.hasHealthCheck()).isTrue()
+        assertThat(incoming.healthCheck.hasCustomHealthCheck()).isTrue()
     }
 
     @Test
@@ -211,7 +211,7 @@ class NodeMetadataTest {
         // expects
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service")
         assertThat(incoming.healthCheck.path).isEqualTo("")
-        assertThat(incoming.healthCheck.hasHealthCheck()).isFalse()
+        assertThat(incoming.healthCheck.hasCustomHealthCheck()).isFalse()
     }
 
     @Test
@@ -228,7 +228,7 @@ class NodeMetadataTest {
         // expects
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
         assertThat(incoming.healthCheck.path).isEqualTo("/status/ping")
-        assertThat(incoming.healthCheck.hasHealthCheck()).isTrue()
+        assertThat(incoming.healthCheck.hasCustomHealthCheck()).isTrue()
     }
 
     @Test
@@ -282,6 +282,5 @@ class NodeMetadataTest {
         assertThat(dependency.service).isEqualTo("service-1")
         assertThat(dependency.settings.timeoutPolicy!!.idleTimeout).isEqualTo(Durations.fromSeconds(10L))
         assertThat(dependency.settings.timeoutPolicy!!.requestTimeout).isEqualTo(Durations.fromSeconds(10L))
->>>>>>> master
     }
 }
