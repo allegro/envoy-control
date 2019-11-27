@@ -23,21 +23,6 @@ node:
         endpoints:
           - path: "/endpoint"
             clients: ["authorizedClient"]
-      outgoing:
-        dependencies:
-          - service: "service-1"
-          - service: "service-2"
-          - service: "service-3"
-          - service: "service-4"
-          - service: "service-5"
-          - service: "echo"
-          - service: "consul"
-          - service: "proxy1"
-          - service: "service-redirect"
-            handleInternalRedirect: true
-          - domain: "https://www.example.com"
-          - domain: "https://www.example-redirect.com"
-            handleInternalRedirect: true
 
 static_resources:
   clusters:
@@ -51,15 +36,6 @@ static_resources:
         port_value: HOST2_PORT
     http2_protocol_options: {}
     name: envoy-control-xds
-  - name: envoy-original-destination
-    type: ORIGINAL_DST
-    lb_policy: ORIGINAL_DST_LB
-    original_dst_lb_config:
-      use_http_header: true
-    connect_timeout:
-      seconds: 1
-    http_protocol_options:
-      allow_absolute_url: true
   - name: local_service
     type: STATIC
     hosts:
@@ -99,15 +75,6 @@ static_resources:
             config_source:
               ads: {}
           http_filters:
-          - name: envoy.filters.http.header_to_metadata
-            config:
-              request_rules:
-                - header: x-canary
-                  on_header_present:
-                    metadata_namespace: envoy.lb
-                    key: canary
-                    type: STRING
-                  remove: false
           - name: envoy.router
   - name: ingress_listener
     address:

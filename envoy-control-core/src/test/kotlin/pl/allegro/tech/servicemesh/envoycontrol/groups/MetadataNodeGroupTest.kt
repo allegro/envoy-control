@@ -210,7 +210,7 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group.proxySettings.incoming.healthCheck.path).isEqualTo("/status/ping")
         assertThat(group.proxySettings.incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
-        assertThat(group.proxySettings.incoming.healthCheck.hasHealthCheck()).isTrue()
+        assertThat(group.proxySettings.incoming.healthCheck.hasCustomHealthCheck()).isTrue()
     }
 
     private fun createSnapshotProperties(

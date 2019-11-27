@@ -30,7 +30,7 @@ internal class LocalServiceCustomHealthCheckRouteTest : EnvoyControlTestConfigur
 
             // then
             assertThat(envoyContainer1.admin().statValue("cluster.local_service_health_check.upstream_rq_200")?.toInt()).isGreaterThan(0)
-            assertThat(envoyContainer1.admin().statValue("cluster.local_service.upstream_rq_200")?.toInt()).isEqualTo(0)
+            assertThat(envoyContainer1.admin().statValue("cluster.local_service.upstream_rq_200")?.toInt()).isEqualTo(-1)
         }
 
         // and

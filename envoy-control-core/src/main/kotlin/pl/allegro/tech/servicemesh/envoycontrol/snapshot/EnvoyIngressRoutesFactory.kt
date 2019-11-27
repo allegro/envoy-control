@@ -103,7 +103,7 @@ internal class EnvoyIngressRoutesFactory(
     }
 
     private fun customHealthCheckRoute(proxySettings: ProxySettings): List<Route> {
-        if (proxySettings.incoming.healthCheck.hasHealthCheck()) {
+        if (proxySettings.incoming.healthCheck.hasCustomHealthCheck()) {
             val healthCheckRouteAction = clusterRouteAction(
                 proxySettings.incoming.timeoutPolicy.responseTimeout,
                 proxySettings.incoming.timeoutPolicy.idleTimeout,
@@ -187,7 +187,7 @@ internal class EnvoyIngressRoutesFactory(
 
         return listOfNotNull(
             statusRoute(localRouteAction).takeIf {
-                properties.routes.status.enabled && !proxySettings.incoming.healthCheck.hasHealthCheck()
+                properties.routes.status.enabled && !proxySettings.incoming.healthCheck.hasCustomHealthCheck()
             }
         ) + customHealthCheckRoute + applicationRoutes + fallbackIngressRoute
     }
