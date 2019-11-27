@@ -1,4 +1,6 @@
-FROM envoyproxy/envoy
+# We use envoy version from master. This is 1.13.0-dev version with support for KEYS_SUBSET fallback policy,
+# which is required for service-tags routing. More info: https://github.com/envoyproxy/envoy/pull/8890
+FROM envoyproxy/envoy-dev:b7bef67c256090919a4585a1a06c42f15d640a09
 
 ENV PORT=9999:9999
 ENV PORT=80:80

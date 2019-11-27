@@ -55,7 +55,9 @@ val addedProxySettings = ProxySettings(Incoming(
 ))
 
 fun ProxySettings.with(serviceDependencies: Set<ServiceDependency> = emptySet(), domainDependencies: Set<DomainDependency> = emptySet()) = copy(
-    outgoing = Outgoing(dependencies = serviceDependencies.toList() + domainDependencies.toList())
+    outgoing = Outgoing(
+        dependencies = serviceDependencies.toList() + domainDependencies.toList()
+    )
 )
 
 fun proxySettingsProto(
@@ -94,17 +96,31 @@ fun proxySettingsProto(
         putFields("outgoing", struct {
             putFields("dependencies", list {
                 serviceDependencies.forEach {
-                    addValues(outgoingDependencyProto(service = it))
+                    addValues(outgoingDependencyProto(service = it, idleTimeout = idleTimeout, requestTimeout = responseTimeout))
                 }
             })
         })
     }
 }
 
-fun outgoingDependencyProto(service: String? = null, domain: String? = null, handleInternalRedirect: Boolean? = null) = struct {
+fun outgoingDependencyProto(
+    service: String? = null,
+    domain: String? = null,
+    handleInternalRedirect: Boolean? = null,
+    idleTimeout: String? = null,
+    requestTimeout: String? = null
+) = struct {
     service?.also { putFields("service", string(service)) }
     domain?.also { putFields("domain", string(domain)) }
     handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(handleInternalRedirect)) }
+    if (idleTimeout != null || requestTimeout != null) {
+        putFields("timeoutPolicy", outgoingTimeoutPolicy(idleTimeout, requestTimeout))
+    }
+}
+
+fun outgoingTimeoutPolicy(idleTimeout: String? = null, requestTimeout: String? = null) = struct {
+    idleTimeout?.also { putFields("idleTimeout", string(idleTimeout)) }
+    requestTimeout?.also { putFields("requestTimeout", string(requestTimeout)) }
 }
 
 fun incomingEndpointProto(

@@ -26,8 +26,13 @@ node:
           - service: "service-4"
           - service: "service-5"
           - service: "echo"
+            timeoutPolicy:
+              requestTimeout: "15s"
           - service: "consul"
+            timeoutPolicy:
+              requestTimeout: "15s"
           - service: "proxy1"
+          - service: "proxy2"
           - service: "service-redirect"
             handleInternalRedirect: true
           - domain: "https://www.example.com"
@@ -97,6 +102,12 @@ static_resources:
                   on_header_present:
                     metadata_namespace: envoy.lb
                     key: canary
+                    type: STRING
+                  remove: false
+                - header: x-service-tag
+                  on_header_present:
+                    metadata_namespace: envoy.lb
+                    key: tag
                     type: STRING
                   remove: false
           - name: envoy.router

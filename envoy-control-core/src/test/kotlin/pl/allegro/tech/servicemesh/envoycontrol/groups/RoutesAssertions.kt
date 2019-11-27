@@ -6,6 +6,7 @@ import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
 import io.envoyproxy.envoy.api.v2.route.RedirectAction
 import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import io.envoyproxy.envoy.api.v2.route.Route
+import io.envoyproxy.envoy.api.v2.route.RouteAction
 import io.envoyproxy.envoy.api.v2.route.VirtualCluster
 import io.envoyproxy.envoy.api.v2.route.VirtualHost
 import org.assertj.core.api.Assertions.assertThat
@@ -22,6 +23,16 @@ fun RouteConfiguration.hasHeaderToAdd(key: String, value: String): RouteConfigur
         assertThat(it.header.key).isEqualTo(key)
         assertThat(it.header.value).isEqualTo(value)
     }
+    return this
+}
+
+fun RouteAction.hasCustomIdleTimeout(idleTimeout: Duration): RouteAction {
+    assertThat(this.idleTimeout).isEqualTo(idleTimeout)
+    return this
+}
+
+fun RouteAction.hasCustomRequestTimeout(requestTimeout: Duration): RouteAction {
+    assertThat(this.timeout).isEqualTo(requestTimeout)
     return this
 }
 

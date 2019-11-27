@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.Response
 import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
@@ -10,10 +11,12 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
@@ -97,7 +100,7 @@ class SnapshotUpdaterTest {
             domains = domainDependencies("http://domain")
         )).hasClusters("existingService1", "existingService2", "domain_80")
 
-        hasSnapshot(cache, groupOf(setOf(ServiceDependency("nonExistingService3"))))
+        hasSnapshot(cache, groupOf(services = serviceDependencies("nonExistingService3")))
             .withoutClusters()
     }
 
@@ -144,35 +147,35 @@ class SnapshotUpdaterTest {
         val cache = newCache()
         cache.setSnapshot(servicesGroup, null)
         val updater = SnapshotUpdater(
-                cache,
-                properties = SnapshotProperties(),
-                scheduler = Schedulers.newSingle("update-snapshot"),
-                onGroupAdded = Flux.just(true),
-                meterRegistry = simpleMeterRegistry
+            cache,
+            properties = SnapshotProperties(),
+            scheduler = Schedulers.newSingle("update-snapshot"),
+            onGroupAdded = Flux.just(true),
+            meterRegistry = simpleMeterRegistry
         )
 
         // when
         updater.start(
-                Flux.just(emptyList())
+            Flux.just(emptyList())
         ).blockFirst()
 
         // then
         val snapshot = cache.getSnapshot(servicesGroup)
         assertThat(snapshot).isEqualTo(null)
         assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
-                .counter()?.count()).isEqualTo(1.0)
+            .counter()?.count()).isEqualTo(1.0)
     }
 
     private fun servicesGroupWithAnError(name: String): ServicesGroup {
         val proxySettings = ProxySettings(
-                incoming = Incoming(
-                        endpoints = listOf(
-                                IncomingEndpoint(
-                                        methods = setOf("INVALID")
-                                )
-                        ),
-                        permissionsEnabled = true
-                )
+            incoming = Incoming(
+                endpoints = listOf(
+                    IncomingEndpoint(
+                        methods = setOf("INVALID")
+                    )
+                ),
+                permissionsEnabled = true
+            )
         )
         return ServicesGroup(true, name, proxySettings)
     }
@@ -277,7 +280,23 @@ class SnapshotUpdaterTest {
 }
 
 fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
-    serviceNames.map { ServiceDependency(it) }.toSet()
+    serviceNames.map {
+        ServiceDependency(
+            service = it,
+            settings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
+                idleTimeout = Durations.fromSeconds(120L),
+                requestTimeout = Durations.fromSeconds(120L)
+            ))
+        )
+    }.toSet()
 
 fun domainDependencies(vararg serviceNames: String): Set<DomainDependency> =
-    serviceNames.map { DomainDependency(it) }.toSet()
+    serviceNames.map {
+        DomainDependency(
+            domain = it,
+            settings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
+                idleTimeout = Durations.fromSeconds(120L),
+                requestTimeout = Durations.fromSeconds(120L)
+            ))
+        )
+    }.toSet()

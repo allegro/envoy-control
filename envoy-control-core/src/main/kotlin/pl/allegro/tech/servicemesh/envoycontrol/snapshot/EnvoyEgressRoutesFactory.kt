@@ -95,6 +95,11 @@ internal class EnvoyEgressRoutesFactory(
         val routeAction = RouteAction.newBuilder()
             .setCluster(routeSpecification.clusterName)
 
+        routeSpecification.settings.timeoutPolicy?.let { timeoutPolicy ->
+            timeoutPolicy.idleTimeout?.let { routeAction.setIdleTimeout(it) }
+            timeoutPolicy.requestTimeout?.let { routeAction.setTimeout(it) }
+        }
+
         if (routeSpecification.settings.handleInternalRedirect) {
             routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
         }

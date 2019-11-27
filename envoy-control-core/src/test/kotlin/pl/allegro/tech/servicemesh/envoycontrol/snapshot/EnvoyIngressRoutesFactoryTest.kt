@@ -4,10 +4,10 @@ import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.HealthCheck
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming.TimeoutPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
-import pl.allegro.tech.servicemesh.envoycontrol.groups.TimeoutPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.accessOnlyForClient
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostRoute

@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.util.Durations
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -183,7 +184,7 @@ class NodeMetadataTest {
     }
 
     @Test
-    fun `should accept incoming settings with custom healthCheck path`() {
+    fun `should accept incoming settings with custom healthCheckPath`() {
         // given
         val proto = proxySettingsProto(
             incomingSettings = true,
@@ -199,7 +200,7 @@ class NodeMetadataTest {
     }
 
     @Test
-    fun `should set empty healthCheck path for incoming settings when path is empty`() {
+    fun `should set empty healthCheckPath for incoming settings when healthCheckPath is empty`() {
         // given
         val proto = proxySettingsProto(
             incomingSettings = true,
@@ -214,7 +215,7 @@ class NodeMetadataTest {
     }
 
     @Test
-    fun `should set healthCheck path and clusterName for incoming settings`() {
+    fun `should set healthCheckPath and healthCheckClusterName for incoming settings`() {
         // given
         val proto = proxySettingsProto(
             incomingSettings = true,
@@ -231,7 +232,7 @@ class NodeMetadataTest {
     }
 
     @Test
-    fun `should reject healthCheck definition when only clusterName is defined`() {
+    fun `should reject custom healthCheck definition when only clusterName is defined`() {
         // given
         val proto = proxySettingsProto(
             incomingSettings = true,
@@ -247,5 +248,40 @@ class NodeMetadataTest {
         assertThat(exception.status.description)
             .isEqualTo("HealthCheck definition is not complete: 'path' cannot be empty when 'clusterName' is defined")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should accept service dependency with idleTimeout defined`() {
+        // given
+        val proto = outgoingDependencyProto(service = "service-1", idleTimeout = "10s")
+        val dependency = proto.toDependency() as ServiceDependency
+
+        // expects
+        assertThat(dependency.service).isEqualTo("service-1")
+        assertThat(dependency.settings.timeoutPolicy!!.idleTimeout).isEqualTo(Durations.fromSeconds(10L))
+    }
+
+    @Test
+    fun `should accept service dependency with requestTimeout defined`() {
+        // given
+        val proto = outgoingDependencyProto(service = "service-1", requestTimeout = "10s")
+        val dependency = proto.toDependency() as ServiceDependency
+
+        // expects
+        assertThat(dependency.service).isEqualTo("service-1")
+        assertThat(dependency.settings.timeoutPolicy!!.requestTimeout).isEqualTo(Durations.fromSeconds(10L))
+    }
+
+    @Test
+    fun `should accept service dependency with idleTimeout and requestTimeout defined`() {
+        // given
+        val proto = outgoingDependencyProto(service = "service-1", idleTimeout = "10s", requestTimeout = "10s")
+        val dependency = proto.toDependency() as ServiceDependency
+
+        // expects
+        assertThat(dependency.service).isEqualTo("service-1")
+        assertThat(dependency.settings.timeoutPolicy!!.idleTimeout).isEqualTo(Durations.fromSeconds(10L))
+        assertThat(dependency.settings.timeoutPolicy!!.requestTimeout).isEqualTo(Durations.fromSeconds(10L))
+>>>>>>> master
     }
 }

@@ -16,12 +16,12 @@ import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
 import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
 import io.envoyproxy.envoy.api.v2.core.ConfigSource
-import io.envoyproxy.envoy.api.v2.core.RoutingPriority
 import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
-import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.core.Http2ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
+import io.envoyproxy.envoy.api.v2.core.RoutingPriority
+import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
@@ -90,7 +90,7 @@ internal class EnvoyClustersFactory(
                     )
                 )
             )
-            .setLbPolicy(Cluster.LbPolicy.LEAST_REQUEST)
+            .setLbPolicy(properties.loadBalancing.policy)
 
         if (ssl) {
             var tlsContextBuilder = UpstreamTlsContext.newBuilder()
@@ -102,7 +102,7 @@ internal class EnvoyClustersFactory(
                             DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
                         )
                     )
-            )
+            ).setSni(host)
             clusterBuilder = clusterBuilder.setTlsContext(tlsContextBuilder.build())
         }
         return clusterBuilder.build()
@@ -134,8 +134,8 @@ internal class EnvoyClustersFactory(
                     }
                 ).setServiceName(clusterConfiguration.serviceName)
             )
-            .setLbPolicy(Cluster.LbPolicy.LEAST_REQUEST)
-            .setCanarySubset()
+            .setLbPolicy(properties.loadBalancing.policy)
+            .configureLbSubsets()
 
         cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
         cluster.setCircuitBreakers(allThresholds)
@@ -147,10 +147,67 @@ internal class EnvoyClustersFactory(
         return cluster.build()
     }
 
+    private fun Cluster.Builder.configureLbSubsets(): Cluster.Builder {
+        val canaryEnabled = properties.loadBalancing.canary.enabled
+        val tagsEnabled = properties.routing.serviceTags.enabled
+
+        if (!canaryEnabled && !tagsEnabled) {
+            return this
+        }
+
+        val defaultSubset = Struct.newBuilder()
+        if (canaryEnabled) {
+            defaultSubset.putFields(
+                properties.loadBalancing.regularMetadataKey,
+                Value.newBuilder().setBoolValue(true).build()
+            )
+        }
+
+        return setLbSubsetConfig(Cluster.LbSubsetConfig.newBuilder()
+            .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetFallbackPolicy.DEFAULT_SUBSET)
+            .setDefaultSubset(defaultSubset)
+            .apply {
+                if (canaryEnabled) {
+                    addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+                        .addKeys(properties.loadBalancing.canary.metadataKey)
+                    )
+                }
+                if (tagsEnabled) {
+                    addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+                        .addKeys(properties.routing.serviceTags.metadataKey)
+                        .setFallbackPolicy(
+                            Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                    )
+                    setListAsAny(true) // allowing for an endpoint to have multiple tags
+                }
+                if (tagsEnabled && canaryEnabled) {
+                    addTagsAndCanarySelector()
+                }
+            }
+        )
+    }
+
+    private fun Cluster.LbSubsetConfig.Builder.addTagsAndCanarySelector() = this.addSubsetSelectors(
+        Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+            .addKeys(properties.routing.serviceTags.metadataKey)
+            .addKeys(properties.loadBalancing.canary.metadataKey)
+            .run {
+                if (properties.loadBalancing.useKeysSubsetFallbackPolicy) {
+                    setFallbackPolicy(
+                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.KEYS_SUBSET)
+                    addFallbackKeysSubset(properties.routing.serviceTags.metadataKey)
+                } else {
+                    // optionally don't use KEYS_SUBSET for compatibility with envoy version <= 1.12.x
+                    setFallbackPolicy(
+                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                }
+            }
+    )
+
     private fun mapPropertiesToThresholds(): List<CircuitBreakers.Thresholds> {
         return listOf(
-                convertThreshold(properties.egress.commonHttp.circuitBreakers.defaultThreshold),
-                convertThreshold(properties.egress.commonHttp.circuitBreakers.highThreshold)
+            convertThreshold(properties.egress.commonHttp.circuitBreakers.defaultThreshold),
+            convertThreshold(properties.egress.commonHttp.circuitBreakers.highThreshold)
         )
     }
 
@@ -166,25 +223,6 @@ internal class EnvoyClustersFactory(
             else -> thresholdsBuilder.priority = RoutingPriority.UNRECOGNIZED
         }
         return thresholdsBuilder.build()
-    }
-
-    private fun Cluster.Builder.setCanarySubset(): Cluster.Builder {
-        if (!properties.loadBalancing.canary.enabled) {
-            return this
-        }
-        return setLbSubsetConfig(Cluster.LbSubsetConfig.newBuilder()
-            .setFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetFallbackPolicy.DEFAULT_SUBSET)
-            .setDefaultSubset(
-                Struct.newBuilder()
-                    .putFields(
-                        properties.loadBalancing.regularMetadataKey,
-                        Value.newBuilder().setBoolValue(true).build()
-                    )
-            )
-            .addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
-                .addKeys(properties.loadBalancing.canary.metadataKey)
-            )
-        )
     }
 
     private fun configureOutlierDetection(clusterBuilder: Cluster.Builder) {
