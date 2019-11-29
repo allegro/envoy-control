@@ -54,7 +54,7 @@ internal class EnvoyListenersFactory {
 
     private fun createEgressFilter(group: Group): Filter {
         return Filter.newBuilder()
-                .setName("type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager")
+                .setName("envoy.http_connection_manager")
                 .setTypedConfig(ProtobufAny.pack(
                         HttpConnectionManager.newBuilder()
                                 .setStatPrefix("egress_http")
@@ -79,7 +79,7 @@ internal class EnvoyListenersFactory {
 
     private fun headerToMetadataHttpFilter(): HttpFilter? {
         return HttpFilter.newBuilder()
-                .setName("type.googleapis.com/envoy.config.filter.http.header_to_metadata.v2.Config")
+                .setName("envoy.filters.http.header_to_metadata")
                 .setTypedConfig(ProtobufAny.pack(
                         HeaderToMetadataConfig.newBuilder()
                                 .addRequestRules(
@@ -101,7 +101,7 @@ internal class EnvoyListenersFactory {
 
     private fun luaHttpFilter(group: Group): HttpFilter? {
         return HttpFilter.newBuilder()
-                .setName("type.googleapis.com/envoy.config.filter.http.lua.v2.Lua")
+                .setName("envoy.lua")
                 .setTypedConfig(ProtobufAny.pack(
                         Lua.newBuilder()
                                 .setInlineCode("package.path = \"${group.luaScriptDir}/?.lua;\" .. package.path\n" +
@@ -130,7 +130,7 @@ internal class EnvoyListenersFactory {
 
     private fun createIngressFilter(group: Group): Filter {
         return Filter.newBuilder()
-                .setName("type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager")
+                .setName("envoy.http_connection_manager")
                 .setTypedConfig(ProtobufAny.pack(
                         HttpConnectionManager.newBuilder()
                                 .setStatPrefix("ingress_http")
@@ -169,7 +169,7 @@ internal class EnvoyListenersFactory {
 
     private val defaultEnvoyRouterHttpFilter = envoyRouterHttpFilter()
 
-    private fun envoyRouterHttpFilter() = HttpFilter.newBuilder().setName("type.googleapis.com/envoy.config.filter.http.router.v2.Router").build()
+    private fun envoyRouterHttpFilter() = HttpFilter.newBuilder().setName("envoy.router").build()
 
     private val defaultAccessLog = accessLog()
 
@@ -177,7 +177,7 @@ internal class EnvoyListenersFactory {
 
     private fun accessLog(): AccessLog? {
         return AccessLog.newBuilder()
-                .setName("type.googleapis.com/envoy.config.accesslog.v2.FileAccessLog")
+                .setName("envoy.file_access_log")
                 .setTypedConfig(
                         ProtobufAny.pack(
                                 FileAccessLog.newBuilder()
