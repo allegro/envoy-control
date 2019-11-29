@@ -35,6 +35,7 @@ internal class EnvoySnapshotFactory(
     private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
     private val egressRoutesFactory: EnvoyEgressRoutesFactory,
     private val clustersFactory: EnvoyClustersFactory,
+    private val listenersFactory: EnvoyListenersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
     private val serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags),
@@ -179,6 +180,8 @@ internal class EnvoySnapshotFactory(
 
         val endpoints = getServicesEndpointsForGroup(group, globalSnapshot)
 
+        val listeners = listenersFactory.createListeners(group)
+
         val version = snapshotsVersions.version(group, clusters, endpoints)
 
         return createSnapshot(
@@ -186,6 +189,8 @@ internal class EnvoySnapshotFactory(
             clustersVersion = version.clusters,
             endpoints = endpoints,
             endpointsVersions = version.endpoints,
+            listeners = listeners,
+            // for now we assume that listeners don't change during lifecycle
             routes = routes,
             // we assume, that routes don't change during Envoy lifecycle unless clusters change
             routesVersion = RoutesVersion(version.clusters.value)
@@ -310,15 +315,17 @@ internal class EnvoySnapshotFactory(
         endpoints: List<ClusterLoadAssignment> = emptyList(),
         endpointsVersions: EndpointsVersion = EndpointsVersion.EMPTY_VERSION,
         routes: List<RouteConfiguration> = emptyList(),
-        routesVersion: RoutesVersion = RoutesVersion(properties.routes.initialVersion)
+        routesVersion: RoutesVersion = RoutesVersion(properties.routes.initialVersion),
+        listeners: List<Listener> = emptyList(),
+        listenersVersion: ListenersVersion = ListenersVersion.EMPTY_VERSION
     ): Snapshot =
         Snapshot.create(
             clusters,
             clustersVersion.value,
             endpoints,
             endpointsVersions.value,
-            emptyList<Listener>(),
-            ListenersVersion.EMPTY_VERSION.value,
+            listeners,
+            listenersVersion.value,
             routes,
             routesVersion.value,
             emptyList<Secret>(),

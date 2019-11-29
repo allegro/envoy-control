@@ -20,11 +20,20 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         val serviceName = serviceName(metadata)
         val proxySettings = proxySettings(metadata)
 
+        val ingressHost = node.metadata.fieldsMap["ingress_host"]?.stringValue ?: "0.0.0.0"
+        val ingressPort= node.metadata.fieldsMap["ingress_port"]?.numberValue?.toInt() ?: -1
+        val egressHost= node.metadata.fieldsMap["egress_host"]?.stringValue ?: "0.0.0.0"
+        val egressPort= node.metadata.fieldsMap["egress_port"]?.numberValue?.toInt() ?: -1
+        val useRemoteAddress= node.metadata.fieldsMap["use_remote_address"]?.boolValue ?: true
+        val accessLogEnabled= node.metadata.fieldsMap["access_log_enabled"]?.boolValue ?: false
+        val accessLogPath= node.metadata.fieldsMap["access_log_path"]?.stringValue ?: "/dev/stdout"
+        val luaScriptDir= node.metadata.fieldsMap["lua_script_dir"]?.stringValue ?: "envoy/lua"
+
         return when {
             hasAllServicesDependencies(metadata) ->
-                AllServicesGroup(ads, serviceName(metadata), proxySettings(metadata))
+                AllServicesGroup(ads, serviceName(metadata), proxySettings(metadata), ingressHost, ingressPort, egressHost, egressPort, useRemoteAddress, accessLogEnabled, accessLogPath, luaScriptDir)
             else ->
-                ServicesGroup(ads, serviceName, proxySettings)
+                ServicesGroup(ads, serviceName, proxySettings, ingressHost, ingressPort, egressHost, egressPort, useRemoteAddress, accessLogEnabled, accessLogPath, luaScriptDir)
         }
     }
 

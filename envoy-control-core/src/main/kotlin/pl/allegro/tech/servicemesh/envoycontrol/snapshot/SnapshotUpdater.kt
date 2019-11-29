@@ -29,6 +29,7 @@ class SnapshotUpdater(
         ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
         egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
         clustersFactory = EnvoyClustersFactory(properties),
+        listenersFactory = EnvoyListenersFactory(),
         snapshotsVersions = versions,
         properties = properties,
         meterRegistry = meterRegistry
