@@ -27,17 +27,17 @@ internal class EnvoyListenersFactory {
                 .addFilterChains(createIngressFilterChain(group))
                 .build()
 
-//        val egressListener = Listener.newBuilder()
-//                .setName("egress_listener")
-//                .setAddress(
-//                        Address.newBuilder().setSocketAddress(
-//                                SocketAddress.newBuilder().setPortValue(group.egressPort).setAddress(group.egressHost)
-//                        )
-//                )
-//                .addFilterChains(createEgressFilterChain(group))
-//                .build()
+        val egressListener = Listener.newBuilder()
+                .setName("egress_listener")
+                .setAddress(
+                        Address.newBuilder().setSocketAddress(
+                                SocketAddress.newBuilder().setPortValue(group.egressPort).setAddress(group.egressHost)
+                        )
+                )
+                .addFilterChains(createEgressFilterChain(group))
+                .build()
 
-        return listOf(ingressListener)
+        return listOf(ingressListener, egressListener)
     }
 
     private fun createIngressFilterChain(group: Group): FilterChain {
