@@ -27,17 +27,17 @@ internal class EnvoyListenersFactory {
                 .addFilterChains(createIngressFilterChain(group))
                 .build()
 
-        val egressListener = Listener.newBuilder()
-                .setName("egress_listener")
-                .setAddress(
-                        Address.newBuilder().setSocketAddress(
-                                SocketAddress.newBuilder().setPortValue(group.egressPort).setAddress(group.egressHost)
-                        )
-                )
-                .addFilterChains(createEgressFilterChain(group))
-                .build()
+//        val egressListener = Listener.newBuilder()
+//                .setName("egress_listener")
+//                .setAddress(
+//                        Address.newBuilder().setSocketAddress(
+//                                SocketAddress.newBuilder().setPortValue(group.egressPort).setAddress(group.egressHost)
+//                        )
+//                )
+//                .addFilterChains(createEgressFilterChain(group))
+//                .build()
 
-        return listOf(ingressListener, egressListener)
+        return listOf(ingressListener)
     }
 
     private fun createIngressFilterChain(group: Group): FilterChain {
@@ -53,18 +53,22 @@ internal class EnvoyListenersFactory {
     }
 
     private fun createEgressFilter(group: Group): Filter {
+        val egressFilter = HttpConnectionManager.newBuilder()
+                .setStatPrefix("egress_http")
+                .setRds(defaultEgressRds)
+                .addHttpFilters(luaHttpFilter(group))
+                .addHttpFilters(defaultHeaderToMetadataFilter)
+                .addHttpFilters(defaultEnvoyRouterHttpFilter)
+                .setHttpProtocolOptions(egressHttp1ProtocolOptions())
+
+        if (group.accessLogEnabled) {
+            egressFilter.addAccessLog(accessLog(group))
+        }
+
         return Filter.newBuilder()
                 .setName("envoy.http_connection_manager")
                 .setTypedConfig(ProtobufAny.pack(
-                        HttpConnectionManager.newBuilder()
-                                .setStatPrefix("egress_http")
-                                .setRds(defaultEgressRds)
-                                .addHttpFilters(luaHttpFilter(group))
-                                .addHttpFilters(defaultHeaderToMetadataFilter)
-                                .addHttpFilters(defaultEnvoyRouterHttpFilter)
-                                .setHttpProtocolOptions(egressHttp1ProtocolOptions())
-                                .addAccessLog(if (group.accessLogEnabled) defaultAccessLog else emptyAccessLog)
-                                .build()
+                        egressFilter.build()
                 ))
                 .build()
     }
@@ -129,20 +133,24 @@ internal class EnvoyListenersFactory {
     }
 
     private fun createIngressFilter(group: Group): Filter {
+        val ingressHttp = HttpConnectionManager.newBuilder()
+                .setStatPrefix("ingress_http")
+                .setUseRemoteAddress(boolValue(group.useRemoteAddress))
+                .setXffNumTrustedHops(1)
+                .setDelayedCloseTimeout(durationInSeconds(0))
+                .setCodecType(HttpConnectionManager.CodecType.AUTO)
+                .setRds(defaultIngressRds)
+                .addHttpFilters(defaultEnvoyRouterHttpFilter)
+                .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group))
+
+        if (group.accessLogEnabled) {
+            ingressHttp.addAccessLog(accessLog(group))
+        }
+
         return Filter.newBuilder()
                 .setName("envoy.http_connection_manager")
                 .setTypedConfig(ProtobufAny.pack(
-                        HttpConnectionManager.newBuilder()
-                                .setStatPrefix("ingress_http")
-                                .setUseRemoteAddress(boolValue(group.useRemoteAddress))
-                                .setXffNumTrustedHops(1)
-                                .setDelayedCloseTimeout(durationInSeconds(0))
-                                .addAccessLog(if (group.accessLogEnabled) defaultAccessLog else emptyAccessLog)
-                                .setCodecType(HttpConnectionManager.CodecType.AUTO)
-                                .setRds(defaultIngressRds)
-                                .addHttpFilters(defaultEnvoyRouterHttpFilter)
-                                .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group))
-                                .build()
+                        ingressHttp.build()
                 ))
                 .build()
     }
@@ -171,16 +179,13 @@ internal class EnvoyListenersFactory {
 
     private fun envoyRouterHttpFilter() = HttpFilter.newBuilder().setName("envoy.router").build()
 
-    private val defaultAccessLog = accessLog()
-
-    private val emptyAccessLog = AccessLog.getDefaultInstance()
-
-    private fun accessLog(): AccessLog? {
+    private fun accessLog(group: Group): AccessLog? {
         return AccessLog.newBuilder()
                 .setName("envoy.file_access_log")
                 .setTypedConfig(
                         ProtobufAny.pack(
                                 FileAccessLog.newBuilder()
+                                        .setPath(group.accessLogPath)
                                         .setJsonFormat(
                                                 Struct.newBuilder()
                                                         .putFields("time", stringValue("%START_TIME(%FT%T.%3fZ)%"))

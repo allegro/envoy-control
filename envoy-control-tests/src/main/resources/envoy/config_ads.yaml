@@ -15,9 +15,9 @@ node:
   id: test-id
   metadata:
     ads: true
-    ingress_host: LOCAL_SERVICE_IP
+    ingress_host: "0.0.0.0"
     ingress_port: 5001
-    egress_host: LOCAL_SERVICE_IP
+    egress_host: "0.0.0.0"
     egress_port: 5000
     use_remote_address: true
     access_log_enabled: false
