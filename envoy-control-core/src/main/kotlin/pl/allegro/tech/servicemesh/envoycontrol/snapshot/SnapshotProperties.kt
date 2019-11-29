@@ -41,6 +41,7 @@ class LoadBalancingProperties {
     var regularMetadataKey = "lb_regular"
     var weights = LoadBalancingWeightsProperties()
     var policy = Cluster.LbPolicy.LEAST_REQUEST
+    var useKeysSubsetFallbackPolicy = true
 }
 
 class CanaryProperties {

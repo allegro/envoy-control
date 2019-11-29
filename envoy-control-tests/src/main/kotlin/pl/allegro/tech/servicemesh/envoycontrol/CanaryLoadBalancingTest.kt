@@ -123,13 +123,15 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         assertThat(stats.canaryHits).isGreaterThan(0)
     }
 
+    protected open fun callStats() = CallStats(listOf(canaryContainer, regularContainer))
+
     fun callEchoServiceRepeatedly(
         minRepeat: Int,
         maxRepeat: Int,
         repeatUntil: (ResponseWithBody) -> Boolean = { false },
         headers: Map<String, String> = mapOf()
     ): CallStats {
-        val stats = CallStats(listOf(canaryContainer, regularContainer))
+        val stats = callStats()
         callServiceRepeatedly(
             service = "echo",
             stats = stats,

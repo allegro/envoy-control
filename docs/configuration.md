@@ -65,6 +65,7 @@ Property                                                                        
 **envoy-control.envoy.snapshot.load-balancing.canary.metadata-key**                         | metadata that will be set for canary EDS endpoints - key (must match Envoy static `header_to_metadata` filter config, see [docs](../features/load_balancing))                             | canary
 **envoy-control.envoy.snapshot.load-balancing.canary.header-value**                         | only when *canary header* is set to this value request will be routed to canary instances (*canary header* name is set in Envoy static config, see [docs](../features/load_balancing))    | 1
 **envoy-control.envoy.snapshot.load-balancing.policy**                                      | load balancing policy used for clusters. [Accepted values](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/cds.proto.html#enum-cluster-lbpolicy)                                | LEAST_REQUEST
+**envoy-control.envoy.snapshot.load-balancing.use-keys-subset-fallback-policy**             | KEYS_SUBSET fallback policy is used by default when canary and service-tags are enabled. It is not supported in Envoy <= 1.12.x. Set to false for compatibility with Envoy 1.12.x         | true
 
 ## Routing
 Property                                                                                    | Description                                                                                                                                                                               | Default value
