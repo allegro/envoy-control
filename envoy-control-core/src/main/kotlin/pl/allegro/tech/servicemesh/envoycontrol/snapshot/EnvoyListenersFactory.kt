@@ -1,8 +1,15 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import com.google.protobuf.*
+import com.google.protobuf.BoolValue
+import com.google.protobuf.Duration
+import com.google.protobuf.Struct
+import com.google.protobuf.Value
 import io.envoyproxy.envoy.api.v2.Listener
-import io.envoyproxy.envoy.api.v2.core.*
+import io.envoyproxy.envoy.api.v2.core.Address
+import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
+import io.envoyproxy.envoy.api.v2.core.ConfigSource
+import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
+import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.listener.Filter
 import io.envoyproxy.envoy.api.v2.listener.FilterChain
 import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
@@ -189,20 +196,24 @@ internal class EnvoyListenersFactory {
                                         .setJsonFormat(
                                                 Struct.newBuilder()
                                                         .putFields("time", stringValue("%START_TIME(%FT%T.%3fZ)%"))
-                                                        .putFields("message", stringValue("%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% %DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"))
+                                                        .putFields("message", stringValue("%PROTOCOL% %REQ(:METHOD)% " +
+                                                                "%REQ(:authority)% %REQ(:PATH)% " +
+                                                                "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"))
                                                         .putFields("level", stringValue("TRACE"))
                                                         .putFields("logger", stringValue("envoy.AccessLog"))
                                                         .putFields("access_log_type", stringValue("ingress"))
                                                         .putFields("request_protocol", stringValue("%PROTOCOL%"))
                                                         .putFields("request_method", stringValue("%REQ(:METHOD)%"))
-                                                        .putFields("request_authority", stringValue("%REQ(:authority)%"))
+                                                        .putFields("request_authority",
+                                                                stringValue("%REQ(:authority)%"))
                                                         .putFields("request_path", stringValue("%REQ(:PATH)%"))
                                                         .putFields("response_code", stringValue("%RESPONSE_CODE%"))
                                                         .putFields("response_flags", stringValue("%RESPONSE_FLAGS%"))
                                                         .putFields("bytes_received", stringValue("%BYTES_RECEIVED%"))
                                                         .putFields("bytes_sent", stringValue("%BYTES_SENT%"))
                                                         .putFields("duration_ms", stringValue("%DURATION%"))
-                                                        .putFields("downstream_remote_address", stringValue("%DOWNSTREAM_REMOTE_ADDRESS%"))
+                                                        .putFields("downstream_remote_address",
+                                                                stringValue("%DOWNSTREAM_REMOTE_ADDRESS%"))
                                                         .putFields("upstream_host", stringValue("%UPSTREAM_HOST%"))
                                                         .putFields("user_agent", stringValue("%REQ(USER-AGENT)%"))
                                                         .build()
