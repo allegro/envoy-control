@@ -22,7 +22,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import com.google.protobuf.Any as ProtobufAny
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config as HeaderToMetadataConfig
 
+@Suppress("MagicNumber")
 internal class EnvoyListenersFactory {
+
+    private val egressRdsInitialFetchTimeout: Long = 20
+    private val ingressRdsInitialFetchTimeout: Long = 30
+
     fun createListeners(group: Group): List<Listener> {
         val ingressListener = Listener.newBuilder()
                 .setName("ingress_listener")
@@ -133,7 +138,7 @@ internal class EnvoyListenersFactory {
                 .setConfigSource(
                         ConfigSource.newBuilder()
                                 .setAds(AggregatedConfigSource.getDefaultInstance())
-                                .setInitialFetchTimeout(durationInSeconds(20))
+                                .setInitialFetchTimeout(durationInSeconds(egressRdsInitialFetchTimeout))
                                 .build()
                 )
                 .build()
@@ -176,7 +181,7 @@ internal class EnvoyListenersFactory {
                 .setRouteConfigName("ingress_secured_routes")
                 .setConfigSource(ConfigSource.newBuilder()
                         .setAds(AggregatedConfigSource.getDefaultInstance())
-                        .setInitialFetchTimeout(durationInSeconds(30))
+                        .setInitialFetchTimeout(durationInSeconds(ingressRdsInitialFetchTimeout))
                         .build()
                 )
                 .build()

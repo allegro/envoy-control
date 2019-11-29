@@ -31,9 +31,33 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
 
         return when {
             hasAllServicesDependencies(metadata) ->
-                AllServicesGroup(ads, serviceName(metadata), proxySettings(metadata), ingressHost, ingressPort, egressHost, egressPort, useRemoteAddress, accessLogEnabled, accessLogPath, luaScriptDir)
+                AllServicesGroup(
+                        ads,
+                        serviceName(metadata),
+                        proxySettings(metadata),
+                        ingressHost,
+                        ingressPort,
+                        egressHost,
+                        egressPort,
+                        useRemoteAddress,
+                        accessLogEnabled,
+                        accessLogPath,
+                        luaScriptDir
+                )
             else ->
-                ServicesGroup(ads, serviceName, proxySettings, ingressHost, ingressPort, egressHost, egressPort, useRemoteAddress, accessLogEnabled, accessLogPath, luaScriptDir)
+                ServicesGroup(
+                        ads,
+                        serviceName(metadata),
+                        proxySettings(metadata),
+                        ingressHost,
+                        ingressPort,
+                        egressHost,
+                        egressPort,
+                        useRemoteAddress,
+                        accessLogEnabled,
+                        accessLogPath,
+                        luaScriptDir
+                )
         }
     }
 
