@@ -50,10 +50,16 @@ class SnapshotUpdater(
                         if (group.ads) {
                             if (::lastAdsSnapshot.isInitialized) {
                                 updateSnapshotForGroup(group, lastAdsSnapshot)
+                            } else {
+                                logger.error("Somehow an envoy connected before generating the first snapshot," +
+                                        "this indicates a problem with initial state loading HC")
                             }
                         } else {
                             if (::lastXdsSnapshot.isInitialized) {
                                 updateSnapshotForGroup(group, lastXdsSnapshot)
+                            } else {
+                                logger.error("Somehow an envoy connected before generating the first snapshot," +
+                                        "this indicates a problem with initial state loading HC")
                             }
                         }
                     }
