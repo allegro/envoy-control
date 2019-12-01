@@ -24,11 +24,7 @@ import com.google.protobuf.Any as ProtobufAny
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config as HeaderToMetadataConfig
 
 @Suppress("MagicNumber")
-internal class EnvoyListenersFactory(
-        ingressHttpFilters: List<HttpFilter> = listOf(),
-        egressHttpFilters: List<HttpFilter> = listOf()
-) {
-
+internal class EnvoyListenersFactory {
     private val egressRdsInitialFetchTimeout: Long = 20
     private val ingressRdsInitialFetchTimeout: Long = 30
 
@@ -113,7 +109,21 @@ internal class EnvoyListenersFactory(
                                                                 .build()
                                                 )
                                                 .build()
-                                ).build()
+                                )
+                                .addRequestRules(
+                                        HeaderToMetadataConfig.Rule.newBuilder()
+                                                .setHeader("x-service-tag")
+                                                .setRemove(false)
+                                                .setOnHeaderPresent(
+                                                        HeaderToMetadataConfig.KeyValuePair.newBuilder()
+                                                                .setKey("tag")
+                                                                .setMetadataNamespace("envoy.lb")
+                                                                .setType(HeaderToMetadataConfig.ValueType.STRING)
+                                                                .build()
+                                                )
+                                                .build()
+                                )
+                                .build()
                 ))
                 .build()
     }
