@@ -7,14 +7,15 @@ import com.google.protobuf.Value
 import io.envoyproxy.envoy.api.v2.Listener
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
+import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
 import io.envoyproxy.envoy.api.v2.core.ConfigSource
+import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.listener.Filter
 import io.envoyproxy.envoy.api.v2.listener.FilterChain
 import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
 import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
-import io.envoyproxy.envoy.config.filter.http.lua.v2.Lua
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
@@ -23,7 +24,10 @@ import com.google.protobuf.Any as ProtobufAny
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config as HeaderToMetadataConfig
 
 @Suppress("MagicNumber")
-internal class EnvoyListenersFactory {
+internal class EnvoyListenersFactory(
+        ingressHttpFilters: List<HttpFilter> = listOf(),
+        egressHttpFilters: List<HttpFilter> = listOf()
+) {
 
     private val egressRdsInitialFetchTimeout: Long = 20
     private val ingressRdsInitialFetchTimeout: Long = 30
@@ -67,8 +71,7 @@ internal class EnvoyListenersFactory {
     private fun createEgressFilter(group: Group): Filter {
         val egressFilter = HttpConnectionManager.newBuilder()
                 .setStatPrefix("egress_http")
-                .setRds(defaultEgressRds)
-                .addHttpFilters(luaHttpFilter(group))
+                .setRds(egressRds(group.ads))
                 .addHttpFilters(defaultHeaderToMetadataFilter)
                 .addHttpFilters(defaultEnvoyRouterHttpFilter)
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
@@ -115,34 +118,32 @@ internal class EnvoyListenersFactory {
                 .build()
     }
 
-    private fun luaHttpFilter(group: Group): HttpFilter? {
-        return HttpFilter.newBuilder()
-                .setName("envoy.lua")
-                .setTypedConfig(ProtobufAny.pack(
-                        Lua.newBuilder()
-                                .setInlineCode("package.path = \"${group.luaScriptDir}/?.lua;\" .. package.path\n" +
-                                        "local handler = require(\"handler\")\n" +
-                                        "function envoy_on_request(request_handle)\n" +
-                                        "  handler:envoy_on_request(request_handle)\n" +
-                                        "end")
-                                .build()
-                ))
-                .build()
-    }
+    private fun egressRds(ads: Boolean): Rds {
+        val configSource = ConfigSource.newBuilder()
+                .setInitialFetchTimeout(durationInSeconds(egressRdsInitialFetchTimeout))
 
-    private val defaultEgressRds = egressRds()
+        if (ads) {
+            configSource.setAds(AggregatedConfigSource.getDefaultInstance())
+        } else {
+            configSource.setApiConfigSource(defaultApiConfigSource)
+        }
 
-    private fun egressRds(): Rds? {
         return Rds.newBuilder()
                 .setRouteConfigName("default_routes")
                 .setConfigSource(
-                        ConfigSource.newBuilder()
-                                .setAds(AggregatedConfigSource.getDefaultInstance())
-                                .setInitialFetchTimeout(durationInSeconds(egressRdsInitialFetchTimeout))
-                                .build()
+                        configSource.build()
                 )
                 .build()
     }
+
+    val defaultApiConfigSource = ApiConfigSource.newBuilder()
+            .setApiType(ApiConfigSource.ApiType.GRPC)
+            .addGrpcServices(GrpcService.newBuilder()
+                    .setEnvoyGrpc(
+                            GrpcService.EnvoyGrpc.newBuilder()
+                                    .setClusterName("envoy-control-xds")
+                    )
+            ).build()
 
     private fun createIngressFilter(group: Group): Filter {
         val ingressHttp = HttpConnectionManager.newBuilder()
@@ -151,7 +152,7 @@ internal class EnvoyListenersFactory {
                 .setXffNumTrustedHops(1)
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
-                .setRds(defaultIngressRds)
+                .setRds(ingressRds(group.ads))
                 .addHttpFilters(defaultEnvoyRouterHttpFilter)
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group))
 
@@ -174,16 +175,19 @@ internal class EnvoyListenersFactory {
                 .build()
     }
 
-    private val defaultIngressRds = ingressRds()
+    private fun ingressRds(ads: Boolean): Rds {
+        val configSource = ConfigSource.newBuilder()
+                .setInitialFetchTimeout(durationInSeconds(ingressRdsInitialFetchTimeout))
 
-    private fun ingressRds(): Rds? {
+        if (ads) {
+            configSource.setAds(AggregatedConfigSource.getDefaultInstance())
+        } else {
+            configSource.setApiConfigSource(defaultApiConfigSource)
+        }
+
         return Rds.newBuilder()
                 .setRouteConfigName("ingress_secured_routes")
-                .setConfigSource(ConfigSource.newBuilder()
-                        .setAds(AggregatedConfigSource.getDefaultInstance())
-                        .setInitialFetchTimeout(durationInSeconds(ingressRdsInitialFetchTimeout))
-                        .build()
-                )
+                .setConfigSource(configSource.build())
                 .build()
     }
 
@@ -191,7 +195,7 @@ internal class EnvoyListenersFactory {
 
     private fun envoyRouterHttpFilter() = HttpFilter.newBuilder().setName("envoy.router").build()
 
-    private fun accessLog(group: Group): AccessLog? {
+    private fun accessLog(group: Group): AccessLog {
         return AccessLog.newBuilder()
                 .setName("envoy.file_access_log")
                 .setTypedConfig(
