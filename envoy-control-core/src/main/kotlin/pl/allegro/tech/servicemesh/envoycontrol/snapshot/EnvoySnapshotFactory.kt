@@ -38,7 +38,7 @@ internal class EnvoySnapshotFactory(
     private val listenersFactory: EnvoyListenersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
-    private val serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags),
+    private val serviceTagFilter: ServiceTagFilter,
     private val defaultDependencySettings: DependencySettings =
         DependencySettings(
             handleInternalRedirect = properties.egress.handleInternalRedirect,

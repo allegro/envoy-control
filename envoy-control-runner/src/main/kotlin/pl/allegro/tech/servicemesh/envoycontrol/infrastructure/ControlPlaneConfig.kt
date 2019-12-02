@@ -29,6 +29,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMe
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServiceInstancesFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagFilter
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalServiceChanges
 import reactor.core.scheduler.Schedulers
 import java.net.URI
@@ -53,9 +54,10 @@ class ControlPlaneConfig {
         properties: EnvoyControlProperties,
         meterRegistry: MeterRegistry,
         globalServiceChanges: GlobalServiceChanges,
-        metrics: EnvoyControlMetrics
+        metrics: EnvoyControlMetrics,
+        serviceTagFilter: ServiceTagFilter
     ): ControlPlane =
-        ControlPlane.builder(properties, meterRegistry)
+        ControlPlane.builder(properties, meterRegistry, serviceTagFilter)
             .withMetrics(metrics)
             .build(globalServiceChanges.combined())
 
@@ -120,6 +122,13 @@ class ControlPlaneConfig {
         serviceChanges: Array<ServiceChanges>
     ): GlobalServiceChanges =
         GlobalServiceChanges(serviceChanges)
+
+    @Bean
+    fun serviceTagFilter(
+        properties: EnvoyControlProperties
+    ): ServiceTagFilter {
+        return ServiceTagFilter(properties.envoy.snapshot.routing.serviceTags)
+    }
 
     fun localDatacenter(properties: ConsulProperties) =
         ConsulClient(properties.host, properties.port).agentSelf.value?.config?.datacenter ?: "local"

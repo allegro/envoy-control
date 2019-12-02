@@ -21,6 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.CompositeDiscov
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagFilter
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
@@ -43,8 +44,11 @@ class ControlPlane private constructor(
     private var servicesDisposable: Disposable? = null
 
     companion object {
-        fun builder(properties: EnvoyControlProperties, meterRegistry: MeterRegistry) =
-            ControlPlaneBuilder(properties, meterRegistry)
+        fun builder(
+            properties: EnvoyControlProperties,
+            meterRegistry: MeterRegistry,
+            serviceTagFilter: ServiceTagFilter
+        ) = ControlPlaneBuilder(properties, meterRegistry, serviceTagFilter)
     }
 
     fun start() {
@@ -62,7 +66,8 @@ class ControlPlane private constructor(
 
     class ControlPlaneBuilder(
         val properties: EnvoyControlProperties,
-        val meterRegistry: MeterRegistry
+        val meterRegistry: MeterRegistry,
+        val serviceTagFilter: ServiceTagFilter
     ) {
         var grpcServerExecutor: Executor? = null
         var nioEventLoopExecutor: Executor? = null
@@ -150,7 +155,8 @@ class ControlPlane private constructor(
                     properties.envoy.snapshot,
                     Schedulers.fromExecutor(updateSnapshotExecutor!!),
                     groupChangeWatcher.onGroupAdded(),
-                    meterRegistry
+                    meterRegistry,
+                    serviceTagFilter
                 ),
                 changes
             )

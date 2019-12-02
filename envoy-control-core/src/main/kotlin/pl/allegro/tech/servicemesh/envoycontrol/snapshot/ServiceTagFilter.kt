@@ -1,6 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-class ServiceTagFilter(properties: ServiceTagsProperties = ServiceTagsProperties()) {
+import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config
+
+open class ServiceTagFilter(properties: ServiceTagsProperties = ServiceTagsProperties()) {
 
     private val tagsBlacklist: List<Regex> = properties.routingExcludedTags.map { Regex(it) }
     private val twoTagsCombinationsByService: Map<String, List<Pair<Regex, Regex>>>
@@ -37,6 +39,20 @@ class ServiceTagFilter(properties: ServiceTagsProperties = ServiceTagsProperties
                     .flatMap { it.getAllPairs() }
             }
             .filterValues { it.isNotEmpty() }
+    }
+
+    fun getFilters(): List<Config.Rule> {
+        return listOf(Config.Rule.newBuilder()
+                .setHeader("x-service-tag")
+                .setRemove(false)
+                .setOnHeaderPresent(
+                        Config.KeyValuePair.newBuilder()
+                                .setKey("tag")
+                                .setMetadataNamespace("envoy.lb")
+                                .setType(Config.ValueType.STRING)
+                                .build()
+                )
+                .build())
     }
 
     /**

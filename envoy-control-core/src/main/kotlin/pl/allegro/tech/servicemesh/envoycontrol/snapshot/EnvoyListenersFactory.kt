@@ -24,7 +24,7 @@ import com.google.protobuf.Any as ProtobufAny
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config as HeaderToMetadataConfig
 
 @Suppress("MagicNumber")
-internal class EnvoyListenersFactory {
+internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
     private val egressRdsInitialFetchTimeout: Long = 20
     private val ingressRdsInitialFetchTimeout: Long = 30
 
@@ -90,42 +90,39 @@ internal class EnvoyListenersFactory {
                 .build()
     }
 
+    private val allServiceTagFilters = serviceTagFilter.getFilters()
+    private val defaultHeaderToMetadataConfig = headerToMetadataConfig()
     private val defaultHeaderToMetadataFilter = headerToMetadataHttpFilter()
 
     private fun headerToMetadataHttpFilter(): HttpFilter? {
         return HttpFilter.newBuilder()
                 .setName("envoy.filters.http.header_to_metadata")
                 .setTypedConfig(ProtobufAny.pack(
-                        HeaderToMetadataConfig.newBuilder()
-                                .addRequestRules(
-                                        HeaderToMetadataConfig.Rule.newBuilder()
-                                                .setHeader("x-canary")
-                                                .setRemove(false)
-                                                .setOnHeaderPresent(
-                                                        HeaderToMetadataConfig.KeyValuePair.newBuilder()
-                                                                .setKey("canary")
-                                                                .setMetadataNamespace("envoy.lb")
-                                                                .setType(HeaderToMetadataConfig.ValueType.STRING)
-                                                                .build()
-                                                )
-                                                .build()
-                                )
-                                .addRequestRules(
-                                        HeaderToMetadataConfig.Rule.newBuilder()
-                                                .setHeader("x-service-tag")
-                                                .setRemove(false)
-                                                .setOnHeaderPresent(
-                                                        HeaderToMetadataConfig.KeyValuePair.newBuilder()
-                                                                .setKey("tag")
-                                                                .setMetadataNamespace("envoy.lb")
-                                                                .setType(HeaderToMetadataConfig.ValueType.STRING)
-                                                                .build()
-                                                )
+                        defaultHeaderToMetadataConfig.build()
+                ))
+                .build()
+    }
+
+    private fun headerToMetadataConfig(): HeaderToMetadataConfig.Builder {
+        val headerToMetadataConfig = HeaderToMetadataConfig.newBuilder()
+                .addRequestRules(
+                        HeaderToMetadataConfig.Rule.newBuilder()
+                                .setHeader("x-canary")
+                                .setRemove(false)
+                                .setOnHeaderPresent(
+                                        HeaderToMetadataConfig.KeyValuePair.newBuilder()
+                                                .setKey("canary")
+                                                .setMetadataNamespace("envoy.lb")
+                                                .setType(HeaderToMetadataConfig.ValueType.STRING)
                                                 .build()
                                 )
                                 .build()
-                ))
-                .build()
+                )
+
+        allServiceTagFilters.forEach {
+            headerToMetadataConfig.addRequestRules(it)
+        }
+        return headerToMetadataConfig
     }
 
     private fun egressRds(ads: Boolean): Rds {
