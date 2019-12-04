@@ -50,11 +50,12 @@ class SnapshotUpdaterTest {
         val uninitializedSnapshot = null
 
         // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
-        cache.setSnapshot(AllServicesGroup(ads = false), uninitializedSnapshot)
-        cache.setSnapshot(groupWithProxy, uninitializedSnapshot)
-        cache.setSnapshot(groupWithServiceName, uninitializedSnapshot)
-        cache.setSnapshot(groupOf(services = serviceDependencies("existingService1")), uninitializedSnapshot)
-        cache.setSnapshot(groupOf(services = serviceDependencies("existingService2")), uninitializedSnapshot)
+        val groups = listOf(AllServicesGroup(ads = false), groupWithProxy, groupWithServiceName,
+                groupOf(services = serviceDependencies("existingService1")),
+                groupOf(services = serviceDependencies("existingService2")))
+        groups.forEach {
+            cache.setSnapshot(it, uninitializedSnapshot)
+        }
 
         cache.setSnapshot(groupOf(
             services = serviceDependencies("existingService1", "existingService2"),
@@ -69,7 +70,7 @@ class SnapshotUpdaterTest {
                 incomingPermissions.enabled = true
             },
             scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
+            onGroupAdded = Flux.just(groups),
             meterRegistry = simpleMeterRegistry
         )
 
@@ -145,19 +146,18 @@ class SnapshotUpdaterTest {
         // given
         val servicesGroup = servicesGroupWithAnError("example-service")
         val cache = newCache()
+        val globalSnapshot = Snapshot.create(listOf(), listOf(), listOf(), listOf(), listOf(), "empty")
         cache.setSnapshot(servicesGroup, null)
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties(),
             scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
+            onGroupAdded = Flux.just(),
             meterRegistry = simpleMeterRegistry
         )
 
         // when
-        updater.services(
-            Flux.just(emptyList())
-        ).blockFirst()
+        updater.updateSnapshotForGroup(servicesGroup, globalSnapshot)
 
         // then
         val snapshot = cache.getSnapshot(servicesGroup)
@@ -181,7 +181,7 @@ class SnapshotUpdaterTest {
     }
 
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
-        this.services(
+        this.start(
             Flux.just(
                 listOf(
                     LocalityAwareServicesState(
