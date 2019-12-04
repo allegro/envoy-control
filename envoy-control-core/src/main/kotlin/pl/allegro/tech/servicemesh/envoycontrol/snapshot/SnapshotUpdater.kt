@@ -37,71 +37,61 @@ class SnapshotUpdater(
         serviceTagFilter = serviceTagFilter
     )
 
-    fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<LocalityAwareServicesState>> {
-        return Flux.combineLatest(
+    fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<GResult> {
+        return Flux.merge(
             groups(),
-            services(changes),
-            BiFunction<Any, List<LocalityAwareServicesState>, List<LocalityAwareServicesState>> { _, states -> states }
-        )
+            services(changes)
+        ).doOnNext { result ->
+            if (result.action == Action.ALL_GROUPS) {
+                cache.groups().forEach { group ->
+                    updateSnapshotForGroup(group, if (group.ads) lastAdsSnapshot else lastXdsSnapshot)
+                }
+            } else if (result.action == Action.SELECTED_GROUPS) {
+                result.groups.forEach { group ->
+                    updateSnapshotForGroup(group, if (group.ads) lastAdsSnapshot else lastXdsSnapshot)
+                }
+            }
+        }
     }
 
-    fun groups(): Flux<List<Group>> {
+    fun groups(): Flux<GResult> {
         // see GroupChangeWatcher
         return onGroupAdded
                 .publishOn(scheduler)
-                .doOnNext { groups ->
-                    groups.forEach { group ->
-                        if (group.ads) {
-                            if (::lastAdsSnapshot.isInitialized) {
-                                updateSnapshotForGroup(group, lastAdsSnapshot)
-                            } else {
-                                logger.error("Somehow an envoy connected before generating the first snapshot," +
-                                        "this indicates a problem with initial state loading HC")
-                            }
-                        } else {
-                            if (::lastXdsSnapshot.isInitialized) {
-                                updateSnapshotForGroup(group, lastXdsSnapshot)
-                            } else {
-                                logger.error("Somehow an envoy connected before generating the first snapshot," +
-                                        "this indicates a problem with initial state loading HC")
-                            }
-                        }
-                    }
+                .map { groups ->
+                    GResult(action = Action.SELECTED_GROUPS, groups=groups)
                 }
                 .onErrorResume { e ->
                     meterRegistry.counter("snapshot-updater.groups.updates.errors").increment()
                     logger.error("Unable to process new group", e)
-                    Mono.justOrEmpty(listOf())
+                    Mono.justOrEmpty(GResult(action = Action.ERROR))
                 }
     }
 
-    fun services(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<LocalityAwareServicesState>> {
+    fun services(changes: Flux<List<LocalityAwareServicesState>>): Flux<GResult> {
         return changes
             .sample(properties.stateSampleDuration)
             .publishOn(scheduler)
-            .doOnNext { states ->
-                versions.retainGroups(cache.groups())
+            .map { states ->
                 updateSnapshots(states)
+                GResult(action = Action.ALL_GROUPS)
             }
             .onErrorResume { e ->
                 meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
                 logger.error("Unable to process service changes", e)
-                Mono.justOrEmpty(listOf())
+                Mono.justOrEmpty(GResult(action = Action.ALL_GROUPS))
             }
     }
 
     private fun updateSnapshots(states: List<LocalityAwareServicesState>) {
         lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
         lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
-
-        cache.groups().forEach { group ->
-            updateSnapshotForGroup(group, if (group.ads) lastAdsSnapshot else lastXdsSnapshot)
-        }
     }
 
     private fun updateSnapshotForGroup(group: Group, globalSnapshot: Snapshot) {
         try {
             val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+            versions.retainGroups(cache.groups())
             cache.setSnapshot(group, groupSnapshot)
         } catch (e: Throwable) {
             meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()
@@ -109,3 +99,9 @@ class SnapshotUpdater(
         }
     }
 }
+
+enum class Action {
+    SELECTED_GROUPS, ALL_GROUPS, ERROR
+}
+
+class GResult(val action: Any, val groups: List<Group> = listOf())

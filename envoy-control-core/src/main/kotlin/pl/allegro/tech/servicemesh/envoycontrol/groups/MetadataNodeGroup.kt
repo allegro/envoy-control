@@ -33,8 +33,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
             hasAllServicesDependencies(metadata) ->
                 AllServicesGroup(
                         ads,
-                        serviceName(metadata),
-                        proxySettings(metadata),
+                        serviceName,
+                        proxySettings,
                         ingressHost,
                         ingressPort,
                         egressHost,
@@ -47,8 +47,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
             else ->
                 ServicesGroup(
                         ads,
-                        serviceName(metadata),
-                        proxySettings(metadata),
+                        serviceName,
+                        proxySettings,
                         ingressHost,
                         ingressPort,
                         egressHost,
