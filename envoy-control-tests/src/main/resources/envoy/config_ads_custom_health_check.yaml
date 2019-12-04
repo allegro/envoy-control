@@ -19,7 +19,6 @@ node:
       incoming:
         healthCheck:
           path: "/status/custom"
-          clusterName: "local_service_health_check"
         endpoints:
           - path: "/endpoint"
             clients: ["authorizedClient"]

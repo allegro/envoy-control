@@ -194,7 +194,7 @@ class NodeMetadataTest {
         val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
 
         // expects
-        assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service")
+        assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
         assertThat(incoming.healthCheck.path).isEqualTo("/status/ping")
         assertThat(incoming.healthCheck.hasCustomHealthCheck()).isTrue()
     }
@@ -209,7 +209,7 @@ class NodeMetadataTest {
         val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
 
         // expects
-        assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service")
+        assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
         assertThat(incoming.healthCheck.path).isEqualTo("")
         assertThat(incoming.healthCheck.hasCustomHealthCheck()).isFalse()
     }
@@ -229,25 +229,6 @@ class NodeMetadataTest {
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
         assertThat(incoming.healthCheck.path).isEqualTo("/status/ping")
         assertThat(incoming.healthCheck.hasCustomHealthCheck()).isTrue()
-    }
-
-    @Test
-    fun `should reject custom healthCheck definition when only clusterName is defined`() {
-        // given
-        val proto = proxySettingsProto(
-            incomingSettings = true,
-            path = "/path",
-            healthCheckClusterName = "local_service_health_check"
-        )
-
-        // expects
-        val exception = assertThrows<NodeMetadataValidationException> {
-            proto.structValue?.fieldsMap?.get("incoming").toIncoming()
-        }
-
-        assertThat(exception.status.description)
-            .isEqualTo("HealthCheck definition is not complete: 'path' cannot be empty when 'clusterName' is defined")
-        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test

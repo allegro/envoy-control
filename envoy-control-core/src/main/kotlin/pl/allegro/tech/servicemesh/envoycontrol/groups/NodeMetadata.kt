@@ -87,17 +87,10 @@ fun Value?.toIncoming(): Incoming {
 
 fun Value?.toHealthCheck(): HealthCheck {
     val path = this?.field("path")?.stringValue
-    val clusterName = this?.field("clusterName")?.stringValue
-
-    if (clusterName != null && path == null) {
-        throw NodeMetadataValidationException(
-            "HealthCheck definition is not complete: 'path' cannot be empty when 'clusterName' is defined"
-        )
-    }
+    val clusterName = this?.field("clusterName")?.stringValue ?: "local_service_health_check"
 
     return when {
-        path != null && clusterName != null -> HealthCheck(path, clusterName)
-        path != null && clusterName == null -> HealthCheck(path)
+        path != null -> HealthCheck(path = path, clusterName = clusterName)
         else -> HealthCheck()
     }
 }
@@ -228,7 +221,7 @@ data class Role(
 
 data class HealthCheck(
     val path: String = "",
-    val clusterName: String = "local_service"
+    val clusterName: String = "local_service_health_check"
 ) {
     fun hasCustomHealthCheck() = !path.isBlank()
 }
