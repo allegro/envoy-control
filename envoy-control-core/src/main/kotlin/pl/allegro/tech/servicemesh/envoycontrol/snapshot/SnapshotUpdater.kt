@@ -43,6 +43,7 @@ class SnapshotUpdater(
                 result.groups
             }
 
+            versions.retainGroups(cache.groups())
             groups.forEach { group ->
                 if (group.ads) {
                     updateSnapshotForGroup(group, lastAdsSnapshot)
@@ -90,7 +91,6 @@ class SnapshotUpdater(
     fun updateSnapshotForGroup(group: Group, globalSnapshot: Snapshot) {
         try {
             val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, globalSnapshot)
-            versions.retainGroups(cache.groups())
             cache.setSnapshot(group, groupSnapshot)
         } catch (e: Throwable) {
             meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()

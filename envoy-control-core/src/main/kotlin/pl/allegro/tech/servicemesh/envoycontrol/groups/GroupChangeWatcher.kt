@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
-import com.google.common.collect.Sets
 import io.envoyproxy.controlplane.cache.ConfigWatcher
 import io.envoyproxy.controlplane.cache.Response
 import io.envoyproxy.controlplane.cache.SimpleCache
@@ -39,13 +38,12 @@ internal class GroupChangeWatcher(
         val groups = cache.groups()
         metrics.setCacheGroupsCount(groups.size)
         if (oldGroups != groups) {
-            val symmetricDifference = Sets.symmetricDifference(oldGroups.toSet(), groups.toSet())
-            emitNewGroupsEvent(symmetricDifference)
+            emitNewGroupsEvent(groups - oldGroups)
         }
         return watch
     }
 
-    private fun emitNewGroupsEvent(symmetricDifference: Sets.SetView<Group>) {
-        groupAddedSink?.next(symmetricDifference.toList())
+    private fun emitNewGroupsEvent(symmetricDifference: List<Group>) {
+        groupAddedSink?.next(symmetricDifference)
     }
 }
