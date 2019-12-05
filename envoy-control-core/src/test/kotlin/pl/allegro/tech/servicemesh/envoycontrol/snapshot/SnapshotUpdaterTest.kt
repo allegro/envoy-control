@@ -69,7 +69,7 @@ class SnapshotUpdaterTest {
                 incomingPermissions.enabled = true
             },
             scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
+            onGroupAdded = Flux.just(true),
             meterRegistry = simpleMeterRegistry
         )
 
@@ -117,7 +117,7 @@ class SnapshotUpdaterTest {
             cache,
             properties = SnapshotProperties(),
             scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
+            onGroupAdded = Flux.just(true),
             meterRegistry = simpleMeterRegistry
         )
 
@@ -150,12 +150,12 @@ class SnapshotUpdaterTest {
             cache,
             properties = SnapshotProperties(),
             scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
+            onGroupAdded = Flux.just(true),
             meterRegistry = simpleMeterRegistry
         )
 
         // when
-        updater.services(
+        updater.start(
             Flux.just(emptyList())
         ).blockFirst()
 
@@ -181,7 +181,7 @@ class SnapshotUpdaterTest {
     }
 
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
-        this.services(
+        this.start(
             Flux.just(
                 listOf(
                     LocalityAwareServicesState(
