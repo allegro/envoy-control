@@ -73,15 +73,26 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
     }
 }
 
-private fun Value?.toIncoming(): Incoming {
+fun Value?.toIncoming(): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     return Incoming(
         endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
+        healthCheck = this?.field("healthCheck").toHealthCheck(),
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
         timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy()
     )
+}
+
+fun Value?.toHealthCheck(): HealthCheck {
+    val path = this?.field("path")?.stringValue
+    val clusterName = this?.field("clusterName")?.stringValue ?: "local_service_health_check"
+
+    return when {
+        path != null -> HealthCheck(path = path, clusterName = clusterName)
+        else -> HealthCheck()
+    }
 }
 
 fun Value.toIncomingEndpoint(): IncomingEndpoint {
@@ -129,6 +140,7 @@ private fun Value?.toOutgoingTimeoutPolicy(properties: SnapshotProperties): Outg
 data class Incoming(
     val endpoints: List<IncomingEndpoint> = emptyList(),
     val permissionsEnabled: Boolean = false,
+    val healthCheck: HealthCheck = HealthCheck(),
     val roles: List<Role> = emptyList(),
     val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(idleTimeout = null, responseTimeout = null)
 ) {
@@ -205,6 +217,13 @@ data class Role(
         name = proto.field("name")?.stringValue,
         clients = proto.field("clients")?.list().orEmpty().map { it.stringValue }.toSet()
     )
+}
+
+data class HealthCheck(
+    val path: String = "",
+    val clusterName: String = "local_service_health_check"
+) {
+    fun hasCustomHealthCheck() = !path.isBlank()
 }
 
 data class IncomingEndpoint(
