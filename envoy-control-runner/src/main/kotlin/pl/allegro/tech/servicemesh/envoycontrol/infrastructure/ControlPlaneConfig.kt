@@ -29,7 +29,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMe
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServiceInstancesFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagFilter
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalServiceChanges
 import reactor.core.scheduler.Schedulers
 import java.net.URI
@@ -55,9 +56,9 @@ class ControlPlaneConfig {
         meterRegistry: MeterRegistry,
         globalServiceChanges: GlobalServiceChanges,
         metrics: EnvoyControlMetrics,
-        serviceTagFilter: ServiceTagFilter
+        envoyHttpFilters: EnvoyHttpFilters
     ): ControlPlane =
-        ControlPlane.builder(properties, meterRegistry, serviceTagFilter)
+        ControlPlane.builder(properties, meterRegistry, envoyHttpFilters)
             .withMetrics(metrics)
             .build(globalServiceChanges.combined())
 
@@ -124,10 +125,8 @@ class ControlPlaneConfig {
         GlobalServiceChanges(serviceChanges)
 
     @Bean
-    fun serviceTagFilter(
-        properties: EnvoyControlProperties
-    ): ServiceTagFilter {
-        return ServiceTagFilter(properties.envoy.snapshot.routing.serviceTags)
+    fun envoyHttpFilters(): EnvoyHttpFilters {
+        return EnvoyHttpFilters(EnvoyListenersFactory.defaultIngressFilters, EnvoyListenersFactory.defaultEgressFilters)
     }
 
     fun localDatacenter(properties: ConsulProperties) =

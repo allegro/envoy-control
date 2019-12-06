@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.Struct
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.envoy.api.v2.core.Node
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -18,37 +19,50 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         return createGroup(node, ads)
     }
 
-    private fun createListenersConfig(node: Node): ListenersConfig? {
+    private fun createListenersConfig(id: String, metadata: Struct): ListenersConfig? {
         val ingressHost: String
         val ingressPort: Int
-        val egressHost : String
-        val egressPort : Int
+        val egressHost: String
+        val egressPort: Int
         try {
-            ingressHost = node.metadata.fieldsMap["ingress_host"]!!.stringValue
-            ingressPort = node.metadata.fieldsMap["ingress_port"]!!.numberValue.toInt()
-            egressHost = node.metadata.fieldsMap["egress_host"]!!.stringValue
-            egressPort = node.metadata.fieldsMap["egress_port"]!!.numberValue.toInt()
+            ingressHost = metadata.fieldsMap["ingress_host"]!!.stringValue
+            ingressPort = metadata.fieldsMap["ingress_port"]!!.numberValue.toInt()
+            egressHost = metadata.fieldsMap["egress_host"]!!.stringValue
+            egressPort = metadata.fieldsMap["egress_port"]!!.numberValue.toInt()
         } catch (e: Exception) {
-            logger.warn("Node ${node.id} does not have properly configured ingress / egress listeners. " +
+            logger.warn("Node $id does not have properly configured ingress / egress listeners. " +
                     "This is normal during the migration from static listeners to dynamic, " +
                     "but should not occur after that.", e)
 
             return null
         }
 
-        val useRemoteAddress = node.metadata.fieldsMap["use_remote_address"]?.boolValue ?: ListenersConfig.defaultUseRemoteAddress
-        val accessLogEnabled = node.metadata.fieldsMap["access_log_enabled"]?.boolValue ?: ListenersConfig.defaultAccessLogEnabled
-        val accessLogPath = node.metadata.fieldsMap["access_log_path"]?.stringValue ?: ListenersConfig.defaultAccessLogPath
-        val luaScriptDir = node.metadata.fieldsMap["lua_script_dir"]?.stringValue ?: ListenersConfig.defaultLuaScriptDir
+        val useRemoteAddress = metadata.fieldsMap["use_remote_address"]?.boolValue
+                ?: ListenersConfig.defaultUseRemoteAddress
+        val accessLogEnabled = metadata.fieldsMap["access_log_enabled"]?.boolValue
+                ?: ListenersConfig.defaultAccessLogEnabled
+        val accessLogPath = metadata.fieldsMap["access_log_path"]?.stringValue
+                ?: ListenersConfig.defaultAccessLogPath
+        val luaScriptDir = metadata.fieldsMap["lua_script_dir"]?.stringValue
+                ?: ListenersConfig.defaultLuaScriptDir
 
-        return ListenersConfig(ingressHost, ingressPort, egressHost, egressPort, useRemoteAddress, accessLogEnabled, accessLogPath, luaScriptDir)
+        return ListenersConfig(
+                ingressHost,
+                ingressPort,
+                egressHost,
+                egressPort,
+                useRemoteAddress,
+                accessLogEnabled,
+                accessLogPath,
+                luaScriptDir
+        )
     }
 
     private fun createGroup(node: Node, ads: Boolean): Group {
         val metadata = NodeMetadata(node.metadata, properties)
         val serviceName = serviceName(metadata)
         val proxySettings = proxySettings(metadata)
-        val listenersConfig = createListenersConfig(node)
+        val listenersConfig = createListenersConfig(node.id, node.metadata)
 
         return when {
             hasAllServicesDependencies(metadata) ->

@@ -25,9 +25,84 @@ import com.google.protobuf.Any as ProtobufAny
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config as HeaderToMetadataConfig
 
 @Suppress("MagicNumber")
-internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
-    private val egressRdsInitialFetchTimeout: Long = 20
-    private val ingressRdsInitialFetchTimeout: Long = 30
+class EnvoyListenersFactory(
+    private val ingressFilters: List<HttpFilter> = listOf(),
+    private val egressFilters: List<HttpFilter> = listOf()
+) {
+    companion object {
+        private const val egressRdsInitialFetchTimeout: Long = 20
+        private const val ingressRdsInitialFetchTimeout: Long = 30
+
+        val defaultServiceTagFilterRules = serviceTagFilterRules()
+        val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagFilterRules)
+        val defaultHeaderToMetadataFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
+        val defaultEnvoyRouterHttpFilter = envoyRouterHttpFilter()
+        val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
+        val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
+        val defaultIngressFilters = listOf(defaultEnvoyRouterHttpFilter)
+
+        private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter.newBuilder().setName("envoy.router").build()
+
+        fun apiConfigSource(): ApiConfigSource {
+            return ApiConfigSource.newBuilder()
+                    .setApiType(ApiConfigSource.ApiType.GRPC)
+                    .addGrpcServices(GrpcService.newBuilder()
+                            .setEnvoyGrpc(
+                                    GrpcService.EnvoyGrpc.newBuilder()
+                                            .setClusterName("envoy-control-xds")
+                            )
+                    ).build()
+        }
+
+        fun headerToMetadataHttpFilter(headerToMetadataConfig: HeaderToMetadataConfig.Builder): HttpFilter {
+            return HttpFilter.newBuilder()
+                    .setName("envoy.filters.http.header_to_metadata")
+                    .setTypedConfig(ProtobufAny.pack(
+                            headerToMetadataConfig.build()
+                    ))
+                    .build()
+        }
+
+        fun headerToMetadataConfig(rules: List<HeaderToMetadataConfig.Rule>): HeaderToMetadataConfig.Builder {
+            val headerToMetadataConfig = HeaderToMetadataConfig.newBuilder()
+                    .addRequestRules(
+                            HeaderToMetadataConfig.Rule.newBuilder()
+                                    .setHeader("x-canary")
+                                    .setRemove(false)
+                                    .setOnHeaderPresent(
+                                            HeaderToMetadataConfig.KeyValuePair.newBuilder()
+                                                    .setKey("canary")
+                                                    .setMetadataNamespace("envoy.lb")
+                                                    .setType(HeaderToMetadataConfig.ValueType.STRING)
+                                                    .build()
+                                    )
+                                    .build()
+                    )
+
+            rules.forEach {
+                headerToMetadataConfig.addRequestRules(it)
+            }
+
+            return headerToMetadataConfig
+        }
+
+        fun serviceTagFilterRules(
+            header: String = "x-service-tag",
+            tag: String = "tag"
+        ): List<HeaderToMetadataConfig.Rule> {
+            return listOf(HeaderToMetadataConfig.Rule.newBuilder()
+                    .setHeader(header)
+                    .setRemove(false)
+                    .setOnHeaderPresent(
+                            HeaderToMetadataConfig.KeyValuePair.newBuilder()
+                                    .setKey(tag)
+                                    .setMetadataNamespace("envoy.lb")
+                                    .setType(HeaderToMetadataConfig.ValueType.STRING)
+                                    .build()
+                    )
+                    .build())
+        }
+    }
 
     fun createListeners(group: Group): List<Listener> {
         if (group.listenersConfig == null) {
@@ -56,19 +131,23 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
                                         .setAddress(listenersConfig.egressHost)
                         )
                 )
-                .addFilterChains(createEgressFilterChain(group.ads, group.serviceName, listenersConfig))
+                .addFilterChains(createEgressFilterChain(group.ads, listenersConfig))
                 .build()
 
         return listOf(ingressListener, egressListener)
     }
 
-    private fun createIngressFilterChain(ads: Boolean, serviceName: String, listenersConfig: ListenersConfig): FilterChain {
+    private fun createIngressFilterChain(
+        ads: Boolean,
+        serviceName: String,
+        listenersConfig: ListenersConfig
+    ): FilterChain {
         return FilterChain.newBuilder()
                 .addFilters(createIngressFilter(ads, serviceName, listenersConfig))
                 .build()
     }
 
-    private fun createEgressFilterChain(ads: Boolean, serviceName: String, listenersConfig: ListenersConfig): FilterChain {
+    private fun createEgressFilterChain(ads: Boolean, listenersConfig: ListenersConfig): FilterChain {
         return FilterChain.newBuilder()
                 .addFilters(createEgressFilter(ads, listenersConfig))
                 .build()
@@ -78,9 +157,11 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
         val egressFilter = HttpConnectionManager.newBuilder()
                 .setStatPrefix("egress_http")
                 .setRds(egressRds(ads))
-                .addHttpFilters(defaultHeaderToMetadataFilter)
-                .addHttpFilters(defaultEnvoyRouterHttpFilter)
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
+
+        egressFilters.forEach {
+            egressFilter.addHttpFilters(it)
+        }
 
         if (listenersConfig.accessLogEnabled) {
             egressFilter.addAccessLog(accessLog(listenersConfig.accessLogPath))
@@ -98,41 +179,6 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
         return Http1ProtocolOptions.newBuilder()
                 .setAllowAbsoluteUrl(boolValue(true))
                 .build()
-    }
-
-    private val allServiceTagFilters = serviceTagFilter.getFilters()
-    private val defaultHeaderToMetadataConfig = headerToMetadataConfig()
-    private val defaultHeaderToMetadataFilter = headerToMetadataHttpFilter()
-
-    private fun headerToMetadataHttpFilter(): HttpFilter? {
-        return HttpFilter.newBuilder()
-                .setName("envoy.filters.http.header_to_metadata")
-                .setTypedConfig(ProtobufAny.pack(
-                        defaultHeaderToMetadataConfig.build()
-                ))
-                .build()
-    }
-
-    private fun headerToMetadataConfig(): HeaderToMetadataConfig.Builder {
-        val headerToMetadataConfig = HeaderToMetadataConfig.newBuilder()
-                .addRequestRules(
-                        HeaderToMetadataConfig.Rule.newBuilder()
-                                .setHeader("x-canary")
-                                .setRemove(false)
-                                .setOnHeaderPresent(
-                                        HeaderToMetadataConfig.KeyValuePair.newBuilder()
-                                                .setKey("canary")
-                                                .setMetadataNamespace("envoy.lb")
-                                                .setType(HeaderToMetadataConfig.ValueType.STRING)
-                                                .build()
-                                )
-                                .build()
-                )
-
-        allServiceTagFilters.forEach {
-            headerToMetadataConfig.addRequestRules(it)
-        }
-        return headerToMetadataConfig
     }
 
     private fun egressRds(ads: Boolean): Rds {
@@ -153,15 +199,6 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
                 .build()
     }
 
-    val defaultApiConfigSource = ApiConfigSource.newBuilder()
-            .setApiType(ApiConfigSource.ApiType.GRPC)
-            .addGrpcServices(GrpcService.newBuilder()
-                    .setEnvoyGrpc(
-                            GrpcService.EnvoyGrpc.newBuilder()
-                                    .setClusterName("envoy-control-xds")
-                    )
-            ).build()
-
     private fun createIngressFilter(ads: Boolean, serviceName: String, listenersConfig: ListenersConfig): Filter {
         val ingressHttp = HttpConnectionManager.newBuilder()
                 .setStatPrefix("ingress_http")
@@ -170,8 +207,11 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
                 .setRds(ingressRds(ads))
-                .addHttpFilters(defaultEnvoyRouterHttpFilter)
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(serviceName))
+
+        ingressFilters.forEach {
+            ingressHttp.addHttpFilters(it)
+        }
 
         if (listenersConfig.accessLogEnabled) {
             ingressHttp.addAccessLog(accessLog(listenersConfig.accessLogPath))
@@ -207,10 +247,6 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
                 .setConfigSource(configSource.build())
                 .build()
     }
-
-    private val defaultEnvoyRouterHttpFilter = envoyRouterHttpFilter()
-
-    private fun envoyRouterHttpFilter() = HttpFilter.newBuilder().setName("envoy.router").build()
 
     private fun accessLog(accessLogPath: String): AccessLog {
         return AccessLog.newBuilder()

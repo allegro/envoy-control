@@ -17,6 +17,7 @@ class SnapshotUpdater(
     private val scheduler: Scheduler,
     private val onGroupAdded: Flux<Any>,
     private val meterRegistry: MeterRegistry,
+    envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters,
     serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags)
 ) {
     companion object {
@@ -28,7 +29,7 @@ class SnapshotUpdater(
         ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
         egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
         clustersFactory = EnvoyClustersFactory(properties),
-        listenersFactory = EnvoyListenersFactory(serviceTagFilter),
+        listenersFactory = EnvoyListenersFactory(envoyHttpFilters.ingressFilters, envoyHttpFilters.egressFilters),
         snapshotsVersions = versions,
         properties = properties,
         meterRegistry = meterRegistry,
