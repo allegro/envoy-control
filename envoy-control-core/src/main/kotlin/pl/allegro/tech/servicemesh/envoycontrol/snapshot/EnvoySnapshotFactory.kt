@@ -80,7 +80,7 @@ internal class EnvoySnapshotFactory(
             ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
         )
 
-        val version = snapshotsVersions.version(AllServicesGroup(ads), clusters, endpoints)
+        val version = snapshotsVersions.version(AllServicesGroup(ads, listenersConfig = null), clusters, endpoints)
 
         val snapshot = createSnapshot(
             clusters = clusters,

@@ -20,6 +20,7 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import com.google.protobuf.Any as ProtobufAny
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config as HeaderToMetadataConfig
 
@@ -29,51 +30,60 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
     private val ingressRdsInitialFetchTimeout: Long = 30
 
     fun createListeners(group: Group): List<Listener> {
+        if (group.listenersConfig == null) {
+            return listOf()
+        }
+        val listenersConfig = group.listenersConfig!!
+
         val ingressListener = Listener.newBuilder()
                 .setName("ingress_listener")
                 .setAddress(
                         Address.newBuilder().setSocketAddress(
-                                SocketAddress.newBuilder().setPortValue(group.ingressPort).setAddress(group.ingressHost)
+                                SocketAddress.newBuilder()
+                                        .setPortValue(listenersConfig.ingressPort)
+                                        .setAddress(listenersConfig.ingressHost)
                         )
                 )
-                .addFilterChains(createIngressFilterChain(group))
+                .addFilterChains(createIngressFilterChain(group.ads, group.serviceName, listenersConfig))
                 .build()
 
         val egressListener = Listener.newBuilder()
                 .setName("egress_listener")
                 .setAddress(
                         Address.newBuilder().setSocketAddress(
-                                SocketAddress.newBuilder().setPortValue(group.egressPort).setAddress(group.egressHost)
+                                SocketAddress.newBuilder()
+                                        .setPortValue(listenersConfig.egressPort)
+                                        .setAddress(listenersConfig.egressHost)
                         )
                 )
-                .addFilterChains(createEgressFilterChain(group))
+                .addFilterChains(createEgressFilterChain(group.ads, group.serviceName, listenersConfig))
                 .build()
 
         return listOf(ingressListener, egressListener)
     }
 
-    private fun createIngressFilterChain(group: Group): FilterChain {
+    private fun createIngressFilterChain(ads: Boolean, serviceName: String, listenersConfig: ListenersConfig): FilterChain {
         return FilterChain.newBuilder()
-                .addFilters(createIngressFilter(group))
+                .addFilters(createIngressFilter(ads, serviceName, listenersConfig))
                 .build()
     }
 
-    private fun createEgressFilterChain(group: Group): FilterChain {
+    private fun createEgressFilterChain(ads: Boolean, serviceName: String, listenersConfig: ListenersConfig): FilterChain {
         return FilterChain.newBuilder()
-                .addFilters(createEgressFilter(group))
+                .addFilters(createEgressFilter(ads, listenersConfig))
                 .build()
     }
 
-    private fun createEgressFilter(group: Group): Filter {
+    private fun createEgressFilter(ads: Boolean, listenersConfig: ListenersConfig): Filter {
         val egressFilter = HttpConnectionManager.newBuilder()
                 .setStatPrefix("egress_http")
-                .setRds(egressRds(group.ads))
+                .setRds(egressRds(ads))
                 .addHttpFilters(defaultHeaderToMetadataFilter)
                 .addHttpFilters(defaultEnvoyRouterHttpFilter)
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
 
-        if (group.accessLogEnabled) {
-            egressFilter.addAccessLog(accessLog(group))
+        if (listenersConfig.accessLogEnabled) {
+            egressFilter.addAccessLog(accessLog(listenersConfig.accessLogPath))
         }
 
         return Filter.newBuilder()
@@ -152,19 +162,19 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
                     )
             ).build()
 
-    private fun createIngressFilter(group: Group): Filter {
+    private fun createIngressFilter(ads: Boolean, serviceName: String, listenersConfig: ListenersConfig): Filter {
         val ingressHttp = HttpConnectionManager.newBuilder()
                 .setStatPrefix("ingress_http")
-                .setUseRemoteAddress(boolValue(group.useRemoteAddress))
+                .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
                 .setXffNumTrustedHops(1)
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
-                .setRds(ingressRds(group.ads))
+                .setRds(ingressRds(ads))
                 .addHttpFilters(defaultEnvoyRouterHttpFilter)
-                .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group))
+                .setHttpProtocolOptions(ingressHttp1ProtocolOptions(serviceName))
 
-        if (group.accessLogEnabled) {
-            ingressHttp.addAccessLog(accessLog(group))
+        if (listenersConfig.accessLogEnabled) {
+            ingressHttp.addAccessLog(accessLog(listenersConfig.accessLogPath))
         }
 
         return Filter.newBuilder()
@@ -175,10 +185,10 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
                 .build()
     }
 
-    private fun ingressHttp1ProtocolOptions(group: Group): Http1ProtocolOptions? {
+    private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
         return Http1ProtocolOptions.newBuilder()
                 .setAcceptHttp10(true)
-                .setDefaultHostForHttp10(group.serviceName)
+                .setDefaultHostForHttp10(serviceName)
                 .build()
     }
 
@@ -202,13 +212,13 @@ internal class EnvoyListenersFactory(serviceTagFilter: ServiceTagFilter) {
 
     private fun envoyRouterHttpFilter() = HttpFilter.newBuilder().setName("envoy.router").build()
 
-    private fun accessLog(group: Group): AccessLog {
+    private fun accessLog(accessLogPath: String): AccessLog {
         return AccessLog.newBuilder()
                 .setName("envoy.file_access_log")
                 .setTypedConfig(
                         ProtobufAny.pack(
                                 FileAccessLog.newBuilder()
-                                        .setPath(group.accessLogPath)
+                                        .setPath(accessLogPath)
                                         .setJsonFormat(
                                                 Struct.newBuilder()
                                                         .putFields("time", stringValue("%START_TIME(%FT%T.%3fZ)%"))

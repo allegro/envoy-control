@@ -23,6 +23,7 @@ sealed class EnvoyConfigFile(val filePath: String)
 object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.yaml")
 object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
+object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
 object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
 object RandomConfigFile :
     EnvoyConfigFile(filePath = if (Random.nextBoolean()) Ads.filePath else Xds.filePath)
