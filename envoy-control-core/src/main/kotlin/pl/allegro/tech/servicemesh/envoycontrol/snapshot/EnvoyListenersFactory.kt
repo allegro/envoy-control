@@ -160,9 +160,9 @@ class EnvoyListenersFactory(
     }
 
     private fun createFilter(
-            connectionManagerBuilder: HttpConnectionManager.Builder,
-            filters: List<HttpFilterFactory>,
-            group: Group
+        connectionManagerBuilder: HttpConnectionManager.Builder,
+        filters: List<HttpFilterFactory>,
+        group: Group
     ): Filter {
         filters.forEach {
             val filter = it(group)
