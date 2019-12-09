@@ -1,10 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
-
 class EnvoyHttpFilters(
-    val ingressFilters: List<HttpFilter>,
-    val egressFilters: List<HttpFilter>
+    val ingressFilters: List<HttpFilterFactory>,
+    val egressFilters: List<HttpFilterFactory>
 ) {
     companion object {
         val emptyFilters = EnvoyHttpFilters(listOf(), listOf())
