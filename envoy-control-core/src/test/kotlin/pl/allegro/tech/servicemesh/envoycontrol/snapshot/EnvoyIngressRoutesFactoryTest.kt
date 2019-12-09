@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.groups.HealthCheck
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming.TimeoutPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
@@ -144,6 +145,10 @@ internal class EnvoyIngressRoutesFactoryTest {
         val idleTimeout = Durations.fromSeconds(61)
         val proxySettingsOneEndpoint = ProxySettings(
             incoming = Incoming(
+                healthCheck = HealthCheck(
+                    path = "",
+                    clusterName = "health_check_cluster"
+                ),
                 endpoints = listOf(
                     IncomingEndpoint(
                         path = "/endpoint",
@@ -218,6 +223,10 @@ internal class EnvoyIngressRoutesFactoryTest {
         // given
         val proxySettings = ProxySettings(
             incoming = Incoming(
+                healthCheck = HealthCheck(
+                    path = "/status/custom",
+                    clusterName = "local_service_health_check"
+                ),
                 endpoints = listOf(
                     IncomingEndpoint(
                         path = "/endpoint",
@@ -243,6 +252,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOneDomain("*")
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
+                    statusRoute(clusterName = "local_service_health_check", healthCheckPath = "/status/custom"),
                     statusRoute(),
                     {
                         matchingOnPath("/endpoint")
