@@ -30,7 +30,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
             egressHost = metadata.fieldsMap["egress_host"]!!.stringValue
             egressPort = metadata.fieldsMap["egress_port"]!!.numberValue.toInt()
         } catch (e: Exception) {
-            logger.warn("Node $id does not have properly configured ingress / egress listeners. " +
+            logger.debug("Node $id does not have properly configured ingress / egress listeners. " +
                     "This is normal during the migration from static listeners to dynamic, " +
                     "but should not occur after that.", e)
 
