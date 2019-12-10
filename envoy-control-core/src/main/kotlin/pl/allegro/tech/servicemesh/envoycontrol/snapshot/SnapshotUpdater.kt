@@ -94,7 +94,7 @@ class SnapshotUpdater(
             cache.setSnapshot(group, groupSnapshot)
         } catch (e: Throwable) {
             meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()
-            logger.error("Unable to create globalSnapshot for group ${group.serviceName}", e)
+            logger.error("Unable to create snapshot for group ${group.serviceName}", e)
         }
     }
 }
