@@ -43,7 +43,7 @@ internal class GroupChangeWatcher(
         return watch
     }
 
-    private fun emitNewGroupsEvent(symmetricDifference: List<Group>) {
-        groupAddedSink?.next(symmetricDifference)
+    private fun emitNewGroupsEvent(difference: List<Group>) {
+        groupAddedSink?.next(difference)
     }
 }
