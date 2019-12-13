@@ -170,11 +170,16 @@ fun fallbackIngressRoute(): (Route) -> Unit = {
         .directResponse { it.status == 503 }
 }
 
-fun statusRoute(idleTimeout: Duration? = null, responseTimeout: Duration? = null): (Route) -> Unit = {
-    it.matchingOnPrefix("/status/")
+fun statusRoute(
+    idleTimeout: Duration? = null,
+    responseTimeout: Duration? = null,
+    clusterName: String = "local_service",
+    healthCheckPath: String = "/status/"
+): (Route) -> Unit = {
+    it.matchingOnPrefix(healthCheckPath)
         .matchingOnMethod("GET")
         .publicAccess()
-        .toCluster("local_service")
+        .toCluster(clusterName)
     if (responseTimeout != null) {
         it.matchingOnResponseTimeout(responseTimeout)
     }

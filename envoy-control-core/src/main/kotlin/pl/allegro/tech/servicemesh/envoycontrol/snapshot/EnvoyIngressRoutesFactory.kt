@@ -21,16 +21,17 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 internal class EnvoyIngressRoutesFactory(
     private val properties: SnapshotProperties
 ) {
-    private fun localClusterRouteAction(
+    private fun clusterRouteAction(
         responseTimeout: Duration?,
-        idleTimeout: Duration?
+        idleTimeout: Duration?,
+        clusterName: String = "local_service"
     ): RouteAction.Builder {
         val timeoutResponse = responseTimeout ?: Durations.fromMillis(
             properties.localService.responseTimeout.toMillis()
         )
         val timeoutIdle = idleTimeout ?: Durations.fromMillis(properties.localService.idleTimeout.toMillis())
         return RouteAction.newBuilder()
-            .setCluster("local_service")
+            .setCluster(clusterName)
             .setTimeout(timeoutResponse)
             .setIdleTimeout(timeoutIdle)
     }
@@ -95,21 +96,40 @@ internal class EnvoyIngressRoutesFactory(
                             .addHeaders(httpMethodMatcher(method))
                             .setPrefix("/")
                     )
-                    .setRoute(localClusterRouteActionWithRetryPolicy(retryPolicy, localRouteAction))
+                    .setRoute(clusterRouteActionWithRetryPolicy(retryPolicy, localRouteAction))
                     .build()
             }
         return retryRoutes + nonRetryRoute
     }
 
+    private fun customHealthCheckRoute(proxySettings: ProxySettings): List<Route> {
+        if (proxySettings.incoming.healthCheck.hasCustomHealthCheck()) {
+            val healthCheckRouteAction = clusterRouteAction(
+                proxySettings.incoming.timeoutPolicy.responseTimeout,
+                proxySettings.incoming.timeoutPolicy.idleTimeout,
+                proxySettings.incoming.healthCheck.clusterName
+            )
+            return listOf(Route.newBuilder()
+                .setMatch(
+                    RouteMatch.newBuilder()
+                        .setPrefix(proxySettings.incoming.healthCheck.path)
+                        .addHeaders(httpMethodMatcher(HttpMethod.GET))
+                )
+                .setRoute(healthCheckRouteAction)
+                .build())
+        }
+        return emptyList()
+    }
+
     private fun localClusterRouteActionWithRetryPolicy(method: HttpMethod, localRouteAction: RouteAction.Builder):
         RouteAction.Builder = perMethodRetryPolicies[method]
-            ?.let { localClusterRouteActionWithRetryPolicy(it, localRouteAction) }
-            ?: localRouteAction
+        ?.let { clusterRouteActionWithRetryPolicy(it, localRouteAction) }
+        ?: localRouteAction
 
-    private fun localClusterRouteActionWithRetryPolicy(
+    private fun clusterRouteActionWithRetryPolicy(
         retryPolicy: RetryPolicy,
-        localRouteAction: RouteAction.Builder
-    ) = localRouteAction.clone().setRetryPolicy(retryPolicy)
+        routeAction: RouteAction.Builder
+    ) = routeAction.clone().setRetryPolicy(retryPolicy)
 
     fun createSecuredIngressRouteConfig(proxySettings: ProxySettings): RouteConfiguration {
         val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
@@ -149,13 +169,15 @@ internal class EnvoyIngressRoutesFactory(
     }
 
     private fun generateSecuredIngressRoutes(proxySettings: ProxySettings): List<Route> {
-        val localRouteAction = localClusterRouteAction(
+        val localRouteAction = clusterRouteAction(
             proxySettings.incoming.timeoutPolicy.responseTimeout,
             proxySettings.incoming.timeoutPolicy.idleTimeout
         )
 
+        val customHealthCheckRoute = customHealthCheckRoute(proxySettings)
+
         if (!proxySettings.incoming.permissionsEnabled) {
-            return allOpenIngressRoutes(localRouteAction)
+            return customHealthCheckRoute + allOpenIngressRoutes(localRouteAction)
         }
 
         val rolesByName = proxySettings.incoming.roles.associateBy { it.name.orEmpty() }
@@ -163,8 +185,9 @@ internal class EnvoyIngressRoutesFactory(
         val applicationRoutes = proxySettings.incoming.endpoints
             .flatMap { toRoutes(it, rolesByName, localRouteAction) }
 
-        return listOfNotNull(statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }) +
-            applicationRoutes + fallbackIngressRoute
+        return customHealthCheckRoute + listOfNotNull(
+            statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }
+        ) + applicationRoutes + fallbackIngressRoute
     }
 
     private fun toRoutes(

@@ -4,11 +4,11 @@ import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import okhttp3.MediaType
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 
 class EnvoyAdmin(
@@ -44,7 +44,11 @@ class EnvoyAdmin(
             }
 
     fun statValue(statName: String): String? = get("stats?filter=$statName").body()?.use {
-        it.string().lines().first().split(":").get(1).trim()
+        val splitedStats = it.string().lines().first().split(":")
+        if (splitedStats.size != 2) {
+            return "-1"
+        }
+        return splitedStats[1].trim()
     }
 
     fun resetCounters() {
@@ -66,8 +70,8 @@ class EnvoyAdmin(
         val regex = "$cluster::$priority::$setting::(.+)".toRegex()
         val response = get("clusters")
         return response.body()?.use { it.string().lines() }
-                ?.find { it.matches(regex) }
-                ?.let { regex.find(it)!!.groupValues[1].toInt() }!!
+            ?.find { it.matches(regex) }
+            ?.let { regex.find(it)!!.groupValues[1].toInt() }!!
     }
 
     fun zone(cluster: String, ip: String): AdminInstance? {

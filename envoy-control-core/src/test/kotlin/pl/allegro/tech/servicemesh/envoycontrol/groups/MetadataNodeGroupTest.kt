@@ -194,8 +194,23 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group.proxySettings.incoming.timeoutPolicy.responseTimeout?.seconds).isEqualTo(777)
-        assertThat(group.proxySettings.incoming.timeoutPolicy.idleTimeout).isEqualTo(Durations.parse("13.33s")
-        )
+        assertThat(group.proxySettings.incoming.timeoutPolicy.idleTimeout).isEqualTo(Durations.parse("13.33s"))
+    }
+
+    @Test
+    fun `should parse proto with custom healthCheck definition`() {
+        // when
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties(incomingPermissions = true))
+        val node = node(serviceDependencies = setOf("*"), ads = true, incomingSettings = true,
+            healthCheckPath = "/status/ping", healthCheckClusterName = "local_service_health_check")
+
+        // when
+        val group = nodeGroup.hash(node)
+
+        // then
+        assertThat(group.proxySettings.incoming.healthCheck.path).isEqualTo("/status/ping")
+        assertThat(group.proxySettings.incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
+        assertThat(group.proxySettings.incoming.healthCheck.hasCustomHealthCheck()).isTrue()
     }
 
     private fun createSnapshotProperties(
