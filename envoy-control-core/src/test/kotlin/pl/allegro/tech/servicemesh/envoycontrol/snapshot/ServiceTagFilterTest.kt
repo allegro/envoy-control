@@ -29,7 +29,7 @@ internal class ServiceTagFilterTest {
         // when
         val routingTags = filter.getAllTagsForRouting(
             "regular-service",
-            setOf("id:332", "hardware:c32", "stage:dev", "version:v0.9", "env12", "port:1244")
+            setOf("id:332", "hardware:c32", "stage:dev", "version:v0.9", "env12", "port:1244", "gport:1245")
         )
         // then
         assertThat(routingTags).isNotNull
@@ -37,7 +37,8 @@ internal class ServiceTagFilterTest {
             "hardware:c32",
             "stage:dev",
             "version:v0.9",
-            "env12"
+            "env12",
+            "gport:1245"
         ))
     }
 
