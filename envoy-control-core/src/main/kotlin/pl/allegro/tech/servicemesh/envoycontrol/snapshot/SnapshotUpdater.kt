@@ -21,7 +21,9 @@ class SnapshotUpdater(
         private val logger by logger()
     }
 
+    @Volatile
     private lateinit var lastAdsSnapshot: Snapshot
+    @Volatile
     private lateinit var lastXdsSnapshot: Snapshot
     private val versions = SnapshotsVersions()
     private val snapshotFactory = EnvoySnapshotFactory(
@@ -37,7 +39,7 @@ class SnapshotUpdater(
                 services(changes),
                 groups()
         ).doOnNext { result ->
-            val groups = if (result.action == Action.ALL_GROUPS) {
+            val groups = if (result.action == Action.ALL_GROUPS_CHANGED) {
                 cache.groups()
             } else {
                 result.groups
@@ -59,12 +61,12 @@ class SnapshotUpdater(
         return onGroupAdded
                 .publishOn(scheduler)
                 .map { groups ->
-                    UpdateResult(action = Action.SELECTED_GROUPS, groups = groups)
+                    UpdateResult(action = Action.SELECTED_GROUPS_CHANGED, groups = groups)
                 }
                 .onErrorResume { e ->
                     meterRegistry.counter("snapshot-updater.groups.updates.errors").increment()
                     logger.error("Unable to process new group", e)
-                    Mono.justOrEmpty(UpdateResult(action = Action.ERROR))
+                    Mono.justOrEmpty(UpdateResult(action = Action.ERROR_PROCESSING_CHANGES))
                 }
     }
 
@@ -74,12 +76,12 @@ class SnapshotUpdater(
                 .publishOn(scheduler)
                 .map { states ->
                     updateSnapshots(states)
-                    UpdateResult(action = Action.ALL_GROUPS)
+                    UpdateResult(action = Action.ALL_GROUPS_CHANGED)
                 }
                 .onErrorResume { e ->
                     meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
                     logger.error("Unable to process service changes", e)
-                    Mono.justOrEmpty(UpdateResult(action = Action.ALL_GROUPS))
+                    Mono.justOrEmpty(UpdateResult(action = Action.ALL_GROUPS_CHANGED))
                 }
     }
 
@@ -100,7 +102,7 @@ class SnapshotUpdater(
 }
 
 enum class Action {
-    SELECTED_GROUPS, ALL_GROUPS, ERROR
+    SELECTED_GROUPS_CHANGED, ALL_GROUPS_CHANGED, ERROR_PROCESSING_CHANGES
 }
 
-class UpdateResult(val action: Any, val groups: List<Group> = listOf())
+class UpdateResult(val action: Action, val groups: List<Group> = listOf())
