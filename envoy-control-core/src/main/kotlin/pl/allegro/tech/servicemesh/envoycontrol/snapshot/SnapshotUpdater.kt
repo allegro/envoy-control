@@ -28,7 +28,8 @@ class SnapshotUpdater(
         egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
         clustersFactory = EnvoyClustersFactory(properties),
         snapshotsVersions = versions,
-        properties = properties
+        properties = properties,
+        meterRegistry = meterRegistry
     )
 
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<List<LocalityAwareServicesState>> {
@@ -54,7 +55,6 @@ class SnapshotUpdater(
     private fun updateSnapshots(states: List<LocalityAwareServicesState>) {
         val snapshot = snapshotFactory.newSnapshot(states, ads = false)
         val adsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
-
         cache.groups().forEach { group -> updateSnapshotForGroup(group, if (group.ads) adsSnapshot else snapshot) }
     }
 
