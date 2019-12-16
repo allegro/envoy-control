@@ -14,7 +14,7 @@ class SnapshotUpdater(
     private val cache: SnapshotCache<Group>,
     private val properties: SnapshotProperties,
     private val scheduler: Scheduler,
-    private val onGroupAdded: Flux<List<Group>>,
+    private val onGroupAdded: Flux<out List<Group>>,
     private val meterRegistry: MeterRegistry
 ) {
     companion object {
