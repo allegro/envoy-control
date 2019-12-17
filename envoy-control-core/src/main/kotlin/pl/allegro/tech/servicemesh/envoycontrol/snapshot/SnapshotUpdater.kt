@@ -29,7 +29,11 @@ class SnapshotUpdater(
         ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
         egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
         clustersFactory = EnvoyClustersFactory(properties),
-        listenersFactory = EnvoyListenersFactory(envoyHttpFilters.ingressFilters, envoyHttpFilters.egressFilters),
+        listenersFactory = EnvoyListenersFactory(
+                properties.dynamicListeners,
+                envoyHttpFilters.ingressFilters,
+                envoyHttpFilters.egressFilters
+        ),
         snapshotsVersions = versions,
         properties = properties,
         meterRegistry = meterRegistry,
@@ -59,7 +63,6 @@ class SnapshotUpdater(
     private fun updateSnapshots(states: List<LocalityAwareServicesState>) {
         val snapshot = snapshotFactory.newSnapshot(states, ads = false)
         val adsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
-
         cache.groups().forEach { group -> updateSnapshotForGroup(group, if (group.ads) adsSnapshot else snapshot) }
     }
 

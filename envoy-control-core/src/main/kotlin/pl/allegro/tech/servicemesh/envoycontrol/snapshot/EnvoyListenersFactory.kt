@@ -27,9 +27,15 @@ typealias HttpFilterFactory = (node: Group) -> HttpFilter?
 
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
+    private val listenersFactoryProperties: ListenersFactoryProperties,
     private val ingressFilters: List<HttpFilterFactory> = listOf(),
     private val egressFilters: List<HttpFilterFactory> = listOf()
 ) {
+    private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
+    private val accessLogMessageFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormat)
+    private val accessLogLevel = stringValue(listenersFactoryProperties.httpFilters.accessLog.level)
+    private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
+
     companion object {
         private const val egressRdsInitialFetchTimeout: Long = 20
         private const val ingressRdsInitialFetchTimeout: Long = 30
@@ -156,13 +162,14 @@ class EnvoyListenersFactory(
                 .setRds(egressRds(group.ads))
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
 
-        return createFilter(connectionManagerBuilder, egressFilters, group)
+        return createFilter(connectionManagerBuilder, egressFilters, group, "egress")
     }
 
     private fun createFilter(
         connectionManagerBuilder: HttpConnectionManager.Builder,
         filters: List<HttpFilterFactory>,
-        group: Group
+        group: Group,
+        accessLogType: String
     ): Filter {
         filters.forEach {
             val filter = it(group)
@@ -173,7 +180,7 @@ class EnvoyListenersFactory(
 
         // checked in EnvoyListenersFactory#createListeners
         if (group.listenersConfig!!.accessLogEnabled) {
-            connectionManagerBuilder.addAccessLog(accessLog(group.listenersConfig!!.accessLogPath))
+            connectionManagerBuilder.addAccessLog(accessLog(group.listenersConfig!!.accessLogPath, accessLogType))
         }
 
         return Filter.newBuilder()
@@ -218,7 +225,7 @@ class EnvoyListenersFactory(
                 .setRds(ingressRds(group.ads))
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
 
-        return createFilter(ingressHttp, ingressFilters, group)
+        return createFilter(ingressHttp, ingressFilters, group, "ingress")
     }
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
@@ -244,7 +251,7 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun accessLog(accessLogPath: String): AccessLog {
+    private fun accessLog(accessLogPath: String, accessLogType: String): AccessLog {
         return AccessLog.newBuilder()
                 .setName("envoy.file_access_log")
                 .setTypedConfig(
@@ -253,13 +260,11 @@ class EnvoyListenersFactory(
                                         .setPath(accessLogPath)
                                         .setJsonFormat(
                                                 Struct.newBuilder()
-                                                        .putFields("time", stringValue("%START_TIME(%FT%T.%3fZ)%"))
-                                                        .putFields("message", stringValue("%PROTOCOL% %REQ(:METHOD)% " +
-                                                                "%REQ(:authority)% %REQ(:PATH)% " +
-                                                                "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"))
-                                                        .putFields("level", stringValue("TRACE"))
-                                                        .putFields("logger", stringValue("envoy.AccessLog"))
-                                                        .putFields("access_log_type", stringValue("ingress"))
+                                                        .putFields("time", accessLogTimeFormat)
+                                                        .putFields("message", accessLogMessageFormat)
+                                                        .putFields("level", accessLogLevel)
+                                                        .putFields("logger", accessLogLogger)
+                                                        .putFields("access_log_type", stringValue(accessLogType))
                                                         .putFields("request_protocol", stringValue("%PROTOCOL%"))
                                                         .putFields("request_method", stringValue("%REQ(:METHOD)%"))
                                                         .putFields("request_authority",

@@ -38,7 +38,7 @@ internal class EnvoySnapshotFactory(
     private val listenersFactory: EnvoyListenersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
-    private val serviceTagFilter: ServiceTagFilter,
+    private val serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags),
     private val defaultDependencySettings: DependencySettings =
         DependencySettings(
             handleInternalRedirect = properties.egress.handleInternalRedirect,
@@ -180,20 +180,24 @@ internal class EnvoySnapshotFactory(
 
         val endpoints = getServicesEndpointsForGroup(group, globalSnapshot)
 
-        val listeners = listenersFactory.createListeners(group)
-
         val version = snapshotsVersions.version(group, clusters, endpoints)
 
+        val listeners = if (properties.dynamicListeners.enabled) {
+            listenersFactory.createListeners(group)
+        } else {
+            emptyList()
+        }
+
         return createSnapshot(
-            clusters = clusters,
-            clustersVersion = version.clusters,
-            endpoints = endpoints,
-            endpointsVersions = version.endpoints,
-            listeners = listeners,
-            // for now we assume that listeners don't change during lifecycle
-            routes = routes,
-            // we assume, that routes don't change during Envoy lifecycle unless clusters change
-            routesVersion = RoutesVersion(version.clusters.value)
+                clusters = clusters,
+                clustersVersion = version.clusters,
+                endpoints = endpoints,
+                endpointsVersions = version.endpoints,
+                listeners = listeners,
+                // for now we assume that listeners don't change during lifecycle
+                routes = routes,
+                // we assume, that routes don't change during Envoy lifecycle unless clusters change
+                routesVersion = RoutesVersion(version.clusters.value)
         )
     }
 
