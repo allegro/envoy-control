@@ -224,9 +224,9 @@ class EnvoyListenersFactory(
                 .setRds(ingressRds(group.ads))
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
 
-         if (group.listenersConfig!!.useRemoteAddress) {
-             ingressHttp.setXffNumTrustedHops(listenersFactoryProperties.httpFilters.ingressXffNumTrustedHops)
-         }
+        if (group.listenersConfig!!.useRemoteAddress) {
+            ingressHttp.setXffNumTrustedHops(listenersFactoryProperties.httpFilters.ingressXffNumTrustedHops)
+        }
 
         return createFilter(ingressHttp, ingressFilters, group, "ingress")
     }
