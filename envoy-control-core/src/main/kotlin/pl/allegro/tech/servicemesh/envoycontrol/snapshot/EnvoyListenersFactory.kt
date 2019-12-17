@@ -219,11 +219,14 @@ class EnvoyListenersFactory(
         val ingressHttp = HttpConnectionManager.newBuilder()
                 .setStatPrefix("ingress_http")
                 .setUseRemoteAddress(boolValue(group.listenersConfig!!.useRemoteAddress))
-                .setXffNumTrustedHops(1)
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
                 .setRds(ingressRds(group.ads))
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
+
+         if (group.listenersConfig!!.useRemoteAddress) {
+             ingressHttp.setXffNumTrustedHops(listenersFactoryProperties.httpFilters.ingressXffNumTrustedHops)
+         }
 
         return createFilter(ingressHttp, ingressFilters, group, "ingress")
     }

@@ -29,6 +29,7 @@ class ListenersFactoryProperties {
 
 class HttpFiltersProperties {
     var accessLog = AccessLogProperties()
+    var ingressXffNumTrustedHops = 1
 }
 
 class AccessLogProperties {
