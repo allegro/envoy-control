@@ -67,8 +67,7 @@ allprojects {
             mockito           : '2.23.0',
             cglib             : '3.2.9',
             logback           : '1.2.3',
-            slf4j             : '1.7.25',
-            re2j              : '1.3'
+            slf4j             : '1.7.25'
     ]
 }
 

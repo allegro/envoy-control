@@ -1,12 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import com.google.re2j.Pattern
-
 class ServiceTagFilter(properties: ServiceTagsProperties = ServiceTagsProperties()) {
 
-    private val tagsBlacklist: Pattern = properties.routingExcludedTags
-            .joinToString("|")
-            .let { Pattern.compile(it) }
+    private val tagsBlacklist: List<Regex> = properties.routingExcludedTags.map { Regex(it) }
     private val twoTagsCombinationsByService: Map<String, List<Pair<Regex, Regex>>>
     private val threeTagsCombinationsByService: Map<String, List<Triple<Regex, Regex, Regex>>>
 
@@ -101,7 +97,7 @@ class ServiceTagFilter(properties: ServiceTagsProperties = ServiceTagsProperties
         .asSequence()
 
     private fun filterTagsForRouting(tags: Set<String>): Set<String> = tags
-        .filter { tag -> !tagsBlacklist.matches(tag) }
+        .filter { tag -> tagsBlacklist.none { tag.matches(it) } }
         .toSet()
 
     private fun isAllowedToMatchOnTwoTags(serviceName: String): Boolean = twoTagsCombinationsByService
