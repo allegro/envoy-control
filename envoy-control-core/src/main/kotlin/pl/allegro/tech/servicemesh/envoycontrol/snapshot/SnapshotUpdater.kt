@@ -21,40 +21,47 @@ class SnapshotUpdater(
         private val logger by logger()
     }
 
-    @Volatile
-    private lateinit var lastAdsSnapshot: Snapshot
-    @Volatile
-    private lateinit var lastXdsSnapshot: Snapshot
     private val versions = SnapshotsVersions()
     private val snapshotFactory = EnvoySnapshotFactory(
-        ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
-        egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
-        clustersFactory = EnvoyClustersFactory(properties),
-        snapshotsVersions = versions,
-        properties = properties,
-        meterRegistry = meterRegistry
+            ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
+            egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
+            clustersFactory = EnvoyClustersFactory(properties),
+            snapshotsVersions = versions,
+            properties = properties,
+            meterRegistry = meterRegistry
     )
 
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
         return Flux.merge(
                 services(changes),
                 groups()
-        ).doOnNext { result ->
-            val groups = if (result.action == Action.ALL_SERVICES_GROUP_ADDED) {
-                cache.groups()
-            } else {
-                result.groups
-            }
-
-            versions.retainGroups(cache.groups())
-            groups.forEach { group ->
-                if (group.ads) {
-                    updateSnapshotForGroup(group, lastAdsSnapshot)
-                } else {
-                    updateSnapshotForGroup(group, lastXdsSnapshot)
+        )
+                .scan { previous: UpdateResult, newUpdate: UpdateResult ->
+                    UpdateResult(
+                            action = newUpdate.action,
+                            groups = newUpdate.groups,
+                            adsSnapshot = newUpdate.adsSnapshot ?: previous.adsSnapshot,
+                            xdsSnapshot = newUpdate.xdsSnapshot ?: previous.xdsSnapshot
+                    )
                 }
-            }
-        }
+                .doOnNext { result ->
+                    val groups = if (result.action == Action.ALL_SERVICES_GROUP_ADDED) {
+                        cache.groups()
+                    } else {
+                        result.groups
+                    }
+
+                    if (result.adsSnapshot != null && result.xdsSnapshot != null) {
+                        versions.retainGroups(cache.groups())
+                        groups.forEach { group ->
+                            if (group.ads) {
+                                updateSnapshotForGroup(group, result.adsSnapshot)
+                            } else {
+                                updateSnapshotForGroup(group, result.xdsSnapshot)
+                            }
+                        }
+                    }
+                }
     }
 
     fun groups(): Flux<UpdateResult> {
@@ -76,19 +83,19 @@ class SnapshotUpdater(
                 .sample(properties.stateSampleDuration)
                 .publishOn(scheduler)
                 .map { states ->
-                    updateSnapshots(states)
-                    UpdateResult(action = Action.ALL_SERVICES_GROUP_ADDED)
+                    val lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
+                    val lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
+                    UpdateResult(
+                            action = Action.ALL_SERVICES_GROUP_ADDED,
+                            adsSnapshot = lastAdsSnapshot,
+                            xdsSnapshot = lastXdsSnapshot
+                    )
                 }
                 .onErrorResume { e ->
                     meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
                     logger.error("Unable to process service changes", e)
                     Mono.justOrEmpty(UpdateResult(action = Action.ERROR_PROCESSING_CHANGES))
                 }
-    }
-
-    private fun updateSnapshots(states: List<LocalityAwareServicesState>) {
-        lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
-        lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
     }
 
     fun updateSnapshotForGroup(group: Group, globalSnapshot: Snapshot) {
@@ -106,4 +113,9 @@ enum class Action {
     SERVICES_GROUP_ADDED, ALL_SERVICES_GROUP_ADDED, ERROR_PROCESSING_CHANGES
 }
 
-class UpdateResult(val action: Action, val groups: List<Group> = listOf())
+class UpdateResult(
+    val action: Action,
+    val groups: List<Group> = listOf(),
+    val adsSnapshot: Snapshot? = null,
+    val xdsSnapshot: Snapshot? = null
+)
