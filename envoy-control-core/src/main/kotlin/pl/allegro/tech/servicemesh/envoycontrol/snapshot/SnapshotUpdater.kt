@@ -40,7 +40,7 @@ class SnapshotUpdater(
                 services(changes),
                 groups()
         ).doOnNext { result ->
-            val groups = if (result.action == Action.ALL_GROUPS_CHANGED) {
+            val groups = if (result.action == Action.ALL_SERVICES_GROUP_ADDED) {
                 cache.groups()
             } else {
                 result.groups
@@ -62,7 +62,7 @@ class SnapshotUpdater(
         return onGroupAdded
                 .publishOn(scheduler)
                 .map { groups ->
-                    UpdateResult(action = Action.SELECTED_GROUPS_CHANGED, groups = groups)
+                    UpdateResult(action = Action.SERVICES_GROUP_ADDED, groups = groups)
                 }
                 .onErrorResume { e ->
                     meterRegistry.counter("snapshot-updater.groups.updates.errors").increment()
@@ -77,12 +77,12 @@ class SnapshotUpdater(
                 .publishOn(scheduler)
                 .map { states ->
                     updateSnapshots(states)
-                    UpdateResult(action = Action.ALL_GROUPS_CHANGED)
+                    UpdateResult(action = Action.ALL_SERVICES_GROUP_ADDED)
                 }
                 .onErrorResume { e ->
                     meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
                     logger.error("Unable to process service changes", e)
-                    Mono.justOrEmpty(UpdateResult(action = Action.ALL_GROUPS_CHANGED))
+                    Mono.justOrEmpty(UpdateResult(action = Action.ERROR_PROCESSING_CHANGES))
                 }
     }
 
@@ -103,7 +103,7 @@ class SnapshotUpdater(
 }
 
 enum class Action {
-    SELECTED_GROUPS_CHANGED, ALL_GROUPS_CHANGED, ERROR_PROCESSING_CHANGES
+    SERVICES_GROUP_ADDED, ALL_SERVICES_GROUP_ADDED, ERROR_PROCESSING_CHANGES
 }
 
 class UpdateResult(val action: Action, val groups: List<Group> = listOf())
