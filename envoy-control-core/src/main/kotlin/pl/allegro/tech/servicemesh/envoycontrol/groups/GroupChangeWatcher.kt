@@ -20,11 +20,11 @@ internal class GroupChangeWatcher(
     private val cache: SimpleCache<Group>,
     private val metrics: EnvoyControlMetrics
 ) : ConfigWatcher {
-    private val groupAddedFlux: Flux<Any> = Flux.create { groupAddedSink = it }
-    private var groupAddedSink: FluxSink<Any>? = null
+    private val groupsChanged: Flux<List<Group>> = Flux.create { groupChangeEmitter = it }
+    private var groupChangeEmitter: FluxSink<List<Group>>? = null
 
-    fun onGroupAdded(): Flux<Any> {
-        return groupAddedFlux
+    fun onGroupAdded(): Flux<List<Group>> {
+        return groupsChanged
     }
 
     override fun createWatch(
@@ -38,12 +38,12 @@ internal class GroupChangeWatcher(
         val groups = cache.groups()
         metrics.setCacheGroupsCount(groups.size)
         if (oldGroups != groups) {
-            emitNewGroupsEvent()
+            emitNewGroupsEvent(groups - oldGroups)
         }
         return watch
     }
 
-    private fun emitNewGroupsEvent() {
-        groupAddedSink?.next(true)
+    private fun emitNewGroupsEvent(difference: List<Group>) {
+        groupChangeEmitter?.next(difference)
     }
 }
