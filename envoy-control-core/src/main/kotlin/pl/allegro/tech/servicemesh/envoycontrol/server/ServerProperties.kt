@@ -12,6 +12,7 @@ class ServerProperties {
     var executorGroup = ExecutorProperties()
     var netty = NettyProperties()
     var snapshotCleanup = SnapshotCleanupProperties()
+    var logFullRequest = false
 }
 
 enum class ExecutorType {
