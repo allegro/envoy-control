@@ -18,6 +18,8 @@ import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -43,9 +45,12 @@ internal class EnvoySnapshotFactory(
                 idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
                 requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
             )
-        )
+        ),
+    private val meterRegistry: MeterRegistry
 ) {
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
+        val sample = Timer.start(meterRegistry)
+
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
 
         val clusterConfigurations = if (properties.egress.http2.enabled) {
@@ -76,7 +81,7 @@ internal class EnvoySnapshotFactory(
 
         val version = snapshotsVersions.version(AllServicesGroup(ads), clusters, endpoints)
 
-        return createSnapshot(
+        val snapshot = createSnapshot(
             clusters = clusters,
             clustersVersion = version.clusters,
             endpoints = endpoints,
@@ -84,6 +89,9 @@ internal class EnvoySnapshotFactory(
             routes = routes,
             routesVersion = RoutesVersion(version.clusters.value)
         )
+        sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
+
+        return snapshot
     }
 
     private fun toClusterConfiguration(instances: List<ServiceInstances>, serviceName: String): ClusterConfiguration {
@@ -101,10 +109,14 @@ internal class EnvoySnapshotFactory(
     }
 
     fun getSnapshotForGroup(group: Group, globalSnapshot: Snapshot): Snapshot {
+        val groupSample = Timer.start(meterRegistry)
         if (group.isGlobalGroup()) {
             return globalSnapshot
         }
-        return newSnapshotForGroup(group, globalSnapshot)
+
+        val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
+        groupSample.stop(meterRegistry.timer("snapshot-factory.get-snapshot-for-group.time"))
+        return newSnapshotForGroup
     }
 
     private fun getEgressRoutesSpecification(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
