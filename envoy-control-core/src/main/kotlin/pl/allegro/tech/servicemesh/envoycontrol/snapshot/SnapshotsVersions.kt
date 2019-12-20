@@ -3,7 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -43,7 +43,7 @@ internal class SnapshotsVersions {
         previous: VersionsWithData,
         endpoints: List<ClusterLoadAssignment>,
         clusterChanged: Boolean
-    ) = if (previous.endpoints == endpoints && !clusterChanged)
+    ) = if (!clusterChanged && previous.endpoints == endpoints)
         previous.version.endpoints else EndpointsVersion(newVersion())
 
     private fun selectClusters(
