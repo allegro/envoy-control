@@ -41,6 +41,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 ?: ListenersConfig.defaultUseRemoteAddress
         val accessLogEnabled = metadata.fieldsMap["access_log_enabled"]?.boolValue
                 ?: ListenersConfig.defaultAccessLogEnabled
+        val enableLuaScript = metadata.fieldsMap["enable_lua_script"]?.boolValue
+                ?: ListenersConfig.defaultEnableLuaScript
         val accessLogPath = metadata.fieldsMap["access_log_path"]?.stringValue
                 ?: ListenersConfig.defaultAccessLogPath
         val resourcesDir = metadata.fieldsMap["resources_dir"]?.stringValue
@@ -53,6 +55,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 egressPort,
                 useRemoteAddress,
                 accessLogEnabled,
+                enableLuaScript,
                 accessLogPath,
                 resourcesDir
         )

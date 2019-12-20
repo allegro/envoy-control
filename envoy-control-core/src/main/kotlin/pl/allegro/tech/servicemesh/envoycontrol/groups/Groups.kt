@@ -35,6 +35,7 @@ data class ListenersConfig(
     val egressPort: Int,
     val useRemoteAddress: Boolean = defaultUseRemoteAddress,
     val accessLogEnabled: Boolean = defaultAccessLogEnabled,
+    val enableLuaScript: Boolean = defaultEnableLuaScript,
     val accessLogPath: String = defaultAccessLogPath,
     val resourcesDir: String = defaultResourcesDir
 ) {
@@ -42,6 +43,7 @@ data class ListenersConfig(
         const val defaultAccessLogPath = "/dev/stdout"
         const val defaultUseRemoteAddress = false
         const val defaultAccessLogEnabled = false
+        const val defaultEnableLuaScript = false
         const val defaultResourcesDir = "envoy"
     }
 }
