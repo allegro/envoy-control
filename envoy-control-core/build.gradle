@@ -7,6 +7,7 @@ dependencies {
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: versions.kotlin
     compile group: 'io.dropwizard.metrics', name: 'metrics-core', version: versions.dropwizard
     compile group: 'io.micrometer', name: 'micrometer-core', version: versions.micrometer
+    compile group: 'com.google.re2j', name: 're2j', version: versions.re2j
 
     compile group: 'io.envoyproxy.controlplane', name: 'server', version: versions.java_controlplane
 
