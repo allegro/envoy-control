@@ -19,7 +19,7 @@ class AsyncRestTemplateControlPlaneClient(
         }
             .elapsed()
             .map { t ->
-                meterRegistry.timer("sync-dc-get-state.time").record(t.t1, TimeUnit.MILLISECONDS)
+                meterRegistry.timer("sync-dc.get-state.time").record(t.t1, TimeUnit.MILLISECONDS)
                 t.t2
             }
     }
