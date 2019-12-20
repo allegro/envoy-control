@@ -1,11 +1,13 @@
 package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
+import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
-import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import org.slf4j.LoggerFactory
 
-class LoggingDiscoveryServerCallbacks : DiscoveryServerCallbacks {
+class LoggingDiscoveryServerCallbacks(
+    private val logFullRequest: Boolean
+) : DiscoveryServerCallbacks {
     private val logger = LoggerFactory.getLogger(LoggingDiscoveryServerCallbacks::class.java)
 
     override fun onStreamClose(streamId: Long, typeUrl: String?) {
@@ -21,7 +23,7 @@ class LoggingDiscoveryServerCallbacks : DiscoveryServerCallbacks {
     }
 
     override fun onStreamRequest(streamId: Long, request: DiscoveryRequest?) {
-        logger.debug("onStreamRequest streamId: {} request: {}", streamId, request)
+        logger.debug("onStreamRequest streamId: {} request: {}", streamId, requestData(request))
     }
 
     override fun onStreamResponse(
@@ -29,6 +31,17 @@ class LoggingDiscoveryServerCallbacks : DiscoveryServerCallbacks {
         request: DiscoveryRequest?,
         response: DiscoveryResponse?
     ) {
-        logger.debug("onStreamResponse streamId: {}, request: {}, response: {}", streamId, request, response)
+        logger.debug(
+            "onStreamResponse streamId: {}, request: {}, response: {}", streamId, requestData(request), response
+        )
+    }
+
+    private fun requestData(request: DiscoveryRequest?): String {
+        return if (logFullRequest) {
+            "$request"
+        } else {
+            "version: ${request?.versionInfo}, id: ${request?.node?.id}, cluster: ${request?.node?.cluster}, " +
+                "type: ${request?.typeUrl}, responseNonce: ${request?.responseNonce}"
+        }
     }
 }
