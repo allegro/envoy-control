@@ -25,90 +25,96 @@ import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config as He
 
 typealias HttpFilterFactory = (node: Group) -> HttpFilter?
 
+class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
+    val defaultServiceTagFilterRules = serviceTagFilterRules()
+    val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagFilterRules)
+    val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
+    val defaultHeaderToMetadataFilter = { _: Group -> headerToMetadataHttpFilter }
+    val envoyRouterHttpFilter = envoyRouterHttpFilter()
+    val defaultEnvoyRouterHttpFilter = { _: Group -> envoyRouterHttpFilter }
+    val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
+    val defaultIngressFilters = listOf(defaultEnvoyRouterHttpFilter)
+
+    fun serviceTagFilterRules(
+        header: String = "x-service-tag",
+        tag: String = snapshotProperties.routing.serviceTags.metadataKey
+    ): List<HeaderToMetadataConfig.Rule> {
+        return listOf(HeaderToMetadataConfig.Rule.newBuilder()
+                .setHeader(header)
+                .setRemove(false)
+                .setOnHeaderPresent(
+                        HeaderToMetadataConfig.KeyValuePair.newBuilder()
+                                .setKey(tag)
+                                .setMetadataNamespace("envoy.lb")
+                                .setType(HeaderToMetadataConfig.ValueType.STRING)
+                                .build()
+                )
+                .build())
+    }
+
+    fun headerToMetadataConfig(
+        rules: List<HeaderToMetadataConfig.Rule>,
+        key: String = snapshotProperties.loadBalancing.canary.metadataKey
+    ): HeaderToMetadataConfig.Builder {
+        val headerToMetadataConfig = HeaderToMetadataConfig.newBuilder()
+                .addRequestRules(
+                        HeaderToMetadataConfig.Rule.newBuilder()
+                                .setHeader("x-canary")
+                                .setRemove(false)
+                                .setOnHeaderPresent(
+                                        HeaderToMetadataConfig.KeyValuePair.newBuilder()
+                                                .setKey(key)
+                                                .setMetadataNamespace("envoy.lb")
+                                                .setType(HeaderToMetadataConfig.ValueType.STRING)
+                                                .build()
+                                )
+                                .build()
+                )
+
+        rules.forEach {
+            headerToMetadataConfig.addRequestRules(it)
+        }
+
+        return headerToMetadataConfig
+    }
+
+    private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter.newBuilder().setName("envoy.router").build()
+
+    fun headerToMetadataHttpFilter(headerToMetadataConfig: HeaderToMetadataConfig.Builder): HttpFilter {
+        return HttpFilter.newBuilder()
+                .setName("envoy.filters.http.header_to_metadata")
+                .setTypedConfig(ProtobufAny.pack(
+                        headerToMetadataConfig.build()
+                ))
+                .build()
+    }
+}
+
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
-    private val listenersFactoryProperties: ListenersFactoryProperties,
+    snapshotProperties: SnapshotProperties,
     private val ingressFilters: List<HttpFilterFactory> = listOf(),
     private val egressFilters: List<HttpFilterFactory> = listOf()
 ) {
+    private val listenersFactoryProperties = snapshotProperties.dynamicListeners
     private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
     private val accessLogMessageFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormat)
     private val accessLogLevel = stringValue(listenersFactoryProperties.httpFilters.accessLog.level)
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
+    private val egressRdsInitialFetchTimeout: Long = 20
+    private val ingressRdsInitialFetchTimeout: Long = 30
 
-    companion object {
-        private const val egressRdsInitialFetchTimeout: Long = 20
-        private const val ingressRdsInitialFetchTimeout: Long = 30
+    val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
 
-        val defaultServiceTagFilterRules = serviceTagFilterRules()
-        val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagFilterRules)
-        val defaultHeaderToMetadataFilter = { _: Group -> headerToMetadataHttpFilter(defaultHeaderToMetadataConfig) }
-        val defaultEnvoyRouterHttpFilter = { _: Group -> envoyRouterHttpFilter() }
-        val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
-        val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
-        val defaultIngressFilters = listOf(defaultEnvoyRouterHttpFilter)
-
-        private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter.newBuilder().setName("envoy.router").build()
-
-        fun apiConfigSource(): ApiConfigSource {
-            return ApiConfigSource.newBuilder()
-                    .setApiType(ApiConfigSource.ApiType.GRPC)
-                    .addGrpcServices(GrpcService.newBuilder()
-                            .setEnvoyGrpc(
-                                    GrpcService.EnvoyGrpc.newBuilder()
-                                            .setClusterName("envoy-control-xds")
-                            )
-                    ).build()
-        }
-
-        fun headerToMetadataHttpFilter(headerToMetadataConfig: HeaderToMetadataConfig.Builder): HttpFilter {
-            return HttpFilter.newBuilder()
-                    .setName("envoy.filters.http.header_to_metadata")
-                    .setTypedConfig(ProtobufAny.pack(
-                            headerToMetadataConfig.build()
-                    ))
-                    .build()
-        }
-
-        fun headerToMetadataConfig(rules: List<HeaderToMetadataConfig.Rule>): HeaderToMetadataConfig.Builder {
-            val headerToMetadataConfig = HeaderToMetadataConfig.newBuilder()
-                    .addRequestRules(
-                            HeaderToMetadataConfig.Rule.newBuilder()
-                                    .setHeader("x-canary")
-                                    .setRemove(false)
-                                    .setOnHeaderPresent(
-                                            HeaderToMetadataConfig.KeyValuePair.newBuilder()
-                                                    .setKey("canary")
-                                                    .setMetadataNamespace("envoy.lb")
-                                                    .setType(HeaderToMetadataConfig.ValueType.STRING)
-                                                    .build()
-                                    )
-                                    .build()
-                    )
-
-            rules.forEach {
-                headerToMetadataConfig.addRequestRules(it)
-            }
-
-            return headerToMetadataConfig
-        }
-
-        fun serviceTagFilterRules(
-            header: String = "x-service-tag",
-            tag: String = "tag"
-        ): List<HeaderToMetadataConfig.Rule> {
-            return listOf(HeaderToMetadataConfig.Rule.newBuilder()
-                    .setHeader(header)
-                    .setRemove(false)
-                    .setOnHeaderPresent(
-                            HeaderToMetadataConfig.KeyValuePair.newBuilder()
-                                    .setKey(tag)
-                                    .setMetadataNamespace("envoy.lb")
-                                    .setType(HeaderToMetadataConfig.ValueType.STRING)
-                                    .build()
-                    )
-                    .build())
-        }
+    fun apiConfigSource(): ApiConfigSource {
+        return ApiConfigSource.newBuilder()
+                .setApiType(ApiConfigSource.ApiType.GRPC)
+                .addGrpcServices(GrpcService.newBuilder()
+                        .setEnvoyGrpc(
+                                GrpcService.EnvoyGrpc.newBuilder()
+                                        .setClusterName("envoy-control-xds")
+                        )
+                ).build()
     }
 
     fun createListeners(group: Group): List<Listener> {

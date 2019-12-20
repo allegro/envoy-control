@@ -6,7 +6,5 @@ class EnvoyHttpFilters(
 ) {
     companion object {
         val emptyFilters = EnvoyHttpFilters(listOf(), listOf())
-        val defaultEgressFilters = EnvoyListenersFactory.defaultEgressFilters
-        val defaultIngressFilters = EnvoyListenersFactory.defaultIngressFilters
     }
 }

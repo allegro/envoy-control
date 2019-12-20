@@ -30,7 +30,7 @@ class SnapshotUpdater(
         egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
         clustersFactory = EnvoyClustersFactory(properties),
         listenersFactory = EnvoyListenersFactory(
-                properties.dynamicListeners,
+                properties,
                 envoyHttpFilters.ingressFilters,
                 envoyHttpFilters.egressFilters
         ),
