@@ -3,7 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
