@@ -36,12 +36,12 @@ data class ListenersConfig(
     val useRemoteAddress: Boolean = defaultUseRemoteAddress,
     val accessLogEnabled: Boolean = defaultAccessLogEnabled,
     val accessLogPath: String = defaultAccessLogPath,
-    val luaScriptDir: String = defaultLuaScriptDir
+    val resourcesDir: String = defaultResourcesDir
 ) {
     companion object {
         const val defaultAccessLogPath = "/dev/stdout"
         const val defaultUseRemoteAddress = false
         const val defaultAccessLogEnabled = false
-        const val defaultLuaScriptDir = "envoy/lua"
+        const val defaultResourcesDir = "envoy"
     }
 }

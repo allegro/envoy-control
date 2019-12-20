@@ -25,7 +25,7 @@ node:
     egress_port: 5000
     use_remote_address: true
     access_log_enabled: false
-    lua_script_dir: "/etc/envoy/extra"
+    resources_dir: "/etc/envoy/extra"
     proxy_settings:
       incoming:
         endpoints:
