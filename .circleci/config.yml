@@ -6,7 +6,8 @@ version: 2.1
 
 executors:
   my-executor:
-    machine: true
+    machine:
+      image: ubuntu-1604:201903-01
     environment:
       JVM_OPTS: -Xmx3200m
       TERM: dumb
