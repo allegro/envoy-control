@@ -50,7 +50,7 @@ internal class SnapshotsVersionsTest {
     }
 
     @Test
-    fun `should generate new version only for clusters when they are different`() {
+    fun `should generate new version for clusters and endpoints when clusters are different`() {
         // given
         val versions = snapshotsVersions.version(group, clusters, endpoints)
 
@@ -59,7 +59,7 @@ internal class SnapshotsVersionsTest {
         val newVersions = snapshotsVersions.version(group, newClusters, endpoints)
 
         // then
-        assertThat(newVersions.endpoints).isEqualTo(versions.endpoints)
+        assertThat(newVersions.endpoints).isNotEqualTo(versions.endpoints)
         assertThat(newVersions.clusters).isNotEqualTo(versions.clusters)
     }
 
