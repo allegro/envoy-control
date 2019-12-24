@@ -6,7 +6,8 @@ import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import org.slf4j.LoggerFactory
 
 class LoggingDiscoveryServerCallbacks(
-    private val logFullRequest: Boolean
+    private val logFullRequest: Boolean,
+    private val logFullResponse: Boolean
 ) : DiscoveryServerCallbacks {
     private val logger = LoggerFactory.getLogger(LoggingDiscoveryServerCallbacks::class.java)
 
@@ -32,8 +33,19 @@ class LoggingDiscoveryServerCallbacks(
         response: DiscoveryResponse?
     ) {
         logger.debug(
-            "onStreamResponse streamId: {}, request: {}, response: {}", streamId, requestData(request), response
+            "onStreamResponse streamId: {}, request: {}, response: {}",
+            streamId,
+            requestData(request),
+            responseData(response)
         )
+    }
+
+    private fun responseData(response: DiscoveryResponse?): String {
+        return if (logFullResponse) {
+            "$response"
+        } else {
+            "version: ${response?.versionInfo}, " + "type: ${response?.typeUrl}, responseNonce: ${response?.nonce}"
+        }
     }
 
     private fun requestData(request: DiscoveryRequest?): String {
