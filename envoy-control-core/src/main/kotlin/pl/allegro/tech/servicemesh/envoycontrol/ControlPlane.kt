@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol
 
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SimpleCache
+import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.server.DefaultExecutorGroup
 import io.envoyproxy.controlplane.server.DiscoveryServer
 import io.envoyproxy.controlplane.server.ExecutorGroup
@@ -37,6 +38,8 @@ import java.util.concurrent.atomic.AtomicInteger
 class ControlPlane private constructor(
     val grpcServer: Server,
     val snapshotUpdater: SnapshotUpdater,
+    val nodeGroup: NodeGroup<Group>,
+    val cache: SnapshotCache<Group>,
     private val changes: Flux<List<LocalityAwareServicesState>>
 ) : AutoCloseable {
 
@@ -155,6 +158,8 @@ class ControlPlane private constructor(
                     groupChangeWatcher.onGroupAdded(),
                     meterRegistry
                 ),
+                nodeGroup,
+                cache,
                 changes
             )
         }

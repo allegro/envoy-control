@@ -62,6 +62,17 @@ class EnvoyAdmin(
         }
     }
 
+    private fun configDump(): String {
+        val response = get("config_dump")
+        return response.body().use { it!!.string() }
+    }
+
+    fun nodeInfo(): String {
+        val configDump = configDump()
+        val node = objectMapper.readTree(configDump).at("/configs/0/bootstrap/node")
+        return objectMapper.writeValueAsString(node)
+    }
+
     fun circuitBreakerSetting(
         cluster: String,
         setting: String,
