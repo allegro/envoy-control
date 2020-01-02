@@ -91,7 +91,7 @@ class EnvoyControlRunnerTestApp(
                 .build()
         ).execute()
 
-        return response.body().use {  it!!.string() }
+        return response.body().use { it!!.string() }
     }
 
     private fun getApplicationStatusResponse(): Response =

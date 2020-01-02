@@ -21,7 +21,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     /**
      * Returns a textual representation of the snapshot for debugging purposes.
      * It contains the versions of XDS resources and the contents for a provided node JSON
-     * extracted from Envoy's config_dump endpoint. 
+     * extracted from Envoy's config_dump endpoint.
      */
     @PostMapping("/snapshot")
     @ResponseBody
@@ -37,7 +37,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
                 "snapshot:\n" +
                 snapshot.toString(),
             HttpStatus.OK
-        );
+        )
     }
 
     private fun versions(snapshot: Snapshot): String {
@@ -48,5 +48,4 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             .append("listeners: ${snapshot.listeners().version()}\n")
         return versions.toString()
     }
-
 }
