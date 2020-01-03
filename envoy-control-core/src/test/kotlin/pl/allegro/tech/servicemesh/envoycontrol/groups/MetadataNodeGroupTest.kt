@@ -22,8 +22,9 @@ class MetadataNodeGroupTest {
             // we have to preserve all services even if wildcard is present,
             // because service may define different settings for different dependencies (for example endpoints, which
             // will be implemented in https://github.com/allegro/envoy-control/issues/6
-            proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*", "a", "b", "c")),
-            ads = false
+                ads = false,
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*", "a", "b", "c")),
+                listenersConfig = listenersConfig
         ))
     }
 
@@ -71,8 +72,9 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             AllServicesGroup(
-                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*")),
-                ads = true
+                    ads = true,
+                    proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*")),
+                    listenersConfig = listenersConfig
             )
         )
     }
@@ -108,8 +110,9 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(AllServicesGroup(
             // we have to preserve all services even if outgoingPermissions is disabled,
             // because service may define different settings for different dependencies (for example retry config)
-            proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-            ads = true
+                ads = true,
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
+                listenersConfig = listenersConfig
         ))
     }
 
@@ -176,9 +179,10 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group).isEqualTo(AllServicesGroup(
-            ads = false,
-            serviceName = "app1",
-            proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("*"))
+                ads = false,
+                serviceName = "app1",
+                proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("*")),
+                listenersConfig = listenersConfig
         ))
     }
 

@@ -25,7 +25,7 @@ data class AllServicesGroup(
      * Global group is a base group for all other groups. First we generate the global groups from a snapshot,
      * then generate all other groups using data from global groups.
      */
-    override fun isGlobalGroup() = serviceName == "" && proxySettings.isEmpty()
+    override fun isGlobalGroup() = serviceName == "" && proxySettings.isEmpty() && listenersConfig == null
 }
 
 data class ListenersConfig(

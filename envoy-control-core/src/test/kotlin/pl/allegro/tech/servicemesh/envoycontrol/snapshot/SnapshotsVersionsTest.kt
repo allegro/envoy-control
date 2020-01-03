@@ -21,7 +21,7 @@ internal class SnapshotsVersionsTest {
 
     private val snapshotsVersions = SnapshotsVersions()
 
-    private val group = AllServicesGroup(ads = false)
+    private val group = AllServicesGroup(ads = false, listenersConfig = listenersConfig)
     private val clusters = listOf(cluster(name = "service1"))
     private val endpoints = listOf(endpoints(clusterName = "service1", instances = 1))
 
@@ -135,28 +135,29 @@ internal class SnapshotsVersionsTest {
 
     private fun createGroup(endpointPath: String): AllServicesGroup {
         return AllServicesGroup(
-            ads = false,
-            serviceName = "name",
-            proxySettings = ProxySettings(
-                incoming = Incoming(
-                    endpoints = listOf(
-                        IncomingEndpoint(
-                            path = endpointPath,
-                            pathMatchingType = PathMatchingType.PATH,
-                            methods = setOf("GET", "PUT"),
-                            clients = setOf("client1", "role1")
+                ads = false,
+                serviceName = "name",
+                proxySettings = ProxySettings(
+                    incoming = Incoming(
+                        endpoints = listOf(
+                            IncomingEndpoint(
+                                path = endpointPath,
+                                pathMatchingType = PathMatchingType.PATH,
+                                methods = setOf("GET", "PUT"),
+                                clients = setOf("client1", "role1")
+                            )
+                        ),
+                        permissionsEnabled = true,
+                        roles = listOf(
+                            Role(
+                                name = "role1",
+                                clients = setOf("client2", "client3")
+                            )
                         )
                     ),
-                    permissionsEnabled = true,
-                    roles = listOf(
-                        Role(
-                            name = "role1",
-                            clients = setOf("client2", "client3")
-                        )
-                    )
+                    outgoing = Outgoing(listOf())
                 ),
-                outgoing = Outgoing(listOf())
-            )
+                listenersConfig = listenersConfig
         )
     }
 }

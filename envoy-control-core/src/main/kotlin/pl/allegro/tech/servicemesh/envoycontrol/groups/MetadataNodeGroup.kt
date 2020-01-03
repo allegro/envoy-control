@@ -5,7 +5,6 @@ import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.envoy.api.v2.core.Node
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import java.lang.Exception
 
 class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
     private val logger by logger()
@@ -20,20 +19,49 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
     }
 
     private fun createListenersConfig(id: String, metadata: Struct): ListenersConfig? {
-        val ingressHost: String
-        val ingressPort: Int
-        val egressHost: String
-        val egressPort: Int
-        try {
-            ingressHost = metadata.fieldsMap["ingress_host"]!!.stringValue
-            ingressPort = metadata.fieldsMap["ingress_port"]!!.numberValue.toInt()
-            egressHost = metadata.fieldsMap["egress_host"]!!.stringValue
-            egressPort = metadata.fieldsMap["egress_port"]!!.numberValue.toInt()
-        } catch (e: Exception) {
-            logger.debug("Node $id does not have properly configured ingress / egress listeners. " +
-                    "This is normal during the migration from static listeners to dynamic, " +
-                    "but should not occur after that.", e)
+        val ingressHostValue = metadata.fieldsMap["ingress_host"]
+        val ingressPortValue = metadata.fieldsMap["ingress_port"]
+        val egressHostValue = metadata.fieldsMap["egress_host"]
+        val egressPortValue = metadata.fieldsMap["egress_port"]
 
+        if (listOf(ingressHostValue, ingressPortValue, egressHostValue, egressPortValue).all { it == null }) {
+            logger.debug("Node $id with static listener config connected")
+            return null
+        }
+
+        if (ingressHostValue == null) {
+            logger.info("Node $id has no ingress host configured, falling back to static listeners.")
+            return null
+        }
+
+        if (ingressPortValue == null) {
+            logger.info("Node $id has no ingress port configured, falling back to static listeners.")
+            return null
+        }
+
+        if (egressHostValue == null) {
+            logger.info("Node $id has no egerss host configured, falling back to static listeners.")
+            return null
+        }
+
+        if (egressPortValue == null) {
+            logger.info("Node $id has no egress port configured, falling back to static listeners.")
+            return null
+        }
+
+        val ingressHost = ingressHostValue.stringValue
+        val ingressPort = ingressPortValue.numberValue.toInt()
+
+        if (ingressPort < 0 || ingressPort > 65535) {
+            logger.warn("Node $id has ingress port out of valid range [0-65535]. Falling back to static listeners.")
+            return null
+        }
+
+        val egressHost = egressHostValue.stringValue
+        val egressPort = egressPortValue.numberValue.toInt()
+
+        if (egressPort < 0 || egressPort > 65535) {
+            logger.warn("Node $id has egress port out of valid range [0-65535]. Falling back to static listeners.")
             return null
         }
 

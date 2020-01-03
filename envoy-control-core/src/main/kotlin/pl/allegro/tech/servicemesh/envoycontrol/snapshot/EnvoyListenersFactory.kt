@@ -20,6 +20,7 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import com.google.protobuf.Any as ProtobufAny
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config as HeaderToMetadataConfig
 
@@ -36,7 +37,7 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     val defaultIngressFilters = listOf(defaultEnvoyRouterHttpFilter)
 
     fun serviceTagFilterRules(
-        header: String = "x-service-tag",
+        header: String = snapshotProperties.routing.serviceTags.header,
         tag: String = snapshotProperties.routing.serviceTags.metadataKey
     ): List<HeaderToMetadataConfig.Rule> {
         return listOf(HeaderToMetadataConfig.Rule.newBuilder()
@@ -92,10 +93,11 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
 
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
-    snapshotProperties: SnapshotProperties,
-    private val ingressFilters: List<HttpFilterFactory> = listOf(),
-    private val egressFilters: List<HttpFilterFactory> = listOf()
+        snapshotProperties: SnapshotProperties,
+        envoyHttpFilters: EnvoyHttpFilters
 ) {
+    private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters
+    private val egressFilters: List<HttpFilterFactory> = envoyHttpFilters.egressFilters
     private val listenersFactoryProperties = snapshotProperties.dynamicListeners
     private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
     private val accessLogMessageFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormat)
@@ -121,21 +123,15 @@ class EnvoyListenersFactory(
         if (group.listenersConfig == null) {
             return listOf()
         }
-        val listenersConfig = group.listenersConfig!!
+        val listenersConfig: ListenersConfig = group.listenersConfig!!
+        val ingressListener = createIngressListener(group, listenersConfig)
+        val egressListener = createEgressListener(group, listenersConfig)
 
-        val ingressListener = Listener.newBuilder()
-                .setName("ingress_listener")
-                .setAddress(
-                        Address.newBuilder().setSocketAddress(
-                                SocketAddress.newBuilder()
-                                        .setPortValue(listenersConfig.ingressPort)
-                                        .setAddress(listenersConfig.ingressHost)
-                        )
-                )
-                .addFilterChains(createIngressFilterChain(group))
-                .build()
+        return listOf(ingressListener, egressListener)
+    }
 
-        val egressListener = Listener.newBuilder()
+    private fun createEgressListener(group: Group, listenersConfig: ListenersConfig): Listener {
+        return Listener.newBuilder()
                 .setName("egress_listener")
                 .setAddress(
                         Address.newBuilder().setSocketAddress(
@@ -144,49 +140,61 @@ class EnvoyListenersFactory(
                                         .setAddress(listenersConfig.egressHost)
                         )
                 )
-                .addFilterChains(createEgressFilterChain(group))
+                .addFilterChains(createEgressFilterChain(group, listenersConfig))
                 .build()
-
-        return listOf(ingressListener, egressListener)
     }
 
-    private fun createIngressFilterChain(group: Group): FilterChain {
+    private fun createIngressListener(group: Group, listenersConfig: ListenersConfig): Listener {
+        return Listener.newBuilder()
+                .setName("ingress_listener")
+                .setAddress(
+                        Address.newBuilder().setSocketAddress(
+                                SocketAddress.newBuilder()
+                                        .setPortValue(listenersConfig.ingressPort)
+                                        .setAddress(listenersConfig.ingressHost)
+                        )
+                )
+                .addFilterChains(createIngressFilterChain(group, listenersConfig))
+                .build()
+    }
+
+    private fun createIngressFilterChain(group: Group, listenersConfig: ListenersConfig): FilterChain {
         return FilterChain.newBuilder()
-                .addFilters(createIngressFilter(group))
+                .addFilters(createIngressFilter(group, listenersConfig))
                 .build()
     }
 
-    private fun createEgressFilterChain(group: Group): FilterChain {
+    private fun createEgressFilterChain(group: Group, listenersConfig: ListenersConfig): FilterChain {
         return FilterChain.newBuilder()
-                .addFilters(createEgressFilter(group))
+                .addFilters(createEgressFilter(group, listenersConfig))
                 .build()
     }
 
-    private fun createEgressFilter(group: Group): Filter {
+    private fun createEgressFilter(group: Group, listenersConfig:ListenersConfig): Filter {
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
                 .setStatPrefix("egress_http")
                 .setRds(egressRds(group.ads))
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
 
-        return createFilter(connectionManagerBuilder, egressFilters, group, "egress")
+        return createFilter(connectionManagerBuilder, egressFilters, group, "egress", listenersConfig)
     }
 
     private fun createFilter(
-        connectionManagerBuilder: HttpConnectionManager.Builder,
-        filters: List<HttpFilterFactory>,
-        group: Group,
-        accessLogType: String
+            connectionManagerBuilder: HttpConnectionManager.Builder,
+            filterFactories: List<HttpFilterFactory>,
+            group: Group,
+            accessLogType: String,
+            listenersConfig: ListenersConfig
     ): Filter {
-        filters.forEach {
+        filterFactories.forEach {
             val filter = it(group)
             if (filter != null) {
                 connectionManagerBuilder.addHttpFilters(filter)
             }
         }
 
-        // checked in EnvoyListenersFactory#createListeners
-        if (group.listenersConfig!!.accessLogEnabled) {
-            connectionManagerBuilder.addAccessLog(accessLog(group.listenersConfig!!.accessLogPath, accessLogType))
+        if (listenersConfig.accessLogEnabled) {
+            connectionManagerBuilder.addAccessLog(accessLog(listenersConfig.accessLogPath, accessLogType))
         }
 
         return Filter.newBuilder()
@@ -221,20 +229,20 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun createIngressFilter(group: Group): Filter {
+    private fun createIngressFilter(group: Group, listenersConfig: ListenersConfig): Filter {
         val ingressHttp = HttpConnectionManager.newBuilder()
                 .setStatPrefix("ingress_http")
-                .setUseRemoteAddress(boolValue(group.listenersConfig!!.useRemoteAddress))
+                .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
                 .setRds(ingressRds(group.ads))
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
 
-        if (group.listenersConfig!!.useRemoteAddress) {
+        if (listenersConfig.useRemoteAddress) {
             ingressHttp.setXffNumTrustedHops(listenersFactoryProperties.httpFilters.ingressXffNumTrustedHops)
         }
 
-        return createFilter(ingressHttp, ingressFilters, group, "ingress")
+        return createFilter(ingressHttp, ingressFilters, group, "ingress", listenersConfig)
     }
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {

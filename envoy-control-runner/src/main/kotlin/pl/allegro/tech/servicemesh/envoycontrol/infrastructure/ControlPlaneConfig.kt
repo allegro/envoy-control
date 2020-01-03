@@ -58,8 +58,9 @@ class ControlPlaneConfig {
         metrics: EnvoyControlMetrics,
         envoyHttpFilters: EnvoyHttpFilters
     ): ControlPlane =
-        ControlPlane.builder(properties, meterRegistry, envoyHttpFilters)
+        ControlPlane.builder(properties, meterRegistry)
             .withMetrics(metrics)
+            .withEnvoyHttpFilters(envoyHttpFilters)
             .build(globalServiceChanges.combined())
 
     @Bean
@@ -128,8 +129,7 @@ class ControlPlaneConfig {
     fun envoyHttpFilters(
         properties: EnvoyControlProperties
     ): EnvoyHttpFilters {
-        val envoyDefaultFilters = EnvoyDefaultFilters(properties.envoy.snapshot)
-        return EnvoyHttpFilters(envoyDefaultFilters.defaultIngressFilters, envoyDefaultFilters.defaultEgressFilters)
+        return EnvoyHttpFilters.defaultFilters(properties.envoy.snapshot)
     }
 
     fun localDatacenter(properties: ConsulProperties) =

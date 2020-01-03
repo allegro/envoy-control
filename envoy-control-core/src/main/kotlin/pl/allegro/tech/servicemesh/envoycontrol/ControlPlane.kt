@@ -46,9 +46,8 @@ class ControlPlane private constructor(
     companion object {
         fun builder(
             properties: EnvoyControlProperties,
-            meterRegistry: MeterRegistry,
-            envoyHttpFilters: EnvoyHttpFilters
-        ) = ControlPlaneBuilder(properties, meterRegistry, envoyHttpFilters)
+            meterRegistry: MeterRegistry
+        ) = ControlPlaneBuilder(properties, meterRegistry)
     }
 
     fun start() {
@@ -66,14 +65,14 @@ class ControlPlane private constructor(
 
     class ControlPlaneBuilder(
         val properties: EnvoyControlProperties,
-        val meterRegistry: MeterRegistry,
-        val envoyHttpFilters: EnvoyHttpFilters
+        val meterRegistry: MeterRegistry
     ) {
         var grpcServerExecutor: Executor? = null
         var nioEventLoopExecutor: Executor? = null
         var executorGroup: ExecutorGroup? = null
         var updateSnapshotExecutor: Executor? = null
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics()
+        var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
@@ -192,6 +191,11 @@ class ControlPlane private constructor(
 
         fun withMetrics(metrics: EnvoyControlMetrics): ControlPlaneBuilder {
             this.metrics = metrics
+            return this
+        }
+
+        fun withEnvoyHttpFilters(envoyHttpFilters: EnvoyHttpFilters): ControlPlaneBuilder {
+            this.envoyHttpFilters = envoyHttpFilters
             return this
         }
 

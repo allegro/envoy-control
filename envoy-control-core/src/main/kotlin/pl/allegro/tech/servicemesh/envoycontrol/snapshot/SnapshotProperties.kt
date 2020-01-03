@@ -147,6 +147,7 @@ class AuthorizationProperties {
 class ServiceTagsProperties {
     var enabled = false
     var metadataKey = "tag"
+    var header = "x-service-tag"
     var routingExcludedTags: MutableList<String> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
 }
