@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
@@ -16,7 +16,7 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    open fun `getting snapshot debug info contains all information`() {
+    open fun `should return snapshot debug info containing snapshot versions`() {
         // given
         registerService(name = "echo")
         val nodeMetadata = envoyContainer1.admin().nodeInfo()
@@ -26,13 +26,28 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
             val snapshot = envoyControl1.getSnapshot(nodeMetadata)
 
             // then
-            Assertions.assertThat(snapshot).isNotEmpty()
-            Assertions.assertThat(snapshot)
+            assertThat(snapshot).isNotEmpty()
+            assertThat(snapshot)
                 .contains("clusters: ")
                 .contains("endpoints: ")
                 .contains("routes: ")
                 .contains("listeners: ")
-            Assertions.assertThat(snapshot)
+        }
+    }
+
+    @Test
+    open fun `should return snapshot debug info containing snapshot contents`() {
+        // given
+        registerService(name = "echo")
+        val nodeMetadata = envoyContainer1.admin().nodeInfo()
+
+        untilAsserted {
+            // when
+            val snapshot = envoyControl1.getSnapshot(nodeMetadata)
+
+            // then
+            assertThat(snapshot).isNotEmpty()
+            assertThat(snapshot)
                 .contains("clusters=SnapshotResources")
                 .contains("endpoints=SnapshotResources")
                 .contains("routes=SnapshotResources")
@@ -40,7 +55,7 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
         }
     }
 
-    val missingNodeJson = """{
+    private val missingNodeJson = """{
      "metadata": {
       "service_name": "service-mesh-service-first",
       "identity": "",
@@ -74,12 +89,12 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
 """.trim()
 
     @Test
-    open fun `getting missing snapshot results returns valid description`() {
+    open fun `should inform about missing snapshot when given node does not exist`() {
         // when
         val snapshot = envoyControl1.getSnapshot(missingNodeJson)
 
         // then
-        Assertions.assertThat(snapshot).isNotEmpty()
-        Assertions.assertThat(snapshot).contains("snapshot missing")
+        assertThat(snapshot).isNotEmpty()
+        assertThat(snapshot).contains("snapshot missing")
     }
 }

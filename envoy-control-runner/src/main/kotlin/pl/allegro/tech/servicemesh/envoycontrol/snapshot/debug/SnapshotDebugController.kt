@@ -8,7 +8,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -24,20 +23,19 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
      * extracted from Envoy's config_dump endpoint.
      */
     @PostMapping("/snapshot")
-    @ResponseBody
     fun snapshot(@RequestBody node: Node): ResponseEntity<String> {
-        // TODO: handle missing snapshot (e.g. wrong data provided)
         val nodeHash = nodeGroup.hash(node)
         val snapshot = cache.getSnapshot(nodeHash)
-        if (snapshot == null) {
+        return if (snapshot == null) {
             return ResponseEntity("snapshot missing", HttpStatus.NOT_FOUND)
+        } else {
+            ResponseEntity(
+                versions(snapshot) +
+                    "snapshot:\n" +
+                    snapshot.toString(),
+                HttpStatus.OK
+            )
         }
-        return ResponseEntity(
-            versions(snapshot) +
-                "snapshot:\n" +
-                snapshot.toString(),
-            HttpStatus.OK
-        )
     }
 
     private fun versions(snapshot: Snapshot): String {

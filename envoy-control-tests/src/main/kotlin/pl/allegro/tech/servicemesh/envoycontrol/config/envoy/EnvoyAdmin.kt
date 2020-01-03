@@ -12,16 +12,15 @@ import okhttp3.Response
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 
 class EnvoyAdmin(
-    val address: String,
-    val objectMapper: ObjectMapper = ObjectMapper()
+    private val address: String,
+    private val objectMapper: ObjectMapper = ObjectMapper()
         .registerModule(KotlinModule())
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 ) {
 
     fun cluster(name: String): ClusterStatus? =
         clusters()
-            .filter { it.name == name }
-            .firstOrNull()
+            .firstOrNull { it.name == name }
 
     fun numOfEndpoints(clusterName: String): Int =
         cluster(clusterName)
@@ -69,9 +68,13 @@ class EnvoyAdmin(
 
     fun nodeInfo(): String {
         val configDump = configDump()
-        val node = objectMapper.readTree(configDump).at("/configs/0/bootstrap/node")
+        val bootstrapConfigDump = bootstrapConfigDump(configDump)
+        val node = bootstrapConfigDump.at("/bootstrap/node")
         return objectMapper.writeValueAsString(node)
     }
+
+    private fun bootstrapConfigDump(configDump: String) =
+        objectMapper.readTree(configDump).at("/configs/0")
 
     fun circuitBreakerSetting(
         cluster: String,
