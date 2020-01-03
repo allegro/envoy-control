@@ -133,7 +133,10 @@ class ControlPlane private constructor(
                             cleanupProperties.collectAfterMillis.toMillis(),
                             cleanupProperties.collectionIntervalMillis.toMillis()
                         ),
-                        LoggingDiscoveryServerCallbacks(properties.server.logFullRequest),
+                        LoggingDiscoveryServerCallbacks(
+                            properties.server.logFullRequest,
+                            properties.server.logFullResponse
+                        ),
                         MeteredConnectionsCallbacks().also {
                             meterRegistry.gauge("grpc.all-connections", it.connections)
                             MeteredConnectionsCallbacks.MetricsStreamType.values().map { type ->

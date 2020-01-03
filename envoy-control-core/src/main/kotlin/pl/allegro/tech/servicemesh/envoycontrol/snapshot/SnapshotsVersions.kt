@@ -28,7 +28,7 @@ internal class SnapshotsVersions {
                 null -> Version(clusters = ClustersVersion(newVersion()), endpoints = EndpointsVersion(newVersion()))
                 else -> Version(
                     clusters = selectClusters(previous, clusters),
-                    endpoints = selectEndpoints(previous, endpoints)
+                    endpoints = selectEndpoints(previous, endpoints, previous.clusters != clusters)
                 )
             }
             VersionsWithData(version, clusters, endpoints)
@@ -36,10 +36,15 @@ internal class SnapshotsVersions {
         return versionsWithData!!.version
     }
 
+    /**
+     * When cluster change we should also send EDS.
+     */
     private fun selectEndpoints(
         previous: VersionsWithData,
-        endpoints: List<ClusterLoadAssignment>
-    ) = if (previous.endpoints == endpoints) previous.version.endpoints else EndpointsVersion(newVersion())
+        endpoints: List<ClusterLoadAssignment>,
+        clusterChanged: Boolean
+    ) = if (!clusterChanged && previous.endpoints == endpoints)
+        previous.version.endpoints else EndpointsVersion(newVersion())
 
     private fun selectClusters(
         previous: VersionsWithData,
