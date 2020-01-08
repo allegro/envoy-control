@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.pszymczyk.consul.infrastructure.Ports
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
 import org.springframework.boot.actuate.health.Status
 import org.springframework.boot.builder.SpringApplicationBuilder
@@ -22,6 +24,7 @@ interface EnvoyControlTestApp {
     fun stop()
     fun isHealthy(): Boolean
     fun getState(): ServicesState
+    fun getSnapshot(nodeJson: String): String
     fun getHealthStatus(): Health
     fun <T> bean(clazz: Class<T>): T
 }
@@ -78,6 +81,17 @@ class EnvoyControlRunnerTestApp(
             )
             .execute()
         return objectMapper.readValue(response.body()?.use { it.string() }, ServicesState::class.java)
+    }
+
+    override fun getSnapshot(nodeJson: String): String {
+        val response = httpClient.newCall(
+            Request.Builder()
+                .post(RequestBody.create(MediaType.get("application/json"), nodeJson))
+                .url("http://localhost:$appPort/snapshot")
+                .build()
+        ).execute()
+
+        return response.body().use { it!!.string() }
     }
 
     private fun getApplicationStatusResponse(): Response =
