@@ -1,14 +1,20 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.debug
 
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.databind.JsonSerializer
+import com.fasterxml.jackson.databind.SerializerProvider
+import com.google.protobuf.Message
+import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.controlplane.cache.NodeGroup
-import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.envoy.api.v2.core.Node
+import org.springframework.boot.jackson.JsonComponent
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.server.ResponseStatusException
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 
@@ -23,27 +29,23 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
      * extracted from Envoy's config_dump endpoint.
      */
     @PostMapping("/snapshot")
-    fun snapshot(@RequestBody node: Node): ResponseEntity<String> {
+    fun snapshot(@RequestBody node: Node): ResponseEntity<SnapshotDebugInfo> {
         val nodeHash = nodeGroup.hash(node)
         val snapshot = cache.getSnapshot(nodeHash)
         return if (snapshot == null) {
-            return ResponseEntity("snapshot missing", HttpStatus.NOT_FOUND)
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "snapshot missing")
         } else {
             ResponseEntity(
-                versions(snapshot) +
-                    "snapshot:\n" +
-                    snapshot.toString(),
+                SnapshotDebugInfo(snapshot),
                 HttpStatus.OK
             )
         }
     }
 
-    private fun versions(snapshot: Snapshot): String {
-        val versions = StringBuilder()
-            .append("clusters: ${snapshot.clusters().version()}\n")
-            .append("endpoints: ${snapshot.endpoints().version()}\n")
-            .append("routes: ${snapshot.routes().version()}\n")
-            .append("listeners: ${snapshot.listeners().version()}\n")
-        return versions.toString()
+    @JsonComponent
+    class ProtoSerializer : JsonSerializer<Message>() {
+        override fun serialize(message: Message, gen: JsonGenerator, serializers: SerializerProvider) {
+            gen.writeRawValue(JsonFormat.printer().print(message))
+        }
     }
 }
