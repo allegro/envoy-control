@@ -36,20 +36,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "snapshot missing")
         } else {
             ResponseEntity(
-                SnapshotDebugInfo(
-                    snapshot = Snapshot(
-                        clusters = snapshot.clusters().resources(),
-                        endpoints = snapshot.endpoints().resources(),
-                        listeners = snapshot.listeners().resources(),
-                        routes = snapshot.routes().resources()
-                    ),
-                    versions = Versions(
-                        clusters = version(snapshot.clusters().version()),
-                        endpoints = version(snapshot.endpoints().version()),
-                        listeners = version(snapshot.listeners().version()),
-                        routes = version(snapshot.routes().version())
-                    )
-                ),
+                SnapshotDebugInfo(snapshot),
                 HttpStatus.OK
             )
         }

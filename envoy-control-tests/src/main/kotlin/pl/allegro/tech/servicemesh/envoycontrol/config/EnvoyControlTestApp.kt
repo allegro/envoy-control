@@ -104,8 +104,6 @@ class EnvoyControlRunnerTestApp(
 
     class SnapshotDebugResponseMissingException :
         RuntimeException("Expected snapshot debug in response body but got none")
-            .copy(found = true)
-    }
 
     private fun getApplicationStatusResponse(): Response =
         httpClient
