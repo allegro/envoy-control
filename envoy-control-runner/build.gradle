@@ -19,6 +19,7 @@ dependencies {
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: versions.kotlin
     compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: versions.jackson
+    compile group: 'net.openhft', name: 'zero-allocation-hashing', version: versions.xxhash
 }
 
 publishing {
@@ -32,5 +33,9 @@ publishing {
 test {
     maxParallelForks = 1
     useJUnitPlatform()
+}
+
+run {
+    systemProperties.putIfAbsent("spring.profiles.active", "local")
 }
 

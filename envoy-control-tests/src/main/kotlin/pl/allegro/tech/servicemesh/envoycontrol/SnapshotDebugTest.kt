@@ -20,18 +20,22 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
         // given
         registerService(name = "echo")
         val nodeMetadata = envoyContainer1.admin().nodeInfo()
+        waitForReadyServices("echo")
 
         untilAsserted {
             // when
             val snapshot = envoyControl1.getSnapshot(nodeMetadata)
+            val edsVersion = envoyContainer1.admin().statValue("cluster.echo.version")
+            val cdsVersion = envoyContainer1.admin().statValue("cluster_manager.cds.version")
+            val rdsVersion = envoyContainer1.admin().statValue("http.egress_http.rds.default_routes.version")
+            // TODO: uncomment when dynamic listeners will be used (https://github.com/allegro/envoy-control/pull/51)
+            // val ldsVersion = envoyContainer1.admin().statValue("listener_manager.lds.version")
 
             // then
-            assertThat(snapshot).isNotEmpty()
-            assertThat(snapshot)
-                .contains("clusters: ")
-                .contains("endpoints: ")
-                .contains("routes: ")
-                .contains("listeners: ")
+            assertThat(snapshot.versions!!.clusters.metric).isEqualTo(cdsVersion)
+            assertThat(snapshot.versions.endpoints.metric).isEqualTo(edsVersion)
+            assertThat(snapshot.versions.routes.metric).isEqualTo(rdsVersion)
+            assertThat(snapshot.versions.listeners.raw).isEqualTo("empty")
         }
     }
 
@@ -46,12 +50,11 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
             val snapshot = envoyControl1.getSnapshot(nodeMetadata)
 
             // then
-            assertThat(snapshot).isNotEmpty()
-            assertThat(snapshot)
-                .contains("clusters=SnapshotResources")
-                .contains("endpoints=SnapshotResources")
-                .contains("routes=SnapshotResources")
-                .contains("listeners=SnapshotResources")
+            assertThat(snapshot.snapshot!!["clusters"]).isNotEmpty()
+            assertThat(snapshot.snapshot["routes"]).isNotEmpty()
+            assertThat(snapshot.snapshot["endpoints"]).isNotEmpty()
+            // TODO: uncomment when dynamic listeners will be used (https://github.com/allegro/envoy-control/pull/51)
+            // assertThat(snapshot.snapshot["listeners"]).isNotEmpty()
         }
     }
 
@@ -94,7 +97,6 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
         val snapshot = envoyControl1.getSnapshot(missingNodeJson)
 
         // then
-        assertThat(snapshot).isNotEmpty()
-        assertThat(snapshot).contains("snapshot missing")
+        assertThat(snapshot.found).isFalse()
     }
 }
