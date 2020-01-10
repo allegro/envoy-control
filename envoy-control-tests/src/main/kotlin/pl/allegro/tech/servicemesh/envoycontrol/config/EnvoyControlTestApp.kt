@@ -98,7 +98,12 @@ class EnvoyControlRunnerTestApp(
         }
 
         return response.body()
-            .use { objectMapper.readValue(it!!.byteStream(), SnapshotDebugResponse::class.java) }
+            ?.use { objectMapper.readValue(it.byteStream(), SnapshotDebugResponse::class.java) }
+            ?.copy(found = true) ?: throw SnapshotDebugResponseMissingException()
+    }
+
+    class SnapshotDebugResponseMissingException :
+        RuntimeException("Expected snapshot debug in response body but got none")
             .copy(found = true)
     }
 
