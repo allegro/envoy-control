@@ -37,7 +37,7 @@ class SnapshotUpdaterTest {
             permissionsEnabled = true
         )
     )
-    val groupWithProxy = AllServicesGroup(ads = true, serviceName = "service", proxySettings = proxySettings, listenersConfig = listenersConfig)
+    val groupWithProxy = AllServicesGroup(ads = true, serviceName = "service", proxySettings = proxySettings)
     val groupWithServiceName = groupOf(
         services = setOf(ServiceDependency(service = "existingService2"))
     ).copy(serviceName = "ipsum-service")
@@ -50,7 +50,7 @@ class SnapshotUpdaterTest {
         val uninitializedSnapshot = null
 
         // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
-        val groups = listOf(AllServicesGroup(ads = false, listenersConfig = listenersConfig), groupWithProxy, groupWithServiceName,
+        val groups = listOf(AllServicesGroup(ads = false), groupWithProxy, groupWithServiceName,
                 groupOf(services = serviceDependencies("existingService1")),
                 groupOf(services = serviceDependencies("existingService2")))
         groups.forEach {
@@ -78,7 +78,7 @@ class SnapshotUpdaterTest {
         updater.startWithServices("existingService1", "existingService2")
 
         // then
-        hasSnapshot(cache, AllServicesGroup(ads = false, listenersConfig = listenersConfig))
+        hasSnapshot(cache, AllServicesGroup(ads = false))
             .hasClusters("existingService1", "existingService2")
 
         hasSnapshot(cache, groupWithProxy)

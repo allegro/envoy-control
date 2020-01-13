@@ -23,8 +23,7 @@ class MetadataNodeGroupTest {
             // because service may define different settings for different dependencies (for example endpoints, which
             // will be implemented in https://github.com/allegro/envoy-control/issues/6
                 ads = false,
-                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*", "a", "b", "c")),
-                listenersConfig = listenersConfig
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*", "a", "b", "c"))
         ))
     }
 
@@ -73,8 +72,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             AllServicesGroup(
                     ads = true,
-                    proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*")),
-                    listenersConfig = listenersConfig
+                    proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*"))
             )
         )
     }
@@ -111,8 +109,7 @@ class MetadataNodeGroupTest {
             // we have to preserve all services even if outgoingPermissions is disabled,
             // because service may define different settings for different dependencies (for example retry config)
                 ads = true,
-                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-                listenersConfig = listenersConfig
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c"))
         ))
     }
 
@@ -181,8 +178,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(AllServicesGroup(
                 ads = false,
                 serviceName = "app1",
-                proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("*")),
-                listenersConfig = listenersConfig
+                proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("*"))
         ))
     }
 

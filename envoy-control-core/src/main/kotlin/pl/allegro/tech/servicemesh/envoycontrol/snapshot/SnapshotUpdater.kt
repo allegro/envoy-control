@@ -6,6 +6,9 @@ import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -17,7 +20,7 @@ class SnapshotUpdater(
     private val onGroupAdded: Flux<out List<Group>>,
     private val meterRegistry: MeterRegistry,
     envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters,
-    serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags)
+    serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(properties.routing.serviceTags)
 ) {
     companion object {
         private val logger by logger()

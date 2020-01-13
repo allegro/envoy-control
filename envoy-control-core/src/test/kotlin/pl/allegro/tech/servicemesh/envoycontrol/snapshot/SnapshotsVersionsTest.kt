@@ -21,7 +21,7 @@ internal class SnapshotsVersionsTest {
 
     private val snapshotsVersions = SnapshotsVersions()
 
-    private val group = AllServicesGroup(ads = false, listenersConfig = listenersConfig)
+    private val group = AllServicesGroup(ads = false)
     private val clusters = listOf(cluster(name = "service1"))
     private val endpoints = listOf(endpoints(clusterName = "service1", instances = 1))
 
@@ -156,8 +156,7 @@ internal class SnapshotsVersionsTest {
                         )
                     ),
                     outgoing = Outgoing(listOf())
-                ),
-                listenersConfig = listenersConfig
+                )
         )
     }
 }

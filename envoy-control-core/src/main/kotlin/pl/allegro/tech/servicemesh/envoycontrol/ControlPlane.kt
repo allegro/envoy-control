@@ -21,7 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.CompositeDiscov
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import reactor.core.Disposable
 import reactor.core.publisher.Flux

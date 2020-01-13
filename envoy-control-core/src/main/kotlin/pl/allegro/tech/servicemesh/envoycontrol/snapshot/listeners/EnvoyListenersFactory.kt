@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners
 
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
@@ -21,80 +21,16 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import com.google.protobuf.Any as ProtobufAny
-import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config as HeaderToMetadataConfig
 
 typealias HttpFilterFactory = (node: Group) -> HttpFilter?
 
-class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
-    val defaultServiceTagFilterRules = serviceTagFilterRules()
-    val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagFilterRules)
-    val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
-    val defaultHeaderToMetadataFilter = { _: Group -> headerToMetadataHttpFilter }
-    val envoyRouterHttpFilter = envoyRouterHttpFilter()
-    val defaultEnvoyRouterHttpFilter = { _: Group -> envoyRouterHttpFilter }
-    val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
-    val defaultIngressFilters = listOf(defaultEnvoyRouterHttpFilter)
-
-    fun serviceTagFilterRules(
-        header: String = snapshotProperties.routing.serviceTags.header,
-        tag: String = snapshotProperties.routing.serviceTags.metadataKey
-    ): List<HeaderToMetadataConfig.Rule> {
-        return listOf(HeaderToMetadataConfig.Rule.newBuilder()
-                .setHeader(header)
-                .setRemove(false)
-                .setOnHeaderPresent(
-                        HeaderToMetadataConfig.KeyValuePair.newBuilder()
-                                .setKey(tag)
-                                .setMetadataNamespace("envoy.lb")
-                                .setType(HeaderToMetadataConfig.ValueType.STRING)
-                                .build()
-                )
-                .build())
-    }
-
-    fun headerToMetadataConfig(
-        rules: List<HeaderToMetadataConfig.Rule>,
-        key: String = snapshotProperties.loadBalancing.canary.metadataKey
-    ): HeaderToMetadataConfig.Builder {
-        val headerToMetadataConfig = HeaderToMetadataConfig.newBuilder()
-                .addRequestRules(
-                        HeaderToMetadataConfig.Rule.newBuilder()
-                                .setHeader("x-canary")
-                                .setRemove(false)
-                                .setOnHeaderPresent(
-                                        HeaderToMetadataConfig.KeyValuePair.newBuilder()
-                                                .setKey(key)
-                                                .setMetadataNamespace("envoy.lb")
-                                                .setType(HeaderToMetadataConfig.ValueType.STRING)
-                                                .build()
-                                )
-                                .build()
-                )
-
-        rules.forEach {
-            headerToMetadataConfig.addRequestRules(it)
-        }
-
-        return headerToMetadataConfig
-    }
-
-    private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter.newBuilder().setName("envoy.router").build()
-
-    fun headerToMetadataHttpFilter(headerToMetadataConfig: HeaderToMetadataConfig.Builder): HttpFilter {
-        return HttpFilter.newBuilder()
-                .setName("envoy.filters.http.header_to_metadata")
-                .setTypedConfig(ProtobufAny.pack(
-                        headerToMetadataConfig.build()
-                ))
-                .build()
-    }
-}
-
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
-        snapshotProperties: SnapshotProperties,
-        envoyHttpFilters: EnvoyHttpFilters
+    snapshotProperties: SnapshotProperties,
+    envoyHttpFilters: EnvoyHttpFilters
 ) {
     private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters
     private val egressFilters: List<HttpFilterFactory> = envoyHttpFilters.egressFilters
@@ -170,7 +106,7 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun createEgressFilter(group: Group, listenersConfig:ListenersConfig): Filter {
+    private fun createEgressFilter(group: Group, listenersConfig: ListenersConfig): Filter {
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
                 .setStatPrefix("egress_http")
                 .setRds(egressRds(group.ads))
@@ -180,11 +116,11 @@ class EnvoyListenersFactory(
     }
 
     private fun createFilter(
-            connectionManagerBuilder: HttpConnectionManager.Builder,
-            filterFactories: List<HttpFilterFactory>,
-            group: Group,
-            accessLogType: String,
-            listenersConfig: ListenersConfig
+        connectionManagerBuilder: HttpConnectionManager.Builder,
+        filterFactories: List<HttpFilterFactory>,
+        group: Group,
+        accessLogType: String,
+        listenersConfig: ListenersConfig
     ): Filter {
         filterFactories.forEach {
             val filter = it(group)

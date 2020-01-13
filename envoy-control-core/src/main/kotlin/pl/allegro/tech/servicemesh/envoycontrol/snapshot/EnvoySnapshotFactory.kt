@@ -29,25 +29,29 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality as LocalityEnum
 
 internal class EnvoySnapshotFactory(
-    private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
-    private val egressRoutesFactory: EnvoyEgressRoutesFactory,
-    private val clustersFactory: EnvoyClustersFactory,
-    private val listenersFactory: EnvoyListenersFactory,
-    private val snapshotsVersions: SnapshotsVersions,
-    private val properties: SnapshotProperties,
-    private val serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags),
-    private val defaultDependencySettings: DependencySettings =
-        DependencySettings(
-            handleInternalRedirect = properties.egress.handleInternalRedirect,
-            timeoutPolicy = Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
-                requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-            )
+        private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
+        private val egressRoutesFactory: EnvoyEgressRoutesFactory,
+        private val clustersFactory: EnvoyClustersFactory,
+        private val listenersFactory: EnvoyListenersFactory,
+        private val snapshotsVersions: SnapshotsVersions,
+        private val properties: SnapshotProperties,
+        private val serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(
+                properties.routing.serviceTags
         ),
-    private val meterRegistry: MeterRegistry
+        private val defaultDependencySettings: DependencySettings =
+    DependencySettings(
+        handleInternalRedirect = properties.egress.handleInternalRedirect,
+        timeoutPolicy = Outgoing.TimeoutPolicy(
+            idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
+            requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
+        )
+    ),
+        private val meterRegistry: MeterRegistry
 ) {
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
         val sample = Timer.start(meterRegistry)

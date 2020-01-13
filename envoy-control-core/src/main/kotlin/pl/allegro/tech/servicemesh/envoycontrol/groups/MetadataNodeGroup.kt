@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import com.google.protobuf.Struct
+import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.envoy.api.v2.core.Node
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -18,14 +19,16 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         return createGroup(node, ads)
     }
 
-    private fun createListenersConfig(id: String, metadata: Struct): ListenersConfig? {
-        val ingressHostValue = metadata.fieldsMap["ingress_host"]
-        val ingressPortValue = metadata.fieldsMap["ingress_port"]
-        val egressHostValue = metadata.fieldsMap["egress_host"]
-        val egressPortValue = metadata.fieldsMap["egress_port"]
-
+    @SuppressWarnings("ReturnCount")
+    private fun metadataToListenersHostPort(
+            id: String,
+            ingressHostValue: Value?,
+            ingressPortValue: Value?,
+            egressHostValue: Value?,
+            egressPortValue: Value?
+    ): ListenersHostPortConfig? {
         if (listOf(ingressHostValue, ingressPortValue, egressHostValue, egressPortValue).all { it == null }) {
-            logger.debug("Node $id with static listener config connected")
+            logger.debug("Node $id with static listener config connected.")
             return null
         }
 
@@ -52,7 +55,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         val ingressHost = ingressHostValue.stringValue
         val ingressPort = ingressPortValue.numberValue.toInt()
 
-        if (ingressPort < 0 || ingressPort > 65535) {
+        if (ingressPort < 0 || ingressPort > Companion.MAX_PORT_VALUE) {
             logger.warn("Node $id has ingress port out of valid range [0-65535]. Falling back to static listeners.")
             return null
         }
@@ -60,8 +63,29 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         val egressHost = egressHostValue.stringValue
         val egressPort = egressPortValue.numberValue.toInt()
 
-        if (egressPort < 0 || egressPort > 65535) {
+        if (egressPort < 0 || egressPort > Companion.MAX_PORT_VALUE) {
             logger.warn("Node $id has egress port out of valid range [0-65535]. Falling back to static listeners.")
+            return null
+        }
+
+        return ListenersHostPortConfig(ingressHost, ingressPort, egressHost, egressPort)
+    }
+
+    private fun createListenersConfig(id: String, metadata: Struct): ListenersConfig? {
+        val ingressHostValue = metadata.fieldsMap["ingress_host"]
+        val ingressPortValue = metadata.fieldsMap["ingress_port"]
+        val egressHostValue = metadata.fieldsMap["egress_host"]
+        val egressPortValue = metadata.fieldsMap["egress_port"]
+
+        val listenersHostPort = metadataToListenersHostPort(
+                id,
+                ingressHostValue,
+                ingressPortValue,
+                egressHostValue,
+                egressPortValue
+        )
+
+        if (listenersHostPort == null) {
             return null
         }
 
@@ -77,10 +101,10 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 ?: ListenersConfig.defaultResourcesDir
 
         return ListenersConfig(
-                ingressHost,
-                ingressPort,
-                egressHost,
-                egressPort,
+                listenersHostPort.ingressHost,
+                listenersHostPort.ingressPort,
+                listenersHostPort.egressHost,
+                listenersHostPort.egressPort,
                 useRemoteAddress,
                 accessLogEnabled,
                 enableLuaScript,
@@ -132,4 +156,15 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
             false -> metadata.proxySettings.withIncomingPermissionsDisabled()
         }
     }
+
+    companion object {
+        private const val MAX_PORT_VALUE = 65535
+    }
 }
+
+data class ListenersHostPortConfig(
+       val ingressHost: String,
+       val ingressPort: Int,
+       val egressHost: String,
+       val egressPort: Int
+)

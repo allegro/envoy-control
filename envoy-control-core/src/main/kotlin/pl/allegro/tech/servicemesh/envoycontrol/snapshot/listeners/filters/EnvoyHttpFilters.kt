@@ -1,4 +1,7 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
+
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.HttpFilterFactory
 
 class EnvoyHttpFilters(
     val ingressFilters: List<HttpFilterFactory>,
