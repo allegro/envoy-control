@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.converter.protobuf.ProtobufJsonFormatHttpMessageConverter
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes
 import pl.allegro.tech.discovery.consul.recipes.datacenter.ConsulDatacenterReader
 import pl.allegro.tech.discovery.consul.recipes.json.JacksonJsonDeserializer
@@ -143,4 +144,9 @@ class ControlPlaneConfig {
             meterRegistry.gauge("cache.groupsCount", it.cacheGroupsCount)
             meterRegistry.more().counter("services.watch.errors", listOf(), it.errorWatchingServices)
         }
+
+    @Bean
+    fun protobufJsonFormatHttpMessageConverter(): ProtobufJsonFormatHttpMessageConverter {
+        return ProtobufJsonFormatHttpMessageConverter()
+    }
 }
