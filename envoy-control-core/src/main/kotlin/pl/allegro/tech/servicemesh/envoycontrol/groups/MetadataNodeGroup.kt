@@ -21,11 +21,11 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
 
     @SuppressWarnings("ReturnCount")
     private fun metadataToListenersHostPort(
-            id: String,
-            ingressHostValue: Value?,
-            ingressPortValue: Value?,
-            egressHostValue: Value?,
-            egressPortValue: Value?
+        id: String,
+        ingressHostValue: Value?,
+        ingressPortValue: Value?,
+        egressHostValue: Value?,
+        egressPortValue: Value?
     ): ListenersHostPortConfig? {
         if (listOf(ingressHostValue, ingressPortValue, egressHostValue, egressPortValue).all { it == null }) {
             logger.debug("Node $id with static listener config connected.")
@@ -163,8 +163,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
 }
 
 data class ListenersHostPortConfig(
-       val ingressHost: String,
-       val ingressPort: Int,
-       val egressHost: String,
-       val egressPort: Int
+    val ingressHost: String,
+    val ingressPort: Int,
+    val egressHost: String,
+    val egressPort: Int
 )

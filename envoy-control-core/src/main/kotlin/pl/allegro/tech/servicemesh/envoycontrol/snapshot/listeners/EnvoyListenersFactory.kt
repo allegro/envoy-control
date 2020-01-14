@@ -39,8 +39,8 @@ class EnvoyListenersFactory(
     private val accessLogMessageFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormat)
     private val accessLogLevel = stringValue(listenersFactoryProperties.httpFilters.accessLog.level)
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
-    private val egressRdsInitialFetchTimeout: Long = 20
-    private val ingressRdsInitialFetchTimeout: Long = 30
+    private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
+    private val ingressRdsInitialFetchTimeout: Duration = durationInSeconds(30)
 
     val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
 
@@ -149,7 +149,7 @@ class EnvoyListenersFactory(
 
     private fun egressRds(ads: Boolean): Rds {
         val configSource = ConfigSource.newBuilder()
-                .setInitialFetchTimeout(durationInSeconds(egressRdsInitialFetchTimeout))
+                .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
 
         if (ads) {
             configSource.setAds(AggregatedConfigSource.getDefaultInstance())
@@ -190,7 +190,7 @@ class EnvoyListenersFactory(
 
     private fun ingressRds(ads: Boolean): Rds {
         val configSource = ConfigSource.newBuilder()
-                .setInitialFetchTimeout(durationInSeconds(ingressRdsInitialFetchTimeout))
+                .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
 
         if (ads) {
             configSource.setAds(AggregatedConfigSource.getDefaultInstance())
