@@ -34,7 +34,7 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
             assertThat(snapshot.versions!!.clusters.metric).isEqualTo(cdsVersion)
             assertThat(snapshot.versions.endpoints.metric).isEqualTo(edsVersion)
             assertThat(snapshot.versions.routes.metric).isEqualTo(rdsVersion)
-            assertThat(snapshot.versions.listeners.raw).isEqualTo(ldsVersion)
+            assertThat(snapshot.versions.listeners.metric).isEqualTo(ldsVersion)
         }
     }
 
