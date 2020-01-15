@@ -26,6 +26,7 @@ class ConsulServiceChanges(
     private val objectMapper: ObjectMapper = ObjectMapper().registerModule(KotlinModule()),
     private val subscriptionDelay: Duration = Duration.ZERO
 ) {
+    private val logger by logger()
 
     fun watchState(): Flux<ServicesState> {
         val watcher = StateWatcher(watcher, serviceMapper, objectMapper, metrics, subscriptionDelay)
@@ -37,7 +38,10 @@ class ConsulServiceChanges(
         )
             .distinctUntilChanged()
             .doOnSubscribe { watcher.start() }
-            .doOnCancel { watcher.close() }
+            .doOnCancel {
+                logger.warn("Cancelling watching consul service changes")
+                watcher.close()
+            }
     }
 
     private class StateWatcher(
@@ -49,7 +53,7 @@ class ConsulServiceChanges(
     ) : AutoCloseable {
         lateinit var stateReceiver: (ServicesState) -> (Unit)
 
-        val logger by logger()
+        private val logger by logger()
 
         @Volatile
         private var canceller: Canceller? = null
@@ -89,8 +93,9 @@ class ConsulServiceChanges(
             synchronized(stateLock) {
                 watchedServices.values.forEach { canceller -> canceller.cancel() }
                 watchedServices.clear()
+                canceller?.cancel()
+                canceller = null
             }
-            canceller?.cancel()
         }
 
         private fun handleServicesChange(services: RecipesServices) = synchronized(servicesLock) {
