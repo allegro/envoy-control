@@ -23,6 +23,7 @@ class SnapshotProperties {
 }
 
 class ListenersFactoryProperties {
+    val initialVersion: String = "empty"
     var enabled = true
     var httpFilters = HttpFiltersProperties()
 }

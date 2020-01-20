@@ -325,7 +325,7 @@ DependencySettings(
         routes: List<RouteConfiguration> = emptyList(),
         routesVersion: RoutesVersion = RoutesVersion(properties.routes.initialVersion),
         listeners: List<Listener> = emptyList(),
-        listenersVersion: ListenersVersion = ListenersVersion.EMPTY_VERSION
+        listenersVersion: ListenersVersion = ListenersVersion(properties.dynamicListeners.initialVersion)
     ): Snapshot =
         Snapshot.create(
             clusters,

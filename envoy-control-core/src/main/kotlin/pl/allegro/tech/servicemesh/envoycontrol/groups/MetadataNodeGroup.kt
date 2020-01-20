@@ -33,22 +33,22 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         }
 
         if (ingressHostValue == null) {
-            logger.info("Node $id has no ingress host configured, falling back to static listeners.")
+            logger.warn("Node $id has no ingress host configured, falling back to static listeners.")
             return null
         }
 
         if (ingressPortValue == null) {
-            logger.info("Node $id has no ingress port configured, falling back to static listeners.")
+            logger.warn("Node $id has no ingress port configured, falling back to static listeners.")
             return null
         }
 
         if (egressHostValue == null) {
-            logger.info("Node $id has no egerss host configured, falling back to static listeners.")
+            logger.warn("Node $id has no egerss host configured, falling back to static listeners.")
             return null
         }
 
         if (egressPortValue == null) {
-            logger.info("Node $id has no egress port configured, falling back to static listeners.")
+            logger.warn("Node $id has no egress port configured, falling back to static listeners.")
             return null
         }
 
