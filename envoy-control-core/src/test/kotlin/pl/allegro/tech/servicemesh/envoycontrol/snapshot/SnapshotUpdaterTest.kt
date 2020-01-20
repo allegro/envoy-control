@@ -31,18 +31,18 @@ import java.util.function.Consumer
 
 class SnapshotUpdaterTest {
 
-    val proxySettings = ProxySettings(
+    private val proxySettings = ProxySettings(
         incoming = Incoming(
             endpoints = listOf(IncomingEndpoint(path = "/endpoint", clients = setOf("client"))),
             permissionsEnabled = true
         )
     )
-    val groupWithProxy = AllServicesGroup(ads = true, serviceName = "service", proxySettings = proxySettings)
-    val groupWithServiceName = groupOf(
+    private val groupWithProxy = AllServicesGroup(ads = true, serviceName = "service", proxySettings = proxySettings)
+    private val groupWithServiceName = groupOf(
         services = setOf(ServiceDependency(service = "existingService2"))
     ).copy(serviceName = "ipsum-service")
 
-    val simpleMeterRegistry = SimpleMeterRegistry()
+    private val simpleMeterRegistry = SimpleMeterRegistry()
 
     @Test
     fun `should generate group snapshots`() {
@@ -69,7 +69,8 @@ class SnapshotUpdaterTest {
             properties = SnapshotProperties().apply {
                 incomingPermissions.enabled = true
             },
-            scheduler = Schedulers.newSingle("update-snapshot"),
+            snapshotUpdaterScheduler = Schedulers.newSingle("update-snapshot"),
+            snapshotPublisherScheduler = Schedulers.newSingle("publish-snapshot"),
             onGroupAdded = Flux.just(groups),
             meterRegistry = simpleMeterRegistry
         )
@@ -117,7 +118,8 @@ class SnapshotUpdaterTest {
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties(),
-            scheduler = Schedulers.newSingle("update-snapshot"),
+            snapshotUpdaterScheduler = Schedulers.newSingle("update-snapshot"),
+            snapshotPublisherScheduler = Schedulers.newSingle("publish-snapshot"),
             onGroupAdded = Flux.just(listOf()),
             meterRegistry = simpleMeterRegistry
         )
@@ -151,7 +153,8 @@ class SnapshotUpdaterTest {
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties(),
-            scheduler = Schedulers.newSingle("update-snapshot"),
+            snapshotUpdaterScheduler = Schedulers.newSingle("update-snapshot"),
+            snapshotPublisherScheduler = Schedulers.newSingle("publish-snapshot"),
             onGroupAdded = Flux.just(),
             meterRegistry = simpleMeterRegistry
         )
@@ -193,7 +196,7 @@ class SnapshotUpdaterTest {
                     )
                 )
             )
-        ).blockFirst()
+        ).blockLast()
     }
 
     private fun newCache(): SnapshotCache<Group> {

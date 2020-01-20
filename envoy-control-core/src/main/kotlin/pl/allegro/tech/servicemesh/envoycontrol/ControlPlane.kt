@@ -73,13 +73,18 @@ class ControlPlane private constructor(
         var grpcServerExecutor: Executor? = null
         var nioEventLoopExecutor: Executor? = null
         var executorGroup: ExecutorGroup? = null
-        var updateSnapshotExecutor: Executor? = null
+        var snapshotUpdateExecutor: Executor? = null
+        var snapshotPublishExecutor: Executor? = null
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics()
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
         )
+
+        companion object {
+            private const val snapshotPublisherThreadPoolSize = 32
+        }
 
         fun build(changes: Flux<List<LocalityAwareServicesState>>): ControlPlane {
             if (grpcServerExecutor == null) {
@@ -113,8 +118,16 @@ class ControlPlane private constructor(
                 }
             }
 
-            if (updateSnapshotExecutor == null) {
-                updateSnapshotExecutor = Executors.newSingleThreadExecutor(ThreadNamingThreadFactory("snapshot-update"))
+            if (snapshotUpdateExecutor == null) {
+                snapshotUpdateExecutor = Executors.newSingleThreadExecutor(
+                    ThreadNamingThreadFactory("snapshot-update")
+                )
+            }
+
+            if (snapshotPublishExecutor == null) {
+                snapshotPublishExecutor = Executors.newSingleThreadExecutor(
+                    ThreadNamingThreadFactory("snapshot-publish")
+                )
             }
 
             val cache = SimpleCache(nodeGroup)
@@ -158,7 +171,8 @@ class ControlPlane private constructor(
                 SnapshotUpdater(
                     cache,
                     properties.envoy.snapshot,
-                    Schedulers.fromExecutor(updateSnapshotExecutor!!),
+                    Schedulers.fromExecutor(snapshotUpdateExecutor!!),
+                    Schedulers.fromExecutor(snapshotPublishExecutor!!),
                     groupChangeWatcher.onGroupAdded(),
                     meterRegistry,
                     envoyHttpFilters
@@ -190,7 +204,7 @@ class ControlPlane private constructor(
         }
 
         fun withUpdateSnapshotExecutor(executor: Executor): ControlPlaneBuilder {
-            updateSnapshotExecutor = executor
+            snapshotUpdateExecutor = executor
             return this
         }
 
