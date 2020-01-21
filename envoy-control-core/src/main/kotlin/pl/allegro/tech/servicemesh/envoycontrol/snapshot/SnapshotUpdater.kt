@@ -35,6 +35,7 @@ class SnapshotUpdater(
                 properties,
                 envoyHttpFilters
         ),
+        // Remember when LDS change we have to send RDS again
         snapshotsVersions = versions,
         properties = properties,
         meterRegistry = meterRegistry,
