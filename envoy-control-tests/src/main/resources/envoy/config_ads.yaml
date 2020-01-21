@@ -15,6 +15,13 @@ node:
   id: test-id
   metadata:
     ads: true
+    ingress_host: "0.0.0.0"
+    ingress_port: 5001
+    egress_host: "0.0.0.0"
+    egress_port: 5000
+    use_remote_address: true
+    access_log_enabled: false
+    resources_dir: "/etc/envoy/extra"
     proxy_settings:
       incoming:
         endpoints:
@@ -77,51 +84,3 @@ static_resources:
           port_value: 10000
     connect_timeout:
       seconds: 1
-  listeners:
-  - name: default_listener
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 5000
-    filter_chains:
-      filters:
-      - name: envoy.http_connection_manager
-        config:
-          stat_prefix: egress_http
-          rds:
-            route_config_name: default_routes
-            config_source:
-              ads: {}
-          http_filters:
-          - name: envoy.filters.http.header_to_metadata
-            config:
-              request_rules:
-                - header: x-canary
-                  on_header_present:
-                    metadata_namespace: envoy.lb
-                    key: canary
-                    type: STRING
-                  remove: false
-                - header: x-service-tag
-                  on_header_present:
-                    metadata_namespace: envoy.lb
-                    key: tag
-                    type: STRING
-                  remove: false
-          - name: envoy.router
-  - name: ingress_listener
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: 5001
-    filter_chains:
-      - filters:
-          - name: envoy.http_connection_manager
-            config:
-              stat_prefix: ingress_http
-              rds:
-                route_config_name: ingress_secured_routes
-                config_source:
-                  ads: {}
-              http_filters:
-                - name: envoy.router

@@ -33,6 +33,13 @@ Canary instances are also a part of default instances set.
 That means a request without the **canary header** may be routed
 to a canary instance.
 
+## Configuring Canary support with dynamic listeners
+
+When using listeners configured via EC (`envoy-control.envoy.snapshot.dynamicListeners.enabled` set to `true`)
+a default working config will be provided.
+
+## Configuring Canary support static listeners
+
 For this feature to work correctly, appropriate static Envoy config is
 required.
 

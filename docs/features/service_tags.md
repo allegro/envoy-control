@@ -9,7 +9,15 @@ source used. For Consul, tags are supported out-of-the-box.
 
 For this feature to work correctly, you have to extract a tag from request
 data in some way.
-To achieve it, appropriate static Envoy config is required.
+
+## Configuration with dynamic listeners
+
+When using listeners configured via EC (`envoy-control.envoy.snapshot.dynamicListeners.enabled` set to `true`)
+a default working config will be provided (see: `EnvoyListenersFactory.kt` for details).
+
+## Configuration with static listeners
+
+For this feature to work correctly, appropriate static Envoy config is required.
 
 You can find the reference implementation in
 [config_ads.yaml](https://github.com/allegro/envoy-control/blob/master/envoy-control-tests/src/main/resources/envoy/config_ads.yaml)

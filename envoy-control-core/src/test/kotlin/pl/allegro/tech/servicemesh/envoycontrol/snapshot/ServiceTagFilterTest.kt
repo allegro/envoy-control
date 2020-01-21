@@ -2,25 +2,26 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
 
 internal class ServiceTagFilterTest {
 
-    private val filter = ServiceTagFilter(ServiceTagsProperties().apply {
+    private val filter = ServiceTagMetadataGenerator(ServiceTagsProperties().apply {
         enabled = true
         routingExcludedTags = mutableListOf(".*id.*", "port:.*", "envoy")
         allowedTagsCombinations = mutableListOf(
-            ServiceTagsCombinationsProperties().apply {
-                serviceName = "two-tags-allowed-service"
-                tags = mutableListOf("hardware:.*", "version:.*")
-            },
-            ServiceTagsCombinationsProperties().apply {
-                serviceName = "two-tags-allowed-service"
-                tags = mutableListOf("stage:.*", "version:.*")
-            },
-            ServiceTagsCombinationsProperties().apply {
-                serviceName = "three-tags-allowed-service"
-                tags = mutableListOf("stage:.*", "version:.*", "hardware:.*")
-            }
+                ServiceTagsCombinationsProperties().apply {
+                    serviceName = "two-tags-allowed-service"
+                    tags = mutableListOf("hardware:.*", "version:.*")
+                },
+                ServiceTagsCombinationsProperties().apply {
+                    serviceName = "two-tags-allowed-service"
+                    tags = mutableListOf("stage:.*", "version:.*")
+                },
+                ServiceTagsCombinationsProperties().apply {
+                    serviceName = "three-tags-allowed-service"
+                    tags = mutableListOf("stage:.*", "version:.*", "hardware:.*")
+                }
         )
     })
 

@@ -6,6 +6,9 @@ import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -15,7 +18,9 @@ class SnapshotUpdater(
     private val properties: SnapshotProperties,
     private val scheduler: Scheduler,
     private val onGroupAdded: Flux<out List<Group>>,
-    private val meterRegistry: MeterRegistry
+    private val meterRegistry: MeterRegistry,
+    envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters,
+    serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(properties.routing.serviceTags)
 ) {
     companion object {
         private val logger by logger()
@@ -23,12 +28,17 @@ class SnapshotUpdater(
 
     private val versions = SnapshotsVersions()
     private val snapshotFactory = EnvoySnapshotFactory(
-            ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
-            egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
-            clustersFactory = EnvoyClustersFactory(properties),
-            snapshotsVersions = versions,
-            properties = properties,
-            meterRegistry = meterRegistry
+        ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
+        egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
+        clustersFactory = EnvoyClustersFactory(properties),
+        listenersFactory = EnvoyListenersFactory(
+                properties,
+                envoyHttpFilters
+        ),
+        snapshotsVersions = versions,
+        properties = properties,
+        meterRegistry = meterRegistry,
+        serviceTagFilter = serviceTagFilter
     )
 
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {

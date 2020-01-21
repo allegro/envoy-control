@@ -22,6 +22,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.CompositeDiscov
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
@@ -46,8 +47,10 @@ class ControlPlane private constructor(
     private var servicesDisposable: Disposable? = null
 
     companion object {
-        fun builder(properties: EnvoyControlProperties, meterRegistry: MeterRegistry) =
-            ControlPlaneBuilder(properties, meterRegistry)
+        fun builder(
+            properties: EnvoyControlProperties,
+            meterRegistry: MeterRegistry
+        ) = ControlPlaneBuilder(properties, meterRegistry)
     }
 
     fun start() {
@@ -72,6 +75,7 @@ class ControlPlane private constructor(
         var executorGroup: ExecutorGroup? = null
         var updateSnapshotExecutor: Executor? = null
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics()
+        var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
@@ -156,7 +160,8 @@ class ControlPlane private constructor(
                     properties.envoy.snapshot,
                     Schedulers.fromExecutor(updateSnapshotExecutor!!),
                     groupChangeWatcher.onGroupAdded(),
-                    meterRegistry
+                    meterRegistry,
+                    envoyHttpFilters
                 ),
                 nodeGroup,
                 cache,
@@ -191,6 +196,11 @@ class ControlPlane private constructor(
 
         fun withMetrics(metrics: EnvoyControlMetrics): ControlPlaneBuilder {
             this.metrics = metrics
+            return this
+        }
+
+        fun withEnvoyHttpFilters(envoyHttpFilters: EnvoyHttpFilters): ControlPlaneBuilder {
+            this.envoyHttpFilters = envoyHttpFilters
             return this
         }
 

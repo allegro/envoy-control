@@ -28,14 +28,13 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
             val edsVersion = envoyContainer1.admin().statValue("cluster.echo.version")
             val cdsVersion = envoyContainer1.admin().statValue("cluster_manager.cds.version")
             val rdsVersion = envoyContainer1.admin().statValue("http.egress_http.rds.default_routes.version")
-            // TODO: uncomment when dynamic listeners will be used (https://github.com/allegro/envoy-control/pull/51)
-            // val ldsVersion = envoyContainer1.admin().statValue("listener_manager.lds.version")
+            val ldsVersion = envoyContainer1.admin().statValue("listener_manager.lds.version")
 
             // then
             assertThat(snapshot.versions!!.clusters.metric).isEqualTo(cdsVersion)
             assertThat(snapshot.versions.endpoints.metric).isEqualTo(edsVersion)
             assertThat(snapshot.versions.routes.metric).isEqualTo(rdsVersion)
-            assertThat(snapshot.versions.listeners.raw).isEqualTo("empty")
+            assertThat(snapshot.versions.listeners.metric).isEqualTo(ldsVersion)
         }
     }
 
@@ -53,8 +52,7 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
             assertThat(snapshot.snapshot!!["clusters"]).isNotEmpty()
             assertThat(snapshot.snapshot["routes"]).isNotEmpty()
             assertThat(snapshot.snapshot["endpoints"]).isNotEmpty()
-            // TODO: uncomment when dynamic listeners will be used (https://github.com/allegro/envoy-control/pull/51)
-            // assertThat(snapshot.snapshot["listeners"]).isNotEmpty()
+            assertThat(snapshot.snapshot["listeners"]).isNotEmpty()
         }
     }
 

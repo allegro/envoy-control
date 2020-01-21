@@ -29,23 +29,28 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality as LocalityEnum
 
 internal class EnvoySnapshotFactory(
     private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
     private val egressRoutesFactory: EnvoyEgressRoutesFactory,
     private val clustersFactory: EnvoyClustersFactory,
+    private val listenersFactory: EnvoyListenersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
-    private val serviceTagFilter: ServiceTagFilter = ServiceTagFilter(properties.routing.serviceTags),
+    private val serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(
+            properties.routing.serviceTags
+    ),
     private val defaultDependencySettings: DependencySettings =
-        DependencySettings(
-            handleInternalRedirect = properties.egress.handleInternalRedirect,
-            timeoutPolicy = Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
-                requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-            )
-        ),
+DependencySettings(
+    handleInternalRedirect = properties.egress.handleInternalRedirect,
+    timeoutPolicy = Outgoing.TimeoutPolicy(
+        idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
+        requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
+    )
+),
     private val meterRegistry: MeterRegistry
 ) {
     fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
@@ -79,7 +84,7 @@ internal class EnvoySnapshotFactory(
             ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
         )
 
-        val version = snapshotsVersions.version(AllServicesGroup(ads), clusters, endpoints)
+        val version = snapshotsVersions.version(AllServicesGroup(ads, listenersConfig = null), clusters, endpoints)
 
         val snapshot = createSnapshot(
             clusters = clusters,
@@ -181,14 +186,22 @@ internal class EnvoySnapshotFactory(
 
         val version = snapshotsVersions.version(group, clusters, endpoints)
 
+        val listeners = if (properties.dynamicListeners.enabled) {
+            listenersFactory.createListeners(group)
+        } else {
+            emptyList()
+        }
+
         return createSnapshot(
-            clusters = clusters,
-            clustersVersion = version.clusters,
-            endpoints = endpoints,
-            endpointsVersions = version.endpoints,
-            routes = routes,
-            // we assume, that routes don't change during Envoy lifecycle unless clusters change
-            routesVersion = RoutesVersion(version.clusters.value)
+                clusters = clusters,
+                clustersVersion = version.clusters,
+                endpoints = endpoints,
+                endpointsVersions = version.endpoints,
+                listeners = listeners,
+                // for now we assume that listeners don't change during lifecycle
+                routes = routes,
+                // we assume, that routes don't change during Envoy lifecycle unless clusters change
+                routesVersion = RoutesVersion(version.clusters.value)
         )
     }
 
@@ -310,15 +323,17 @@ internal class EnvoySnapshotFactory(
         endpoints: List<ClusterLoadAssignment> = emptyList(),
         endpointsVersions: EndpointsVersion = EndpointsVersion.EMPTY_VERSION,
         routes: List<RouteConfiguration> = emptyList(),
-        routesVersion: RoutesVersion = RoutesVersion(properties.routes.initialVersion)
+        routesVersion: RoutesVersion = RoutesVersion(properties.routes.initialVersion),
+        listeners: List<Listener> = emptyList(),
+        listenersVersion: ListenersVersion = ListenersVersion(properties.dynamicListeners.initialVersion)
     ): Snapshot =
         Snapshot.create(
             clusters,
             clustersVersion.value,
             endpoints,
             endpointsVersions.value,
-            emptyList<Listener>(),
-            ListenersVersion.EMPTY_VERSION.value,
+            listeners,
+            listenersVersion.value,
             routes,
             routesVersion.value,
             emptyList<Secret>(),

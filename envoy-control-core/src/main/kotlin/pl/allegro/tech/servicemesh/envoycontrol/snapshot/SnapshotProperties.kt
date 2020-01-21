@@ -19,6 +19,26 @@ class SnapshotProperties {
     var stateSampleDuration: Duration = Duration.ofSeconds(1)
     var staticClusterConnectionTimeout: Duration = Duration.ofSeconds(2)
     var trustedCaFile = "/etc/ssl/certs/ca-certificates.crt"
+    var dynamicListeners = ListenersFactoryProperties()
+}
+
+class ListenersFactoryProperties {
+    val initialVersion: String = "empty"
+    var enabled = true
+    var httpFilters = HttpFiltersProperties()
+}
+
+class HttpFiltersProperties {
+    var accessLog = AccessLogProperties()
+    var ingressXffNumTrustedHops = 1
+}
+
+class AccessLogProperties {
+    var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
+    var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
+            "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
+    var level = "TRACE"
+    var logger = "envoy.AccessLog"
 }
 
 class OutgoingPermissionsProperties {
@@ -128,6 +148,7 @@ class AuthorizationProperties {
 class ServiceTagsProperties {
     var enabled = false
     var metadataKey = "tag"
+    var header = "x-service-tag"
     var routingExcludedTags: MutableList<String> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
 }

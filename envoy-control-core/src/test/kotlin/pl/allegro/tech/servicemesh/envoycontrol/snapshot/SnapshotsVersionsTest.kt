@@ -135,28 +135,28 @@ internal class SnapshotsVersionsTest {
 
     private fun createGroup(endpointPath: String): AllServicesGroup {
         return AllServicesGroup(
-            ads = false,
-            serviceName = "name",
-            proxySettings = ProxySettings(
-                incoming = Incoming(
-                    endpoints = listOf(
-                        IncomingEndpoint(
-                            path = endpointPath,
-                            pathMatchingType = PathMatchingType.PATH,
-                            methods = setOf("GET", "PUT"),
-                            clients = setOf("client1", "role1")
+                ads = false,
+                serviceName = "name",
+                proxySettings = ProxySettings(
+                    incoming = Incoming(
+                        endpoints = listOf(
+                            IncomingEndpoint(
+                                path = endpointPath,
+                                pathMatchingType = PathMatchingType.PATH,
+                                methods = setOf("GET", "PUT"),
+                                clients = setOf("client1", "role1")
+                            )
+                        ),
+                        permissionsEnabled = true,
+                        roles = listOf(
+                            Role(
+                                name = "role1",
+                                clients = setOf("client2", "client3")
+                            )
                         )
                     ),
-                    permissionsEnabled = true,
-                    roles = listOf(
-                        Role(
-                            name = "role1",
-                            clients = setOf("client2", "client3")
-                        )
-                    )
-                ),
-                outgoing = Outgoing(listOf())
-            )
+                    outgoing = Outgoing(listOf())
+                )
         )
     }
 }
