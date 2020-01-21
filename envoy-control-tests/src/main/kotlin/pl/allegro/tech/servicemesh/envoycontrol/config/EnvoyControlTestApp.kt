@@ -12,6 +12,7 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.springframework.boot.actuate.health.Status
 import org.springframework.boot.builder.SpringApplicationBuilder
+import org.springframework.http.HttpStatus
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControl
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
@@ -93,8 +94,10 @@ class EnvoyControlRunnerTestApp(
                 .build()
         ).execute()
 
-        if (!response.isSuccessful) {
+        if (response.code() == HttpStatus.NOT_FOUND.value()) {
             return SnapshotDebugResponse(found = false)
+        } else if (!response.isSuccessful) {
+            throw SnapshotDebugResponseInvalidStatusException(response.code())
         }
 
         return response.body()
@@ -104,6 +107,9 @@ class EnvoyControlRunnerTestApp(
 
     class SnapshotDebugResponseMissingException :
         RuntimeException("Expected snapshot debug in response body but got none")
+
+    class SnapshotDebugResponseInvalidStatusException(status: Int) :
+        RuntimeException("Invalid snapshot debug response status: $status")
 
     private fun getApplicationStatusResponse(): Response =
         httpClient

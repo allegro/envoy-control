@@ -19,10 +19,11 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import org.springframework.boot.jackson.JsonComponent
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.server.ResponseStatusException
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 
@@ -41,7 +42,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         val nodeHash = nodeGroup.hash(node)
         val snapshot = cache.getSnapshot(nodeHash)
         return if (snapshot == null) {
-            throw ResponseStatusException(HttpStatus.NOT_FOUND, "snapshot missing")
+            throw SnapshotNotFoundException()
         } else {
             ResponseEntity(
                 SnapshotDebugInfo(snapshot),
@@ -68,4 +69,12 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             gen.writeRawValue(printer.print(message))
         }
     }
+
+    class SnapshotNotFoundException : RuntimeException("snapshot missing")
+
+    @ExceptionHandler
+    @ResponseBody
+    fun handleSnapshotMissing(exception: SnapshotNotFoundException): ResponseEntity<String> = ResponseEntity
+        .status(HttpStatus.NOT_FOUND)
+        .body(exception.message)
 }
