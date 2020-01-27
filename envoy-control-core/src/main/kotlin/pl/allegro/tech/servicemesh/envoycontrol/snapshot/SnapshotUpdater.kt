@@ -12,7 +12,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetad
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
-import java.util.concurrent.TimeUnit
 
 class SnapshotUpdater(
     private val cache: SnapshotCache<Group>,
@@ -76,11 +75,6 @@ class SnapshotUpdater(
                     val snapshot = if (group.ads) result.adsSnapshot else result.xdsSnapshot
                     updateSnapshotForGroup(group, snapshot)
                 }
-                .elapsed()
-                .map { t ->
-                    meterRegistry.timer("snapshot-updater").record(t.t1, TimeUnit.MILLISECONDS)
-                    t.t2
-                }
                 .subscribeOn(snapshotPublisherScheduler)
         } else {
             Flux.empty()
@@ -124,7 +118,9 @@ class SnapshotUpdater(
     fun updateSnapshotForGroup(group: Group, globalSnapshot: Snapshot) {
         try {
             val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, globalSnapshot)
-            cache.setSnapshot(group, groupSnapshot)
+            meterRegistry.timer("snapshot-updater.set-snapshot.time").record {
+                cache.setSnapshot(group, groupSnapshot)
+            }
         } catch (e: Throwable) {
             meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()
             logger.error("Unable to create snapshot for group ${group.serviceName}", e)
