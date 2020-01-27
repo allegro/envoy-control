@@ -15,5 +15,7 @@ class GlobalServiceChanges(
                 .flatten()
                 .toList()
         }
+            .checkpoint("global-service-changes-emitted")
+            .name("global-service-changes-emitted").metrics()
     }
 }
