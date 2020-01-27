@@ -203,8 +203,13 @@ class ControlPlane private constructor(
             return this
         }
 
-        fun withUpdateSnapshotExecutor(executor: Executor): ControlPlaneBuilder {
+        fun withSnapshotUpdateExecutor(executor: Executor): ControlPlaneBuilder {
             snapshotUpdateExecutor = executor
+            return this
+        }
+
+        fun withSnapshotPublishExecutor(executor: Executor): ControlPlaneBuilder {
+            snapshotPublishExecutor = executor
             return this
         }
 
