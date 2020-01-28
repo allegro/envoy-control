@@ -18,21 +18,16 @@ private val logger = LoggerFactory.getLogger("pl.allegro.tech.servicemesh.envoyc
  * - onBackpressureLatest (buffer size is always 0 or 1)
  * - publishOn
  */
-fun <T> Flux<T>.measureBuffer(name: String, meterRegistry: MeterRegistry): Flux<T> = this.doOnSubscribe { s ->
-    if (s !is Scannable) {
-        logger.error("is not scannable")
-        return@doOnSubscribe
-    }
+fun <T> Flux<T>.measureBuffer(name: String, meterRegistry: MeterRegistry): Flux<T> = this.doOnSubscribe {
+    val scannable = Scannable.from(it)
 
-    val buffered = s.scan(Scannable.Attr.BUFFERED)
+    val buffered = scannable.scan(Scannable.Attr.BUFFERED)
     if (buffered == null) {
-        logger.error("buffer size not available")
+        logger.error("Buffer size not available. Use measureBuffer() only on supported reactor operators")
         return@doOnSubscribe
     }
 
-    val supplier = { sc: Scannable -> sc.scan(Scannable.Attr.BUFFERED)?.toDouble() ?: 0.0 }
-
-    meterRegistry.gauge("reactor-buffers.$name", s, supplier)
+    meterRegistry.gauge("reactor-buffers.$name", scannable, { s -> s.scan(Scannable.Attr.BUFFERED)?.toDouble() ?: 0.0 })
 }
 
 /**
