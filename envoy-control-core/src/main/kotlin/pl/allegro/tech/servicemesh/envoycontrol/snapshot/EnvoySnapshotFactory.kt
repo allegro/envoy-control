@@ -80,7 +80,7 @@ DependencySettings(
                     routeDomain = it,
                     settings = defaultDependencySettings
                 )
-            }),
+            }, false),
             ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
         )
 
@@ -173,7 +173,8 @@ DependencySettings(
 
         val routes = listOf(
             egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, getEgressRoutesSpecification(group, globalSnapshot)
+                group.serviceName, getEgressRoutesSpecification(group, globalSnapshot),
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )

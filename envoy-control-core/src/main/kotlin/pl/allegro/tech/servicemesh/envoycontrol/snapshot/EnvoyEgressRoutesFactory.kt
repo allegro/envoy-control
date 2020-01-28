@@ -51,10 +51,19 @@ internal class EnvoyEgressRoutesFactory(
         )
         .build()
 
+    private val upstreamAddressHeader = HeaderValueOption.newBuilder().setHeader(
+        HeaderValue.newBuilder().setKey("x-envoy-upstream-remote-address")
+            .setValue("%UPSTREAM_REMOTE_ADDRESS%").build()
+    )
+
     /**
      * @see TestResources.createRoute
      */
-    fun createEgressRouteConfig(serviceName: String, routes: Collection<RouteSpecification>): RouteConfiguration {
+    fun createEgressRouteConfig(
+        serviceName: String,
+        routes: Collection<RouteSpecification>,
+        addUpstreamAddressHeader: Boolean
+    ): RouteConfiguration {
         val virtualHosts = routes.map { routeSpecification ->
             VirtualHost.newBuilder()
                 .setName(routeSpecification.clusterName)
@@ -72,7 +81,7 @@ internal class EnvoyEgressRoutesFactory(
                 .build()
         }
 
-        return RouteConfiguration.newBuilder()
+        var routeConfiguration = RouteConfiguration.newBuilder()
             .setName("default_routes")
             .addAllVirtualHosts(
                 virtualHosts + originalDestinationRoute + wildcardRoute
@@ -88,7 +97,10 @@ internal class EnvoyEgressRoutesFactory(
                     )
                 }
             }
-            .build()
+        if (addUpstreamAddressHeader)
+            routeConfiguration = routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
+
+        return routeConfiguration.build()
     }
 
     private fun createRouteAction(routeSpecification: RouteSpecification): RouteAction.Builder {
