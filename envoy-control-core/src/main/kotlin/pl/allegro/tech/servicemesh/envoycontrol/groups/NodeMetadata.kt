@@ -146,7 +146,9 @@ data class Incoming(
     val permissionsEnabled: Boolean = false,
     val healthCheck: HealthCheck = HealthCheck(),
     val roles: List<Role> = emptyList(),
-    val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(idleTimeout = null, responseTimeout = null, connectionIdleTimeout = null)
+    val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(
+        idleTimeout = null, responseTimeout = null, connectionIdleTimeout = null
+    )
 ) {
 
     data class TimeoutPolicy(
