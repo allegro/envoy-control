@@ -58,6 +58,7 @@ class ControlPlane private constructor(
             .start(changes)
             .subscribe()
         grpcServer.start()
+
     }
 
     override fun close() {
