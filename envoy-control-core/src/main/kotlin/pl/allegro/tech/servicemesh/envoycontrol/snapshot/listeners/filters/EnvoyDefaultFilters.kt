@@ -8,6 +8,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagFilter
 
 class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
+    private val rbacFilterFactory = RbacFilterFactory(snapshotProperties.incomingPermissions)
+
     val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
             snapshotProperties.routing.serviceTags.header,
             snapshotProperties.routing.serviceTags.metadataKey
@@ -18,7 +20,8 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     val envoyRouterHttpFilter = envoyRouterHttpFilter()
     val defaultEnvoyRouterHttpFilter = { _: Group -> envoyRouterHttpFilter }
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
-    val defaultIngressFilters = listOf(defaultEnvoyRouterHttpFilter)
+    val defaultRbacFilter = { group: Group -> rbacFilterFactory.createHttpFilter(group) }
+    val defaultIngressFilters = listOf(defaultRbacFilter, defaultEnvoyRouterHttpFilter)
 
     fun headerToMetadataConfig(
         rules: List<Config.Rule>,

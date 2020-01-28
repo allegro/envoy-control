@@ -84,7 +84,6 @@ class SnapshotUpdaterTest {
         hasSnapshot(cache, groupWithProxy)
             .hasClusters("existingService1", "existingService2")
             .hasSecuredIngressRoute("/endpoint", "client")
-            .hasServiceNameRequestHeader("service")
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("existingService1")))
             .hasClusters("existingService1")
@@ -94,7 +93,6 @@ class SnapshotUpdaterTest {
 
         hasSnapshot(cache, groupWithServiceName)
             .hasClusters("existingService2")
-            .hasServiceNameRequestHeader("ipsum-service")
 
         hasSnapshot(cache, groupOf(
             services = serviceDependencies("existingService1", "existingService2"),

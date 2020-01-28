@@ -23,6 +23,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.RbacFilterFactory
 import com.google.protobuf.Any as ProtobufAny
 
 typealias HttpFilterFactory = (node: Group) -> HttpFilter?

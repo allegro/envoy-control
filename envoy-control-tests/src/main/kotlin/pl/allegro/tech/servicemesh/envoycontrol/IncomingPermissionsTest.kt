@@ -12,8 +12,7 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
     companion object {
 
         private val properties = mapOf(
-            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.endpoint-unavailable-status-code" to 403
+            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true
         )
 
         @JvmStatic

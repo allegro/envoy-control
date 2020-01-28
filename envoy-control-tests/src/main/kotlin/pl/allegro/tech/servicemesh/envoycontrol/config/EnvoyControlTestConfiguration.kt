@@ -14,6 +14,7 @@ import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -31,6 +32,7 @@ object RandomConfigFile :
 
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {
+        private val logger by logger()
         private val client = OkHttpClient.Builder()
             // envoys default timeout is 15 seconds while OkHttp is 10
             .readTimeout(Duration.ofSeconds(20))

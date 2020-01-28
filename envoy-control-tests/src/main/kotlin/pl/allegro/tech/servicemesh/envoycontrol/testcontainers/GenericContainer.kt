@@ -46,10 +46,10 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
     }
 
     fun ipAddress(): String =
-        containerInfo
-            .networkSettings
-            .networks[(network as Network.NetworkImpl).name]!!
-            .ipAddress
+            containerInfo
+                    .networkSettings
+                    .networks[(network as Network.NetworkImpl).name]!!
+                    .ipAddress!!
 
     open fun sigstop() {
         sendSignal("STOP")
