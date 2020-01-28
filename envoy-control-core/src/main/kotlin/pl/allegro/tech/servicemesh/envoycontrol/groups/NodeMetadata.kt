@@ -121,7 +121,11 @@ private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
         ?.takeIf { it.isNotBlank() }
         ?.let { Durations.parse(it) }
 
-    return Incoming.TimeoutPolicy(idleTimeout, responseTimeout)
+    val connectionIdleTimeout: Duration? = this?.field("connectionIdleTimeout")?.stringValue
+        ?.takeIf { it.isNotBlank() }
+        ?.let { Durations.parse(it) }
+
+    return Incoming.TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout)
 }
 
 private fun Value?.toOutgoingTimeoutPolicy(properties: SnapshotProperties): Outgoing.TimeoutPolicy {
@@ -142,12 +146,13 @@ data class Incoming(
     val permissionsEnabled: Boolean = false,
     val healthCheck: HealthCheck = HealthCheck(),
     val roles: List<Role> = emptyList(),
-    val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(idleTimeout = null, responseTimeout = null)
+    val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(idleTimeout = null, responseTimeout = null, connectionIdleTimeout = null)
 ) {
 
     data class TimeoutPolicy(
         val idleTimeout: Duration?,
-        val responseTimeout: Duration?
+        val responseTimeout: Duration?,
+        val connectionIdleTimeout: Duration?
     )
 }
 

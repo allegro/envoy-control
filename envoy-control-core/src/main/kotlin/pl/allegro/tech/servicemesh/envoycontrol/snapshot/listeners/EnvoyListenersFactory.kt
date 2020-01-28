@@ -4,6 +4,7 @@ import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
+import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.Listener
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
@@ -11,6 +12,7 @@ import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
 import io.envoyproxy.envoy.api.v2.core.ConfigSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
+import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.listener.Filter
 import io.envoyproxy.envoy.api.v2.listener.FilterChain
@@ -35,6 +37,7 @@ class EnvoyListenersFactory(
     private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters
     private val egressFilters: List<HttpFilterFactory> = envoyHttpFilters.egressFilters
     private val listenersFactoryProperties = snapshotProperties.dynamicListeners
+    private val localServiceProperties = snapshotProperties.localService
     private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
     private val accessLogMessageFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormat)
     private val accessLogLevel = stringValue(listenersFactoryProperties.httpFilters.accessLog.level)
@@ -166,10 +169,14 @@ class EnvoyListenersFactory(
     }
 
     private fun createIngressFilter(group: Group, listenersConfig: ListenersConfig): Filter {
+        val connectionIdleTimeout = group.proxySettings.incoming.timeoutPolicy.connectionIdleTimeout
+            ?: Durations.fromMillis(localServiceProperties.connectionIdleTimeout.toMillis())
+        val httpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(connectionIdleTimeout).build()
         val ingressHttp = HttpConnectionManager.newBuilder()
                 .setStatPrefix("ingress_http")
                 .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
                 .setDelayedCloseTimeout(durationInSeconds(0))
+                .setCommonHttpProtocolOptions(httpProtocolOptions)
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
                 .setRds(ingressRds(group.ads))
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
