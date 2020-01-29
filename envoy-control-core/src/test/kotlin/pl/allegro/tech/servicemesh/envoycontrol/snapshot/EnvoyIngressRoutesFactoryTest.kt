@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import com.google.protobuf.util.Durations
+import io.envoyproxy.envoy.api.v2.route.Route
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.HealthCheck
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
@@ -8,7 +9,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming.TimeoutPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
-import pl.allegro.tech.servicemesh.envoycontrol.groups.accessOnlyForClient
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRedirectRoute
@@ -23,13 +23,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOnlyRoutesInOrder
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasSingleVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
-import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnIdleTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
-import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPath
-import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnResponseTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.statusRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.toCluster
 import java.time.Duration
 
 internal class EnvoyIngressRoutesFactoryTest {
@@ -80,6 +76,26 @@ internal class EnvoyIngressRoutesFactoryTest {
         adminRedirectRoute()
     )
 
+    private val getRoute: Route.() -> Unit = {
+        allOpenIngressRoute()
+        matchingOnMethod("GET")
+        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
+    }
+    private val headRoute: Route.() -> Unit = {
+        allOpenIngressRoute()
+        matchingOnMethod("HEAD")
+        matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
+    }
+    private val otherRoute: Route.() -> Unit = {
+        allOpenIngressRoute()
+        matchingOnAnyMethod()
+        hasNoRetryPolicy()
+    }
+
+    private val ingressRoutes = arrayOf(
+            getRoute, headRoute, otherRoute
+    )
+
     @Test
     fun `should create legacy ingress route config`() {
         // given
@@ -95,21 +111,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOneDomain("*")
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
-                    {
-                        allOpenIngressRoute()
-                        matchingOnMethod("GET")
-                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
-                    },
-                    {
-                        allOpenIngressRoute()
-                        matchingOnMethod("HEAD")
-                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
-                    },
-                    {
-                        allOpenIngressRoute()
-                        matchingOnAnyMethod()
-                        hasNoRetryPolicy()
-                    }
+                    *ingressRoutes
                 )
                 matchingRetryPolicy(retryPolicyProps.default)
             }
@@ -133,6 +135,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
                     statusRoute(),
+                    *ingressRoutes,
                     fallbackIngressRoute()
                 )
             }
@@ -176,42 +179,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
                     statusRoute(idleTimeout, responseTimeout),
-                    {
-                        matchingOnPath("/endpoint")
-                        matchingOnMethod("GET")
-                        accessOnlyForClient("client1")
-                        toCluster("local_service")
-                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
-                        matchingOnResponseTimeout(responseTimeout)
-                        matchingOnIdleTimeout(idleTimeout)
-                    },
-                    {
-                        matchingOnPath("/endpoint")
-                        matchingOnMethod("HEAD")
-                        accessOnlyForClient("client1")
-                        toCluster("local_service")
-                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
-                        matchingOnResponseTimeout(responseTimeout)
-                        matchingOnIdleTimeout(idleTimeout)
-                    },
-                    {
-                        matchingOnPath("/endpoint")
-                        matchingOnAnyMethod()
-                        accessOnlyForClient("client1")
-                        toCluster("local_service")
-                        hasNoRetryPolicy()
-                        matchingOnResponseTimeout(responseTimeout)
-                        matchingOnIdleTimeout(idleTimeout)
-                    },
-                    {
-                        matchingOnPath("/products")
-                        matchingOnMethod("POST")
-                        accessOnlyForClient("client2")
-                        toCluster("local_service")
-                        hasNoRetryPolicy()
-                        matchingOnResponseTimeout(responseTimeout)
-                        matchingOnIdleTimeout(idleTimeout)
-                    },
+                    *ingressRoutes,
                     fallbackIngressRoute()
                 )
                 matchingRetryPolicy(retryPolicyProps.default)
@@ -254,48 +222,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                     *adminRoutes,
                     statusRoute(clusterName = "local_service_health_check", healthCheckPath = "/status/custom"),
                     statusRoute(),
-                    {
-                        matchingOnPath("/endpoint")
-                        matchingOnMethod("GET")
-                        accessOnlyForClient("client1")
-                        toCluster("local_service")
-                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
-                    },
-                    {
-                        matchingOnPath("/endpoint")
-                        matchingOnMethod("POST")
-                        accessOnlyForClient("client1")
-                        toCluster("local_service")
-                        hasNoRetryPolicy()
-                    },
-                    {
-                        matchingOnPath("/endpoint")
-                        matchingOnMethod("GET")
-                        accessOnlyForClient("clientB")
-                        toCluster("local_service")
-                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
-                    },
-                    {
-                        matchingOnPath("/endpoint")
-                        matchingOnMethod("POST")
-                        accessOnlyForClient("clientB")
-                        toCluster("local_service")
-                        hasNoRetryPolicy()
-                    },
-                    {
-                        matchingOnPath("/endpoint")
-                        matchingOnMethod("GET")
-                        accessOnlyForClient("other-client")
-                        toCluster("local_service")
-                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
-                    },
-                    {
-                        matchingOnPath("/endpoint")
-                        matchingOnMethod("POST")
-                        accessOnlyForClient("other-client")
-                        toCluster("local_service")
-                        hasNoRetryPolicy()
-                    },
+                    *ingressRoutes,
                     fallbackIngressRoute()
                 )
                 matchingRetryPolicy(retryPolicyProps.default)

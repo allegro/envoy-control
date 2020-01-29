@@ -9,8 +9,10 @@ import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Dependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -27,6 +29,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
+import java.time.Duration
 import java.util.function.Consumer
 
 class SnapshotUpdaterTest {
@@ -83,7 +86,6 @@ class SnapshotUpdaterTest {
 
         hasSnapshot(cache, groupWithProxy)
             .hasClusters("existingService1", "existingService2")
-            .hasSecuredIngressRoute("/endpoint", "client")
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("existingService1")))
             .hasClusters("existingService1")
@@ -140,6 +142,7 @@ class SnapshotUpdaterTest {
     }
 
     @Test
+    @Disabled("We do not handle user input here any more, rewrite test to throw on specific 'updateSnapshotForGroup'")
     fun `should not crash on bad snapshot generation`() {
         // given
         val servicesGroup = servicesGroupWithAnError("example-service")
@@ -239,26 +242,6 @@ class SnapshotUpdaterTest {
     private fun Snapshot.hasClusters(vararg expected: String): Snapshot {
         assertThat(this.clusters().resources().keys.toSet())
             .isEqualTo(expected.toSet())
-        return this
-    }
-
-    private fun Snapshot.hasSecuredIngressRoute(endpoint: String, client: String): Snapshot {
-        assertThat(this.routes().resources().getValue("ingress_secured_routes").virtualHostsList.first().routesList
-            .map { it.match }
-            .filter { it.path == endpoint }
-            .filter {
-                it.headersList
-                    .any { it.name == "x-service-name" && it.exactMatch == client }
-            }
-        ).isNotEmpty
-        return this
-    }
-
-    private fun Snapshot.hasServiceNameRequestHeader(serviceName: String): Snapshot {
-        assertThat(this.routes().resources().getValue("default_routes").requestHeadersToAddList
-            .map { it.header }
-            .filter { it.key == "x-service-name" && it.value == serviceName }
-        ).hasSize(1)
         return this
     }
 

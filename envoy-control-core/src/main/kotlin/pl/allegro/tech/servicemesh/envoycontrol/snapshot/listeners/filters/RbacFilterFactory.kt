@@ -12,6 +12,7 @@ import io.envoyproxy.envoy.api.v2.listener.Filter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 
 class RbacFilterFactory(
@@ -23,11 +24,16 @@ class RbacFilterFactory(
         incomingPermissions.endpoints.forEach { incomingEndpoint ->
             val policy = Policy.newBuilder()
 
+
             incomingEndpoint.clients.forEach { client ->
 
                 val clientMatch = HeaderMatcher.newBuilder().setName(properties.clientIdentityHeader).setExactMatch(client).build()
                 val principal = Principal.newBuilder().setHeader(clientMatch)
-                val pathMatch = HeaderMatcher.newBuilder().setName(":path").setExactMatch(incomingEndpoint.path).build()
+                val pathMatch = when (incomingEndpoint.pathMatchingType) {
+                    PathMatchingType.PATH -> HeaderMatcher.newBuilder().setName(":path").setExactMatch(incomingEndpoint.path).build()
+                    PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder().setName(":path").setPrefixMatch(incomingEndpoint.path).build()
+                }
+
                 val permissions = Permission.Set.newBuilder()
                 permissions.addRules(Permission.newBuilder().setHeader(pathMatch).build())
 

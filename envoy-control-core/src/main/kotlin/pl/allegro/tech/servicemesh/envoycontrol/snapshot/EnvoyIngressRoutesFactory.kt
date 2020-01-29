@@ -121,11 +121,6 @@ internal class EnvoyIngressRoutesFactory(
         return emptyList()
     }
 
-    private fun localClusterRouteActionWithRetryPolicy(method: HttpMethod, localRouteAction: RouteAction.Builder):
-        RouteAction.Builder = perMethodRetryPolicies[method]
-        ?.let { clusterRouteActionWithRetryPolicy(it, localRouteAction) }
-        ?: localRouteAction
-
     private fun clusterRouteActionWithRetryPolicy(
         retryPolicy: RetryPolicy,
         routeAction: RouteAction.Builder
@@ -180,62 +175,13 @@ internal class EnvoyIngressRoutesFactory(
             return customHealthCheckRoute + allOpenIngressRoutes(localRouteAction)
         }
 
-        val rolesByName = proxySettings.incoming.roles.associateBy { it.name.orEmpty() }
-
-        val applicationRoutes = proxySettings.incoming.endpoints
-            .flatMap { toRoutes(it, rolesByName, localRouteAction) }
-
-        return customHealthCheckRoute + listOfNotNull(
-            statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }
-        ) + applicationRoutes + fallbackIngressRoute
+        return customHealthCheckRoute +
+                listOfNotNull(
+                    statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }
+                ) +
+                allOpenIngressRoutes(localRouteAction) +
+                fallbackIngressRoute
     }
-
-    private fun toRoutes(
-        endpoint: IncomingEndpoint,
-        roles: Map<String, Role>,
-        localRouteAction: RouteAction.Builder
-    ): List<Route> {
-        val routeMatch = RouteMatch.newBuilder()
-
-        when (endpoint.pathMatchingType) {
-            PathMatchingType.PATH -> routeMatch.path = endpoint.path
-            PathMatchingType.PATH_PREFIX -> routeMatch.prefix = endpoint.path
-        }
-
-        val clients = endpoint.clients
-            .flatMap { roles[it]?.clients ?: listOf(it) }
-            .distinct()
-
-        val methods = endpoint.methods
-            .takeIf { it.isNotEmpty() }
-            ?.map { HttpMethod.valueOf(it) }
-            ?: perMethodRetryPolicies.keys
-
-        return clients.flatMap { client ->
-            val routesForMethods = methods.map { method ->
-                val match = routeMatch.clone()
-                    .addHeaders(clientNameMatcher(client))
-                    .addHeaders(httpMethodMatcher(method))
-                Route.newBuilder()
-                    .setMatch(match)
-                    .setRoute(localClusterRouteActionWithRetryPolicy(method, localRouteAction))
-                    .build()
-            }
-            if (endpoint.methods.isEmpty()) {
-                val match = routeMatch.clone()
-                    .addHeaders(clientNameMatcher(client))
-                routesForMethods + Route.newBuilder()
-                    .setMatch(match)
-                    .setRoute(localRouteAction)
-                    .build()
-            } else routesForMethods
-        }
-    }
-
-    private fun clientNameMatcher(clientName: String): HeaderMatcher.Builder =
-        HeaderMatcher.newBuilder()
-            .setName(properties.incomingPermissions.clientIdentityHeader)
-            .setExactMatch(clientName)
 
     private fun statusRouteVirtualClusterEnabled() =
         properties.routes.status.enabled && properties.routes.status.createVirtualCluster
