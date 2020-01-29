@@ -52,7 +52,6 @@ class IncomingPermissionsProperties {
     /**
      * unavailable = not found || unauthorized
      */
-    var endpointUnavailableStatusCode = 503
     var clientIdentityHeader = "x-service-name"
 }
 

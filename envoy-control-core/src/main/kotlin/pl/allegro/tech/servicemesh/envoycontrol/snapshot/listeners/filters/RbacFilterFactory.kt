@@ -8,7 +8,6 @@ import io.envoyproxy.envoy.config.rbac.v2.Policy
 import io.envoyproxy.envoy.config.rbac.v2.Principal
 import io.envoyproxy.envoy.config.rbac.v2.RBAC
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import io.envoyproxy.envoy.api.v2.listener.Filter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
@@ -16,7 +15,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 
 class RbacFilterFactory(
-        private val properties: IncomingPermissionsProperties
+    private val properties: IncomingPermissionsProperties
 ) {
     fun getRules(incomingPermissions: Incoming): RBAC {
         val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
@@ -24,14 +23,15 @@ class RbacFilterFactory(
         incomingPermissions.endpoints.forEach { incomingEndpoint ->
             val policy = Policy.newBuilder()
 
-
             incomingEndpoint.clients.forEach { client ->
-
-                val clientMatch = HeaderMatcher.newBuilder().setName(properties.clientIdentityHeader).setExactMatch(client).build()
+                val clientMatch = HeaderMatcher.newBuilder()
+                        .setName(properties.clientIdentityHeader).setExactMatch(client).build()
                 val principal = Principal.newBuilder().setHeader(clientMatch)
                 val pathMatch = when (incomingEndpoint.pathMatchingType) {
-                    PathMatchingType.PATH -> HeaderMatcher.newBuilder().setName(":path").setExactMatch(incomingEndpoint.path).build()
-                    PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder().setName(":path").setPrefixMatch(incomingEndpoint.path).build()
+                    PathMatchingType.PATH -> HeaderMatcher.newBuilder()
+                            .setName(":path").setExactMatch(incomingEndpoint.path).build()
+                    PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder()
+                            .setName(":path").setPrefixMatch(incomingEndpoint.path).build()
                 }
 
                 val permissions = Permission.Set.newBuilder()

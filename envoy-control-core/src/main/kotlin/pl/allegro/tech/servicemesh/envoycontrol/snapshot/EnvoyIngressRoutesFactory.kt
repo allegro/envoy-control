@@ -4,19 +4,13 @@ import com.google.protobuf.Duration
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
-import io.envoyproxy.envoy.api.v2.core.DataSource
-import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
-import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import io.envoyproxy.envoy.api.v2.route.Route
 import io.envoyproxy.envoy.api.v2.route.RouteAction
 import io.envoyproxy.envoy.api.v2.route.RouteMatch
 import io.envoyproxy.envoy.api.v2.route.VirtualCluster
 import io.envoyproxy.envoy.api.v2.route.VirtualHost
-import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
-import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
-import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 
 internal class EnvoyIngressRoutesFactory(
     private val properties: SnapshotProperties
