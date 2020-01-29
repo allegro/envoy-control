@@ -14,4 +14,5 @@ class CrossDcServiceChanges(
             .getChanges(properties.sync.pollingInterval)
             .startWith(emptySet<LocalityAwareServicesState>())
             .distinctUntilChanged()
+            .name("cross-dc-changes-distinct").metrics()
 }
