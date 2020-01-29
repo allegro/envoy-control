@@ -10,6 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListener
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
+import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -99,6 +100,9 @@ class SnapshotUpdater(
     fun services(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
         return changes
                 .sample(properties.stateSampleDuration)
+                .name("snapshot-updater-services-sampled").metrics()
+                .onBackpressureLatest()
+                .measureDiscardedItems("snapshot-updater-services-sampled", meterRegistry)
                 .publishOn(scheduler)
                 .measureBuffer("snapshot-updater-services-published", meterRegistry)
                 .checkpoint("snapshot-updater-services-published")
