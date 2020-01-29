@@ -8,7 +8,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagFilter
 
 class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
-    private val rbacFilterFactory = RbacFilterFactory(snapshotProperties.incomingPermissions)
+    private val rbacFilterFactory = RBACFilterFactory(snapshotProperties.incomingPermissions)
 
     val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
             snapshotProperties.routing.serviceTags.header,

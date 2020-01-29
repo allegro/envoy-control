@@ -14,7 +14,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 
-class RbacFilterFactory(
+class RBACFilterFactory(
     private val properties: IncomingPermissionsProperties
 ) {
     fun getRules(incomingPermissions: Incoming): RBAC {
@@ -22,31 +22,40 @@ class RbacFilterFactory(
 
         incomingPermissions.endpoints.forEach { incomingEndpoint ->
             val policy = Policy.newBuilder()
+            val clientName = incomingEndpoint.clients.joinToString(",")
+
+            val pathMatch = when (incomingEndpoint.pathMatchingType) {
+                PathMatchingType.PATH -> HeaderMatcher.newBuilder()
+                        .setName(":path").setExactMatch(incomingEndpoint.path).build()
+                PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder()
+                        .setName(":path").setPrefixMatch(incomingEndpoint.path).build()
+            }
+
+            val pathPermission = Permission.newBuilder().setHeader(pathMatch)
+            val combined = Permission.newBuilder()
+            val methodPermissions = Permission.newBuilder()
 
             incomingEndpoint.clients.forEach { client ->
                 val clientMatch = HeaderMatcher.newBuilder()
                         .setName(properties.clientIdentityHeader).setExactMatch(client).build()
                 val principal = Principal.newBuilder().setHeader(clientMatch)
-                val pathMatch = when (incomingEndpoint.pathMatchingType) {
-                    PathMatchingType.PATH -> HeaderMatcher.newBuilder()
-                            .setName(":path").setExactMatch(incomingEndpoint.path).build()
-                    PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder()
-                            .setName(":path").setPrefixMatch(incomingEndpoint.path).build()
-                }
 
-                val permissions = Permission.Set.newBuilder()
-                permissions.addRules(Permission.newBuilder().setHeader(pathMatch).build())
-
-                incomingEndpoint.methods.forEach { method ->
-                    val methodMatch = HeaderMatcher.newBuilder().setName(":method").setExactMatch(method).build()
-                    permissions.addRules(Permission.newBuilder().setHeader(methodMatch).build())
-                }
-
-                val combined = Permission.newBuilder().setOrRules(permissions.build()).build()
-                policy.addPermissions(combined)
                 policy.addPrincipals(principal)
-                clientToPolicyBuilder[client] = policy
             }
+
+            val methodPermissionSet = Permission.Set.newBuilder()
+
+            incomingEndpoint.methods.forEach { method ->
+                val methodMatch = HeaderMatcher.newBuilder().setName(":method").setExactMatch(method).build()
+                methodPermissionSet.addRules(Permission.newBuilder().setHeader(methodMatch).build())
+            }
+
+            methodPermissions.setOrRules(methodPermissionSet.build()).build()
+
+            combined.setAndRules( Permission.Set.newBuilder().addAllRules(listOf(pathPermission.build(), methodPermissions.build())))
+            policy.addPermissions(combined)
+
+            clientToPolicyBuilder[clientName] = policy
         }
 
         val clientToPolicy = mutableMapOf<String, Policy>()
