@@ -49,21 +49,6 @@ internal class EnvoyIngressRoutesFactory(
             .build()
     }
 
-    private val fallbackIngressRoute = Route.newBuilder()
-        .setMatch(
-            RouteMatch.newBuilder()
-                .setPrefix("/")
-        )
-        .setDirectResponse(
-            DirectResponseAction.newBuilder()
-                .setStatus(properties.incomingPermissions.endpointUnavailableStatusCode)
-                .setBody(
-                    DataSource.newBuilder()
-                        .setInlineString("Requested resource is unavailable or client not permitted")
-                )
-        )
-        .build()
-
     private fun retryPolicy(retryProps: RetryPolicyProperties): RetryPolicy = RetryPolicy.newBuilder().apply {
         retryOn = retryProps.retryOn.joinToString(separator = ",")
         numRetries = UInt32Value.of(retryProps.numRetries)
@@ -179,8 +164,7 @@ internal class EnvoyIngressRoutesFactory(
                 listOfNotNull(
                     statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }
                 ) +
-                allOpenIngressRoutes(localRouteAction) +
-                fallbackIngressRoute
+                allOpenIngressRoutes(localRouteAction)
     }
 
     private fun statusRouteVirtualClusterEnabled() =

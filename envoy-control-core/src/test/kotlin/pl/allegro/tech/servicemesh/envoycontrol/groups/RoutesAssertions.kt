@@ -164,12 +164,6 @@ fun Route.allOpenIngressRoute() {
         .toCluster("local_service")
 }
 
-fun fallbackIngressRoute(): (Route) -> Unit = {
-    it.matchingOnPrefix("/")
-        .publicAccess()
-        .directResponse { it.status == 503 }
-}
-
 fun statusRoute(
     idleTimeout: Duration? = null,
     responseTimeout: Duration? = null,

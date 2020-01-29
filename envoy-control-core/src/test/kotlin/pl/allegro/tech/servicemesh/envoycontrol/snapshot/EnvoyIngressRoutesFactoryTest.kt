@@ -16,7 +16,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.allOpenIngressRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.fallbackIngressRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOneDomain
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOnlyRoutesInOrder
@@ -135,8 +134,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
                     statusRoute(),
-                    *ingressRoutes,
-                    fallbackIngressRoute()
+                    *ingressRoutes
                 )
             }
     }
@@ -179,8 +177,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
                     statusRoute(idleTimeout, responseTimeout),
-                    *ingressRoutes,
-                    fallbackIngressRoute()
+                    *ingressRoutes
                 )
                 matchingRetryPolicy(retryPolicyProps.default)
             }
@@ -222,8 +219,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                     *adminRoutes,
                     statusRoute(clusterName = "local_service_health_check", healthCheckPath = "/status/custom"),
                     statusRoute(),
-                    *ingressRoutes,
-                    fallbackIngressRoute()
+                    *ingressRoutes
                 )
                 matchingRetryPolicy(retryPolicyProps.default)
             }
