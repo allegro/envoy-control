@@ -63,7 +63,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.getRules(incomingPermission)
+        val generated = rbacFilterFactory.getRules("some-service", incomingPermission)
 
         // then
         assertThat(generated).isEqualTo(expected)
