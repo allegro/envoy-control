@@ -52,7 +52,9 @@ class RBACFilterFactory(
 
             methodPermissions.setOrRules(methodPermissionSet.build()).build()
 
-            combined.setAndRules( Permission.Set.newBuilder().addAllRules(listOf(pathPermission.build(), methodPermissions.build())))
+            combined.setAndRules(
+                    Permission.Set.newBuilder().addAllRules(listOf(pathPermission.build(), methodPermissions.build()))
+            )
             policy.addPermissions(combined)
 
             clientToPolicyBuilder[clientName] = policy
