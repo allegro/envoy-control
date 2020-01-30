@@ -49,9 +49,6 @@ class OutgoingPermissionsProperties {
 
 class IncomingPermissionsProperties {
     var enabled = false
-    /**
-     * unavailable = not found || unauthorized
-     */
     var clientIdentityHeader = "x-service-name"
 }
 

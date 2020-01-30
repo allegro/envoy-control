@@ -40,7 +40,7 @@ metadata:
 In the `incoming` section this configuration defines access to routes:
 
 * `/example`
-    * using a `path` header matcher (more on this in [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/api-v2/config/rbac/v2/rbac.proto))
+    * using a `path` header matcher (more on this in [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/api-v2/config/rbac/v2/rbac.proto#config-rbac-v2-permission))
     * using methods `GET` and `DELETE`
     * to clients `service-first`
 * all other routes
