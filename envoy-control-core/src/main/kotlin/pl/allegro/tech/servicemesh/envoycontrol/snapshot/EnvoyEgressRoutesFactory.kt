@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
 import io.envoyproxy.envoy.api.v2.core.HeaderValue
@@ -30,6 +31,8 @@ internal class EnvoyEgressRoutesFactory(
                 )
                 .setRoute(
                     RouteAction.newBuilder()
+                        .setIdleTimeout(Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()))
+                        .setTimeout(Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis()))
                         .setCluster("envoy-original-destination")
                 )
         )
