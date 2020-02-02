@@ -46,6 +46,7 @@ class CrossDcServices(
                 meterRegistry.counter("cross-dc-synchronization.cancelled").increment()
                 logger.warn("Cancelling cross dc sync")
             }
+            .measureDiscardedItems("cross-dc-services-end", meterRegistry) //TODO: remove
     }
 
     private fun dcWithControlPlaneInstances(dc: String): Pair<String, List<URI>> {
