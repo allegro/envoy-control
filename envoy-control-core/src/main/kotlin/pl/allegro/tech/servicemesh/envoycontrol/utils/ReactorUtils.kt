@@ -23,7 +23,9 @@ private val logger = LoggerFactory.getLogger("pl.allegro.tech.servicemesh.envoyc
  * - publishOn
  */
 fun <T> Flux<T>.measureBuffer(
-    name: String, meterRegistry: MeterRegistry, innerSources: Int = 0
+    name: String,
+    meterRegistry: MeterRegistry,
+    innerSources: Int = 0
 ): Flux<T> = this.doOnSubscribe {
 
     when (it) {
@@ -32,20 +34,26 @@ fun <T> Flux<T>.measureBuffer(
     }
 }
 
-fun <T> Flux<T>.measureDiscardedItems(name: String, meterRegistry: MeterRegistry): Flux<T> = this.doOnDiscard(Any::class.java) {
-    meterRegistry.counter("reactor-discarded-items.$name").increment()
-}
+fun <T> Flux<T>.measureDiscardedItems(name: String, meterRegistry: MeterRegistry): Flux<T> = this
+    .doOnDiscard(Any::class.java) { meterRegistry.counter("reactor-discarded-items.$name").increment() }
 
 /**
  * Flux.combineLatest() is an example of QueueSubscription
  */
 private fun measureQueueSubscriptionBuffer(
-    subscription: Fuseable.QueueSubscription<*>, name: String, meterRegistry: MeterRegistry
+    subscription: Fuseable.QueueSubscription<*>,
+    name: String,
+    meterRegistry: MeterRegistry
 ) {
     meterRegistry.gauge(bufferMetric(name), subscription, queueSubscriptionBufferExtractor)
 }
 
-private fun measureScannableBuffer(scannable: Scannable, name: String, innerSources: Int, meterRegistry: MeterRegistry) {
+private fun measureScannableBuffer(
+    scannable: Scannable,
+    name: String,
+    innerSources: Int,
+    meterRegistry: MeterRegistry
+) {
     val buffered = scannable.scan(Scannable.Attr.BUFFERED)
     if (buffered == null) {
         logger.error("Cannot register metric '${bufferMetric(name)}'. Buffer size not available. " +
@@ -63,7 +71,7 @@ private fun measureScannableBuffer(scannable: Scannable, name: String, innerSour
      * be available, so it must be stated explicitly as innerSources parameter.
      */
     (0 until innerSources).forEach {
-        meterRegistry.gauge("${bufferMetric(name)}_${it}", scannable, innerBufferExtractor(it))
+        meterRegistry.gauge("${bufferMetric(name)}_$it", scannable, innerBufferExtractor(it))
     }
 }
 
