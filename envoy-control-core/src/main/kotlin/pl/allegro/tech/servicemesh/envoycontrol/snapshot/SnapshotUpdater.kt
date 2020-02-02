@@ -49,7 +49,7 @@ class SnapshotUpdater(
                 services(changes),
                 groups()
         )
-                .measureBuffer("snapshot-updater-merged", meterRegistry)
+                .measureBuffer("snapshot-updater-merged", meterRegistry, innerSources = 2)
                 .checkpoint("snapshot-updater-merged")
                 .name("snapshot-updater-merged").metrics()
                 .scan { previous: UpdateResult, newUpdate: UpdateResult ->

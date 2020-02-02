@@ -121,9 +121,10 @@ class ControlPlaneConfig {
 
     @Bean
     fun globalServiceChanges(
-        serviceChanges: Array<ServiceChanges>
+        serviceChanges: Array<ServiceChanges>,
+        meterRegistry: MeterRegistry
     ): GlobalServiceChanges =
-        GlobalServiceChanges(serviceChanges)
+        GlobalServiceChanges(serviceChanges, meterRegistry)
 
     @Bean
     fun envoyHttpFilters(
