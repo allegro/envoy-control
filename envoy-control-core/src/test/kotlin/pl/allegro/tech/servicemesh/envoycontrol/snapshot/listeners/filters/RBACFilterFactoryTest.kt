@@ -62,27 +62,23 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private val exptectedEndpointPermissionsWithoutClientsJson = """
-        {
-          "policies": {}
-        }
-    """
+    private val exptectedEndpointPermissionsWithoutClientsJson = """{ "policies": {} }"""
 
     private fun headerRule(path: String): String {
         return """{
-                        "header": {
-                          "name": ":path",
-                          "exact_match": "$path"
-                        }
-                      }"""
+            "header": {
+               "name": ":path",
+               "exact_match": "$path"
+            }
+        }"""
     }
 
     private fun methodRule(method: String): String {
         return """{
-              "header": {
-                    "name": ":method",
-                    "exact_match": "$method"
-              }
+           "header": {
+              "name": ":method",
+              "exact_match": "$method"
+           }
         }"""
     }
 

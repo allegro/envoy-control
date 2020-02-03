@@ -36,13 +36,13 @@ class RBACFilterFactory(
             val clientName = incomingEndpoint.clients.joinToString(",")
 
             val pathPermission = Permission.newBuilder().setHeader(getPathMatcher(incomingEndpoint))
-            val methodPermissions = Permission.newBuilder()
             val combinedPermissions = Permission.newBuilder()
 
             val principals = incomingEndpoint.clients.map(this::mapClientToPrincipal)
             policy.addAllPrincipals(principals)
 
             if (incomingEndpoint.methods.isNotEmpty()) {
+                val methodPermissions = Permission.newBuilder()
                 val methodPermissionSet = Permission.Set.newBuilder()
                 val methodPermissionsList = incomingEndpoint.methods.map(this::mapMethodToHeaderMatcher)
                 methodPermissionSet.addAllRules(methodPermissionsList)

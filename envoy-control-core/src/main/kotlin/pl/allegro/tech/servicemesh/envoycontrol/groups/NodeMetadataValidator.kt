@@ -4,6 +4,8 @@ import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import io.envoyproxy.envoy.api.v2.core.Node
+import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class AllDependenciesValidationException(serviceName: String?)
@@ -11,9 +13,16 @@ class AllDependenciesValidationException(serviceName: String?)
     "Blocked service $serviceName from using all dependencies. Only defined services can use all dependencies"
 )
 
+class InvalidHttpMethodValidationException(serviceName: String?, method: String)
+    : NodeMetadataValidationException(
+        "Service: $serviceName defined an unknown method: $method in endpoint permissions."
+)
+
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
+    private val logger by logger()
+
     override fun onStreamClose(streamId: Long, typeUrl: String?) {}
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String?, error: Throwable?) {}
@@ -43,8 +52,22 @@ class NodeMetadataValidator(
         if (!properties.outgoingPermissions.enabled) {
             return
         }
+        validateEndpointPermissionsMethods(metadata)
         if (hasAllServicesDependencies(metadata) && !isAllowedToHaveAllServiceDependencies(metadata)) {
             throw AllDependenciesValidationException(metadata.serviceName)
+        }
+    }
+
+    private fun validateEndpointPermissionsMethods(metadata: NodeMetadata) {
+        metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
+            incomingEndpoint.methods.forEach { method ->
+                try {
+                    HttpMethod.valueOf(method)
+                } catch (e: Exception) {
+                    logger.warn("Could not map http method $method.", e)
+                    throw InvalidHttpMethodValidationException(metadata.serviceName, method)
+                }
+            }
         }
     }
 

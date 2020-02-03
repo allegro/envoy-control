@@ -16,6 +16,12 @@ node:
   metadata:
     ads: true
     proxy_settings:
+      incoming:
+        endpoints:
+          - path: "/endpoint"
+            ## this is not a valid method
+            methods: [NOT_A_VALID_METHOD]
+            clients: ["authorizedClient"]
       outgoing:
         dependencies:
           - service: "service-1"
@@ -37,8 +43,7 @@ static_resources:
     hosts:
       - socket_address:
           address: LOCAL_SERVICE_IP
-          # not valid
-          port_value: -1
+          port_value: 5678
     connect_timeout: 1s
   - name: this_admin
     type: STATIC
