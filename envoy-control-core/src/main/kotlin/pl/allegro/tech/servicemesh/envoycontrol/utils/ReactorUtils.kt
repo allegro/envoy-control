@@ -34,6 +34,11 @@ fun <T> Flux<T>.measureBuffer(
     }
 }
 
+/**
+ * Measures how many items are discarded by all previous operators.
+ * If you want to measure how many items are discarded by specific operator only, measure it BEFORE and AFTER that
+ * operator and calculate difference between them
+ */
 fun <T> Flux<T>.measureDiscardedItems(name: String, meterRegistry: MeterRegistry): Flux<T> = this
     .doOnDiscard(Any::class.java) { meterRegistry.counter("reactor-discarded-items.$name").increment() }
 
