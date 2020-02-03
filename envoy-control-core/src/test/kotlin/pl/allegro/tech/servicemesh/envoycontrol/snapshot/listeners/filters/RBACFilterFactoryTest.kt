@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
 
+import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.config.rbac.v2.Permission
 import io.envoyproxy.envoy.config.rbac.v2.Policy
@@ -50,9 +51,65 @@ internal class RBACFilterFactoryTest {
             )).build()
     )).build()
 
+    val exptectedJsonString = """
+        {
+          "policies": {
+            "client1,client2": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      {
+                        "header": {
+                          "name": ":path",
+                          "exact_match": "/example"
+                        }
+                      },
+                      {
+                        "or_rules": {
+                          "rules": [
+                            {
+                              "header": {
+                                "name": ":method",
+                                "exact_match": "GET"
+                              }
+                            },
+                            {
+                              "header": {
+                                "name": ":method",
+                                "exact_match": "POST"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                {
+                    "header": {
+                      "name": "x-service-name",
+                      "exact_match": "client1"
+                    }
+                },
+                {
+                                    "header": {
+                                      "name": "x-service-name",
+                                      "exact_match": "client2"
+                                    }
+                                }
+              ]
+            }
+          }
+        }
+    """.trimIndent()
+
     @Test
     fun `should generate RBAC rules for simple incoming permissions`() {
         // given
+        val rbacBuilder = RBAC.newBuilder()
+        JsonFormat.parser().merge(exptectedJsonString, rbacBuilder)
         val incomingPermission = Incoming(
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
@@ -66,6 +123,6 @@ internal class RBACFilterFactoryTest {
         val generated = rbacFilterFactory.getRules("some-service", incomingPermission)
 
         // then
-        assertThat(generated).isEqualTo(expected)
+        assertThat(generated).isEqualTo(rbacBuilder.build())
     }
 }

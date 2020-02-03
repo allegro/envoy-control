@@ -150,10 +150,6 @@ internal class EnvoyIngressRoutesFactory(
 
         val customHealthCheckRoute = customHealthCheckRoute(proxySettings)
 
-        if (!proxySettings.incoming.permissionsEnabled) {
-            return customHealthCheckRoute + allOpenIngressRoutes(localRouteAction)
-        }
-
         return customHealthCheckRoute +
                 listOfNotNull(
                     statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }

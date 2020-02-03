@@ -96,27 +96,6 @@ internal class EnvoyIngressRoutesFactoryTest {
     )
 
     @Test
-    fun `should create legacy ingress route config`() {
-        // given
-        val emptyProxySettings = ProxySettings()
-
-        // when
-        val routeConfig = routesFactory.createSecuredIngressRouteConfig(emptyProxySettings)
-
-        // then
-        routeConfig
-            .hasSingleVirtualHostThat {
-                hasStatusVirtualClusters()
-                hasOneDomain("*")
-                hasOnlyRoutesInOrder(
-                    *adminRoutes,
-                    *ingressRoutes
-                )
-                matchingRetryPolicy(retryPolicyProps.default)
-            }
-    }
-
-    @Test
     fun `should create route config with no endpoints allowed`() {
         // given
         val proxySettingsNoEndpoints = ProxySettings(

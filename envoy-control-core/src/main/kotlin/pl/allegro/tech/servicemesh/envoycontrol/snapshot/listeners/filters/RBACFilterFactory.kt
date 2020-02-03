@@ -91,7 +91,7 @@ class RBACFilterFactory(
     }
 
     fun createHttpFilter(group: Group): HttpFilter? {
-        return if (properties.enabled) {
+        return if (properties.enabled && group.proxySettings.incoming.permissionsEnabled) {
             val rules = getRules(group.serviceName, group.proxySettings.incoming)
             val rbacFilter = RBACFilter.newBuilder().setRules(rules).build()
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac").setTypedConfig(Any.pack(rbacFilter)).build()

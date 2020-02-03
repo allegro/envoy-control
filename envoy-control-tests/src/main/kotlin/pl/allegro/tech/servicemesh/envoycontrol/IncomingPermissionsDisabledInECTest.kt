@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 
-internal class DisabledIncomingPermissionsTest : EnvoyControlTestConfiguration() {
+internal class IncomingPermissionsDisabledInECTest : EnvoyControlTestConfiguration() {
 
     companion object {
 

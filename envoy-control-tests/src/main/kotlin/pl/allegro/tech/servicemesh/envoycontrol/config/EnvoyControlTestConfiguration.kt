@@ -25,6 +25,7 @@ object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.y
 object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_check.yaml")
 object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
+object AdsWithDisabledEndpointPermissions : EnvoyConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
 object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
 object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
 object RandomConfigFile :
