@@ -4,7 +4,6 @@ import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
-import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
 
 class GlobalServiceChanges(
@@ -22,6 +21,5 @@ class GlobalServiceChanges(
             .measureBuffer("global-service-changes-combine-latest", meterRegistry)
             .checkpoint("global-service-changes-emitted")
             .name("global-service-changes-emitted").metrics()
-            .measureDiscardedItems("global-service-changes-end", meterRegistry) //TODO: remove
     }
 }

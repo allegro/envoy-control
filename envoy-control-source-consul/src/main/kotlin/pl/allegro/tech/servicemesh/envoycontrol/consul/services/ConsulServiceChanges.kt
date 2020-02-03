@@ -41,7 +41,6 @@ class ConsulServiceChanges(
             .checkpoint("consul-service-changes-emitted")
             .name("consul-service-changes-emitted").metrics()
             .distinctUntilChanged()
-            .measureDiscardedItems("consul-service-changes-emitted-distinct", metrics.meterRegistry) //TODO: remove
             .checkpoint("consul-service-changes-emitted-distinct")
             .name("consul-service-changes-emitted-distinct").metrics()
             .doOnSubscribe { watcher.start() }
