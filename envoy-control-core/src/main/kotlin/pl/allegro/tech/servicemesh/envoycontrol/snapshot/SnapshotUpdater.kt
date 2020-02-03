@@ -101,6 +101,7 @@ class SnapshotUpdater(
         return changes
                 .sample(properties.stateSampleDuration)
                 .name("snapshot-updater-services-sampled").metrics()
+                .measureDiscardedItems("snapshot-updater-services-sampled-before", meterRegistry)
                 .onBackpressureLatest()
                 .measureDiscardedItems("snapshot-updater-services-sampled", meterRegistry)
                 .publishOn(scheduler)
