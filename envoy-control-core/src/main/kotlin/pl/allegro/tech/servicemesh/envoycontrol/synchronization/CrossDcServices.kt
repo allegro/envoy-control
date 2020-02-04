@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.net.URI
@@ -23,9 +24,14 @@ class CrossDcServices(
     fun getChanges(interval: Long): Flux<Set<LocalityAwareServicesState>> {
         return Flux
             .interval(Duration.ofSeconds(0), Duration.ofSeconds(interval))
+            .checkpoint("cross-dc-services-ticks")
+            .name("cross-dc-services-ticks").metrics()
             // Cross DC sync is not a backpressure compatible stream. If running cross dc sync is slower than interval
             // we have to drop interval events and run another cross dc on another interval tick.
             .onBackpressureDrop()
+            .measureDiscardedItems("cross-dc-services-ticks", meterRegistry)
+            .checkpoint("cross-dc-services-update-requested")
+            .name("cross-dc-services-update-requested").metrics()
             .flatMap {
                 Flux.fromIterable(remoteDcs)
                     .map { dc -> dcWithControlPlaneInstances(dc) }
@@ -60,6 +66,8 @@ class CrossDcServices(
         val instance = chooseInstance(instances)
         return controlPlaneClient
             .getState(instance)
+            .checkpoint("cross-dc-service-update-$dc")
+            .name("cross-dc-service-update-$dc").metrics()
             .map {
                 LocalityAwareServicesState(it, Locality.REMOTE, dc)
             }
