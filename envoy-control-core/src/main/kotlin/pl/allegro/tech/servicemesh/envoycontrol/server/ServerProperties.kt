@@ -20,8 +20,6 @@ class ServerProperties {
     var logFullResponse = false
 }
 
-
-
 enum class ExecutorType {
     DIRECT, PARALLEL
 }

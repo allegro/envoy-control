@@ -5,6 +5,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesSt
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import reactor.core.publisher.Flux
+import reactor.core.scheduler.Schedulers
 
 class GlobalServiceChanges(
     private val serviceChanges: Array<ServiceChanges>,
@@ -13,7 +14,10 @@ class GlobalServiceChanges(
     fun combined(): Flux<List<LocalityAwareServicesState>> {
         val serviceStatesStreams: List<Flux<Set<LocalityAwareServicesState>>> = serviceChanges.map { it.stream() }
 
-        return Flux.combineLatest(serviceStatesStreams) { statesArray ->
+        return Flux.combineLatest(
+            serviceStatesStreams.map { it.publishOn(Schedulers.elastic(), 1) },
+            1
+        ) { statesArray ->
             (statesArray.asSequence() as Sequence<List<LocalityAwareServicesState>>)
                 .flatten()
                 .toList()
