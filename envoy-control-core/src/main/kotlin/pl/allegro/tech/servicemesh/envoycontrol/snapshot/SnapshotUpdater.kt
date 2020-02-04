@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListener
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
-import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
+import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -101,9 +101,7 @@ class SnapshotUpdater(
         return changes
                 .sample(properties.stateSampleDuration)
                 .name("snapshot-updater-services-sampled").metrics()
-                .measureDiscardedItems("snapshot-updater-services-sampled-before", meterRegistry)
-                .onBackpressureLatest()
-                .measureDiscardedItems("snapshot-updater-services-sampled", meterRegistry)
+                .onBackpressureLatestMeasured("snapshot-updater-services-sampled", meterRegistry)
                 .publishOn(scheduler)
                 .measureBuffer("snapshot-updater-services-published", meterRegistry)
                 .checkpoint("snapshot-updater-services-published")
