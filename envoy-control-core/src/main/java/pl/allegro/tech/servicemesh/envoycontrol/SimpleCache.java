@@ -5,6 +5,7 @@ import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
 import io.envoyproxy.controlplane.cache.CacheStatusInfo;
 import io.envoyproxy.controlplane.cache.NodeGroup;
+import io.envoyproxy.controlplane.cache.Resources;
 import io.envoyproxy.controlplane.cache.Response;
 import io.envoyproxy.controlplane.cache.Snapshot;
 import io.envoyproxy.controlplane.cache.SnapshotCache;
@@ -215,26 +216,31 @@ public class SimpleCache<T> implements SnapshotCache<T> {
             return;
         }
 
-        status.watchesRemoveIf((id, watch) -> {
-            String version = snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList());
+        for (String typeUrl : Resources.TYPE_URLS) {
+            status.watchesRemoveIf((id, watch) -> {
+                if (!watch.request().getTypeUrl().equals(typeUrl)) {
+                    return false;
+                }
+                String version = snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList());
 
-            if (!watch.request().getVersionInfo().equals(version)) {
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("responding to open watch {}[{}] with new version {}",
-                            id,
-                            String.join(", ", watch.request().getResourceNamesList()),
-                            version);
+                if (!watch.request().getVersionInfo().equals(version)) {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("responding to open watch {}[{}] with new version {}",
+                                id,
+                                String.join(", ", watch.request().getResourceNamesList()),
+                                version);
+                    }
+
+                    respond(watch, snapshot, group);
+
+                    // Discard the watch. A new watch will be created for future snapshots once envoy ACKs the response.
+                    return true;
                 }
 
-                respond(watch, snapshot, group);
-
-                // Discard the watch. A new watch will be created for future snapshots once envoy ACKs the response.
-                return true;
-            }
-
-            // Do not discard the watch. The request version is the same as the snapshot version, so we wait to respond.
-            return false;
-        });
+                // Do not discard the watch. The request version is the same as the snapshot version, so we wait to respond.
+                return false;
+            });
+        }
     }
 
     /**
