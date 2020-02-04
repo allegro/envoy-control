@@ -12,7 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 internal class RBACFilterFactoryTest {
     private val rbacFilterFactory = RBACFilterFactory(IncomingPermissionsProperties())
 
-    private val exptectedSimpleEndpointPermissionsJson = """
+    private val expectedSimpleEndpointPermissionsJson = """
         {
           "policies": {
             "client1,client2": {
@@ -21,6 +21,50 @@ internal class RBACFilterFactoryTest {
                   "and_rules": {
                     "rules": [
                       ${headerRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")},
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalHeader("x-service-name", "client1")},
+                ${principalHeader("x-service-name", "client2")}
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedTwoClientsSimpleEndpointPermissionsJson = """
+        {
+          "policies": {
+            "client1,client2": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${headerRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")},
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }, 
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${headerRule("/example2")},
                       {
                         "or_rules": {
                           "rules": [
@@ -100,9 +144,34 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
+    fun `should generate RBAC rules for incoming permissions with two endpoints containing methods and clients`() {
+        // given
+        val rbacBuilder = getRBACBuilder(expectedTwoClientsSimpleEndpointPermissionsJson)
+        val incomingPermission = Incoming(
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf("client1", "client2")
+                ), IncomingEndpoint(
+                        "/example2",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf("client1", "client2")
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactory.getRules("some-service", incomingPermission)
+
+        // then
+        assertThat(generated).isEqualTo(rbacBuilder.build())
+    }
+
+    @Test
     fun `should generate RBAC rules for incoming permissions with methods and clients`() {
         // given
-        val rbacBuilder = getRBACBuilder(exptectedSimpleEndpointPermissionsJson)
+        val rbacBuilder = getRBACBuilder(expectedSimpleEndpointPermissionsJson)
         val incomingPermission = Incoming(
                 endpoints = listOf(IncomingEndpoint(
                         "/example",

@@ -33,7 +33,7 @@ metadata:
           methods: [POST]
           clients: [role-actor]
       roles:
-        - clients: [service-a], service-b]
+        - clients: [service-a, service-b]
           name: role-actor
 ```
 

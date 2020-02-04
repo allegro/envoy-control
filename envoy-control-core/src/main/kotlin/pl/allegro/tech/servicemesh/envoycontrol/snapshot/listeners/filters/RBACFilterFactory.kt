@@ -24,7 +24,7 @@ class RBACFilterFactory(
     }
 
     fun getRules(serviceName: String, incomingPermissions: Incoming): RBAC {
-        val clientToPolicy = mutableMapOf<String, Policy>()
+        val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
         incomingPermissions.endpoints.forEach { incomingEndpoint ->
             if (incomingEndpoint.clients.isEmpty()) {
                 logger.error("An incoming endpoint definition for $serviceName does not have any clients defined." +
@@ -32,14 +32,15 @@ class RBACFilterFactory(
                 return@forEach
             }
 
-            val policy = Policy.newBuilder()
             val clientName = incomingEndpoint.clients.joinToString(",")
+
+            val policy: Policy.Builder = clientToPolicyBuilder.getOrDefault(clientName, Policy.newBuilder())
 
             val pathPermission = Permission.newBuilder().setHeader(getPathMatcher(incomingEndpoint))
             val combinedPermissions = Permission.newBuilder()
 
             val principals = incomingEndpoint.clients.map(this::mapClientToPrincipal)
-            policy.addAllPrincipals(principals)
+            policy.addAllPrincipals(principals - policy.principalsList)
 
             if (incomingEndpoint.methods.isNotEmpty()) {
                 val methodPermissions = Permission.newBuilder()
@@ -60,9 +61,10 @@ class RBACFilterFactory(
             }
 
             policy.addPermissions(combinedPermissions)
-            clientToPolicy[clientName] = policy.build()
+            clientToPolicyBuilder[clientName] = policy
         }
 
+        val clientToPolicy = clientToPolicyBuilder.mapValues { it.value.build() }
         val rbac = RBAC.newBuilder()
                 .setAction(RBAC.Action.ALLOW)
                 .putAllPolicies(clientToPolicy)
