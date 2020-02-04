@@ -165,6 +165,31 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
+    fun `should generate minimal RBAC rules for incoming permissions with roles and clients`() {
+        // given
+        val rbacBuilder = getRBACBuilder(expectedTwoClientsSimpleEndpointPermissionsJson)
+        val incomingPermission = Incoming(
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf("role-1")
+                ),IncomingEndpoint(
+                        "/example2",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf("client2", "client1")
+                )), roles = listOf(Role("role-1", setOf("client1", "client2")))
+        )
+
+        // when
+        val generated = rbacFilterFactory.getRules("some-service", incomingPermission)
+
+        // then
+        assertThat(generated).isEqualTo(rbacBuilder.build())
+    }
+
+    @Test
     fun `should generate RBAC rules for incoming permissions with two endpoints containing methods and clients`() {
         // given
         val rbacBuilder = getRBACBuilder(expectedTwoClientsSimpleEndpointPermissionsJson)
