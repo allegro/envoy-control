@@ -13,6 +13,7 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 
@@ -32,14 +33,15 @@ class RBACFilterFactory(
                 return@forEach
             }
 
-            val clientName = incomingEndpoint.clients.joinToString(",")
+            val clients = resolveClients(incomingEndpoint, incomingPermissions.roles)
+            val policyName = clients.joinToString(",")
 
-            val policy: Policy.Builder = clientToPolicyBuilder.getOrDefault(clientName, Policy.newBuilder())
+            val policy: Policy.Builder = clientToPolicyBuilder.getOrDefault(policyName, Policy.newBuilder())
 
             val pathPermission = Permission.newBuilder().setHeader(getPathMatcher(incomingEndpoint))
             val combinedPermissions = Permission.newBuilder()
 
-            val principals = incomingEndpoint.clients.map(this::mapClientToPrincipal)
+            val principals = clients.map(this::mapClientToPrincipal)
             policy.addAllPrincipals(principals - policy.principalsList)
 
             if (incomingEndpoint.methods.isNotEmpty()) {
@@ -61,7 +63,7 @@ class RBACFilterFactory(
             }
 
             policy.addPermissions(combinedPermissions)
-            clientToPolicyBuilder[clientName] = policy
+            clientToPolicyBuilder[policyName] = policy
         }
 
         val clientToPolicy = clientToPolicyBuilder.mapValues { it.value.build() }
@@ -70,6 +72,13 @@ class RBACFilterFactory(
                 .putAllPolicies(clientToPolicy)
                 .build()
         return rbac
+    }
+
+    private fun resolveClients(incomingEndpoint: IncomingEndpoint, roles: List<Role>): List<String> {
+        val clients = incomingEndpoint.clients.flatMap { clientOrRole ->
+            roles.find { it.name == clientOrRole }?.clients ?: setOf(clientOrRole)
+        }
+        return clients.sorted()
     }
 
     private fun mapMethodToHeaderMatcher(method: String): Permission {

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 
 internal class RBACFilterFactoryTest {
@@ -141,6 +142,26 @@ internal class RBACFilterFactoryTest {
         val rbacBuilder = RBAC.newBuilder()
         JsonFormat.parser().merge(json, rbacBuilder)
         return rbacBuilder
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with roles`() {
+        // given
+        val rbacBuilder = getRBACBuilder(expectedSimpleEndpointPermissionsJson)
+        val incomingPermission = Incoming(
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf("role-1")
+                )), roles = listOf(Role("role-1", setOf("client1", "client2")))
+        )
+
+        // when
+        val generated = rbacFilterFactory.getRules("some-service", incomingPermission)
+
+        // then
+        assertThat(generated).isEqualTo(rbacBuilder.build())
     }
 
     @Test
