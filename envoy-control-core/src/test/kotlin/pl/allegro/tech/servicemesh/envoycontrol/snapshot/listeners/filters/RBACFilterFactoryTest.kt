@@ -15,11 +15,66 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 
 internal class RBACFilterFactoryTest {
+    private val rbacFilterFactory = RBACFilterFactory(IncomingPermissionsProperties().also { it.enabled = true })
+
+    @Test
+    fun `should not create RBAC filter when no incoming permissions are defined`() {
+        // given
+        val incomingPermission = null
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+
+        // then
+        assertThat(generated).isEqualTo(null)
+    }
+
+    @Test
+    fun `should not create RBAC filter when incoming permissions are disabled`() {
+        // given
+        val incomingPermission = Incoming(permissionsEnabled = false)
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+
+        // then
+        assertThat(generated).isEqualTo(null)
+    }
+
+    @Test
+    fun `should create RBAC filter when incoming permissions are enabled`() {
+        // given
+        val incomingPermission = Incoming(permissionsEnabled = true)
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+
+        // then
+        assertThat(generated).isNotEqualTo(null)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with no endpoints allowed`() {
+        // given
+        val rbacBuilder = getRBACFilter(exptectedEmptyEndpointPermissions)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf()
+        )
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+
+        // then
+        assertThat(generated).isEqualTo(rbacBuilder)
+    }
+
     @Test
     fun `should generate RBAC rules for incoming permissions with roles`() {
         // given
         val rbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson)
         val incomingPermission = Incoming(
+                permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
@@ -40,6 +95,7 @@ internal class RBACFilterFactoryTest {
         // given
         val rbacBuilder = getRBACFilter(expectedTwoClientsSimpleEndpointPermissionsJson)
         val incomingPermission = Incoming(
+                permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
@@ -65,6 +121,7 @@ internal class RBACFilterFactoryTest {
         // given
         val rbacBuilder = getRBACFilter(expectedTwoClientsSimpleEndpointPermissionsJson)
         val incomingPermission = Incoming(
+                permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
@@ -90,6 +147,7 @@ internal class RBACFilterFactoryTest {
         // given
         val rbacBuilder = getRBACFilter(expectedTwoClientsSimpleEndpointPermissionsJson)
         val incomingPermission = Incoming(
+                permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
@@ -115,6 +173,7 @@ internal class RBACFilterFactoryTest {
         // given
         val rbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson)
         val incomingPermission = Incoming(
+                permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
@@ -135,6 +194,7 @@ internal class RBACFilterFactoryTest {
         // given
         val rbacBuilder = getRBACFilter(exptectedEndpointPermissionsWithoutMethodsJson)
         val incomingPermission = Incoming(
+                permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
@@ -153,8 +213,9 @@ internal class RBACFilterFactoryTest {
     @Test
     fun `should generate RBAC rules for incoming permissions without clients`() {
         // given
-        val rbacBuilder = getRBACFilter(exptectedEndpointPermissionsWithoutClientsJson)
+        val rbacBuilder = getRBACFilter(exptectedEmptyEndpointPermissions)
         val incomingPermission = Incoming(
+                permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
@@ -169,8 +230,6 @@ internal class RBACFilterFactoryTest {
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
     }
-
-    private val rbacFilterFactory = RBACFilterFactory(IncomingPermissionsProperties().also { it.enabled = true })
 
     private val expectedSimpleEndpointPermissionsJson = """
         {
@@ -266,7 +325,7 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private val exptectedEndpointPermissionsWithoutClientsJson = """{ "policies": {} }"""
+    private val exptectedEmptyEndpointPermissions = """{ "policies": {} }"""
 
     private fun headerRule(path: String): String {
         return """{
@@ -287,14 +346,12 @@ internal class RBACFilterFactoryTest {
     }
 
     private fun principalHeader(header: String, principal: String): String {
-        val s = """{
+        return """{
                     "header": {
                       "name": "$header",
                       "exact_match": "$principal"
                     }
                 }"""
-
-        return s
     }
 
     private fun wrapInFilter(json: String): String {
@@ -314,13 +371,14 @@ internal class RBACFilterFactoryTest {
                 .build()
     }
 
-    private fun createGroup(serviceName: String, incomingPermission: Incoming): ServicesGroup {
+    private fun createGroup(serviceName: String, incomingPermission: Incoming? = null): ServicesGroup {
         val group = ServicesGroup(
                 ads = false,
                 serviceName = serviceName,
-                proxySettings = ProxySettings(incoming = incomingPermission.copy(permissionsEnabled = true))
+                proxySettings = ProxySettings(
+                        incoming = incomingPermission ?: Incoming()
+                )
         )
         return group
     }
-
 }

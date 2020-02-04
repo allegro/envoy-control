@@ -14,8 +14,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
-import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
@@ -30,14 +28,7 @@ import reactor.core.scheduler.Schedulers
 import java.util.function.Consumer
 
 class SnapshotUpdaterTest {
-
-    val proxySettings = ProxySettings(
-        incoming = Incoming(
-            endpoints = listOf(IncomingEndpoint(path = "/endpoint", clients = setOf("client"))),
-            permissionsEnabled = true
-        )
-    )
-    val groupWithProxy = AllServicesGroup(ads = true, serviceName = "service", proxySettings = proxySettings)
+    val groupWithProxy = AllServicesGroup(ads = true, serviceName = "service")
     val groupWithServiceName = groupOf(
         services = setOf(ServiceDependency(service = "existingService2"))
     ).copy(serviceName = "ipsum-service")

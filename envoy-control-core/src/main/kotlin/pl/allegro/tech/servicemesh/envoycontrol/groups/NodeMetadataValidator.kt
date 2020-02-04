@@ -64,7 +64,7 @@ class NodeMetadataValidator(
                 try {
                     HttpMethod.valueOf(method)
                 } catch (e: Exception) {
-                    logger.warn("Could not map http method $method.", e)
+                    logger.warn("Could not map http method $method in service ${metadata.serviceName}.", e)
                     throw InvalidHttpMethodValidationException(metadata.serviceName, method)
                 }
             }
