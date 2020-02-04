@@ -1,5 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.util.concurrent.atomic.AtomicInteger
 
 interface EnvoyControlMetrics {
@@ -9,6 +11,7 @@ interface EnvoyControlMetrics {
     fun snapshotChanged()
     fun setCacheGroupsCount(count: Int)
     fun errorWatchingServices()
+    val meterRegistry: MeterRegistry
 }
 
 data class DefaultEnvoyControlMetrics(
@@ -17,7 +20,8 @@ data class DefaultEnvoyControlMetrics(
     val instanceChanges: AtomicInteger = AtomicInteger(),
     val snapshotChanges: AtomicInteger = AtomicInteger(),
     val cacheGroupsCount: AtomicInteger = AtomicInteger(),
-    val errorWatchingServices: AtomicInteger = AtomicInteger()
+    val errorWatchingServices: AtomicInteger = AtomicInteger(),
+    override val meterRegistry: MeterRegistry = SimpleMeterRegistry()
 ) : EnvoyControlMetrics {
 
     override fun errorWatchingServices() {

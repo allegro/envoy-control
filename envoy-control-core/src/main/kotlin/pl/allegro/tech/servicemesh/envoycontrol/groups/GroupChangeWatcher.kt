@@ -5,8 +5,10 @@ import io.envoyproxy.controlplane.cache.Response
 import io.envoyproxy.controlplane.cache.SimpleCache
 import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
+import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.util.function.Consumer
@@ -19,7 +21,8 @@ import java.util.function.Consumer
  */
 internal class GroupChangeWatcher(
     private val cache: SimpleCache<Group>,
-    private val metrics: EnvoyControlMetrics
+    private val metrics: EnvoyControlMetrics,
+    private val meterRegistry: MeterRegistry
 ) : ConfigWatcher {
     private val groupsChanged: Flux<List<Group>> = Flux.create { groupChangeEmitter = it }
     private var groupChangeEmitter: FluxSink<List<Group>>? = null
@@ -28,6 +31,9 @@ internal class GroupChangeWatcher(
 
     fun onGroupAdded(): Flux<List<Group>> {
         return groupsChanged
+            .measureBuffer("group-change-watcher-emitted", meterRegistry)
+            .checkpoint("group-change-watcher-emitted")
+            .name("group-change-watcher-emitted").metrics()
             .doOnCancel {
                 logger.warn("Cancelling watching group changes")
             }
