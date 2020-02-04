@@ -11,10 +11,16 @@ class ServerProperties {
     var serverPoolKeepAlive: Duration = Duration.ofMinutes(10)
     var executorGroup = ExecutorProperties()
     var netty = NettyProperties()
+    /**
+     * Minimum size = 2, to work correctly with reactor operators merge and combineLatest
+     */
+    var snapshotUpdatePoolSize = 5
     var snapshotCleanup = SnapshotCleanupProperties()
     var logFullRequest = false
     var logFullResponse = false
 }
+
+
 
 enum class ExecutorType {
     DIRECT, PARALLEL
