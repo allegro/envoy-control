@@ -24,7 +24,7 @@ class RBACFilterFactory(
         private val logger by logger()
     }
 
-    fun getRules(serviceName: String, incomingPermissions: Incoming): RBAC {
+    private fun getRules(serviceName: String, incomingPermissions: Incoming): RBAC {
         val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
         incomingPermissions.endpoints.forEach { incomingEndpoint ->
             if (incomingEndpoint.clients.isEmpty()) {
