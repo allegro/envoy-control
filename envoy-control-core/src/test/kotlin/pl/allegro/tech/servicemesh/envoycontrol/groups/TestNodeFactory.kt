@@ -13,6 +13,7 @@ fun node(
     incomingSettings: Boolean = false,
     idleTimeout: String? = null,
     responseTimeout: String? = null,
+    connectionIdleTimeout: String? = null,
     healthCheckPath: String? = null,
     healthCheckClusterName: String? = null
 ): Node {
@@ -35,6 +36,7 @@ fun node(
                 incomingSettings = incomingSettings,
                 idleTimeout = idleTimeout,
                 responseTimeout = responseTimeout,
+                connectionIdleTimeout = connectionIdleTimeout,
                 healthCheckPath = healthCheckPath,
                 healthCheckClusterName = healthCheckClusterName
             )
@@ -66,6 +68,7 @@ fun proxySettingsProto(
     serviceDependencies: Set<String> = emptySet(),
     idleTimeout: String? = null,
     responseTimeout: String? = null,
+    connectionIdleTimeout: String? = null,
     healthCheckPath: String? = null,
     healthCheckClusterName: String? = null
 ): Value = struct {
@@ -88,6 +91,9 @@ fun proxySettingsProto(
                 }
                 responseTimeout?.let {
                     putFields("responseTimeout", string(it))
+                }
+                connectionIdleTimeout?.let {
+                    putFields("connectionIdleTimeout", string(it))
                 }
             })
         })
