@@ -25,6 +25,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
+import java.lang.RuntimeException
 import java.util.function.Consumer
 
 class SnapshotUpdaterTest {
@@ -37,7 +38,7 @@ class SnapshotUpdaterTest {
 
     @Test
     fun `should generate group snapshots`() {
-        val cache = newCache()
+        val cache = MockCache()
         val uninitializedSnapshot = null
 
         // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
@@ -94,12 +95,38 @@ class SnapshotUpdaterTest {
     }
 
     @Test
+    fun `should not crash on bad snapshot generation`() {
+        // given
+        val servicesGroup = AllServicesGroup(ads = true, serviceName = "example-service")
+        val cache = FailingMockCache()
+        cache.setSnapshot(servicesGroup, null)
+        val updater = SnapshotUpdater(
+                cache,
+                properties = SnapshotProperties(),
+                scheduler = Schedulers.newSingle("update-snapshot"),
+                onGroupAdded = Flux.just(),
+                meterRegistry = simpleMeterRegistry
+        )
+
+        // when
+        updater.start(
+                Flux.just(emptyList())
+        ).blockFirst()
+
+        // then
+        val snapshot = cache.getSnapshot(servicesGroup)
+        assertThat(snapshot).isEqualTo(null)
+        assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
+            .counter()?.count()).isEqualTo(1.0)
+    }
+
+    @Test
     fun `should generate snapshot with empty version and one route`() {
         // given
         val emptyGroup = groupOf()
 
         val uninitializedSnapshot = null
-        val cache = newCache()
+        val cache = MockCache()
         cache.setSnapshot(emptyGroup, uninitializedSnapshot)
 
         val updater = SnapshotUpdater(
@@ -145,39 +172,50 @@ class SnapshotUpdaterTest {
         ).blockFirst()
     }
 
-    private fun newCache(): SnapshotCache<Group> {
-        return object : SnapshotCache<Group> {
+    class FailingMockCache : MockCache() {
+        var called = 0
 
-            val groups: MutableMap<Group, Snapshot?> = mutableMapOf()
-
-            override fun groups(): MutableCollection<Group> {
-                return groups.keys.toMutableList()
+        override fun setSnapshot(group: Group, snapshot: Snapshot?) {
+            if (called > 0) {
+                throw FailingMockCacheException()
             }
+            called += 1
+            super.setSnapshot(group, snapshot)
+        }
+    }
 
-            override fun getSnapshot(group: Group): Snapshot? {
-                return groups[group]
-            }
+    class FailingMockCacheException : RuntimeException()
 
-            override fun setSnapshot(group: Group, snapshot: Snapshot?) {
-                groups[group] = snapshot
-            }
+    open class MockCache : SnapshotCache<Group> {
+        val groups: MutableMap<Group, Snapshot?> = mutableMapOf()
 
-            override fun statusInfo(group: Group): StatusInfo<Group> {
-                throw UnsupportedOperationException("not used in testing")
-            }
+        override fun groups(): MutableCollection<Group> {
+            return groups.keys.toMutableList()
+        }
 
-            override fun createWatch(
-                ads: Boolean,
-                request: DiscoveryRequest,
-                knownResourceNames: MutableSet<String>,
-                responseConsumer: Consumer<Response>
-            ): Watch {
-                throw UnsupportedOperationException("not used in testing")
-            }
+        override fun getSnapshot(group: Group): Snapshot? {
+            return groups[group]
+        }
 
-            override fun clearSnapshot(group: Group?): Boolean {
-                return false
-            }
+        override fun setSnapshot(group: Group, snapshot: Snapshot?) {
+            groups[group] = snapshot
+        }
+
+        override fun statusInfo(group: Group): StatusInfo<Group> {
+            throw UnsupportedOperationException("not used in testing")
+        }
+
+        override fun createWatch(
+            ads: Boolean,
+            request: DiscoveryRequest,
+            knownResourceNames: MutableSet<String>,
+            responseConsumer: Consumer<Response>
+        ): Watch {
+            throw UnsupportedOperationException("not used in testing")
+        }
+
+        override fun clearSnapshot(group: Group?): Boolean {
+            return false
         }
     }
 
