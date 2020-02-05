@@ -29,7 +29,7 @@ class RBACFilterFactory(
         incomingPermissions.endpoints.forEach { incomingEndpoint ->
             if (incomingEndpoint.clients.isEmpty()) {
                 logger.error("An incoming endpoint definition for $serviceName does not have any clients defined." +
-                        "It means that noone will be able to contact that endpoint.")
+                        "It means that no one will be able to contact that endpoint.")
                 return@forEach
             }
 

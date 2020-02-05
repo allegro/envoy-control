@@ -82,7 +82,12 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
             waitForEnvoyControlsHealthy()
             registerEnvoyControls(ec1RegisterPort, ec2RegisterPort, instancesInSameDc)
-            envoyContainer1.start()
+            try {
+                envoyContainer1.start()
+            } catch (e: Exception) {
+                logger.error("Logs from failed container: ${envoyContainer1.logs}")
+                throw e
+            }
 
             if (envoys == 2) {
                 envoyContainer2 = createEnvoyContainer(
@@ -92,7 +97,12 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     envoyConnectGrpcPort2,
                     echoContainer.ipAddress()
                 )
-                envoyContainer2.start()
+                try {
+                    envoyContainer2.start()
+                } catch (e: Exception) {
+                    logger.error("Logs from failed container: ${envoyContainer2.logs}")
+                    throw e
+                }
             }
         }
 
