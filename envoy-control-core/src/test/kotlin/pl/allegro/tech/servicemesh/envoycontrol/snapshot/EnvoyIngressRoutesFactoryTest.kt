@@ -99,6 +99,7 @@ internal class EnvoyIngressRoutesFactoryTest {
         // given
         val responseTimeout = Durations.fromSeconds(777)
         val idleTimeout = Durations.fromSeconds(61)
+        val connectionIdleTimeout = Durations.fromSeconds(120)
         val proxySettingsOneEndpoint = ProxySettings(
             incoming = Incoming(
                 healthCheck = HealthCheck(
@@ -117,7 +118,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                     )
                 ),
                 permissionsEnabled = true,
-                timeoutPolicy = TimeoutPolicy(idleTimeout, responseTimeout)
+                timeoutPolicy = TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout)
             )
         )
 

@@ -9,6 +9,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesSt
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
+import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
+import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -47,6 +49,9 @@ class SnapshotUpdater(
                 services(changes),
                 groups()
         )
+                .measureBuffer("snapshot-updater-merged", meterRegistry, innerSources = 2)
+                .checkpoint("snapshot-updater-merged")
+                .name("snapshot-updater-merged").metrics()
                 .scan { previous: UpdateResult, newUpdate: UpdateResult ->
                     UpdateResult(
                             action = newUpdate.action,
@@ -79,6 +84,9 @@ class SnapshotUpdater(
         // see GroupChangeWatcher
         return onGroupAdded
                 .publishOn(scheduler)
+                .measureBuffer("snapshot-updater-groups-published", meterRegistry)
+                .checkpoint("snapshot-updater-groups-published")
+                .name("snapshot-updater-groups-published").metrics()
                 .map { groups ->
                     UpdateResult(action = Action.SERVICES_GROUP_ADDED, groups = groups)
                 }
@@ -92,7 +100,12 @@ class SnapshotUpdater(
     fun services(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
         return changes
                 .sample(properties.stateSampleDuration)
+                .name("snapshot-updater-services-sampled").metrics()
+                .onBackpressureLatestMeasured("snapshot-updater-services-sampled", meterRegistry)
                 .publishOn(scheduler)
+                .measureBuffer("snapshot-updater-services-published", meterRegistry)
+                .checkpoint("snapshot-updater-services-published")
+                .name("snapshot-updater-services-published").metrics()
                 .map { states ->
                     val lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
                     val lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
