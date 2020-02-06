@@ -44,6 +44,12 @@ class SnapshotUpdater(
         serviceTagFilter = serviceTagFilter
     )
 
+    private var globalSnapshot: UpdateResult? = null
+
+    fun getGlobalSnapshot(): UpdateResult? {
+        return globalSnapshot
+    }
+
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
         return Flux.merge(
                 services(changes),
@@ -109,11 +115,13 @@ class SnapshotUpdater(
                 .map { states ->
                     val lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
                     val lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
-                    UpdateResult(
+                    val updateResult = UpdateResult(
                             action = Action.ALL_SERVICES_GROUP_ADDED,
                             adsSnapshot = lastAdsSnapshot,
                             xdsSnapshot = lastXdsSnapshot
                     )
+                    globalSnapshot = updateResult
+                    updateResult
                 }
                 .onErrorResume { e ->
                     meterRegistry.counter("snapshot-updater.services.updates.errors").increment()

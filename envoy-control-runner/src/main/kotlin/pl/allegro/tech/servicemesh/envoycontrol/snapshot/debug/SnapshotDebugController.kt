@@ -21,16 +21,20 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.UpdateResult
 
 @RestController
 class SnapshotDebugController(controlPlane: ControlPlane) {
     val cache: SnapshotCache<Group> = controlPlane.cache
     val nodeGroup: NodeGroup<Group> = controlPlane.nodeGroup
+    val snapshotUpdater: SnapshotUpdater = controlPlane.snapshotUpdater
 
     /**
      * Returns a textual representation of the snapshot for debugging purposes.
@@ -46,6 +50,19 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         } else {
             ResponseEntity(
                 SnapshotDebugInfo(snapshot),
+                HttpStatus.OK
+            )
+        }
+    }
+
+    @GetMapping("/snapshot/global")
+    fun globalSnapshot(): ResponseEntity<UpdateResult?> {
+        val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
+        return if (globalSnapshot == null) {
+            throw GlobalSnapshotNotFoundException()
+        } else {
+            ResponseEntity(
+                globalSnapshot,
                 HttpStatus.OK
             )
         }
@@ -71,6 +88,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     }
 
     class SnapshotNotFoundException : RuntimeException("snapshot missing")
+    class GlobalSnapshotNotFoundException : RuntimeException("Global snapshot missing")
 
     @ExceptionHandler
     @ResponseBody
