@@ -10,6 +10,9 @@ import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
@@ -30,6 +33,14 @@ import reactor.core.scheduler.Schedulers
 import java.util.function.Consumer
 
 class SnapshotUpdaterTest {
+
+    companion object {
+        @JvmStatic
+        fun configurationModeNotSupported() = listOf(
+            Arguments.of(false, false, true, "ADS not supported by server"),
+            Arguments.of(false, false, false, "XDS not supported by server")
+        )
+    }
 
     val proxySettings = ProxySettings(
         incoming = Incoming(
@@ -103,6 +114,38 @@ class SnapshotUpdaterTest {
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("nonExistingService3")))
             .withoutClusters()
+    }
+
+    @ParameterizedTest
+    @MethodSource("configurationModeNotSupported")
+    fun `should not generate group snapshots when server doesn't support`(
+        adsSupported: Boolean,
+        xdsSupported: Boolean,
+        ads: Boolean
+    ) {
+        val adsGroup = AllServicesGroup(ads = ads)
+
+        val uninitializedSnapshot = null
+        val cache = newCache()
+        cache.setSnapshot(adsGroup, uninitializedSnapshot)
+
+        val updater = SnapshotUpdater(
+            cache,
+            properties = SnapshotProperties().apply {
+                configurationMode.ads = adsSupported; configurationMode.xds = xdsSupported
+            },
+            scheduler = Schedulers.newSingle("update-snapshot"),
+            onGroupAdded = Flux.just(listOf()),
+            meterRegistry = simpleMeterRegistry
+        )
+
+        // when
+        updater.start(
+            Flux.just(emptyList())
+        ).blockFirst()
+
+        // should not generate snapshot
+        assertThat(cache.getSnapshot(adsGroup)).isNull()
     }
 
     @Test

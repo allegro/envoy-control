@@ -68,12 +68,12 @@ class SnapshotUpdater(
                         result.groups
                     }
 
-                    if (result.adsSnapshot != null && result.xdsSnapshot != null) {
+                    if (result.adsSnapshot != null || result.xdsSnapshot != null) {
                         versions.retainGroups(cache.groups())
                         groups.forEach { group ->
-                            if (group.ads) {
+                            if (result.adsSnapshot != null && properties.configurationMode.ads && group.ads) {
                                 updateSnapshotForGroup(group, result.adsSnapshot)
-                            } else {
+                            } else if (result.xdsSnapshot != null && properties.configurationMode.xds && !group.ads) {
                                 updateSnapshotForGroup(group, result.xdsSnapshot)
                             }
                         }
@@ -109,8 +109,16 @@ class SnapshotUpdater(
                 .checkpoint("snapshot-updater-services-published")
                 .name("snapshot-updater-services-published").metrics()
                 .map { states ->
-                    val lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
-                    val lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
+                    var lastXdsSnapshot: Snapshot? = null
+                    var lastAdsSnapshot: Snapshot? = null
+
+                    if (properties.configurationMode.xds) {
+                        lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
+                    }
+                    if (properties.configurationMode.ads) {
+                        lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
+                    }
+
                     UpdateResult(
                             action = Action.ALL_SERVICES_GROUP_ADDED,
                             adsSnapshot = lastAdsSnapshot,

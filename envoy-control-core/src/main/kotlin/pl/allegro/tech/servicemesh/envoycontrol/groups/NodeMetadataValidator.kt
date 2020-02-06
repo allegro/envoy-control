@@ -11,6 +11,11 @@ class AllDependenciesValidationException(serviceName: String?)
     "Blocked service $serviceName from using all dependencies. Only defined services can use all dependencies"
 )
 
+class ConfigurationModeNotSupportedException(serviceName: String?, mode: String)
+    : NodeMetadataValidationException(
+    "Blocked service $serviceName from receiving updates. $mode is not supported by server."
+)
+
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
@@ -37,6 +42,7 @@ class NodeMetadataValidator(
         val metadata = NodeMetadata(node.metadata, properties)
 
         validateDependencies(metadata)
+        validateConfigurationMode(metadata)
     }
 
     private fun validateDependencies(metadata: NodeMetadata) {
@@ -55,4 +61,17 @@ class NodeMetadataValidator(
 
     private fun isAllowedToHaveAllServiceDependencies(metadata: NodeMetadata) = properties
         .outgoingPermissions.servicesAllowedToUseWildcard.contains(metadata.serviceName)
+
+    private fun validateConfigurationMode(metadata: NodeMetadata) {
+        if (!properties.configurationMode.ads && !properties.configurationMode.xds) {
+            throw ConfigurationModeNotSupportedException(metadata.serviceName, "Neither ADS nor XDS")
+        }
+        if (metadata.ads && !properties.configurationMode.ads) {
+            throw ConfigurationModeNotSupportedException(metadata.serviceName, "ADS")
+        }
+        if (!metadata.ads && !properties.configurationMode.xds) {
+            throw ConfigurationModeNotSupportedException(metadata.serviceName, "XDS")
+        }
+        return
+    }
 }
