@@ -46,7 +46,7 @@ class SnapshotUpdater(
 
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
         return Flux.merge(
-                1, // prefetch 1, instead of default 32, to not process stale items in case of backpressure
+                1, // prefetch 1, instead of default 32, to avoid processing stale items in case of backpressure
                 services(changes).subscribeOn(scheduler),
                 groups().subscribeOn(scheduler)
         )
@@ -103,7 +103,7 @@ class SnapshotUpdater(
                 .sample(properties.stateSampleDuration)
                 .name("snapshot-updater-services-sampled").metrics()
                 .onBackpressureLatestMeasured("snapshot-updater-services-sampled", meterRegistry)
-                // prefetch = 1, instead of default 256, to not process stale states in case of backpressure
+                // prefetch = 1, instead of default 256, to avoid processing stale states in case of backpressure
                 .publishOn(scheduler, 1)
                 .measureBuffer("snapshot-updater-services-published", meterRegistry)
                 .checkpoint("snapshot-updater-services-published")

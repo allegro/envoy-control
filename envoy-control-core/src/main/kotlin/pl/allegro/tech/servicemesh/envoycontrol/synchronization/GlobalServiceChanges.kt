@@ -15,8 +15,12 @@ class GlobalServiceChanges(
         val serviceStatesStreams: List<Flux<Set<LocalityAwareServicesState>>> = serviceChanges.map { it.stream() }
 
         return Flux.combineLatest(
-            serviceStatesStreams.map { it.publishOn(Schedulers.elastic(), 1) },
-            1
+            serviceStatesStreams.map {
+                // if a number of items emitted by one source is very high, combineLatest may entirely ignore items
+                // emitted by other sources. publishOn with multithreaded scheduler prevents it.
+                it.publishOn(Schedulers.elastic(), 1)
+            },
+            1 // only prefetch one item to avoid processing stale consul states in case of backpressure
         ) { statesArray ->
             (statesArray.asSequence() as Sequence<List<LocalityAwareServicesState>>)
                 .flatten()
