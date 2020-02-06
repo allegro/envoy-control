@@ -114,7 +114,10 @@ class ControlPlane private constructor(
             }
 
             if (updateSnapshotExecutor == null) {
-                updateSnapshotExecutor = Executors.newSingleThreadExecutor(ThreadNamingThreadFactory("snapshot-update"))
+                updateSnapshotExecutor = Executors.newFixedThreadPool(
+                    properties.server.snapshotUpdatePoolSize,
+                    ThreadNamingThreadFactory("snapshot-update")
+                )
             }
 
             val cache = SimpleCache(nodeGroup)
