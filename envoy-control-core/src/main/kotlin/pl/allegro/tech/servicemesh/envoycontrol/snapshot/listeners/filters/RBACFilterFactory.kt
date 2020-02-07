@@ -28,7 +28,7 @@ class RBACFilterFactory(
         val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
         incomingPermissions.endpoints.forEach { incomingEndpoint ->
             if (incomingEndpoint.clients.isEmpty()) {
-                logger.error("An incoming endpoint definition for $serviceName does not have any clients defined." +
+                logger.warn("An incoming endpoint definition for $serviceName does not have any clients defined." +
                         "It means that no one will be able to contact that endpoint.")
                 return@forEach
             }

@@ -10,20 +10,21 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagFilte
 class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     private val rbacFilterFactory = RBACFilterFactory(snapshotProperties.incomingPermissions)
 
-    val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
+    private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
             snapshotProperties.routing.serviceTags.header,
             snapshotProperties.routing.serviceTags.metadataKey
     )
-    val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagFilterRules)
-    val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
-    val defaultHeaderToMetadataFilter = { _: Group -> headerToMetadataHttpFilter }
-    val envoyRouterHttpFilter = envoyRouterHttpFilter()
-    val defaultEnvoyRouterHttpFilter = { _: Group -> envoyRouterHttpFilter }
+    private val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagFilterRules)
+    private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
+    private val defaultHeaderToMetadataFilter = { _: Group -> headerToMetadataHttpFilter }
+    private val envoyRouterHttpFilter = envoyRouterHttpFilter()
+    private val defaultEnvoyRouterHttpFilter = { _: Group -> envoyRouterHttpFilter }
+    private val defaultRbacFilter = { group: Group -> rbacFilterFactory.createHttpFilter(group) }
+
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
-    val defaultRbacFilter = { group: Group -> rbacFilterFactory.createHttpFilter(group) }
     val defaultIngressFilters = listOf(defaultRbacFilter, defaultEnvoyRouterHttpFilter)
 
-    fun headerToMetadataConfig(
+    private fun headerToMetadataConfig(
         rules: List<Config.Rule>,
         key: String = snapshotProperties.loadBalancing.canary.metadataKey
     ): Config.Builder {
@@ -51,7 +52,7 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
 
     private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter.newBuilder().setName("envoy.router").build()
 
-    fun headerToMetadataHttpFilter(headerToMetadataConfig: Config.Builder): HttpFilter {
+    private fun headerToMetadataHttpFilter(headerToMetadataConfig: Config.Builder): HttpFilter {
         return HttpFilter.newBuilder()
                 .setName("envoy.filters.http.header_to_metadata")
                 .setTypedConfig(Any.pack(
