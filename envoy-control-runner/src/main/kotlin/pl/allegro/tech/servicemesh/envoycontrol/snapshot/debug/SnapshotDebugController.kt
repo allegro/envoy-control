@@ -19,12 +19,7 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import org.springframework.boot.jackson.JsonComponent
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.ExceptionHandler
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.ResponseBody
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
@@ -56,13 +51,19 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     }
 
     @GetMapping("/snapshot/global")
-    fun globalSnapshot(): ResponseEntity<UpdateResult?> {
+    fun globalSnapshot(@RequestParam xds: Boolean): ResponseEntity<SnapshotDebugInfo> {
         val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
-        return if (globalSnapshot == null) {
+        return if (globalSnapshot == null && globalSnapshot?.adsSnapshot != null) {
             throw GlobalSnapshotNotFoundException()
         } else {
+            if(xds) {
+                ResponseEntity(
+                    SnapshotDebugInfo(globalSnapshot?.xdsSnapshot!!),
+                    HttpStatus.OK
+                )
+            }
             ResponseEntity(
-                globalSnapshot,
+                SnapshotDebugInfo(globalSnapshot?.adsSnapshot!!),
                 HttpStatus.OK
             )
         }
