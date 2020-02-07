@@ -51,12 +51,12 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     }
 
     @GetMapping("/snapshot/global")
-    fun globalSnapshot(@RequestParam xds: Boolean): ResponseEntity<SnapshotDebugInfo> {
+    fun globalSnapshot(@RequestParam xds: Boolean?): ResponseEntity<SnapshotDebugInfo> {
         val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
         return if (globalSnapshot == null && globalSnapshot?.adsSnapshot != null) {
             throw GlobalSnapshotNotFoundException()
         } else {
-            if(xds) {
+            if(xds != null && xds) {
                 ResponseEntity(
                     SnapshotDebugInfo(globalSnapshot?.xdsSnapshot!!),
                     HttpStatus.OK
