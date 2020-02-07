@@ -91,6 +91,32 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
+    fun `should generate RBAC with different rules for incoming permissions`() {
+        // given
+        val rbacBuilder = getRBACFilter(expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET"),
+                        setOf("client1")
+                ), IncomingEndpoint(
+                        "/example2",
+                        PathMatchingType.PATH,
+                        setOf("POST"),
+                        setOf("client2")
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+
+        // then
+        assertThat(generated).isEqualTo(rbacBuilder)
+    }
+
+    @Test
     fun `should generate minimal RBAC rules for incoming permissions with roles and clients`() {
         // given
         val rbacBuilder = getRBACFilter(expectedTwoClientsSimpleEndpointPermissionsJson)
@@ -230,6 +256,53 @@ internal class RBACFilterFactoryTest {
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
     }
+
+    private val expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson = """
+        {
+          "policies": {
+            "client1": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${headerRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalHeader("x-service-name", "client1")}
+              ]
+            },
+            "client2": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${headerRule("/example2")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalHeader("x-service-name", "client2")}
+              ]
+            }
+          }
+        }
+    """
 
     private val expectedSimpleEndpointPermissionsJson = """
         {
