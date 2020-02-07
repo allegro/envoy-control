@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -39,6 +40,7 @@ class CrossDcServices(
                     .flatMap { (dc, instances) -> servicesStateFromDc(dc, instances) }
                     .collect(Collectors.toSet())
             }
+            .measureBuffer("cross-dc-services-flat-map", meterRegistry)
             .filter {
                 it.isNotEmpty()
             }
