@@ -36,13 +36,14 @@ class RBACFilterFactory(
             val clients = resolveClients(incomingEndpoint, incomingPermissions.roles)
             val policyName = clients.joinToString(",")
 
-            val policy: Policy.Builder = clientToPolicyBuilder.getOrDefault(policyName, Policy.newBuilder())
+            val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(policyName) {
+                Policy.newBuilder().addAllPrincipals(
+                        clients.map(this::mapClientToPrincipal)
+                )
+            }
 
             val pathPermission = Permission.newBuilder().setHeader(getPathMatcher(incomingEndpoint))
             val combinedPermissions = Permission.newBuilder()
-
-            val principals = clients.map(this::mapClientToPrincipal)
-            policy.addAllPrincipals(principals - policy.principalsList)
 
             if (incomingEndpoint.methods.isNotEmpty()) {
                 val methodPermissions = Permission.newBuilder()

@@ -23,8 +23,7 @@ node:
     access_log_enabled: false
     resources_dir: "/etc/envoy/extra"
     proxy_settings:
-      incoming:
-        enabled: false
+      # no "incoming" permissions defined, so access to a service is open for all.
       outgoing:
         dependencies:
           - service: "consul"
