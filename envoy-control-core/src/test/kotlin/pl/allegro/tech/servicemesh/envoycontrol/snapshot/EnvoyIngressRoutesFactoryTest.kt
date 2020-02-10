@@ -1,12 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.api.v2.route.Route
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.HealthCheck
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming.TimeoutPolicy
-import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostRoute
@@ -74,28 +72,8 @@ internal class EnvoyIngressRoutesFactoryTest {
         adminRedirectRoute()
     )
 
-    private val getRoute: Route.() -> Unit = {
-        allOpenIngressRoute()
-        matchingOnMethod("GET")
-        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
-    }
-    private val headRoute: Route.() -> Unit = {
-        allOpenIngressRoute()
-        matchingOnMethod("HEAD")
-        matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
-    }
-    private val otherRoute: Route.() -> Unit = {
-        allOpenIngressRoute()
-        matchingOnAnyMethod()
-        hasNoRetryPolicy()
-    }
-
-    private val ingressRoutes = arrayOf(
-            getRoute, headRoute, otherRoute
-    )
-
     @Test
-    fun `should create route config with two simple endpoints and response timeout defined`() {
+    fun `should create route config with health check and response timeout defined`() {
         // given
         val responseTimeout = Durations.fromSeconds(777)
         val idleTimeout = Durations.fromSeconds(61)
@@ -105,17 +83,6 @@ internal class EnvoyIngressRoutesFactoryTest {
                 healthCheck = HealthCheck(
                     path = "",
                     clusterName = "health_check_cluster"
-                ),
-                endpoints = listOf(
-                    IncomingEndpoint(
-                        path = "/endpoint",
-                        clients = setOf("client1")
-                    ),
-                    IncomingEndpoint(
-                        path = "/products",
-                        clients = setOf("client2"),
-                        methods = setOf("POST")
-                    )
                 ),
                 permissionsEnabled = true,
                 timeoutPolicy = TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout)
@@ -133,7 +100,21 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
                     statusRoute(idleTimeout, responseTimeout),
-                    *ingressRoutes
+                    {
+                        allOpenIngressRoute()
+                        matchingOnMethod("GET")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
+                    },
+                    {
+                        allOpenIngressRoute()
+                        matchingOnMethod("HEAD")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
+                    },
+                    {
+                        allOpenIngressRoute()
+                        matchingOnAnyMethod()
+                        hasNoRetryPolicy()
+                    }
                 )
                 matchingRetryPolicy(retryPolicyProps.default)
             }
