@@ -14,6 +14,10 @@ import io.envoyproxy.controlplane.cache.Watch;
 import io.envoyproxy.controlplane.cache.WatchCancelledException;
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment;
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.concurrent.GuardedBy;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,10 +32,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import javax.annotation.concurrent.GuardedBy;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class is copy of {@link io.envoyproxy.controlplane.cache.SimpleCache}
@@ -282,26 +282,26 @@ public class SimpleCache<T> implements SnapshotCache<T> {
                     .filter(name -> !snapshotResources.containsKey(name))
                     .collect(Collectors.toList());
 
-            // We are not removing Clusters just making them no instances so it might happen that Envoy asks for instance
-            // which we don't have in cache. In that case we want to send empty endpoint to Envoy.
-            if (shouldSendMissingEndpoints
-                    && watch.request().getTypeUrl().equals(Resources.ENDPOINT_TYPE_URL)
-                    && !missingNames.isEmpty()) {
-                LOGGER.info("adding missing resources [{}] to response for {} in ADS mode from node {} at version {}",
+            if (!missingNames.isEmpty()) {
+                // We are not removing Clusters just making them no instances so it might happen that Envoy asks for instance
+                // which we don't have in cache. In that case we want to send empty endpoint to Envoy.
+                if (shouldSendMissingEndpoints
+                    && watch.request().getTypeUrl().equals(Resources.ENDPOINT_TYPE_URL)) {
+                    LOGGER.info("adding missing resources [{}] to response for {} in ADS mode from node {} at version {}",
                         String.join(", ", missingNames),
                         watch.request().getTypeUrl(),
                         group,
                         snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList())
-                );
-                snapshotForMissingResources = new HashMap<>(missingNames.size());
-                for (String missingName : missingNames) {
-                    snapshotForMissingResources.put(
+                    );
+                    snapshotForMissingResources = new HashMap<>(missingNames.size());
+                    for (String missingName : missingNames) {
+                        snapshotForMissingResources.put(
                             missingName,
                             ClusterLoadAssignment.newBuilder().setClusterName(missingName).build()
-                    );
-                }
-            } else if (!missingNames.isEmpty()) {
-                LOGGER.info(
+                        );
+                    }
+                } else {
+                    LOGGER.info(
                         "not responding in ADS mode for {} from node {} at version {} for request [{}] since [{}] not in snapshot",
                         watch.request().getTypeUrl(),
                         group,
@@ -309,7 +309,8 @@ public class SimpleCache<T> implements SnapshotCache<T> {
                         String.join(", ", watch.request().getResourceNamesList()),
                         String.join(", ", missingNames));
 
-                return false;
+                    return false;
+                }
             }
         }
 
