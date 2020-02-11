@@ -20,6 +20,7 @@ class SnapshotProperties {
     var staticClusterConnectionTimeout: Duration = Duration.ofSeconds(2)
     var trustedCaFile = "/etc/ssl/certs/ca-certificates.crt"
     var dynamicListeners = ListenersFactoryProperties()
+    var shouldSendMissingEndpoints = false
 }
 
 class ListenersFactoryProperties {
