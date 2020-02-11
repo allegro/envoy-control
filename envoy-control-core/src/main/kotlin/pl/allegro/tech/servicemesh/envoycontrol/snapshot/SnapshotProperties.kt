@@ -124,6 +124,7 @@ class AdminDisableProperties {
 class LocalServiceProperties {
     var idleTimeout: Duration = Duration.ofSeconds(60)
     var responseTimeout: Duration = Duration.ofSeconds(15)
+    var connectionIdleTimeout: Duration = Duration.ofSeconds(120)
     var retryPolicy: RetryPoliciesProperties = RetryPoliciesProperties()
 }
 

@@ -42,6 +42,11 @@ fun <T> Flux<T>.measureBuffer(
 fun <T> Flux<T>.measureDiscardedItems(name: String, meterRegistry: MeterRegistry): Flux<T> = this
     .doOnDiscard(Any::class.java) { meterRegistry.counter("reactor-discarded-items.$name").increment() }
 
+fun <T> Flux<T>.onBackpressureLatestMeasured(name: String, meterRegistry: MeterRegistry): Flux<T> =
+    measureDiscardedItems("$name-before", meterRegistry)
+        .onBackpressureLatest()
+        .measureDiscardedItems(name, meterRegistry)
+
 /**
  * Flux.combineLatest() is an example of QueueSubscription
  */

@@ -73,6 +73,33 @@ class ReactorUtilsTest {
         assertThat(buffered).isEqualTo(2.0)
     }
 
+    @Test
+    fun `should measure discarded items of backpressureLatest`() {
+        // given
+        val meterRegistry = SimpleMeterRegistry()
+
+        // when
+        val received = Flux.range(0, 10)
+            .filter { it % 2 == 0 } // 5 items will be discarded by filter
+            .onBackpressureLatestMeasured("latest", meterRegistry)
+            .subscribeRequestingN(n = 2)
+
+        // then
+        assertThat(received.await(2, TimeUnit.SECONDS)).isTrue()
+
+        val discardedItemsBeforeBackpressure = meterRegistry["reactor-discarded-items.latest-before"].counter().count()
+        val discardedItemsAfterBackpressure = meterRegistry["reactor-discarded-items.latest"].counter().count()
+
+        /**
+         * Published by range: (0..10)
+         * After filtering: (0, 2, 4, 6, 8) (5 discarded)
+         * Requested and dispatched to subscriber: (0, 2)
+         * Not dispatched to subscriber, received by onBackpressure: (4, 6, 8)
+         * Discarded by onBackpressure: (4, 6)
+         */
+        assertThat(discardedItemsAfterBackpressure - discardedItemsBeforeBackpressure).isEqualTo(2.0)
+    }
+
     private fun <T> Flux<T>.subscribeRequestingN(n: Int): CountDownLatch {
         val received = CountDownLatch(n)
         subscribe(
