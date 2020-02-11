@@ -283,8 +283,16 @@ public class SimpleCache<T> implements SnapshotCache<T> {
                     .collect(Collectors.toList());
 
             if (!missingNames.isEmpty()) {
-                // We are not removing Clusters just making them no instances so it might happen that Envoy asks for instance
-                // which we don't have in cache. In that case we want to send empty endpoint to Envoy.
+                // In some cases Envoy might send EDS request with cluster names we don't have in snapshot.
+                // This may happen when for example Envoy disconnects from an instance of control-plane and connects to
+                // other instance.
+                //
+                // If shouldSendMissingEndpoints is set to false we will not respond to such request. It may cause
+                // Envoy to stop working correctly, because it will wait indefinitely for a response,
+                // not accepting any other updates.
+                //
+                // If shouldSendMissingEndpoints is set to true, we will respond to such request anyway, to prevent
+                // such problems with Envoy.
                 if (shouldSendMissingEndpoints
                     && watch.request().getTypeUrl().equals(Resources.ENDPOINT_TYPE_URL)) {
                     LOGGER.info("adding missing resources [{}] to response for {} in ADS mode from node {} at version {}",

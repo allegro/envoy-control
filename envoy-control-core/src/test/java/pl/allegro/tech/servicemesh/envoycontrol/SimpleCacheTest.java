@@ -29,6 +29,9 @@ import java.util.stream.Collectors;
 import static io.envoyproxy.controlplane.cache.Resources.ROUTE_TYPE_URL;
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * This class is copy of {@link io.envoyproxy.controlplane.cache.SimpleCacheTest}
+ */
 public class SimpleCacheTest {
 
     private static final boolean ADS = ThreadLocalRandom.current().nextBoolean();
