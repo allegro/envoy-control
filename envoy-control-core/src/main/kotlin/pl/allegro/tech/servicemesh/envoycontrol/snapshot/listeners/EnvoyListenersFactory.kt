@@ -5,6 +5,7 @@ import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
+import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.envoy.api.v2.Listener
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
@@ -27,7 +28,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.Envoy
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import com.google.protobuf.Any as ProtobufAny
 
-typealias HttpFilterFactory = (node: Group) -> HttpFilter?
+typealias HttpFilterFactory = (node: Group, snapshot: Snapshot) -> HttpFilter?
 
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
@@ -58,18 +59,18 @@ class EnvoyListenersFactory(
                 ).build()
     }
 
-    fun createListeners(group: Group): List<Listener> {
+    fun createListeners(group: Group, globalSnapshot: Snapshot): List<Listener> {
         if (group.listenersConfig == null) {
             return listOf()
         }
         val listenersConfig: ListenersConfig = group.listenersConfig!!
-        val ingressListener = createIngressListener(group, listenersConfig)
-        val egressListener = createEgressListener(group, listenersConfig)
+        val ingressListener = createIngressListener(group, listenersConfig, globalSnapshot)
+        val egressListener = createEgressListener(group, listenersConfig, globalSnapshot)
 
         return listOf(ingressListener, egressListener)
     }
 
-    private fun createEgressListener(group: Group, listenersConfig: ListenersConfig): Listener {
+    private fun createEgressListener(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): Listener {
         return Listener.newBuilder()
                 .setName("egress_listener")
                 .setAddress(
@@ -79,11 +80,11 @@ class EnvoyListenersFactory(
                                         .setAddress(listenersConfig.egressHost)
                         )
                 )
-                .addFilterChains(createEgressFilterChain(group, listenersConfig))
+                .addFilterChains(createEgressFilterChain(group, listenersConfig, globalSnapshot))
                 .build()
     }
 
-    private fun createIngressListener(group: Group, listenersConfig: ListenersConfig): Listener {
+    private fun createIngressListener(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): Listener {
         return Listener.newBuilder()
                 .setName("ingress_listener")
                 .setAddress(
@@ -93,40 +94,48 @@ class EnvoyListenersFactory(
                                         .setAddress(listenersConfig.ingressHost)
                         )
                 )
-                .addFilterChains(createIngressFilterChain(group, listenersConfig))
+                .addFilterChains(createIngressFilterChain(group, listenersConfig, globalSnapshot))
                 .build()
     }
 
-    private fun createIngressFilterChain(group: Group, listenersConfig: ListenersConfig): FilterChain {
+    private fun createIngressFilterChain(
+            group: Group,
+            listenersConfig: ListenersConfig,
+            globalSnapshot: Snapshot
+    ): FilterChain {
+
+        val filterChain = FilterChain.newBuilder()
+                .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot))
+
+        return filterChain
+                .build()
+    }
+
+    private fun createEgressFilterChain(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): FilterChain {
         return FilterChain.newBuilder()
-                .addFilters(createIngressFilter(group, listenersConfig))
+                .addFilters(createEgressFilter(group, listenersConfig, globalSnapshot))
                 .build()
     }
 
-    private fun createEgressFilterChain(group: Group, listenersConfig: ListenersConfig): FilterChain {
-        return FilterChain.newBuilder()
-                .addFilters(createEgressFilter(group, listenersConfig))
-                .build()
-    }
-
-    private fun createEgressFilter(group: Group, listenersConfig: ListenersConfig): Filter {
+    private fun createEgressFilter(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): Filter {
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
                 .setStatPrefix("egress_http")
                 .setRds(egressRds(group.ads))
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
 
-        return createFilter(connectionManagerBuilder, egressFilters, group, "egress", listenersConfig)
+        return createFilter(connectionManagerBuilder, egressFilters, group, "egress", listenersConfig, globalSnapshot)
     }
 
     private fun createFilter(
-        connectionManagerBuilder: HttpConnectionManager.Builder,
-        filterFactories: List<HttpFilterFactory>,
-        group: Group,
-        accessLogType: String,
-        listenersConfig: ListenersConfig
+            connectionManagerBuilder: HttpConnectionManager.Builder,
+            filterFactories: List<HttpFilterFactory>,
+            group: Group,
+            accessLogType: String,
+            listenersConfig: ListenersConfig,
+            globalSnapshot: Snapshot
     ): Filter {
-        filterFactories.forEach {
-            val filter = it(group)
+        filterFactories.forEach { filterFactory ->
+            val filter = filterFactory(group, globalSnapshot)
             if (filter != null) {
                 connectionManagerBuilder.addHttpFilters(filter)
             }
@@ -168,7 +177,7 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun createIngressFilter(group: Group, listenersConfig: ListenersConfig): Filter {
+    private fun createIngressFilter(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): Filter {
         val connectionIdleTimeout = group.proxySettings.incoming.timeoutPolicy.connectionIdleTimeout
             ?: Durations.fromMillis(localServiceProperties.connectionIdleTimeout.toMillis())
         val httpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(connectionIdleTimeout).build()
@@ -185,7 +194,7 @@ class EnvoyListenersFactory(
             ingressHttp.setXffNumTrustedHops(listenersFactoryProperties.httpFilters.ingressXffNumTrustedHops)
         }
 
-        return createFilter(ingressHttp, ingressFilters, group, "ingress", listenersConfig)
+        return createFilter(ingressHttp, ingressFilters, group, "ingress", listenersConfig, globalSnapshot)
     }
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {

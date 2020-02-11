@@ -84,7 +84,7 @@ DependencySettings(
             ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
         )
 
-        val version = snapshotsVersions.version(AllServicesGroup(ads, listenersConfig = null), clusters, endpoints)
+        val version = snapshotsVersions.version(AllServicesGroup(ads, listenersConfig = null), clusters, endpoints, listOf())
 
         val snapshot = createSnapshot(
             clusters = clusters,
@@ -184,13 +184,14 @@ DependencySettings(
 
         val endpoints = getServicesEndpointsForGroup(group, globalSnapshot)
 
-        val version = snapshotsVersions.version(group, clusters, endpoints)
 
         val listeners = if (properties.dynamicListeners.enabled) {
-            listenersFactory.createListeners(group)
+            listenersFactory.createListeners(group, globalSnapshot)
         } else {
             emptyList()
         }
+
+        val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
 
         return createSnapshot(
                 clusters = clusters,
@@ -198,7 +199,7 @@ DependencySettings(
                 endpoints = endpoints,
                 endpointsVersions = version.endpoints,
                 listeners = listeners,
-                // for now we assume that listeners don't change during lifecycle
+                listenersVersion = version.listeners,
                 routes = routes,
                 // we assume, that routes don't change during Envoy lifecycle unless clusters change
                 routesVersion = RoutesVersion(version.clusters.value)

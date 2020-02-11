@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
+import io.envoyproxy.envoy.api.v2.Listener
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -22,18 +23,23 @@ internal class SnapshotsVersions {
 
     private val versions = ConcurrentHashMap<Group, VersionsWithData>()
 
-    fun version(group: Group, clusters: List<Cluster>, endpoints: List<ClusterLoadAssignment>): Version {
+    fun version(group: Group, clusters: List<Cluster>, endpoints: List<ClusterLoadAssignment>, listeners: List<Listener> = listOf()): Version {
         val versionsWithData = versions.compute(group) { _, previous ->
             val version = when (previous) {
-                null -> Version(clusters = ClustersVersion(newVersion()), endpoints = EndpointsVersion(newVersion()))
+                null -> Version(clusters = ClustersVersion(newVersion()), endpoints = EndpointsVersion(newVersion()), listeners = ListenersVersion(newVersion()))
                 else -> Version(
                     clusters = selectClusters(previous, clusters),
-                    endpoints = selectEndpoints(previous, endpoints, previous.clusters != clusters)
+                    endpoints = selectEndpoints(previous, endpoints, previous.clusters != clusters),
+                    listeners = selectListeners(previous, previous.listeners != listeners)
                 )
             }
-            VersionsWithData(version, clusters, endpoints)
+            VersionsWithData(version, clusters, endpoints, listeners)
         }
         return versionsWithData!!.version
+    }
+
+    private fun selectListeners(previous: VersionsWithData, hasChanged: Boolean): ListenersVersion {
+        return if (hasChanged) ListenersVersion(newVersion()) else previous.version.listeners
     }
 
     /**
@@ -65,10 +71,11 @@ internal class SnapshotsVersions {
     private data class VersionsWithData(
         val version: Version,
         val clusters: List<Cluster>,
-        val endpoints: List<ClusterLoadAssignment>
+        val endpoints: List<ClusterLoadAssignment>,
+        val listeners: List<Listener>
     )
 
-    internal data class Version(val clusters: ClustersVersion, val endpoints: EndpointsVersion)
+    internal data class Version(val clusters: ClustersVersion, val endpoints: EndpointsVersion, val listeners: ListenersVersion)
 }
 
 data class ClustersVersion(val value: String) {

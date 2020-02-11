@@ -14,6 +14,7 @@ node:
   cluster: test-cluster
   id: test-id
   metadata:
+    service_name: "echo"
     ads: true
     ingress_host: "0.0.0.0"
     ingress_port: 5001
@@ -26,7 +27,7 @@ node:
       incoming:
         endpoints:
           - path: "/endpoint"
-            clients: ["authorizedClient"]
+            clients: ["echo"]
       outgoing:
         dependencies:
           - service: "service-1"
@@ -43,9 +44,6 @@ node:
           - service: "proxy1"
           - service: "proxy2"
           - service: "service-redirect"
-            handleInternalRedirect: true
-          - domain: "https://www.example.com"
-          - domain: "https://www.example-redirect.com"
             handleInternalRedirect: true
 
 static_resources:
@@ -74,7 +72,7 @@ static_resources:
     hosts:
       - socket_address:
           address: LOCAL_SERVICE_IP
-          port_value: 5678
+          port_value: 80
     connect_timeout: 1s
   - name: this_admin
     type: STATIC

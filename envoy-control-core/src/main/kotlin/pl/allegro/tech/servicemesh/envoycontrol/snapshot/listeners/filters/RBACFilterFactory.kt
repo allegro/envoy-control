@@ -1,6 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
 
 import com.google.protobuf.Any
+import com.google.protobuf.UInt32Value
+import io.envoyproxy.controlplane.cache.Snapshot
+import io.envoyproxy.envoy.api.v2.core.CidrRange
 import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 import io.envoyproxy.envoy.config.rbac.v2.Permission
@@ -24,7 +27,7 @@ class RBACFilterFactory(
         private val logger by logger()
     }
 
-    private fun getRules(serviceName: String, incomingPermissions: Incoming): RBAC {
+    private fun getRules(serviceName: String, incomingPermissions: Incoming, snapshot: Snapshot): RBAC {
         val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
         incomingPermissions.endpoints.forEach { incomingEndpoint ->
             if (incomingEndpoint.clients.isEmpty()) {
@@ -38,7 +41,7 @@ class RBACFilterFactory(
 
             val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(policyName) {
                 Policy.newBuilder().addAllPrincipals(
-                        clients.map(this::mapClientToPrincipal)
+                        clients.flatMap { mapClientToPrincipals(it, snapshot) }
                 )
             }
 
@@ -87,10 +90,22 @@ class RBACFilterFactory(
         return Permission.newBuilder().setHeader(methodMatch).build()
     }
 
-    private fun mapClientToPrincipal(client: String): Principal {
+    private fun mapClientToPrincipals(client: String, snapshot: Snapshot): List<Principal> {
+        val principals = snapshot.endpoints().resources().filterKeys { client == it }.values.flatMap { clusterLoadAssignment ->
+            clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
+                lbEndpoints.lbEndpointsList.map { lbEndpoint ->
+                    lbEndpoint.endpoint.address
+                }
+            }
+        }.map {
+            Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                    .setAddressPrefix(it.socketAddress.address).setPrefixLen(UInt32Value.of(32)).build()).build()
+        }
+
         val clientMatch = HeaderMatcher.newBuilder()
                 .setName(properties.clientIdentityHeader).setExactMatch(client).build()
-        return Principal.newBuilder().setHeader(clientMatch).build()
+
+        return principals + listOf(Principal.newBuilder().setHeader(clientMatch).build())
     }
 
     private fun getPathMatcher(incomingEndpoint: IncomingEndpoint): HeaderMatcher {
@@ -102,9 +117,9 @@ class RBACFilterFactory(
         }
     }
 
-    fun createHttpFilter(group: Group): HttpFilter? {
+    fun createHttpFilter(group: Group, snapshot: Snapshot): HttpFilter? {
         return if (properties.enabled && group.proxySettings.incoming.permissionsEnabled) {
-            val rules = getRules(group.serviceName, group.proxySettings.incoming)
+            val rules = getRules(group.serviceName, group.proxySettings.incoming, snapshot)
             val rbacFilter = RBACFilter.newBuilder().setRules(rules).build()
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac").setTypedConfig(Any.pack(rbacFilter)).build()
         } else {

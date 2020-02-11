@@ -19,6 +19,7 @@ node:
   cluster: test-cluster
   id: test-id
   metadata:
+    service_name: "echo"
     ingress_host: "0.0.0.0"
     ingress_port: 5001
     egress_host: "0.0.0.0"
@@ -30,7 +31,7 @@ node:
       incoming:
         endpoints:
           - path: "/endpoint"
-            clients: ["authorizedClient"]
+            clients: ["echo"]
       outgoing:
         dependencies:
           - service: "service-1"

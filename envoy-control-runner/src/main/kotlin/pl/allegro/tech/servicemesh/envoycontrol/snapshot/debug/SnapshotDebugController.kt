@@ -15,6 +15,8 @@ import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.envoy.api.v2.core.Node
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config
+import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as FilterRBAC
+import io.envoyproxy.envoy.config.rbac.v2.RBAC
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import org.springframework.boot.jackson.JsonComponent
 import org.springframework.http.HttpStatus
@@ -60,6 +62,8 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
                 .add(Duration.getDescriptor())
                 .add(Struct.getDescriptor())
                 .add(Value.getDescriptor())
+                .add(RBAC.getDescriptor())
+                .add(FilterRBAC.getDescriptor())
                 .add(Any.getDescriptor())
                 .build()
 

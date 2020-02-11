@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
 
 import com.google.protobuf.Any
 import com.google.protobuf.util.JsonFormat
+import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 import org.assertj.core.api.Assertions.assertThat
@@ -16,6 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 
 internal class RBACFilterFactoryTest {
     private val rbacFilterFactory = RBACFilterFactory(IncomingPermissionsProperties().also { it.enabled = true })
+    val snapshot = Snapshot.createEmpty("")
 
     @Test
     fun `should not create RBAC filter when no incoming permissions are defined`() {
@@ -23,7 +25,7 @@ internal class RBACFilterFactoryTest {
         val incomingPermission = null
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(null)
@@ -35,7 +37,7 @@ internal class RBACFilterFactoryTest {
         val incomingPermission = Incoming(permissionsEnabled = false)
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(null)
@@ -47,7 +49,7 @@ internal class RBACFilterFactoryTest {
         val incomingPermission = Incoming(permissionsEnabled = true)
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isNotEqualTo(null)
@@ -63,7 +65,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
@@ -84,7 +86,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
@@ -110,7 +112,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
@@ -136,7 +138,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
@@ -162,7 +164,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
@@ -188,7 +190,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
@@ -209,7 +211,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
@@ -230,7 +232,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
@@ -251,7 +253,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission))
+        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(rbacBuilder)
