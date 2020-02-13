@@ -9,6 +9,8 @@ import io.envoyproxy.envoy.config.rbac.v2.Principal
 import io.envoyproxy.envoy.config.rbac.v2.RBAC
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
+import io.envoyproxy.envoy.type.matcher.PathMatcher
+import io.envoyproxy.envoy.type.matcher.StringMatcher
 
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
@@ -56,7 +58,8 @@ class RBACFilterFactory(
 
     private fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
         val combinedPermissions = Permission.newBuilder()
-        val pathPermission = Permission.newBuilder().setHeader(getPathMatcher(incomingEndpoint))
+        val pathPermission = Permission.newBuilder()
+                .setUrlPath(createPathMatcher(incomingEndpoint))
         val methodPermissions = createMethodPermissions(incomingEndpoint)
 
         if (incomingEndpoint.methods.isNotEmpty()) {
@@ -103,12 +106,25 @@ class RBACFilterFactory(
         return Principal.newBuilder().setHeader(clientMatch).build()
     }
 
-    private fun getPathMatcher(incomingEndpoint: IncomingEndpoint): HeaderMatcher {
+    private fun createPathMatcher(incomingEndpoint: IncomingEndpoint): PathMatcher {
         return when (incomingEndpoint.pathMatchingType) {
-            PathMatchingType.PATH -> HeaderMatcher.newBuilder()
-                    .setName(":path").setExactMatch(incomingEndpoint.path).build()
-            PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder()
-                    .setName(":path").setPrefixMatch(incomingEndpoint.path).build()
+            PathMatchingType.PATH ->
+                PathMatcher.newBuilder()
+                        .setPath(
+                                StringMatcher.newBuilder()
+                                        .setExact(incomingEndpoint.path)
+                                        .build()
+                        )
+                        .build()
+
+            PathMatchingType.PATH_PREFIX ->
+                PathMatcher.newBuilder()
+                        .setPath(
+                                StringMatcher.newBuilder()
+                                        .setPrefix(incomingEndpoint.path)
+                                        .build()
+                        )
+                        .build()
         }
     }
 

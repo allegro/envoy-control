@@ -28,7 +28,7 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
     fun `should allow access to endpoint by authorized client`() {
         untilAsserted {
             // when
-            val response = callLocalService(endpoint = "/endpoint",
+            val response = callLocalService(endpoint = "/endpoint#fragment",
                 headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
 
             // then

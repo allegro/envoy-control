@@ -16,7 +16,7 @@ class EnvoyContainer(
 ) : GenericContainer<EnvoyContainer>(ImageFromDockerfile().withDockerfileFromBuilder {
     // We use envoy version from master. This is 1.13.0-dev version with support for KEYS_SUBSET fallback policy,
     // which is required for service-tags routing. More info: https://github.com/envoyproxy/envoy/pull/8890
-    it.from("envoyproxy/envoy-alpine-dev:b7bef67c256090919a4585a1a06c42f15d640a09")
+    it.from("envoyproxy/envoy-alpine-dev:38fe5e1ec115c0b2e83921211c2646f160a91681")
         .run("apk --no-cache add curl iproute2")
         .build()
 }) {
