@@ -42,37 +42,47 @@ class RBACFilterFactory(
                 )
             }
 
-            val pathPermission = Permission.newBuilder().setHeader(getPathMatcher(incomingEndpoint))
-            val combinedPermissions = Permission.newBuilder()
-
-            if (incomingEndpoint.methods.isNotEmpty()) {
-                val methodPermissions = Permission.newBuilder()
-                val methodPermissionSet = Permission.Set.newBuilder()
-                val methodPermissionsList = incomingEndpoint.methods.map(this::mapMethodToHeaderMatcher)
-                methodPermissionSet.addAllRules(methodPermissionsList)
-                methodPermissions.setOrRules(methodPermissionSet.build())
-                combinedPermissions.setAndRules(
-                        Permission.Set.newBuilder().addAllRules(listOf(
-                                pathPermission.build(),
-                                methodPermissions.build()
-                        ))
-                )
-            } else {
-                combinedPermissions.setAndRules(
-                        Permission.Set.newBuilder().addAllRules(listOf(pathPermission.build()))
-                )
-            }
-
+            val combinedPermissions = createCombinedPermissions(incomingEndpoint)
             policy.addPermissions(combinedPermissions)
             clientToPolicyBuilder[policyName] = policy
         }
 
         val clientToPolicy = clientToPolicyBuilder.mapValues { it.value.build() }
-        val rbac = RBAC.newBuilder()
+        return RBAC.newBuilder()
                 .setAction(RBAC.Action.ALLOW)
                 .putAllPolicies(clientToPolicy)
                 .build()
-        return rbac
+    }
+
+    private fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
+        val combinedPermissions = Permission.newBuilder()
+        val pathPermission = Permission.newBuilder().setHeader(getPathMatcher(incomingEndpoint))
+        val methodPermissions = createMethodPermissions(incomingEndpoint)
+
+        if (incomingEndpoint.methods.isNotEmpty()) {
+            combinedPermissions.setAndRules(
+                    Permission.Set.newBuilder().addAllRules(listOf(
+                            pathPermission.build(),
+                            methodPermissions.build()
+                    ))
+            )
+        } else {
+            combinedPermissions.setAndRules(
+                    Permission.Set.newBuilder().addAllRules(listOf(pathPermission.build()))
+            )
+        }
+
+        return combinedPermissions
+    }
+
+    private fun createMethodPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
+        val methodPermissions = Permission.newBuilder()
+        val methodPermissionSet = Permission.Set.newBuilder()
+        val methodPermissionsList = incomingEndpoint.methods.map(this::mapMethodToHeaderMatcher)
+        methodPermissionSet.addAllRules(methodPermissionsList)
+        methodPermissions.setOrRules(methodPermissionSet.build())
+
+        return methodPermissions
     }
 
     private fun resolveClients(incomingEndpoint: IncomingEndpoint, roles: List<Role>): List<String> {
