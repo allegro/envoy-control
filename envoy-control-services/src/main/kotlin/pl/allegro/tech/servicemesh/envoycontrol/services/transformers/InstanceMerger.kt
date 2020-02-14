@@ -11,14 +11,20 @@ class InstanceMerger : ServiceInstancesTransformer {
             .groupingBy { it.address to it.port }.eachCount()
             .any { it.value > 1 }
 
-        if (containsDuplicates) it.copy(instances = merge(it.instances))
-        else it
+        if (containsDuplicates) {
+            it.copy(instances = merge(it.instances))
+        }
+        else {
+            it
+        }
     }
 
     private fun merge(instances: Set<ServiceInstance>): Set<ServiceInstance> = instances
         .groupBy { it.address to it.port }
         .map { (target, instances) ->
-            if (instances.size == 1) instances[0]
+            if (instances.size == 1) {
+                instances[0]
+            }
             else {
                 ServiceInstance(
                     id = instances.map { it.id }.joinToString(","),

@@ -97,8 +97,9 @@ internal class EnvoyEgressRoutesFactory(
                     )
                 }
             }
-        if (addUpstreamAddressHeader)
+        if (addUpstreamAddressHeader) {
             routeConfiguration = routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
+        }
 
         return routeConfiguration.build()
     }
