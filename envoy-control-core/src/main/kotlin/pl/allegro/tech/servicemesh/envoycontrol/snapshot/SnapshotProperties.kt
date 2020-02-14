@@ -21,6 +21,7 @@ class SnapshotProperties {
     var trustedCaFile = "/etc/ssl/certs/ca-certificates.crt"
     var dynamicListeners = ListenersFactoryProperties()
     var configurationMode = ConfigurationMode()
+    var shouldSendMissingEndpoints = false
 }
 
 class ListenersFactoryProperties {
