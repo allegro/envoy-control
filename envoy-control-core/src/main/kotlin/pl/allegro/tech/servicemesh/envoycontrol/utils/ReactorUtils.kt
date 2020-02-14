@@ -7,13 +7,14 @@ import reactor.core.Disposable
 import reactor.core.Fuseable
 import reactor.core.Scannable
 import reactor.core.publisher.Flux
+import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlin.streams.asSequence
 
 private val logger = LoggerFactory.getLogger("pl.allegro.tech.servicemesh.envoycontrol.utils.ReactorUtils")
-private val scheduler by lazy { Schedulers.newSingle("reactor-utils-scheduler") }
+private val defaultScheduler by lazy { Schedulers.newSingle("reactor-utils-scheduler") }
 private const val DEFAULT_CHECK_INTERVAL_SECONDS = 60L
 private val defaultCheckInterval = Duration.ofSeconds(DEFAULT_CHECK_INTERVAL_SECONDS)
 
@@ -60,7 +61,11 @@ fun <T> Flux<T>.onBackpressureLatestMeasured(name: String, meterRegistry: MeterR
  * don't send error to a subscriber. The error is stored internally but is not dispatched due to some kind of deadlock.
  * This method can be used to log such a exception despite that.
  */
-fun <T> Flux<T>.logSuppressedError(message: String, checkInterval: Duration = defaultCheckInterval): Flux<T> {
+fun <T> Flux<T>.logSuppressedError(
+    message: String,
+    checkInterval: Duration = defaultCheckInterval,
+    scheduler: Scheduler = defaultScheduler
+): Flux<T> {
     var subscribtion: Subscription? = null
     var task: Disposable? = null
     return this
@@ -78,9 +83,9 @@ fun <T> Flux<T>.logSuppressedError(message: String, checkInterval: Duration = de
                 TimeUnit.MILLISECONDS
             )
         }
-        .doFinally {
+        .doFinally { signal ->
             task?.dispose()
-            subscribtion?.let { logError(it, message) }
+            subscribtion?.let { logError(it, "$message (flux terminated with signal: $signal") }
         }
 }
 
