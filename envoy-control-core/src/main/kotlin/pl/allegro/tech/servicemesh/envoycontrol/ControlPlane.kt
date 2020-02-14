@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import io.envoyproxy.controlplane.cache.NodeGroup
-import io.envoyproxy.controlplane.cache.SimpleCache
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.server.DefaultExecutorGroup
 import io.envoyproxy.controlplane.server.DiscoveryServer
@@ -22,8 +21,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.CompositeDiscov
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
@@ -74,7 +73,7 @@ class ControlPlane private constructor(
         var nioEventLoopExecutor: Executor? = null
         var executorGroup: ExecutorGroup? = null
         var updateSnapshotExecutor: Executor? = null
-        var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics()
+        var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
@@ -114,14 +113,17 @@ class ControlPlane private constructor(
             }
 
             if (updateSnapshotExecutor == null) {
-                updateSnapshotExecutor = Executors.newSingleThreadExecutor(ThreadNamingThreadFactory("snapshot-update"))
+                updateSnapshotExecutor = Executors.newFixedThreadPool(
+                    properties.server.snapshotUpdatePoolSize,
+                    ThreadNamingThreadFactory("snapshot-update")
+                )
             }
 
-            val cache = SimpleCache(nodeGroup)
+            val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
 
             val cleanupProperties = properties.server.snapshotCleanup
 
-            val groupChangeWatcher = GroupChangeWatcher(cache, metrics)
+            val groupChangeWatcher = GroupChangeWatcher(cache, metrics, meterRegistry)
 
             val discoveryServer = DiscoveryServer(
                 listOf(

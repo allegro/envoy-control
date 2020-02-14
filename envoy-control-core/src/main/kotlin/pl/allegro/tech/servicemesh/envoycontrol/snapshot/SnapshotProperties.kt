@@ -20,6 +20,7 @@ class SnapshotProperties {
     var staticClusterConnectionTimeout: Duration = Duration.ofSeconds(2)
     var trustedCaFile = "/etc/ssl/certs/ca-certificates.crt"
     var dynamicListeners = ListenersFactoryProperties()
+    var shouldSendMissingEndpoints = false
 }
 
 class ListenersFactoryProperties {
@@ -123,6 +124,7 @@ class AdminDisableProperties {
 class LocalServiceProperties {
     var idleTimeout: Duration = Duration.ofSeconds(60)
     var responseTimeout: Duration = Duration.ofSeconds(15)
+    var connectionIdleTimeout: Duration = Duration.ofSeconds(120)
     var retryPolicy: RetryPoliciesProperties = RetryPoliciesProperties()
 }
 

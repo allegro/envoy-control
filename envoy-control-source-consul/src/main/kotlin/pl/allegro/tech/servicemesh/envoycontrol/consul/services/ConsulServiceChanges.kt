@@ -12,6 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.time.Duration
@@ -36,7 +37,12 @@ class ConsulServiceChanges(
             },
             FluxSink.OverflowStrategy.LATEST
         )
+            .measureDiscardedItems("consul-service-changes-emitted", metrics.meterRegistry)
+            .checkpoint("consul-service-changes-emitted")
+            .name("consul-service-changes-emitted").metrics()
             .distinctUntilChanged()
+            .checkpoint("consul-service-changes-emitted-distinct")
+            .name("consul-service-changes-emitted-distinct").metrics()
             .doOnSubscribe { watcher.start() }
             .doOnCancel {
                 logger.warn("Cancelling watching consul service changes")
