@@ -10,14 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
     private val logger by logger()
 
-    override fun hash(node: Node): Group {
-        val ads = node.metadata
-            .fieldsMap["ads"]
-            ?.boolValue
-            ?: false
-
-        return createGroup(node, ads)
-    }
+    override fun hash(node: Node): Group = createGroup(node)
 
     @SuppressWarnings("ReturnCount")
     private fun metadataToListenersHostPort(
@@ -113,7 +106,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         )
     }
 
-    private fun createGroup(node: Node, ads: Boolean): Group {
+    private fun createGroup(node: Node): Group {
         val metadata = NodeMetadata(node.metadata, properties)
         val serviceName = serviceName(metadata)
         val proxySettings = proxySettings(metadata)
@@ -122,14 +115,14 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         return when {
             hasAllServicesDependencies(metadata) ->
                 AllServicesGroup(
-                        ads,
+                        metadata.ads,
                         serviceName,
                         proxySettings,
                         listenersConfig
                 )
             else ->
                 ServicesGroup(
-                        ads,
+                        metadata.ads,
                         serviceName,
                         proxySettings,
                         listenersConfig

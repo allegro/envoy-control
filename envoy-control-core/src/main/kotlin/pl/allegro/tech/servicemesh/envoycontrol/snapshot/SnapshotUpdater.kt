@@ -69,14 +69,7 @@ class SnapshotUpdater(
                     }
 
                     if (result.adsSnapshot != null || result.xdsSnapshot != null) {
-                        versions.retainGroups(cache.groups())
-                        groups.forEach { group ->
-                            if (result.adsSnapshot != null && properties.configurationMode.ads && group.ads) {
-                                updateSnapshotForGroup(group, result.adsSnapshot)
-                            } else if (result.xdsSnapshot != null && properties.configurationMode.xds && !group.ads) {
-                                updateSnapshotForGroup(group, result.xdsSnapshot)
-                            }
-                        }
+                        updateSnapshotForGroups(groups, result)
                     }
                 }
     }
@@ -139,6 +132,20 @@ class SnapshotUpdater(
         } catch (e: Throwable) {
             meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()
             logger.error("Unable to create snapshot for group ${group.serviceName}", e)
+        }
+    }
+
+    private fun updateSnapshotForGroups(groups: Collection<Group>, result: UpdateResult) {
+        versions.retainGroups(cache.groups())
+        groups.forEach { group ->
+            if (result.adsSnapshot != null && group.ads) {
+                updateSnapshotForGroup(group, result.adsSnapshot)
+            } else if (result.xdsSnapshot != null && !group.ads) {
+                updateSnapshotForGroup(group, result.xdsSnapshot)
+            } else {
+                logger.error("Requested snapshot for ${if (group.ads) "ads" else "xds"} mode," +
+                    " but it is not here. This should never happen")
+            }
         }
     }
 }

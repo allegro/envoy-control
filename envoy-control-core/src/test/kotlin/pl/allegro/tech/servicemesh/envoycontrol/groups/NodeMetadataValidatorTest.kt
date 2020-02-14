@@ -4,6 +4,7 @@ import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -19,8 +20,8 @@ class NodeMetadataValidatorTest {
         fun configurationModeNotSupported() = listOf(
             Arguments.of(false, true, true, "ADS"),
             Arguments.of(true, false, false, "XDS"),
-            Arguments.of(false, false, false, "Neither ADS nor XDS"),
-            Arguments.of(false, false, true, "Neither ADS nor XDS")
+            Arguments.of(false, false, false, "XDS"),
+            Arguments.of(false, false, true, "ADS")
         )
 
         @JvmStatic
@@ -66,11 +67,8 @@ class NodeMetadataValidatorTest {
 
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
-        // when
-        validator.onStreamRequest(123, request = request)
-
         // then
-        // no exception thrown
+        assertDoesNotThrow { validator.onStreamRequest(123, request = request) }
     }
 
     @Test
@@ -85,11 +83,8 @@ class NodeMetadataValidatorTest {
         )
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
-        // when
-        permissionsDisabledValidator.onStreamRequest(123, request = request)
-
         // then
-        // no exception thrown
+        assertDoesNotThrow { permissionsDisabledValidator.onStreamRequest(123, request = request) }
     }
 
     @ParameterizedTest
@@ -125,7 +120,7 @@ class NodeMetadataValidatorTest {
 
     @ParameterizedTest
     @MethodSource("configurationModeSupported")
-    fun `should do nothing if service want to use mode which server supports`(
+    fun `should do nothing if service wants to use mode supported by the server`(
         adsSupported: Boolean,
         xdsSupported: Boolean,
         ads: Boolean
@@ -142,11 +137,8 @@ class NodeMetadataValidatorTest {
         )
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
-        // when
-        configurationModeValidator.onStreamRequest(123, request = request)
-
         // then
-        // no exception thrown
+        assertDoesNotThrow { configurationModeValidator.onStreamRequest(123, request = request) }
     }
 
     private fun createOutgoingPermissions(

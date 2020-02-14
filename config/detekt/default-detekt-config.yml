@@ -479,7 +479,7 @@ style:
     active: false
   ThrowsCount:
     active: true
-    max: 3
+    max: 2
   TrailingWhitespace:
     active: false
   UnnecessaryAbstractClass:

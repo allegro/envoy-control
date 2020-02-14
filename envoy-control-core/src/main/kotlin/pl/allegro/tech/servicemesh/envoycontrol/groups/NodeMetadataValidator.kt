@@ -63,9 +63,6 @@ class NodeMetadataValidator(
         .outgoingPermissions.servicesAllowedToUseWildcard.contains(metadata.serviceName)
 
     private fun validateConfigurationMode(metadata: NodeMetadata) {
-        if (!properties.configurationMode.ads && !properties.configurationMode.xds) {
-            throw ConfigurationModeNotSupportedException(metadata.serviceName, "Neither ADS nor XDS")
-        }
         if (metadata.ads && !properties.configurationMode.ads) {
             throw ConfigurationModeNotSupportedException(metadata.serviceName, "ADS")
         }
