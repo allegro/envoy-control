@@ -265,7 +265,7 @@ internal class RBACFilterFactoryTest {
                 {
                   "and_rules": {
                     "rules": [
-                      ${headerRule("/example")},
+                      ${pathRule("/example")},
                       {
                         "or_rules": {
                           "rules": [
@@ -285,7 +285,7 @@ internal class RBACFilterFactoryTest {
                 {
                   "and_rules": {
                     "rules": [
-                      ${headerRule("/example2")},
+                      ${pathRule("/example2")},
                       {
                         "or_rules": {
                           "rules": [
@@ -312,7 +312,7 @@ internal class RBACFilterFactoryTest {
                 {
                   "and_rules": {
                     "rules": [
-                      ${headerRule("/example")},
+                      ${pathRule("/example")},
                       {
                         "or_rules": {
                           "rules": [
@@ -341,7 +341,7 @@ internal class RBACFilterFactoryTest {
                 {
                   "and_rules": {
                     "rules": [
-                      ${headerRule("/example")},
+                      ${pathRule("/example")},
                       {
                         "or_rules": {
                           "rules": [
@@ -356,7 +356,7 @@ internal class RBACFilterFactoryTest {
                 {
                   "and_rules": {
                     "rules": [
-                      ${headerRule("/example2")},
+                      ${pathRule("/example2")},
                       {
                         "or_rules": {
                           "rules": [
@@ -385,7 +385,7 @@ internal class RBACFilterFactoryTest {
                 {
                   "and_rules": {
                     "rules": [
-                      ${headerRule("/example")}
+                      ${pathRule("/example")}
                     ]
                   }
                 }
@@ -400,11 +400,12 @@ internal class RBACFilterFactoryTest {
 
     private val exptectedEmptyEndpointPermissions = """{ "policies": {} }"""
 
-    private fun headerRule(path: String): String {
+    private fun pathRule(path: String): String {
         return """{
-            "header": {
-               "name": ":path",
-               "exact_match": "$path"
+            "url_path": {
+               "path": {
+                    "exact": "$path"
+               }
             }
         }"""
     }
