@@ -9,7 +9,6 @@ import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
-import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
 import io.envoyproxy.envoy.api.v2.cluster.CircuitBreakers
 import io.envoyproxy.envoy.api.v2.cluster.OutlierDetection
 import io.envoyproxy.envoy.api.v2.core.Address
@@ -22,12 +21,16 @@ import io.envoyproxy.envoy.api.v2.core.Http2ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.RoutingPriority
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
+import io.envoyproxy.envoy.api.v2.core.TransportSocket
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
+import com.google.protobuf.Any
+import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
+import io.envoyproxy.envoy.api.v2.core.UpstreamHttpProtocolOptions
 
 internal class EnvoyClustersFactory(
     private val properties: SnapshotProperties
@@ -93,18 +96,28 @@ internal class EnvoyClustersFactory(
             .setLbPolicy(properties.loadBalancing.policy)
 
         if (ssl) {
-            var tlsContextBuilder = UpstreamTlsContext.newBuilder()
-            tlsContextBuilder = tlsContextBuilder.setCommonTlsContext(
-                CommonTlsContext.newBuilder()
+            val commonTlsContext = CommonTlsContext.newBuilder()
                     .setValidationContext(
-                        CertificateValidationContext.newBuilder().setTrustedCa(
-                            // TODO: https://github.com/allegro/envoy-control/issues/5
-                            DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
-                        )
+                            CertificateValidationContext.newBuilder()
+                                    .setTrustedCa(
+                                DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
+                            ).build()
+                    ).build()
+
+            val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext).build()
+            val transportSocket = TransportSocket.newBuilder()
+                    .setTypedConfig(Any.pack(
+                            upstreamTlsContext
+                    ))
+                    .setName("envoy.transport_sockets.tls").build()
+
+            clusterBuilder
+                    .setTransportSocket(transportSocket)
+                    .setUpstreamHttpProtocolOptions(
+                            UpstreamHttpProtocolOptions.newBuilder().setAutoSanValidation(true).setAutoSni(true).build()
                     )
-            ).setSni(host)
-            clusterBuilder = clusterBuilder.setTlsContext(tlsContextBuilder.build())
         }
+
         return clusterBuilder.build()
     }
 
