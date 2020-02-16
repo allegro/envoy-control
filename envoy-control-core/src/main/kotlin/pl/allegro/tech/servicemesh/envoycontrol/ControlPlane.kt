@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import io.envoyproxy.controlplane.cache.NodeGroup
-import io.envoyproxy.controlplane.cache.SimpleCache
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.server.DefaultExecutorGroup
 import io.envoyproxy.controlplane.server.DiscoveryServer
@@ -120,7 +119,7 @@ class ControlPlane private constructor(
                 )
             }
 
-            val cache = SimpleCache(nodeGroup)
+            val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
 
             val cleanupProperties = properties.server.snapshotCleanup
 
