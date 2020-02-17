@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceChanges
+import pl.allegro.tech.servicemesh.envoycontrol.utils.logSuppressedError
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
@@ -28,6 +29,7 @@ class GlobalServiceChanges(
                 .flatten()
                 .toList()
         }
+            .logSuppressedError("combineLatest() suppressed exception")
             .measureBuffer("global-service-changes-combine-latest", meterRegistry)
             .checkpoint("global-service-changes-emitted")
             .name("global-service-changes-emitted").metrics()
