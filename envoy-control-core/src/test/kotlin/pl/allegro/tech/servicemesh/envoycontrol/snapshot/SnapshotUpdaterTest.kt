@@ -118,7 +118,7 @@ class SnapshotUpdaterTest {
 
     @ParameterizedTest
     @MethodSource("configurationModeNotSupported")
-    fun `should not generate group snapshots when server doesn't support`(
+    fun `should not generate group snapshots for modes not supported by the server`(
         adsSupported: Boolean,
         xdsSupported: Boolean,
         ads: Boolean
