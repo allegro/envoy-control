@@ -130,9 +130,9 @@ class SnapshotUpdaterTest {
     fun `should not generate group snapshots for modes not supported by the server`(
         adsSupported: Boolean,
         xdsSupported: Boolean,
-        communicationMode: CommunicationMode
+        mode: CommunicationMode
     ) {
-        val adsGroup = AllServicesGroup(communicationMode = communicationMode)
+        val adsGroup = AllServicesGroup(communicationMode = mode)
 
         val uninitializedSnapshot = null
         val cache = newCache()
@@ -141,7 +141,7 @@ class SnapshotUpdaterTest {
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties().apply {
-                configurationMode.ads = adsSupported; configurationMode.xds = xdsSupported
+                communicationMode.ads = adsSupported; communicationMode.xds = xdsSupported
             },
             scheduler = Schedulers.newSingle("update-snapshot"),
             onGroupAdded = Flux.just(listOf()),

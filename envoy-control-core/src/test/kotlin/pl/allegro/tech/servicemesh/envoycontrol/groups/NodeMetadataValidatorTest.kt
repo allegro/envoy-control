@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ConfigurationMode
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OutgoingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
@@ -97,7 +97,7 @@ class NodeMetadataValidatorTest {
     ) {
         // given
         val configurationModeValidator = NodeMetadataValidator(SnapshotProperties().apply {
-            configurationMode = createConfigurationMode(ads = adsSupported, xds = xdsSupported)
+            communicationMode = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
         })
 
         val node = node(
@@ -127,7 +127,7 @@ class NodeMetadataValidatorTest {
     ) {
         // given
         val configurationModeValidator = NodeMetadataValidator(SnapshotProperties().apply {
-            configurationMode = createConfigurationMode(ads = adsSupported, xds = xdsSupported)
+            communicationMode = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
         })
 
         val node = node(
@@ -151,10 +151,10 @@ class NodeMetadataValidatorTest {
         return outgoingPermissions
     }
 
-    private fun createConfigurationMode(ads: Boolean = true, xds: Boolean = true): ConfigurationMode {
-        val configurationMode = ConfigurationMode()
-        configurationMode.ads = ads
-        configurationMode.xds = xds
-        return configurationMode
+    private fun createCommunicationMode(ads: Boolean = true, xds: Boolean = true): CommunicationMode {
+        val communicationMode = CommunicationMode()
+        communicationMode.ads = ads
+        communicationMode.xds = xds
+        return communicationMode
     }
 }

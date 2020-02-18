@@ -107,10 +107,10 @@ class SnapshotUpdater(
                     var lastXdsSnapshot: Snapshot? = null
                     var lastAdsSnapshot: Snapshot? = null
 
-                    if (properties.configurationMode.xds) {
+                    if (properties.communicationMode.xds) {
                         lastXdsSnapshot = snapshotFactory.newSnapshot(states, XDS)
                     }
-                    if (properties.configurationMode.ads) {
+                    if (properties.communicationMode.ads) {
                         lastAdsSnapshot = snapshotFactory.newSnapshot(states, ADS)
                     }
 
