@@ -4,6 +4,8 @@ import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import io.envoyproxy.envoy.api.v2.core.Node
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class AllDependenciesValidationException(serviceName: String?)
@@ -63,10 +65,10 @@ class NodeMetadataValidator(
         .outgoingPermissions.servicesAllowedToUseWildcard.contains(metadata.serviceName)
 
     private fun validateConfigurationMode(metadata: NodeMetadata) {
-        if (metadata.ads && !properties.configurationMode.ads) {
+        if (metadata.communicationMode == ADS && !properties.configurationMode.ads) {
             throw ConfigurationModeNotSupportedException(metadata.serviceName, "ADS")
         }
-        if (!metadata.ads && !properties.configurationMode.xds) {
+        if (metadata.communicationMode == XDS && !properties.configurationMode.xds) {
             throw ConfigurationModeNotSupportedException(metadata.serviceName, "XDS")
         }
         return

@@ -17,10 +17,7 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
         .fieldsMap["service_name"]
         ?.stringValue
 
-    val ads = metadata
-        .fieldsMap["ads"]
-        ?.boolValue
-        ?: false
+    val communicationMode = getCommunicationMode(metadata.fieldsMap["ads"])
 
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
 }
@@ -43,6 +40,17 @@ data class ProxySettings(
             roles = emptyList()
         )
     )
+}
+
+private fun getCommunicationMode(proto: Value?): CommunicationMode {
+    val ads = proto
+        ?.boolValue
+        ?: false
+
+    return when (ads) {
+        true -> CommunicationMode.ADS
+        else -> CommunicationMode.XDS
+    }
 }
 
 private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
@@ -247,6 +255,10 @@ data class IncomingEndpoint(
 
 enum class PathMatchingType {
     PATH, PATH_PREFIX
+}
+
+enum class CommunicationMode {
+    ADS, XDS
 }
 
 interface EndpointBase {

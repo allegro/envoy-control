@@ -115,14 +115,14 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         return when {
             hasAllServicesDependencies(metadata) ->
                 AllServicesGroup(
-                        metadata.ads,
+                        metadata.communicationMode,
                         serviceName,
                         proxySettings,
                         listenersConfig
                 )
             else ->
                 ServicesGroup(
-                        metadata.ads,
+                        metadata.communicationMode,
                         serviceName,
                         proxySettings,
                         listenersConfig

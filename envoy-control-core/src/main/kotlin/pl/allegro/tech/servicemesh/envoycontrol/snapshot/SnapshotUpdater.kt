@@ -3,6 +3,8 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.micrometer.core.instrument.MeterRegistry
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
@@ -106,10 +108,10 @@ class SnapshotUpdater(
                     var lastAdsSnapshot: Snapshot? = null
 
                     if (properties.configurationMode.xds) {
-                        lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
+                        lastXdsSnapshot = snapshotFactory.newSnapshot(states, XDS)
                     }
                     if (properties.configurationMode.ads) {
-                        lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
+                        lastAdsSnapshot = snapshotFactory.newSnapshot(states, ADS)
                     }
 
                     UpdateResult(
@@ -138,12 +140,12 @@ class SnapshotUpdater(
     private fun updateSnapshotForGroups(groups: Collection<Group>, result: UpdateResult) {
         versions.retainGroups(cache.groups())
         groups.forEach { group ->
-            if (result.adsSnapshot != null && group.ads) {
+            if (result.adsSnapshot != null && group.communicationMode == ADS) {
                 updateSnapshotForGroup(group, result.adsSnapshot)
-            } else if (result.xdsSnapshot != null && !group.ads) {
+            } else if (result.xdsSnapshot != null && group.communicationMode == XDS) {
                 updateSnapshotForGroup(group, result.xdsSnapshot)
             } else {
-                logger.error("Requested snapshot for ${if (group.ads) "ads" else "xds"} mode," +
+                logger.error("Requested snapshot for ${group.communicationMode.name} mode," +
                     " but it is not here. This should never happen")
             }
         }
