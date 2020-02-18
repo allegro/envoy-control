@@ -22,6 +22,8 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
@@ -156,8 +158,8 @@ class EnvoyListenersFactory(
                 .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
 
         when (communicationMode) {
-            CommunicationMode.ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-            CommunicationMode.XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
+            ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
+            XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
         }
 
         return Rds.newBuilder()
@@ -200,8 +202,8 @@ class EnvoyListenersFactory(
                 .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
 
         when (communicationMode) {
-            CommunicationMode.ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-            CommunicationMode.XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
+            ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
+            XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
         }
 
         return Rds.newBuilder()
