@@ -132,11 +132,11 @@ class SnapshotUpdaterTest {
         xdsSupported: Boolean,
         mode: CommunicationMode
     ) {
-        val adsGroup = AllServicesGroup(communicationMode = mode)
+        val allServiceGroup = AllServicesGroup(communicationMode = mode)
 
         val uninitializedSnapshot = null
         val cache = newCache()
-        cache.setSnapshot(adsGroup, uninitializedSnapshot)
+        cache.setSnapshot(allServiceGroup, uninitializedSnapshot)
 
         val updater = SnapshotUpdater(
             cache,
@@ -154,7 +154,7 @@ class SnapshotUpdaterTest {
         ).blockFirst()
 
         // should not generate snapshot
-        assertThat(cache.getSnapshot(adsGroup)).isNull()
+        assertThat(cache.getSnapshot(allServiceGroup)).isNull()
     }
 
     @Test
