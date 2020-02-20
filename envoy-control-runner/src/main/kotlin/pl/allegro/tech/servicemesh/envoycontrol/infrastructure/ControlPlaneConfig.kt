@@ -122,9 +122,10 @@ class ControlPlaneConfig {
     @Bean
     fun globalServiceChanges(
         serviceChanges: Array<ServiceChanges>,
-        meterRegistry: MeterRegistry
+        meterRegistry: MeterRegistry,
+        properties: EnvoyControlProperties
     ): GlobalServiceChanges =
-        GlobalServiceChanges(serviceChanges, meterRegistry)
+        GlobalServiceChanges(serviceChanges, meterRegistry, properties.sync)
 
     @Bean
     fun envoyHttpFilters(
