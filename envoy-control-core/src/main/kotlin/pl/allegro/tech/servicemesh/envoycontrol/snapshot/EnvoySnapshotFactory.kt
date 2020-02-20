@@ -178,19 +178,19 @@ DependencySettings(
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )
 
-        if (clusters.isEmpty()) {
-            return createSnapshot(routes = routes)
-        }
-
-        val endpoints = getServicesEndpointsForGroup(group, globalSnapshot)
-
-        val version = snapshotsVersions.version(group, clusters, endpoints)
-
         val listeners = if (properties.dynamicListeners.enabled) {
             listenersFactory.createListeners(group)
         } else {
             emptyList()
         }
+
+        if (clusters.isEmpty()) {
+            return createSnapshot(routes = routes, listeners = listeners)
+        }
+
+        val endpoints = getServicesEndpointsForGroup(group, globalSnapshot)
+
+        val version = snapshotsVersions.version(group, clusters, endpoints)
 
         return createSnapshot(
                 clusters = clusters,
