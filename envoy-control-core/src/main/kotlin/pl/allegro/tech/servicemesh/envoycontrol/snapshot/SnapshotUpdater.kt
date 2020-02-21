@@ -145,6 +145,7 @@ class SnapshotUpdater(
             } else if (result.xdsSnapshot != null && group.communicationMode == XDS) {
                 updateSnapshotForGroup(group, result.xdsSnapshot)
             } else {
+                meterRegistry.counter("snapshot-updater.communication-mode.errors").increment()
                 logger.error("Requested snapshot for ${group.communicationMode.name} mode," +
                     " but it is not here. This should never happen")
             }

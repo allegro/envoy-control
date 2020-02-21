@@ -71,6 +71,5 @@ class NodeMetadataValidator(
         if (metadata.communicationMode == XDS && !properties.communicationMode.xds) {
             throw ConfigurationModeNotSupportedException(metadata.serviceName, "XDS")
         }
-        return
     }
 }
