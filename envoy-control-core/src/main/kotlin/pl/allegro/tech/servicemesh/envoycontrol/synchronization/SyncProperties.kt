@@ -10,4 +10,5 @@ class SyncProperties {
     var connectionTimeout: Duration = Duration.ofMillis(1000)
     var readTimeout: Duration = Duration.ofMillis(500)
     var envoyControlAppName = "envoy-control"
+    var combineServiceChangesExperimentalFlow = false
 }
