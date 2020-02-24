@@ -19,11 +19,16 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import org.springframework.boot.jackson.JsonComponent
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.*
+import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.ResponseBody
+import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.UpdateResult
 
 @RestController
 class SnapshotDebugController(controlPlane: ControlPlane) {
@@ -53,17 +58,17 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     @GetMapping("/snapshot/global")
     fun globalSnapshot(@RequestParam xds: Boolean?): ResponseEntity<SnapshotDebugInfo> {
         val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
-        return if (globalSnapshot == null && globalSnapshot?.adsSnapshot != null) {
+        return if (globalSnapshot?.adsSnapshot == null) {
             throw GlobalSnapshotNotFoundException()
         } else {
-            if(xds != null && xds) {
+            if (xds != null && xds == true) {
                 ResponseEntity(
-                    SnapshotDebugInfo(globalSnapshot?.xdsSnapshot!!),
+                    SnapshotDebugInfo(globalSnapshot.xdsSnapshot!!),
                     HttpStatus.OK
                 )
             }
             ResponseEntity(
-                SnapshotDebugInfo(globalSnapshot?.adsSnapshot!!),
+                SnapshotDebugInfo(globalSnapshot.adsSnapshot!!),
                 HttpStatus.OK
             )
         }
