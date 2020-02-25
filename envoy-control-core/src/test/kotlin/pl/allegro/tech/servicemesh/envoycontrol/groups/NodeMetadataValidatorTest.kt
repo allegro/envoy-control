@@ -105,7 +105,12 @@ class NodeMetadataValidatorTest {
     }
 
     @ParameterizedTest
-    @CsvSource("true, true, true", "true, false, true", "false, true, false", "true, true, false")
+    @CsvSource(
+        "true, true, true",
+        "true, false, true",
+        "false, true, false",
+        "true, true, false"
+    )
     fun `should do nothing if service wants to use mode supported by the server`(
         adsSupported: Boolean,
         xdsSupported: Boolean,
