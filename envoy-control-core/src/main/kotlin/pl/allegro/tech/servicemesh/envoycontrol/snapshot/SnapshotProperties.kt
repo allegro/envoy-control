@@ -20,7 +20,7 @@ class SnapshotProperties {
     var staticClusterConnectionTimeout: Duration = Duration.ofSeconds(2)
     var trustedCaFile = "/etc/ssl/certs/ca-certificates.crt"
     var dynamicListeners = ListenersFactoryProperties()
-    var communicationMode = CommunicationMode()
+    var enabledCommunicationModes = EnabledCommunicationModes()
     var shouldSendMissingEndpoints = false
 }
 
@@ -195,7 +195,7 @@ class Http2Properties {
     var tagName = "envoy"
 }
 
-class CommunicationMode {
+class EnabledCommunicationModes {
     var ads = true
     var xds = true
 }

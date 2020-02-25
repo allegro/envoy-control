@@ -141,7 +141,7 @@ class SnapshotUpdaterTest {
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties().apply {
-                communicationMode.ads = adsSupported; communicationMode.xds = xdsSupported
+                enabledCommunicationModes.ads = adsSupported; enabledCommunicationModes.xds = xdsSupported
             },
             scheduler = Schedulers.newSingle("update-snapshot"),
             onGroupAdded = Flux.just(listOf()),

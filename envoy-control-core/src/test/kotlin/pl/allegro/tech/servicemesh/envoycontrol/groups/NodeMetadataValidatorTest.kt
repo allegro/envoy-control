@@ -7,31 +7,12 @@ import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.Arguments
-import org.junit.jupiter.params.provider.MethodSource
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CommunicationMode
+import org.junit.jupiter.params.provider.CsvSource
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnabledCommunicationModes
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OutgoingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class NodeMetadataValidatorTest {
-
-    companion object {
-        @JvmStatic
-        fun configurationModeNotSupported() = listOf(
-            Arguments.of(false, true, true, "ADS"),
-            Arguments.of(true, false, false, "XDS"),
-            Arguments.of(false, false, false, "XDS"),
-            Arguments.of(false, false, true, "ADS")
-        )
-
-        @JvmStatic
-        fun configurationModeSupported() = listOf(
-            Arguments.of(true, true, true),
-            Arguments.of(true, false, true),
-            Arguments.of(false, true, false),
-            Arguments.of(true, true, false)
-        )
-    }
 
     val validator = NodeMetadataValidator(SnapshotProperties().apply {
         outgoingPermissions = createOutgoingPermissions(enabled = true, servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2"))
@@ -88,8 +69,13 @@ class NodeMetadataValidatorTest {
     }
 
     @ParameterizedTest
-    @MethodSource("configurationModeNotSupported")
-    fun `should fail if service want to use mode which server doesn't support`(
+    @CsvSource(
+        "false, true, true, ADS",
+        "true, false, false, XDS",
+        "false, false, false, XDS",
+        "false, false, true, ADS"
+    )
+    fun `should fail if service wants to use mode which server doesn't support`(
         adsSupported: Boolean,
         xdsSupported: Boolean,
         ads: Boolean,
@@ -97,7 +83,7 @@ class NodeMetadataValidatorTest {
     ) {
         // given
         val configurationModeValidator = NodeMetadataValidator(SnapshotProperties().apply {
-            communicationMode = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
+            enabledCommunicationModes = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
         })
 
         val node = node(
@@ -119,7 +105,7 @@ class NodeMetadataValidatorTest {
     }
 
     @ParameterizedTest
-    @MethodSource("configurationModeSupported")
+    @CsvSource("true, true, true", "true, false, true", "false, true, false", "true, true, false")
     fun `should do nothing if service wants to use mode supported by the server`(
         adsSupported: Boolean,
         xdsSupported: Boolean,
@@ -127,7 +113,7 @@ class NodeMetadataValidatorTest {
     ) {
         // given
         val configurationModeValidator = NodeMetadataValidator(SnapshotProperties().apply {
-            communicationMode = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
+            enabledCommunicationModes = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
         })
 
         val node = node(
@@ -151,10 +137,10 @@ class NodeMetadataValidatorTest {
         return outgoingPermissions
     }
 
-    private fun createCommunicationMode(ads: Boolean = true, xds: Boolean = true): CommunicationMode {
-        val communicationMode = CommunicationMode()
-        communicationMode.ads = ads
-        communicationMode.xds = xds
-        return communicationMode
+    private fun createCommunicationMode(ads: Boolean = true, xds: Boolean = true): EnabledCommunicationModes {
+        val enabledCommunicationModes = EnabledCommunicationModes()
+        enabledCommunicationModes.ads = ads
+        enabledCommunicationModes.xds = xds
+        return enabledCommunicationModes
     }
 }

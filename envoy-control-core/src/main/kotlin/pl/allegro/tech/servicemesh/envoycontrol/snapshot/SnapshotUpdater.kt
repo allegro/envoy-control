@@ -107,10 +107,10 @@ class SnapshotUpdater(
                     var lastXdsSnapshot: Snapshot? = null
                     var lastAdsSnapshot: Snapshot? = null
 
-                    if (properties.communicationMode.xds) {
+                    if (properties.enabledCommunicationModes.xds) {
                         lastXdsSnapshot = snapshotFactory.newSnapshot(states, XDS)
                     }
-                    if (properties.communicationMode.ads) {
+                    if (properties.enabledCommunicationModes.ads) {
                         lastAdsSnapshot = snapshotFactory.newSnapshot(states, ADS)
                     }
 
@@ -146,8 +146,8 @@ class SnapshotUpdater(
                 updateSnapshotForGroup(group, result.xdsSnapshot)
             } else {
                 meterRegistry.counter("snapshot-updater.communication-mode.errors").increment()
-                logger.error("Requested snapshot for ${group.communicationMode.name} mode," +
-                    " but it is not here. This should never happen")
+                logger.error("Handling Envoy with not supported communication mode should be rejected before." +
+                    " Please report this to EC developers")
             }
         }
     }
