@@ -25,6 +25,7 @@ object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_ch
 object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
 object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
+object AdsWithNoDependencies : EnvoyConfigFile("envoy/config_ads_no_dependencies.yaml")
 object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
 object RandomConfigFile :
     EnvoyConfigFile(filePath = if (Random.nextBoolean()) Ads.filePath else Xds.filePath)
@@ -166,6 +167,9 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 }
             }
         }
+
+        fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
+                call("", address)
 
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", address)
