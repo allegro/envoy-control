@@ -109,7 +109,7 @@ class EnvoyControlRunnerTestApp(
     override fun getGlobalSnapshot(nodeJson: String): SnapshotDebugResponse {
         val response = httpClient.newCall(
             Request.Builder()
-                .post(RequestBody.create(MediaType.get("application/json"), nodeJson))
+                .get()
                 .url("http://localhost:$appPort/snapshot-global")
                 .build()
         ).execute()
