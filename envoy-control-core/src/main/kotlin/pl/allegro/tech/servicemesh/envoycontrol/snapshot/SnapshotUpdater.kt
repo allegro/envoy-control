@@ -146,8 +146,9 @@ class SnapshotUpdater(
                 updateSnapshotForGroup(group, result.xdsSnapshot)
             } else {
                 meterRegistry.counter("snapshot-updater.communication-mode.errors").increment()
-                logger.error("Handling Envoy with not supported communication mode should be rejected before." +
-                    " Please report this to EC developers")
+                logger.error("Requested snapshot for ${group.communicationMode.name} mode, but it is not here. " +
+                    "Handling Envoy with not supported communication mode should have been rejected before." +
+                    " Please report this to EC developers.")
             }
         }
     }
