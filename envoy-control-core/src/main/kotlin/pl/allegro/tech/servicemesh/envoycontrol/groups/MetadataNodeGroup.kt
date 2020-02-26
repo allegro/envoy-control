@@ -92,6 +92,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 ?: ListenersConfig.defaultAccessLogPath
         val resourcesDir = metadata.fieldsMap["resources_dir"]?.stringValue
                 ?: ListenersConfig.defaultResourcesDir
+        val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
+            ?: false
 
         return ListenersConfig(
                 listenersHostPort.ingressHost,
@@ -102,7 +104,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 accessLogEnabled,
                 enableLuaScript,
                 accessLogPath,
-                resourcesDir
+                resourcesDir,
+                addUpstreamExternalAddressHeader
         )
     }
 

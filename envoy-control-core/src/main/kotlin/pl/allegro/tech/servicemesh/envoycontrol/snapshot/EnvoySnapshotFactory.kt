@@ -81,7 +81,7 @@ internal class EnvoySnapshotFactory(
                     routeDomain = it,
                     settings = defaultDependencySettings
                 )
-            }),
+            }, false),
             ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
         )
 
@@ -178,7 +178,8 @@ internal class EnvoySnapshotFactory(
 
         val routes = listOf(
             egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, getEgressRoutesSpecification(group, globalSnapshot)
+                group.serviceName, getEgressRoutesSpecification(group, globalSnapshot),
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )

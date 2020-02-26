@@ -17,10 +17,16 @@ data class ServicesState(
     }
 
     fun add(serviceName: ServiceName): ServicesState =
-        if (serviceNameToInstances.containsKey(serviceName)) this
-        else change(ServiceInstances(serviceName, instances = emptySet()))
+        if (serviceNameToInstances.containsKey(serviceName)) {
+            this
+        } else {
+            change(ServiceInstances(serviceName, instances = emptySet()))
+        }
 
     fun change(serviceInstances: ServiceInstances): ServicesState =
-        if (serviceNameToInstances[serviceInstances.serviceName] == serviceInstances) this
-        else copy(serviceNameToInstances = serviceNameToInstances + (serviceInstances.serviceName to serviceInstances))
+        if (serviceNameToInstances[serviceInstances.serviceName] == serviceInstances) {
+            this
+        } else {
+            copy(serviceNameToInstances = serviceNameToInstances + (serviceInstances.serviceName to serviceInstances))
+        }
 }
