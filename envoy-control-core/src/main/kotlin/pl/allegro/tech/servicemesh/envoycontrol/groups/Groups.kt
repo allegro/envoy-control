@@ -37,13 +37,15 @@ data class ListenersConfig(
     val accessLogEnabled: Boolean = defaultAccessLogEnabled,
     val enableLuaScript: Boolean = defaultEnableLuaScript,
     val accessLogPath: String = defaultAccessLogPath,
-    val resourcesDir: String = defaultResourcesDir
+    val resourcesDir: String = defaultResourcesDir,
+    val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader
 ) {
     companion object {
         const val defaultAccessLogPath = "/dev/stdout"
         const val defaultUseRemoteAddress = false
         const val defaultAccessLogEnabled = false
         const val defaultEnableLuaScript = false
+        const val defaultAddUpstreamExternalAddressHeader = false
         const val defaultResourcesDir = "envoy"
     }
 }
