@@ -25,6 +25,7 @@ node:
     egress_port: 5000
     use_remote_address: true
     access_log_enabled: false
+    add_upstream_external_address_header: true
     resources_dir: "/etc/envoy/extra"
     proxy_settings:
       incoming:

@@ -21,6 +21,9 @@ import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
@@ -112,7 +115,7 @@ class EnvoyListenersFactory(
     private fun createEgressFilter(group: Group, listenersConfig: ListenersConfig): Filter {
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
                 .setStatPrefix("egress_http")
-                .setRds(egressRds(group.ads))
+                .setRds(egressRds(group.communicationMode))
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
 
         return createFilter(connectionManagerBuilder, egressFilters, group, "egress", listenersConfig)
@@ -150,14 +153,13 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun egressRds(ads: Boolean): Rds {
+    private fun egressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
                 .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
 
-        if (ads) {
-            configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-        } else {
-            configSource.setApiConfigSource(defaultApiConfigSource)
+        when (communicationMode) {
+            ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
+            XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
         }
 
         return Rds.newBuilder()
@@ -178,7 +180,7 @@ class EnvoyListenersFactory(
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCommonHttpProtocolOptions(httpProtocolOptions)
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
-                .setRds(ingressRds(group.ads))
+                .setRds(ingressRds(group.communicationMode))
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
 
         if (listenersConfig.useRemoteAddress) {
@@ -195,14 +197,13 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun ingressRds(ads: Boolean): Rds {
+    private fun ingressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
                 .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
 
-        if (ads) {
-            configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-        } else {
-            configSource.setApiConfigSource(defaultApiConfigSource)
+        when (communicationMode) {
+            ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
+            XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
         }
 
         return Rds.newBuilder()

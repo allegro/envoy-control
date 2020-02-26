@@ -380,6 +380,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         return this
     }
 
+    fun ObjectAssert<Response>.hasXEnvoyUpstreamRemoteAddressFrom(echoContainer: EchoContainer): ObjectAssert<Response> {
+        matches { it.headers("x-envoy-upstream-remote-address").contains(echoContainer.address()) }
+        return this
+    }
+
     fun ObjectAssert<Health>.isStatusHealthy(): ObjectAssert<Health> {
         matches { it.status == Status.UP }
         return this

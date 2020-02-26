@@ -21,6 +21,7 @@ import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
@@ -41,19 +42,19 @@ internal class EnvoySnapshotFactory(
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
     private val serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(
-            properties.routing.serviceTags
+        properties.routing.serviceTags
     ),
     private val defaultDependencySettings: DependencySettings =
-DependencySettings(
-    handleInternalRedirect = properties.egress.handleInternalRedirect,
-    timeoutPolicy = Outgoing.TimeoutPolicy(
-        idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
-        requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-    )
-),
+        DependencySettings(
+            handleInternalRedirect = properties.egress.handleInternalRedirect,
+            timeoutPolicy = Outgoing.TimeoutPolicy(
+                idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
+                requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
+            )
+        ),
     private val meterRegistry: MeterRegistry
 ) {
-    fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
+    fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, communicationMode: CommunicationMode): Snapshot {
         val sample = Timer.start(meterRegistry)
 
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
@@ -70,7 +71,7 @@ DependencySettings(
             serviceNames.map { ClusterConfiguration(serviceName = it, http2Enabled = false) }
         }
 
-        val clusters = clustersFactory.getClustersForServices(clusterConfigurations, ads)
+        val clusters = clustersFactory.getClustersForServices(clusterConfigurations, communicationMode)
 
         val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(servicesStates)
         val routes = listOf(
@@ -80,11 +81,15 @@ DependencySettings(
                     routeDomain = it,
                     settings = defaultDependencySettings
                 )
-            }),
+            }, false),
             ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
         )
 
-        val version = snapshotsVersions.version(AllServicesGroup(ads, listenersConfig = null), clusters, endpoints)
+        val version = snapshotsVersions.version(
+            group = AllServicesGroup(communicationMode, listenersConfig = null),
+            clusters = clusters,
+            endpoints = endpoints
+        )
 
         val snapshot = createSnapshot(
             clusters = clusters,
@@ -173,7 +178,8 @@ DependencySettings(
 
         val routes = listOf(
             egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, getEgressRoutesSpecification(group, globalSnapshot)
+                group.serviceName, getEgressRoutesSpecification(group, globalSnapshot),
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )
@@ -193,15 +199,15 @@ DependencySettings(
         val version = snapshotsVersions.version(group, clusters, endpoints)
 
         return createSnapshot(
-                clusters = clusters,
-                clustersVersion = version.clusters,
-                endpoints = endpoints,
-                endpointsVersions = version.endpoints,
-                listeners = listeners,
-                // for now we assume that listeners don't change during lifecycle
-                routes = routes,
-                // we assume, that routes don't change during Envoy lifecycle unless clusters change
-                routesVersion = RoutesVersion(version.clusters.value)
+            clusters = clusters,
+            clustersVersion = version.clusters,
+            endpoints = endpoints,
+            endpointsVersions = version.endpoints,
+            listeners = listeners,
+            // for now we assume that listeners don't change during lifecycle
+            routes = routes,
+            // we assume, that routes don't change during Envoy lifecycle unless clusters change
+            routesVersion = RoutesVersion(version.clusters.value)
         )
     }
 

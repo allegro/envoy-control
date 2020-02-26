@@ -3,6 +3,8 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.micrometer.core.instrument.MeterRegistry
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
@@ -74,15 +76,8 @@ class SnapshotUpdater(
                         result.groups
                     }
 
-                    if (result.adsSnapshot != null && result.xdsSnapshot != null) {
-                        versions.retainGroups(cache.groups())
-                        groups.forEach { group ->
-                            if (group.ads) {
-                                updateSnapshotForGroup(group, result.adsSnapshot)
-                            } else {
-                                updateSnapshotForGroup(group, result.xdsSnapshot)
-                            }
-                        }
+                    if (result.adsSnapshot != null || result.xdsSnapshot != null) {
+                        updateSnapshotForGroups(groups, result)
                     }
                 }
     }
@@ -115,8 +110,16 @@ class SnapshotUpdater(
                 .checkpoint("snapshot-updater-services-published")
                 .name("snapshot-updater-services-published").metrics()
                 .map { states ->
-                    val lastXdsSnapshot = snapshotFactory.newSnapshot(states, ads = false)
-                    val lastAdsSnapshot = snapshotFactory.newSnapshot(states, ads = true)
+                    var lastXdsSnapshot: Snapshot? = null
+                    var lastAdsSnapshot: Snapshot? = null
+
+                    if (properties.enabledCommunicationModes.xds) {
+                        lastXdsSnapshot = snapshotFactory.newSnapshot(states, XDS)
+                    }
+                    if (properties.enabledCommunicationModes.ads) {
+                        lastAdsSnapshot = snapshotFactory.newSnapshot(states, ADS)
+                    }
+
                     val updateResult = UpdateResult(
                             action = Action.ALL_SERVICES_GROUP_ADDED,
                             adsSnapshot = lastAdsSnapshot,
@@ -139,6 +142,22 @@ class SnapshotUpdater(
         } catch (e: Throwable) {
             meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()
             logger.error("Unable to create snapshot for group ${group.serviceName}", e)
+        }
+    }
+
+    private fun updateSnapshotForGroups(groups: Collection<Group>, result: UpdateResult) {
+        versions.retainGroups(cache.groups())
+        groups.forEach { group ->
+            if (result.adsSnapshot != null && group.communicationMode == ADS) {
+                updateSnapshotForGroup(group, result.adsSnapshot)
+            } else if (result.xdsSnapshot != null && group.communicationMode == XDS) {
+                updateSnapshotForGroup(group, result.xdsSnapshot)
+            } else {
+                meterRegistry.counter("snapshot-updater.communication-mode.errors").increment()
+                logger.error("Requested snapshot for ${group.communicationMode.name} mode, but it is not here. " +
+                    "Handling Envoy with not supported communication mode should have been rejected before." +
+                    " Please report this to EC developers.")
+            }
         }
     }
 }

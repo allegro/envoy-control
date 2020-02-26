@@ -26,6 +26,9 @@ import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 
@@ -39,8 +42,11 @@ internal class EnvoyClustersFactory(
     private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
 
-    fun getClustersForServices(services: List<EnvoySnapshotFactory.ClusterConfiguration>, ads: Boolean): List<Cluster> {
-        return services.map { edsCluster(it, ads) }
+    fun getClustersForServices(
+        services: List<EnvoySnapshotFactory.ClusterConfiguration>,
+        communicationMode: CommunicationMode
+    ): List<Cluster> {
+        return services.map { edsCluster(it, communicationMode) }
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: Snapshot): List<Cluster> =
@@ -108,7 +114,10 @@ internal class EnvoyClustersFactory(
         return clusterBuilder.build()
     }
 
-    private fun edsCluster(clusterConfiguration: EnvoySnapshotFactory.ClusterConfiguration, ads: Boolean): Cluster {
+    private fun edsCluster(
+        clusterConfiguration: EnvoySnapshotFactory.ClusterConfiguration,
+        communicationMode: CommunicationMode
+    ): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
         if (properties.clusterOutlierDetection.enabled) {
@@ -120,9 +129,9 @@ internal class EnvoyClustersFactory(
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
             .setEdsClusterConfig(
                 Cluster.EdsClusterConfig.newBuilder().setEdsConfig(
-                    if (ads) {
-                        ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
-                    } else {
+                    when (communicationMode) {
+                        ADS -> ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
+                        XDS ->
                         ConfigSource.newBuilder().setApiConfigSource(
                             ApiConfigSource.newBuilder().setApiType(ApiConfigSource.ApiType.GRPC)
                                 .addGrpcServices(0, GrpcService.newBuilder().setEnvoyGrpc(

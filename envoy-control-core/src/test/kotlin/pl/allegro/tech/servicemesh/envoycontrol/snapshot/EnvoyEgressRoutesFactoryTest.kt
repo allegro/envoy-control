@@ -6,8 +6,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomIdleTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomRequestTimeout
-import pl.allegro.tech.servicemesh.envoycontrol.groups.hasHeaderToAdd
-import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRequestHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
 
 internal class EnvoyEgressRoutesFactoryTest {
 
@@ -33,11 +34,11 @@ internal class EnvoyEgressRoutesFactoryTest {
         })
 
         // when
-        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters)
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
 
         // then
         routeConfig
-            .hasHeaderToAdd("x-service-name", "client1")
+            .hasRequestHeaderToAdd("x-service-name", "client1")
 
         routeConfig
             .virtualHostsList[0]
@@ -55,11 +56,11 @@ internal class EnvoyEgressRoutesFactoryTest {
         })
 
         // when
-        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters)
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
 
         // then
         routeConfig
-            .hasNoHeaderToAdd("x-service-name")
+            .hasNoRequestHeaderToAdd("x-service-name")
 
         routeConfig
             .virtualHostsList[0]
@@ -67,5 +68,31 @@ internal class EnvoyEgressRoutesFactoryTest {
             .route
             .hasCustomIdleTimeout(Durations.fromSeconds(10L))
             .hasCustomRequestTimeout(Durations.fromSeconds(10L))
+    }
+
+    @Test
+    fun `should add upstream remote address header if addUpstreamAddress is enabled`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+
+        // when
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, true)
+
+        // then
+        routeConfig
+            .hasResponseHeaderToAdd("x-envoy-upstream-remote-address", "%UPSTREAM_REMOTE_ADDRESS%")
+    }
+
+    @Test
+    fun `should not add upstream remote address header if addUpstreamAddress is disabled`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+
+        // when
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
+
+        // then
+        routeConfig
+            .hasNoRequestHeaderToAdd("x-envoy-upstream-remote-address")
     }
 }

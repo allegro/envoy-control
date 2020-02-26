@@ -10,14 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
     private val logger by logger()
 
-    override fun hash(node: Node): Group {
-        val ads = node.metadata
-            .fieldsMap["ads"]
-            ?.boolValue
-            ?: false
-
-        return createGroup(node, ads)
-    }
+    override fun hash(node: Node): Group = createGroup(node)
 
     @SuppressWarnings("ReturnCount")
     private fun metadataToListenersHostPort(
@@ -99,6 +92,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 ?: ListenersConfig.defaultAccessLogPath
         val resourcesDir = metadata.fieldsMap["resources_dir"]?.stringValue
                 ?: ListenersConfig.defaultResourcesDir
+        val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
+            ?: false
 
         return ListenersConfig(
                 listenersHostPort.ingressHost,
@@ -109,11 +104,12 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 accessLogEnabled,
                 enableLuaScript,
                 accessLogPath,
-                resourcesDir
+                resourcesDir,
+                addUpstreamExternalAddressHeader
         )
     }
 
-    private fun createGroup(node: Node, ads: Boolean): Group {
+    private fun createGroup(node: Node): Group {
         val metadata = NodeMetadata(node.metadata, properties)
         val serviceName = serviceName(metadata)
         val proxySettings = proxySettings(metadata)
@@ -122,14 +118,14 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         return when {
             hasAllServicesDependencies(metadata) ->
                 AllServicesGroup(
-                        ads,
+                        metadata.communicationMode,
                         serviceName,
                         proxySettings,
                         listenersConfig
                 )
             else ->
                 ServicesGroup(
-                        ads,
+                        metadata.communicationMode,
                         serviceName,
                         proxySettings,
                         listenersConfig

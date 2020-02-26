@@ -74,3 +74,5 @@ style:
     active: true
   WildcardImport:
     active: true
+  MandatoryBracesIfStatements:
+    active: true

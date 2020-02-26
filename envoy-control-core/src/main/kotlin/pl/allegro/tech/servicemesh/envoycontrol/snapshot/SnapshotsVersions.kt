@@ -43,8 +43,11 @@ internal class SnapshotsVersions {
         previous: VersionsWithData,
         endpoints: List<ClusterLoadAssignment>,
         clusterChanged: Boolean
-    ) = if (!clusterChanged && previous.endpoints == endpoints)
-        previous.version.endpoints else EndpointsVersion(newVersion())
+    ) = if (!clusterChanged && previous.endpoints == endpoints) {
+        previous.version.endpoints
+    } else {
+        EndpointsVersion(newVersion())
+    }
 
     private fun selectClusters(
         previous: VersionsWithData,
