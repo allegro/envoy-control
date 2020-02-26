@@ -97,4 +97,31 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
         // then
         assertThat(snapshot.found).isFalse()
     }
+
+    @Test
+    open fun `should return global snapshot debug info`() {
+        // given
+        registerService(name = "echo")
+        val nodeMetadata = envoyContainer1.admin().nodeInfo()
+
+        untilAsserted {
+            // when
+            val snapshot = envoyControl1.getGlobalSnapshot(nodeMetadata)
+
+            // then
+            assertThat(snapshot.snapshot!!["clusters"]).isNotEmpty()
+            assertThat(snapshot.snapshot["routes"]).isNotEmpty()
+            assertThat(snapshot.snapshot["endpoints"]).isNotEmpty()
+            assertThat(snapshot.snapshot["listeners"]).isNotEmpty()
+        }
+    }
+
+    @Test
+    open fun `should inform about missing global snapshot when given node does not exist`() {
+        // when
+        val snapshot = envoyControl1.getGlobalSnapshot(missingNodeJson)
+
+        // then
+        assertThat(snapshot.found).isFalse()
+    }
 }

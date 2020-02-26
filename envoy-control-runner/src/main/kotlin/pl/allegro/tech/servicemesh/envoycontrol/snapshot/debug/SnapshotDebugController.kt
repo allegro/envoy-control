@@ -55,18 +55,22 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         }
     }
 
-    @GetMapping("/snapshot/global")
+    @GetMapping("/snapshot-global")
     fun globalSnapshot(@RequestParam xds: Boolean?): ResponseEntity<SnapshotDebugInfo> {
         val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
-        return if (globalSnapshot?.adsSnapshot == null) {
-            throw GlobalSnapshotNotFoundException()
-        } else {
-            if (xds != null && xds == true) {
+        if (xds != null && xds == true) {
+            return if (globalSnapshot?.xdsSnapshot == null) {
+                throw GlobalSnapshotNotFoundException("Xds global snapshot missing")
+            } else {
                 ResponseEntity(
                     SnapshotDebugInfo(globalSnapshot.xdsSnapshot!!),
                     HttpStatus.OK
                 )
             }
+        }
+        return if (globalSnapshot?.adsSnapshot == null) {
+            throw GlobalSnapshotNotFoundException("Ads global snapshot missing")
+        } else {
             ResponseEntity(
                 SnapshotDebugInfo(globalSnapshot.adsSnapshot!!),
                 HttpStatus.OK
@@ -77,14 +81,14 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     @JsonComponent
     class ProtoSerializer : JsonSerializer<Message>() {
         final val typeRegistry: TypeRegistry = TypeRegistry.newBuilder()
-                .add(HttpConnectionManager.getDescriptor())
-                .add(Config.getDescriptor())
-                .add(BoolValue.getDescriptor())
-                .add(Duration.getDescriptor())
-                .add(Struct.getDescriptor())
-                .add(Value.getDescriptor())
-                .add(Any.getDescriptor())
-                .build()
+            .add(HttpConnectionManager.getDescriptor())
+            .add(Config.getDescriptor())
+            .add(BoolValue.getDescriptor())
+            .add(Duration.getDescriptor())
+            .add(Struct.getDescriptor())
+            .add(Value.getDescriptor())
+            .add(Any.getDescriptor())
+            .build()
 
         val printer: JsonFormat.Printer = JsonFormat.printer().usingTypeRegistry(typeRegistry)
 
@@ -94,11 +98,17 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     }
 
     class SnapshotNotFoundException : RuntimeException("snapshot missing")
-    class GlobalSnapshotNotFoundException : RuntimeException("Global snapshot missing")
+    class GlobalSnapshotNotFoundException(message: String) : RuntimeException(message)
 
     @ExceptionHandler
     @ResponseBody
     fun handleSnapshotMissing(exception: SnapshotNotFoundException): ResponseEntity<String> = ResponseEntity
+        .status(HttpStatus.NOT_FOUND)
+        .body(exception.message)
+
+    @ExceptionHandler
+    @ResponseBody
+    fun handleGlobalSnapshotMissing(exception: GlobalSnapshotNotFoundException): ResponseEntity<String> = ResponseEntity
         .status(HttpStatus.NOT_FOUND)
         .body(exception.message)
 }
