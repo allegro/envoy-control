@@ -9,8 +9,7 @@ fun <R : Any> R.logger(): Lazy<Logger> = lazy { LoggerFactory.getLogger(unwrapCo
 fun <T : Any> unwrapCompanionClass(ofClass: Class<T>): Class<*> {
     return if (ofClass.enclosingClass != null && ofClass.enclosingClass.kotlin.companionObject?.java == ofClass) {
         ofClass.enclosingClass
-    }
-    else {
+    } else {
         ofClass
     }
 }

@@ -381,7 +381,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         return this
     }
 
-
     fun ObjectAssert<Health>.isStatusHealthy(): ObjectAssert<Health> {
         matches { it.status == Status.UP }
         return this

@@ -19,16 +19,14 @@ data class ServicesState(
     fun add(serviceName: ServiceName): ServicesState =
         if (serviceNameToInstances.containsKey(serviceName)) {
             this
-        }
-        else {
+        } else {
             change(ServiceInstances(serviceName, instances = emptySet()))
         }
 
     fun change(serviceInstances: ServiceInstances): ServicesState =
         if (serviceNameToInstances[serviceInstances.serviceName] == serviceInstances) {
             this
-        }
-        else {
+        } else {
             copy(serviceNameToInstances = serviceNameToInstances + (serviceInstances.serviceName to serviceInstances))
         }
 }

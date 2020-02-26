@@ -20,12 +20,12 @@ internal class AddUpstreamHeaderTest : EnvoyControlTestConfiguration() {
 
     @Test
     fun `should add x-envoy-upstream-remote-address header with address of upstream service`() {
-        //given
+        // given
         registerService(name = "service-1")
 
         untilAsserted {
             // when
-            val response = callService(service="service-1", pathAndQuery = "/endpoint")
+            val response = callService(service = "service-1", pathAndQuery = "/endpoint")
 
             // then
             assertThat(response).isOk().hasXEnvoyUpstreamRemoteAddressFrom(echoContainer)

@@ -13,8 +13,7 @@ class InstanceMerger : ServiceInstancesTransformer {
 
         if (containsDuplicates) {
             it.copy(instances = merge(it.instances))
-        }
-        else {
+        } else {
             it
         }
     }
@@ -24,8 +23,7 @@ class InstanceMerger : ServiceInstancesTransformer {
         .map { (target, instances) ->
             if (instances.size == 1) {
                 instances[0]
-            }
-            else {
+            } else {
                 ServiceInstance(
                     id = instances.map { it.id }.joinToString(","),
                     tags = instances.map { it.tags }.reduce { s1, s2 -> s1 + s2 },
