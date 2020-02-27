@@ -99,19 +99,41 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    open fun `should return global snapshot debug info`() {
+    open fun `should return global snapshot debug info from xds`() {
         // given
         registerService(name = "echo")
 
         untilAsserted {
             // when
-            val snapshot = envoyControl1.getGlobalSnapshot()
+            val snapshot = envoyControl1.getGlobalSnapshot(xds = true)
 
             // then
-            assertThat(snapshot.snapshot).isNotEmpty()
             assertThat(snapshot.snapshot!!["clusters"]).isNotEmpty()
             assertThat(snapshot.snapshot["routes"]).isNotEmpty()
             assertThat(snapshot.snapshot["endpoints"]).isNotEmpty()
+            assertThat(snapshot.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains("envoy-control-xds")
+        }
+    }
+
+    @Test
+    open fun `should return global snapshot debug info from ads`() {
+        // given
+        registerService(name = "echo")
+
+        untilAsserted {
+            // when
+            val snapshotXdsNull = envoyControl1.getGlobalSnapshot(xds = null)
+            val snapshotXdsFalse = envoyControl1.getGlobalSnapshot(xds = false)
+
+            // then
+            assertThat(snapshotXdsNull.snapshot!!["clusters"]).isNotEmpty()
+            assertThat(snapshotXdsNull.snapshot["routes"]).isNotEmpty()
+            assertThat(snapshotXdsNull.snapshot["endpoints"]).isNotEmpty()
+            assertThat(snapshotXdsFalse.snapshot!!["clusters"]).isNotEmpty()
+            assertThat(snapshotXdsFalse.snapshot["routes"]).isNotEmpty()
+            assertThat(snapshotXdsFalse.snapshot["endpoints"]).isNotEmpty()
+            assertThat(snapshotXdsNull.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains("ads")
+            assertThat(snapshotXdsFalse.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains("ads")
         }
     }
 }

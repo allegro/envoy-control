@@ -28,7 +28,7 @@ interface EnvoyControlTestApp {
     fun isHealthy(): Boolean
     fun getState(): ServicesState
     fun getSnapshot(nodeJson: String): SnapshotDebugResponse
-    fun getGlobalSnapshot(): SnapshotDebugResponse
+    fun getGlobalSnapshot(xds: Boolean?): SnapshotDebugResponse
     fun getHealthStatus(): Health
     fun <T> bean(clazz: Class<T>): T
 }
@@ -106,11 +106,15 @@ class EnvoyControlRunnerTestApp(
             ?.copy(found = true) ?: throw SnapshotDebugResponseMissingException()
     }
 
-    override fun getGlobalSnapshot(): SnapshotDebugResponse {
+    override fun getGlobalSnapshot(xds: Boolean?): SnapshotDebugResponse {
+        var url = "http://localhost:$appPort/snapshot-global"
+        if (xds != null) {
+            url += "?xds=$xds"
+        }
         val response = httpClient.newCall(
             Request.Builder()
                 .get()
-                .url("http://localhost:$appPort/snapshot-global")
+                .url(url)
                 .build()
         ).execute()
 

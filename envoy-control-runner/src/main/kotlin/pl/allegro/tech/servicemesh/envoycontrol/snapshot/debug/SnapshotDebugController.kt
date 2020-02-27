@@ -58,7 +58,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     @GetMapping("/snapshot-global")
     fun globalSnapshot(@RequestParam xds: Boolean?): ResponseEntity<SnapshotDebugInfo> {
         val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
-        if (xds != null && xds == true) {
+        if (xds == true) {
             return if (globalSnapshot?.xdsSnapshot == null) {
                 throw GlobalSnapshotNotFoundException("Xds global snapshot missing")
             } else {
