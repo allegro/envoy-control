@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
@@ -70,6 +71,7 @@ class EnvoyAdmin(
         val configDump = configDump()
         val bootstrapConfigDump = bootstrapConfigDump(configDump)
         val node = bootstrapConfigDump.at("/bootstrap/node")
+        (node as ObjectNode).remove("hidden_envoy_deprecated_build_version")
         return objectMapper.writeValueAsString(node)
     }
 

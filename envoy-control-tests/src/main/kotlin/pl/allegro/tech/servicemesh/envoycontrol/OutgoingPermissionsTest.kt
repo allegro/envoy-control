@@ -57,8 +57,8 @@ abstract class OutgoingPermissionsTest : EnvoyControlTestConfiguration() {
             val unreachableDomainResponse = callDomain("www.another-example.com")
 
             // then
-            assertThat(unreachableResponse).isUnreachable().hasLocationHeaderFrom("not-accessible")
-            assertThat(unregisteredResponse).isUnreachable().hasLocationHeaderFrom("unregistered")
+            assertThat(unreachableResponse).isUnreachable()
+            assertThat(unregisteredResponse).isUnreachable()
             assertThat(reachableResponse).isOk().isFrom(echoContainer)
             assertThat(reachableDomainResponse).isOk()
             assertThat(unreachableDomainResponse).isUnreachable()
