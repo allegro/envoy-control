@@ -20,17 +20,21 @@ import org.springframework.boot.jackson.JsonComponent
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 
 @RestController
 class SnapshotDebugController(controlPlane: ControlPlane) {
     val cache: SnapshotCache<Group> = controlPlane.cache
     val nodeGroup: NodeGroup<Group> = controlPlane.nodeGroup
+    val snapshotUpdater: SnapshotUpdater = controlPlane.snapshotUpdater
 
     /**
      * Returns a textual representation of the snapshot for debugging purposes.
@@ -51,17 +55,40 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         }
     }
 
+    @GetMapping("/snapshot-global")
+    fun globalSnapshot(@RequestParam xds: Boolean?): ResponseEntity<SnapshotDebugInfo> {
+        val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
+        if (xds == true) {
+            return if (globalSnapshot?.xdsSnapshot == null) {
+                throw GlobalSnapshotNotFoundException("Xds global snapshot missing")
+            } else {
+                ResponseEntity(
+                    SnapshotDebugInfo(globalSnapshot.xdsSnapshot!!),
+                    HttpStatus.OK
+                )
+            }
+        }
+        return if (globalSnapshot?.adsSnapshot == null) {
+            throw GlobalSnapshotNotFoundException("Ads global snapshot missing")
+        } else {
+            ResponseEntity(
+                SnapshotDebugInfo(globalSnapshot.adsSnapshot!!),
+                HttpStatus.OK
+            )
+        }
+    }
+
     @JsonComponent
     class ProtoSerializer : JsonSerializer<Message>() {
         final val typeRegistry: TypeRegistry = TypeRegistry.newBuilder()
-                .add(HttpConnectionManager.getDescriptor())
-                .add(Config.getDescriptor())
-                .add(BoolValue.getDescriptor())
-                .add(Duration.getDescriptor())
-                .add(Struct.getDescriptor())
-                .add(Value.getDescriptor())
-                .add(Any.getDescriptor())
-                .build()
+            .add(HttpConnectionManager.getDescriptor())
+            .add(Config.getDescriptor())
+            .add(BoolValue.getDescriptor())
+            .add(Duration.getDescriptor())
+            .add(Struct.getDescriptor())
+            .add(Value.getDescriptor())
+            .add(Any.getDescriptor())
+            .build()
 
         val printer: JsonFormat.Printer = JsonFormat.printer().usingTypeRegistry(typeRegistry)
 
@@ -71,10 +98,17 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     }
 
     class SnapshotNotFoundException : RuntimeException("snapshot missing")
+    class GlobalSnapshotNotFoundException(message: String) : RuntimeException(message)
 
     @ExceptionHandler
     @ResponseBody
     fun handleSnapshotMissing(exception: SnapshotNotFoundException): ResponseEntity<String> = ResponseEntity
+        .status(HttpStatus.NOT_FOUND)
+        .body(exception.message)
+
+    @ExceptionHandler
+    @ResponseBody
+    fun handleGlobalSnapshotMissing(exception: GlobalSnapshotNotFoundException): ResponseEntity<String> = ResponseEntity
         .status(HttpStatus.NOT_FOUND)
         .body(exception.message)
 }
