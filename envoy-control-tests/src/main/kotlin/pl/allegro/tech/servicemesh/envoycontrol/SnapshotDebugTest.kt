@@ -100,9 +100,6 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
 
     @Test
     open fun `should return global snapshot debug info from xds`() {
-        // given
-        registerService(name = "echo")
-
         untilAsserted {
             // when
             val snapshot = envoyControl1.getGlobalSnapshot(xds = true)
@@ -117,9 +114,6 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
 
     @Test
     open fun `should return global snapshot debug info from ads`() {
-        // given
-        registerService(name = "echo")
-
         untilAsserted {
             // when
             val snapshotXdsNull = envoyControl1.getGlobalSnapshot(xds = null)
