@@ -189,18 +189,20 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             address: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
-        ): Response =
-            client.newCall(
-                Request.Builder()
-                    .get()
-                    .header("Host", host)
-                    .apply {
-                        headers.forEach { name, value -> header(name, value) }
-                    }
-                    .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
-                    .build()
+        ): Response {
+            val request = client.newCall(
+                    Request.Builder()
+                            .get()
+                            .header("Host", host)
+                            .apply {
+                                headers.forEach { name, value -> header(name, value) }
+                            }
+                            .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
+                            .build()
             )
-                .execute()
+
+            return request.execute()
+        }
 
         fun callServiceWithOriginalDst(originalDstUrl: String, envoyUrl: String): Response =
             client.newCall(

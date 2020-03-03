@@ -5,7 +5,7 @@ import org.springframework.core.io.ClassPathResource
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.images.builder.ImageFromDockerfile
-import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger as loggerDelegate
 
 class EnvoyContainer(
@@ -13,10 +13,10 @@ class EnvoyContainer(
     private val localServiceIp: String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort
-) : GenericContainer<EnvoyContainer>(ImageFromDockerfile().withDockerfileFromBuilder {
+) : SSLGenericContainer<EnvoyContainer>(ImageFromDockerfile().withDockerfileFromBuilder {
     // We use envoy version from master. This is 1.13.0-dev version with support for KEYS_SUBSET fallback policy,
     // which is required for service-tags routing. More info: https://github.com/envoyproxy/envoy/pull/8890
-    it.from("envoyproxy/envoy-alpine:v1.13.0")
+    it.from("envoyproxy/envoy-alpine-dev:a9b9f8bed6f0923e12fa31c9e23a73ae10b2bb79")
         .run("apk --no-cache add curl iproute2")
         .build()
 }) {

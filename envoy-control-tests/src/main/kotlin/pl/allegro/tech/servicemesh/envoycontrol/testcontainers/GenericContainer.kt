@@ -33,6 +33,10 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
         }
     }
 
+    fun addHost(host: String, ip: String) {
+        execInContainer("sh", "-c", "echo \"$ip\t$host\" >> /etc/hosts")
+    }
+
     fun notAlreadyMounted(destination: String?) = binds.none { it.volume.path == destination }
 
     fun hostIp(): String {
