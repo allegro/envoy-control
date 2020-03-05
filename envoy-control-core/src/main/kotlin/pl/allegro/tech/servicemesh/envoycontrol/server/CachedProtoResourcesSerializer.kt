@@ -21,7 +21,6 @@ internal class CachedProtoResourcesSerializer(
                 .build<Collection<Message>, MutableCollection<Any>>(),
             "protoCache", "cacheName", "stat")
 
-
     override fun serialize(resources: MutableCollection<out Message>): MutableCollection<Any> {
         val startSerialize = Timer.start(meterRegistry)
         val result = monitorCache.get(resources) {
