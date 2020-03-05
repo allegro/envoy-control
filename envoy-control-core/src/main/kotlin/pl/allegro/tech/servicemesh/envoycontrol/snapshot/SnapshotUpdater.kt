@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -138,7 +139,9 @@ class SnapshotUpdater(
     fun updateSnapshotForGroup(group: Group, globalSnapshot: Snapshot) {
         try {
             val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+            val setSnapshot = Timer.start(meterRegistry)
             cache.setSnapshot(group, groupSnapshot)
+            setSnapshot.stop(meterRegistry.timer("snapshot-updater.set-snapshot.${group.serviceName}.time"))
         } catch (e: Throwable) {
             meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()
             logger.error("Unable to create snapshot for group ${group.serviceName}", e)
