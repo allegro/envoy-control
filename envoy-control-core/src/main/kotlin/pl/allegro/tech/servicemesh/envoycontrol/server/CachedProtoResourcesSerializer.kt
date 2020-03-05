@@ -6,7 +6,6 @@ import com.google.protobuf.Any
 import com.google.protobuf.Message
 import io.envoyproxy.controlplane.server.serializer.ProtoResourcesSerializer
 import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Timer
 import io.micrometer.core.instrument.binder.cache.GuavaCacheMetrics
 
 internal class CachedProtoResourcesSerializer(
@@ -22,14 +21,13 @@ internal class CachedProtoResourcesSerializer(
             "protoCache", "cacheName", "stat")
 
     override fun serialize(resources: MutableCollection<out Message>): MutableCollection<Any> {
-        val startSerialize = Timer.start(meterRegistry)
-        val result = monitorCache.get(resources) {
-            resources.asSequence()
-                .map { Any.pack(it) }
-                .toMutableList()
+        return meterRegistry.timer("proto-cache.serialize.${resources.size}.time").recordCallable{
+             monitorCache.get(resources) {
+                resources.asSequence()
+                    .map { Any.pack(it) }
+                    .toMutableList()
+            }
         }
-        startSerialize.stop(meterRegistry.timer("proto-cache.serialize.${resources.size}.time"))
-        return result
     }
 
     @Suppress("NotImplementedDeclaration")

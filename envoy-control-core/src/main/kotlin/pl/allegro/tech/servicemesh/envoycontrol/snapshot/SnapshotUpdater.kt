@@ -139,9 +139,9 @@ class SnapshotUpdater(
     fun updateSnapshotForGroup(group: Group, globalSnapshot: Snapshot) {
         try {
             val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, globalSnapshot)
-            val setSnapshot = Timer.start(meterRegistry)
-            cache.setSnapshot(group, groupSnapshot)
-            setSnapshot.stop(meterRegistry.timer("snapshot-updater.set-snapshot.${group.serviceName}.time"))
+            meterRegistry.timer("snapshot-updater.set-snapshot.${group.serviceName}.time").record {
+                cache.setSnapshot(group, groupSnapshot)
+            }
         } catch (e: Throwable) {
             meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()
             logger.error("Unable to create snapshot for group ${group.serviceName}", e)
