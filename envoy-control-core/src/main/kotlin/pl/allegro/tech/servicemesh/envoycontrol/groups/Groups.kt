@@ -5,7 +5,6 @@ sealed class Group {
     abstract val serviceName: String
     abstract val proxySettings: ProxySettings
     abstract val listenersConfig: ListenersConfig?
-    open fun isGlobalGroup() = false
 }
 
 data class ServicesGroup(
@@ -20,13 +19,7 @@ data class AllServicesGroup(
     override val serviceName: String = "",
     override val proxySettings: ProxySettings = ProxySettings(),
     override val listenersConfig: ListenersConfig? = null
-) : Group() {
-    /**
-     * Global group is a base group for all other groups. First we generate the global groups from a snapshot,
-     * then generate all other groups using data from global groups.
-     */
-    override fun isGlobalGroup() = serviceName == "" && proxySettings.isEmpty() && listenersConfig == null
-}
+) : Group()
 
 data class ListenersConfig(
     val ingressHost: String,

@@ -25,7 +25,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
@@ -54,7 +53,10 @@ internal class EnvoySnapshotFactory(
         ),
     private val meterRegistry: MeterRegistry
 ) {
-    fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, communicationMode: CommunicationMode): Snapshot {
+    fun newSnapshot(
+        servicesStates: List<LocalityAwareServicesState>,
+        communicationMode: CommunicationMode
+    ): GlobalSnapshot {
         val sample = Timer.start(meterRegistry)
 
         val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
@@ -74,30 +76,10 @@ internal class EnvoySnapshotFactory(
         val clusters = clustersFactory.getClustersForServices(clusterConfigurations, communicationMode)
 
         val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(servicesStates)
-        val routes = listOf(
-            egressRoutesFactory.createEgressRouteConfig("", serviceNames.map {
-                RouteSpecification(
-                    clusterName = it,
-                    routeDomain = it,
-                    settings = defaultDependencySettings
-                )
-            }, false),
-            ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
-        )
 
-        val version = snapshotsVersions.version(
-            group = AllServicesGroup(communicationMode, listenersConfig = null),
+        val snapshot = GlobalSnapshot(
             clusters = clusters,
             endpoints = endpoints
-        )
-
-        val snapshot = createSnapshot(
-            clusters = clusters,
-            clustersVersion = version.clusters,
-            endpoints = endpoints,
-            endpointsVersions = version.endpoints,
-            routes = routes,
-            routesVersion = RoutesVersion(version.clusters.value)
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 
@@ -118,18 +100,18 @@ internal class EnvoySnapshotFactory(
         return ClusterConfiguration(serviceName, allInstancesHaveEnvoyTag)
     }
 
-    fun getSnapshotForGroup(group: Group, globalSnapshot: Snapshot): Snapshot {
+    fun getSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot): Snapshot {
         val groupSample = Timer.start(meterRegistry)
-        if (group.isGlobalGroup()) {
-            return globalSnapshot
-        }
 
         val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
         groupSample.stop(meterRegistry.timer("snapshot-factory.get-snapshot-for-group.time"))
         return newSnapshotForGroup
     }
 
-    private fun getEgressRoutesSpecification(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
+    private fun getEgressRoutesSpecification(
+        group: Group,
+        globalSnapshot: GlobalSnapshot
+    ): Collection<RouteSpecification> {
         return getServiceRouteSpecifications(group, globalSnapshot) +
             getDomainRouteSpecifications(group)
     }
@@ -144,7 +126,10 @@ internal class EnvoySnapshotFactory(
         }
     }
 
-    private fun getServiceRouteSpecifications(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
+    private fun getServiceRouteSpecifications(
+        group: Group,
+        globalSnapshot: GlobalSnapshot
+    ): Collection<RouteSpecification> {
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().map {
                 RouteSpecification(
@@ -153,7 +138,7 @@ internal class EnvoySnapshotFactory(
                     settings = it.settings
                 )
             }
-            is AllServicesGroup -> globalSnapshot.clusters().resources().map {
+            is AllServicesGroup -> globalSnapshot.clusters.resources().map {
                 RouteSpecification(
                     clusterName = it.key,
                     routeDomain = it.key,
@@ -163,14 +148,17 @@ internal class EnvoySnapshotFactory(
         }
     }
 
-    private fun getServicesEndpointsForGroup(group: Group, globalSnapshot: Snapshot): List<ClusterLoadAssignment> {
+    private fun getServicesEndpointsForGroup(
+        group: Group,
+        globalSnapshot: GlobalSnapshot
+    ): List<ClusterLoadAssignment> {
         return getServiceRouteSpecifications(group, globalSnapshot)
-            .mapNotNull { globalSnapshot.endpoints().resources().get(it.clusterName) }
+            .mapNotNull { globalSnapshot.endpoints.resources().get(it.clusterName) }
     }
 
     private fun newSnapshotForGroup(
         group: Group,
-        globalSnapshot: Snapshot
+        globalSnapshot: GlobalSnapshot
     ): Snapshot {
 
         val clusters: List<Cluster> =

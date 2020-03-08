@@ -4,7 +4,6 @@ import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
@@ -49,14 +48,14 @@ internal class EnvoyClustersFactory(
         return services.map { edsCluster(it, communicationMode) }
     }
 
-    fun getClustersForGroup(group: Group, globalSnapshot: Snapshot): List<Cluster> =
+    fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
         getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group)
 
-    private fun getEdsClustersForGroup(group: Group, globalSnapshot: Snapshot): List<Cluster> {
+    private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies()
-                .mapNotNull { globalSnapshot.clusters().resources().get(it.service) }
-            is AllServicesGroup -> globalSnapshot.clusters().resources().map { it.value }
+                .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
+            is AllServicesGroup -> globalSnapshot.clusters.resources().map { it.value }
         }
     }
 

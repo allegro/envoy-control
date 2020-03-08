@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -110,8 +109,8 @@ class SnapshotUpdater(
                 .checkpoint("snapshot-updater-services-published")
                 .name("snapshot-updater-services-published").metrics()
                 .map { states ->
-                    var lastXdsSnapshot: Snapshot? = null
-                    var lastAdsSnapshot: Snapshot? = null
+                    var lastXdsSnapshot: GlobalSnapshot? = null
+                    var lastAdsSnapshot: GlobalSnapshot? = null
 
                     if (properties.enabledCommunicationModes.xds) {
                         lastXdsSnapshot = snapshotFactory.newSnapshot(states, XDS)
@@ -135,7 +134,7 @@ class SnapshotUpdater(
                 }
     }
 
-    fun updateSnapshotForGroup(group: Group, globalSnapshot: Snapshot) {
+    fun updateSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot) {
         try {
             val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, globalSnapshot)
             cache.setSnapshot(group, groupSnapshot)
@@ -169,6 +168,6 @@ enum class Action {
 class UpdateResult(
     val action: Action,
     val groups: List<Group> = listOf(),
-    val adsSnapshot: Snapshot? = null,
-    val xdsSnapshot: Snapshot? = null
+    val adsSnapshot: GlobalSnapshot? = null,
+    val xdsSnapshot: GlobalSnapshot? = null
 )

@@ -198,7 +198,7 @@ class SnapshotUpdaterTest {
         // given
         val servicesGroup = servicesGroupWithAnError("example-service")
         val cache = newCache()
-        val globalSnapshot = Snapshot.create(listOf(), listOf(), listOf(), listOf(), listOf(), "empty")
+        val globalSnapshot = GlobalSnapshot(listOf(), listOf())
         cache.setSnapshot(servicesGroup, null)
         val updater = SnapshotUpdater(
             cache,

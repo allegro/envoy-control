@@ -3,12 +3,12 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.debug
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.JsonSerializer
 import com.fasterxml.jackson.databind.SerializerProvider
+import com.google.protobuf.Any
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
+import com.google.protobuf.Message
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
-import com.google.protobuf.Any
-import com.google.protobuf.Message
 import com.google.protobuf.util.JsonFormat
 import com.google.protobuf.util.JsonFormat.TypeRegistry
 import io.envoyproxy.controlplane.cache.NodeGroup
