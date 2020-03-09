@@ -7,26 +7,43 @@ import com.google.protobuf.Message
 import io.envoyproxy.controlplane.server.serializer.ProtoResourcesSerializer
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.binder.cache.GuavaCacheMetrics
+import java.util.function.Supplier
 
 internal class CachedProtoResourcesSerializer(
-    val meterRegistry: MeterRegistry
+    private val meterRegistry: MeterRegistry,
+    private val reportMetrics: Boolean
 ) : ProtoResourcesSerializer {
 
-    private val monitorCache: Cache<Collection<Message>, MutableCollection<Any>> = GuavaCacheMetrics
-        .monitor(meterRegistry,
-            CacheBuilder.newBuilder()
-                .recordStats()
-                .weakValues()
-                .build<Collection<Message>, MutableCollection<Any>>(),
-            "protoCache", "cacheName", "stat")
+    private val cache: Cache<Collection<Message>, MutableCollection<Any>> = if (reportMetrics) {
+        GuavaCacheMetrics
+            .monitor(
+                meterRegistry,
+                CacheBuilder.newBuilder()
+                    .recordStats()
+                    .weakValues()
+                    .build<Collection<Message>, MutableCollection<Any>>(),
+                "protobuf-cache"
+            )
+    } else {
+        CacheBuilder.newBuilder()
+            .weakValues()
+            .build<Collection<Message>, MutableCollection<Any>>()
+    }
 
     override fun serialize(resources: MutableCollection<out Message>): MutableCollection<Any> {
-        return meterRegistry.timer("proto-cache.serialize.${resources.size}.time").recordCallable{
-             monitorCache.get(resources) {
-                resources.asSequence()
-                    .map { Any.pack(it) }
-                    .toMutableList()
-            }
+        return if (reportMetrics) {
+            meterRegistry.timer("protobuf-cache.serialize.time")
+                .record(Supplier { getResources(resources) })
+        } else {
+            getResources(resources)
+        }
+    }
+
+    private fun getResources(resources: MutableCollection<out Message>): MutableCollection<Any> {
+        return cache.get(resources) {
+            resources.asSequence()
+                .map { Any.pack(it) }
+                .toMutableList()
         }
     }
 
