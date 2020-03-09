@@ -55,7 +55,7 @@ internal class EnvoyClustersFactory(
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies()
                 .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
-            is AllServicesGroup -> globalSnapshot.clusters.resources().map { it.value }
+            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map { it.value }
         }
     }
 

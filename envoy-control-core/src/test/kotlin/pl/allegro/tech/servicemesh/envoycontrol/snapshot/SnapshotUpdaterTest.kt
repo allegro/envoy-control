@@ -213,7 +213,7 @@ class SnapshotUpdaterTest {
         // given
         val servicesGroup = servicesGroupWithAnError("example-service")
         val cache = newCache()
-        val globalSnapshot = GlobalSnapshot(listOf(), listOf())
+        val globalSnapshot = globalSnapshot(listOf(), listOf())
         cache.setSnapshot(servicesGroup, uninitializedSnapshot)
         val updater = SnapshotUpdater(
             cache,
@@ -311,6 +311,32 @@ class SnapshotUpdaterTest {
         assertHttp2Cluster(results[1].xdsSnapshot!!, "service")
     }
 
+    // TODO: change to end-to-end test using start() method, to verify also routes
+    @Test
+    fun `should not include blacklisted services in wildcard dependencies`() {
+        // given
+        val cache = newCache()
+        val updater = SnapshotUpdater(
+            cache,
+            properties = SnapshotProperties().apply {
+                outgoingPermissions.servicesNotIncludedInWildcardByPrefix = mutableSetOf("mock-", "regression-tests")
+            },
+            scheduler = Schedulers.newSingle("update-snapshot"),
+            onGroupAdded = Flux.just(listOf()),
+            meterRegistry = simpleMeterRegistry
+        )
+
+        val expectedWhitelistedServices = setOf("s1", "mockito", "s2", "frontend")
+
+        // when
+        val result = updater.services(fluxOfServices(
+            "s1", "mockito", "regression-tests", "s2", "frontend", "mock-service"
+        )).blockFirst()
+
+        // then
+        assertThat(result!!.adsSnapshot!!.allServicesGroupsClusters.keys).isEqualTo(expectedWhitelistedServices)
+    }
+
     private fun servicesGroupWithAnError(name: String): ServicesGroup {
         val proxySettings = ProxySettings(
             incoming = Incoming(
@@ -326,20 +352,20 @@ class SnapshotUpdaterTest {
     }
 
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
-        this.start(
-            Flux.just(
-                listOf(
-                    LocalityAwareServicesState(
-                        ServicesState(
-                            serviceNameToInstances = services.map { it to ServiceInstances(it, emptySet()) }.toMap()
-
-                        ),
-                        Locality.LOCAL, "zone"
-                    )
-                )
-            )
-        ).blockFirst()
+        this.start(fluxOfServices(*services)).blockFirst()
     }
+
+    private fun fluxOfServices(vararg services: String) = Flux.just(
+        listOf(
+            LocalityAwareServicesState(
+                ServicesState(
+                    serviceNameToInstances = services.map { it to ServiceInstances(it, emptySet()) }.toMap()
+
+                ),
+                Locality.LOCAL, "zone"
+            )
+        )
+    )
 
     private fun newCache(): SnapshotCache<Group> {
         return object : SnapshotCache<Group> {

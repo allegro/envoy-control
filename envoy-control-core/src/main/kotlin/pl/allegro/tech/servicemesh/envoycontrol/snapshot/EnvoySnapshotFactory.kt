@@ -67,9 +67,10 @@ internal class EnvoySnapshotFactory(
             localityAwareServicesStates = servicesStates
         )
 
-        val snapshot = GlobalSnapshot(
+        val snapshot = globalSnapshot(
             clusters = clusters,
-            endpoints = endpoints
+            endpoints = endpoints,
+            properties = properties.outgoingPermissions
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 
@@ -190,7 +191,7 @@ internal class EnvoySnapshotFactory(
                     settings = it.settings
                 )
             }
-            is AllServicesGroup -> globalSnapshot.clusters.resources().map {
+            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map {
                 RouteSpecification(
                     clusterName = it.key,
                     routeDomain = it.key,
@@ -201,10 +202,10 @@ internal class EnvoySnapshotFactory(
     }
 
     private fun getServicesEndpointsForGroup(
-        group: Group,
-        globalSnapshot: GlobalSnapshot
+        globalSnapshot: GlobalSnapshot,
+        egressRouteSpecifications: Collection<RouteSpecification>
     ): List<ClusterLoadAssignment> {
-        return getServiceRouteSpecifications(group, globalSnapshot)
+        return egressRouteSpecifications
             .mapNotNull { globalSnapshot.endpoints.resources().get(it.clusterName) }
     }
 
@@ -213,12 +214,14 @@ internal class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot
     ): Snapshot {
 
+        val egressRouteSpecification = getEgressRoutesSpecification(group, globalSnapshot)
+
         val clusters: List<Cluster> =
             clustersFactory.getClustersForGroup(group, globalSnapshot)
 
         val routes = listOf(
             egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, getEgressRoutesSpecification(group, globalSnapshot),
+                group.serviceName, egressRouteSpecification,
                 group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
@@ -234,7 +237,7 @@ internal class EnvoySnapshotFactory(
             return createSnapshot(routes = routes, listeners = listeners)
         }
 
-        val endpoints = getServicesEndpointsForGroup(group, globalSnapshot)
+        val endpoints = getServicesEndpointsForGroup(globalSnapshot, egressRouteSpecification)
 
         val version = snapshotsVersions.version(group, clusters, endpoints)
 
