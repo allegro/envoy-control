@@ -108,15 +108,17 @@ class SnapshotUpdater(
                 .measureBuffer("snapshot-updater-services-published", meterRegistry)
                 .checkpoint("snapshot-updater-services-published")
                 .name("snapshot-updater-services-published").metrics()
-                .map { states ->
+            // TODO: EnvoyClustersFactory - move here all ClusterConfiguration code
+                .createClusterConfigurations()
+                .map { (states, clusters) ->
                     var lastXdsSnapshot: GlobalSnapshot? = null
                     var lastAdsSnapshot: GlobalSnapshot? = null
 
                     if (properties.enabledCommunicationModes.xds) {
-                        lastXdsSnapshot = snapshotFactory.newSnapshot(states, XDS)
+                        lastXdsSnapshot = snapshotFactory.newSnapshot(states, clusters, XDS)
                     }
                     if (properties.enabledCommunicationModes.ads) {
-                        lastAdsSnapshot = snapshotFactory.newSnapshot(states, ADS)
+                        lastAdsSnapshot = snapshotFactory.newSnapshot(states, clusters, ADS)
                     }
 
                     val updateResult = UpdateResult(
@@ -159,6 +161,25 @@ class SnapshotUpdater(
             }
         }
     }
+
+    private fun Flux<List<LocalityAwareServicesState>>.createClusterConfigurations(): Flux<StatesAndClusters> = this
+        .map { states -> StatesAndClusters(
+            states = states,
+            clusters = snapshotFactory.clusterConfigurations(states)
+        ) }
+        .modifyClustersUsingPreviousState()
+
+    private fun Flux<StatesAndClusters>.modifyClustersUsingPreviousState(): Flux<StatesAndClusters> = this
+        .scan { previous: StatesAndClusters, current: StatesAndClusters ->
+            current.copy(
+                clusters = snapshotFactory.modifyClustersUsingPreviousState(previous.clusters, current.clusters)
+            )
+        }
+
+    private data class StatesAndClusters(
+        val states: List<LocalityAwareServicesState>,
+        val clusters: Map<String, ClusterConfiguration>
+    )
 }
 
 enum class Action {

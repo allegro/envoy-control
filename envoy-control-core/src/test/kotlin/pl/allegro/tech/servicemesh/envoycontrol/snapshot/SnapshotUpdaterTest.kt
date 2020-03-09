@@ -29,10 +29,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
+import java.time.Duration
 import java.util.function.Consumer
 
 class SnapshotUpdaterTest {
@@ -43,6 +45,8 @@ class SnapshotUpdaterTest {
             Arguments.of(false, false, ADS, "ADS not supported by server"),
             Arguments.of(false, false, XDS, "XDS not supported by server")
         )
+
+        private val uninitializedSnapshot = null
     }
 
     val proxySettings = ProxySettings(
@@ -62,10 +66,23 @@ class SnapshotUpdaterTest {
 
     val simpleMeterRegistry = SimpleMeterRegistry()
 
+    val serviceWithEnvoyInstances = LocalityAwareServicesState(
+        ServicesState(
+            serviceNameToInstances = mapOf(
+                "service" to ServiceInstances("service", setOf(ServiceInstance(
+                    id = "id",
+                    tags = setOf("envoy"),
+                    address = "127.0.0.3",
+                    port = 4444
+                )))
+            )
+        ),
+        Locality.LOCAL, "zone"
+    )
+
     @Test
     fun `should generate group snapshots`() {
         val cache = newCache()
-        val uninitializedSnapshot = null
 
         // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
         val groups = listOf(
@@ -134,7 +151,6 @@ class SnapshotUpdaterTest {
     ) {
         val allServiceGroup = AllServicesGroup(communicationMode = mode)
 
-        val uninitializedSnapshot = null
         val cache = newCache()
         cache.setSnapshot(allServiceGroup, uninitializedSnapshot)
 
@@ -162,7 +178,6 @@ class SnapshotUpdaterTest {
         // given
         val emptyGroup = groupOf()
 
-        val uninitializedSnapshot = null
         val cache = newCache()
         cache.setSnapshot(emptyGroup, uninitializedSnapshot)
 
@@ -199,7 +214,7 @@ class SnapshotUpdaterTest {
         val servicesGroup = servicesGroupWithAnError("example-service")
         val cache = newCache()
         val globalSnapshot = GlobalSnapshot(listOf(), listOf())
-        cache.setSnapshot(servicesGroup, null)
+        cache.setSnapshot(servicesGroup, uninitializedSnapshot)
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties(),
@@ -216,6 +231,84 @@ class SnapshotUpdaterTest {
         assertThat(snapshot).isEqualTo(null)
         assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
             .counter()?.count()).isEqualTo(1.0)
+    }
+
+    @Test
+    fun `should not disable http2 for cluster when instances disappeared`() {
+        // given
+        val cache = newCache()
+        val updater = SnapshotUpdater(
+            cache,
+            properties = SnapshotProperties().apply {
+                stateSampleDuration = Duration.ZERO
+            },
+            scheduler = Schedulers.newSingle("update-snapshot"),
+            onGroupAdded = Flux.just(listOf()),
+            meterRegistry = simpleMeterRegistry
+        )
+
+        val serviceWithNoInstances = LocalityAwareServicesState(
+            ServicesState(
+                serviceNameToInstances = mapOf(
+                    "service" to ServiceInstances("service", setOf())
+                )
+            ),
+            Locality.LOCAL, "zone"
+        )
+
+        // when
+        val results = updater
+            .services(Flux
+                .just(
+                    listOf(serviceWithEnvoyInstances),
+                    listOf(serviceWithNoInstances))
+                .delayElements(Duration.ofMillis(10))
+            )
+            .collectList().block()!!
+
+        // then
+        assertThat(results.size).isEqualTo(2)
+        assertHttp2Cluster(results[0].adsSnapshot!!, "service")
+        assertHttp2Cluster(results[0].xdsSnapshot!!, "service")
+        assertHttp2Cluster(results[1].adsSnapshot!!, "service")
+        assertHttp2Cluster(results[1].xdsSnapshot!!, "service")
+    }
+
+    @Test
+    fun `should not remove clusters`() {
+        // given
+        val cache = newCache()
+        val updater = SnapshotUpdater(
+            cache,
+            properties = SnapshotProperties().apply {
+                stateSampleDuration = Duration.ZERO
+            },
+            scheduler = Schedulers.newSingle("update-snapshot"),
+            onGroupAdded = Flux.just(listOf()),
+            meterRegistry = simpleMeterRegistry
+        )
+
+        val stateWithNoServices = LocalityAwareServicesState(
+            ServicesState(serviceNameToInstances = mapOf()),
+            Locality.LOCAL, "zone"
+        )
+
+        // when
+        val results = updater
+            .services(Flux
+                .just(
+                    listOf(serviceWithEnvoyInstances),
+                    listOf(stateWithNoServices))
+                .delayElements(Duration.ofMillis(10))
+            )
+            .collectList().block()!!
+
+        // then
+        assertThat(results.size).isEqualTo(2)
+        assertHttp2Cluster(results[0].adsSnapshot!!, "service")
+        assertHttp2Cluster(results[0].xdsSnapshot!!, "service")
+        assertHttp2Cluster(results[1].adsSnapshot!!, "service")
+        assertHttp2Cluster(results[1].xdsSnapshot!!, "service")
     }
 
     private fun servicesGroupWithAnError(name: String): ServicesGroup {
@@ -329,6 +422,12 @@ class SnapshotUpdaterTest {
             serviceDependencies = services, domainDependencies = domains
         )
     )
+
+    private fun assertHttp2Cluster(snapshot: GlobalSnapshot, clusterName: String) {
+        val cluster = snapshot.clusters.resources()[clusterName]
+        assertThat(cluster).isNotNull
+        assertThat(cluster!!.hasHttp2ProtocolOptions()).isTrue()
+    }
 }
 
 fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =

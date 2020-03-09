@@ -55,27 +55,17 @@ internal class EnvoySnapshotFactory(
 ) {
     fun newSnapshot(
         servicesStates: List<LocalityAwareServicesState>,
+        clusterConfigurations: Map<String, ClusterConfiguration>,
         communicationMode: CommunicationMode
     ): GlobalSnapshot {
         val sample = Timer.start(meterRegistry)
 
-        val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
+        val clusters = clustersFactory.getClustersForServices(clusterConfigurations.values, communicationMode)
 
-        val clusterConfigurations = if (properties.egress.http2.enabled) {
-            servicesStates.flatMap {
-                it.servicesState.serviceNameToInstances.values
-            }.groupBy {
-                it.serviceName
-            }.map { (serviceName, instances) ->
-                toClusterConfiguration(instances, serviceName)
-            }
-        } else {
-            serviceNames.map { ClusterConfiguration(serviceName = it, http2Enabled = false) }
-        }
-
-        val clusters = clustersFactory.getClustersForServices(clusterConfigurations, communicationMode)
-
-        val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(servicesStates)
+        val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(
+            clusters = clusterConfigurations.keys,
+            localityAwareServicesStates = servicesStates
+        )
 
         val snapshot = GlobalSnapshot(
             clusters = clusters,
@@ -84,6 +74,59 @@ internal class EnvoySnapshotFactory(
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 
         return snapshot
+    }
+
+    fun clusterConfigurations(servicesStates: List<LocalityAwareServicesState>): Map<String, ClusterConfiguration> {
+        if (properties.egress.http2.enabled) {
+            return servicesStates.flatMap {
+                it.servicesState.serviceNameToInstances.values
+            }.groupBy {
+                it.serviceName
+            }.mapValues { (serviceName, instances) ->
+                toClusterConfiguration(instances, serviceName)
+            }
+        } else {
+            return servicesStates
+                .flatMap { it.servicesState.serviceNames() }
+                .distinct()
+                .associateWith { ClusterConfiguration(serviceName = it, http2Enabled = Http2Status.DISABLED) }
+        }
+    }
+
+    fun modifyClustersUsingPreviousState(
+        previous: Map<String, ClusterConfiguration>,
+        current: Map<String, ClusterConfiguration>
+    ): Map<String, ClusterConfiguration> {
+
+        val anyRemoved = previous.keys.any { it !in current }
+        val anyUnknownHttp2 = current.any { it.value.http2Enabled == Http2Status.UNKNOWN }
+
+        if (!anyRemoved && !anyUnknownHttp2) {
+            // fast path (most frequent)
+            return current
+        }
+
+        val removedClusters = previous - current.keys
+        return fixHttp2StatusUsingPreviousState(previous, current) + removedClusters
+    }
+
+    private fun fixHttp2StatusUsingPreviousState(
+        previous: Map<String, ClusterConfiguration>,
+        current: Map<String, ClusterConfiguration>
+    ): Map<String, ClusterConfiguration> {
+
+        return current.mapValues { (name, cluster) ->
+            if (cluster.http2Enabled == Http2Status.UNKNOWN) {
+                val previousStatus = previous[name]?.http2Enabled ?: Http2Status.UNKNOWN
+                if (previousStatus != Http2Status.UNKNOWN) {
+                    cluster.copy(http2Enabled = previousStatus)
+                } else {
+                    cluster
+                }
+            } else {
+                cluster
+            }
+        }
     }
 
     private fun toClusterConfiguration(instances: List<ServiceInstances>, serviceName: String): ClusterConfiguration {
@@ -97,7 +140,16 @@ internal class EnvoySnapshotFactory(
             it.tags.contains(properties.egress.http2.tagName)
         }
 
-        return ClusterConfiguration(serviceName, allInstancesHaveEnvoyTag)
+        val http2Status = if (allInstancesHaveEnvoyTag) {
+            Http2Status.ENABLED
+        } else if (allInstances.isNotEmpty()) {
+            Http2Status.DISABLED
+        } else {
+            // decide later based on previous cluster config
+            Http2Status.UNKNOWN
+        }
+
+        return ClusterConfiguration(serviceName, http2Status)
     }
 
     fun getSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot): Snapshot {
@@ -285,24 +337,21 @@ internal class EnvoySnapshotFactory(
     private fun toEnvoyPriority(locality: LocalityEnum): Int = if (locality == LocalityEnum.LOCAL) 0 else 1
 
     private fun createLoadAssignment(
+        clusters: Set<String>,
         localityAwareServicesStates: List<LocalityAwareServicesState>
     ): List<ClusterLoadAssignment> {
-        return localityAwareServicesStates
-            .flatMap {
-                val locality = it.locality
-                val zone = it.zone
 
-                it.servicesState.serviceNameToInstances.map { (serviceName, serviceInstances) ->
-                    serviceName to createEndpointsGroup(serviceInstances, zone, toEnvoyPriority(locality))
-                }
-            }
-            .groupBy { (serviceName) ->
-                serviceName
-            }
-            .map { (serviceName, serviceNameLocalityLbEndpointsPairs) ->
-                val localityLbEndpoints = serviceNameLocalityLbEndpointsPairs.map { (_, localityLbEndpoint) ->
-                    localityLbEndpoint
-                }
+        return clusters
+            .map { serviceName ->
+                val localityLbEndpoints = localityAwareServicesStates
+                    .mapNotNull {
+                        val locality = it.locality
+                        val zone = it.zone
+
+                        it.servicesState.get(serviceName)?.let {
+                            createEndpointsGroup(it, zone, toEnvoyPriority(locality))
+                        }
+                    }
 
                 ClusterLoadAssignment.newBuilder()
                     .setClusterName(serviceName)
@@ -333,11 +382,18 @@ internal class EnvoySnapshotFactory(
             emptyList<Secret>(),
             SecretsVersion.EMPTY_VERSION.value
         )
-
-    internal data class ClusterConfiguration(val serviceName: String, val http2Enabled: Boolean)
 }
 
-class RouteSpecification(
+internal enum class Http2Status {
+    ENABLED, DISABLED, UNKNOWN
+}
+
+internal data class ClusterConfiguration(
+    val serviceName: String,
+    val http2Enabled: Http2Status
+)
+
+internal class RouteSpecification(
     val clusterName: String,
     val routeDomain: String,
     val settings: DependencySettings

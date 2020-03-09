@@ -42,7 +42,7 @@ internal class EnvoyClustersFactory(
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
 
     fun getClustersForServices(
-        services: List<EnvoySnapshotFactory.ClusterConfiguration>,
+        services: Collection<ClusterConfiguration>,
         communicationMode: CommunicationMode
     ): List<Cluster> {
         return services.map { edsCluster(it, communicationMode) }
@@ -114,7 +114,7 @@ internal class EnvoyClustersFactory(
     }
 
     private fun edsCluster(
-        clusterConfiguration: EnvoySnapshotFactory.ClusterConfiguration,
+        clusterConfiguration: ClusterConfiguration,
         communicationMode: CommunicationMode
     ): Cluster {
         val clusterBuilder = Cluster.newBuilder()
@@ -148,7 +148,7 @@ internal class EnvoyClustersFactory(
         cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
         cluster.setCircuitBreakers(allThresholds)
 
-        if (clusterConfiguration.http2Enabled) {
+        if (clusterConfiguration.http2Enabled == Http2Status.ENABLED) {
             cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())
         }
 
