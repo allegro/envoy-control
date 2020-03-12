@@ -107,8 +107,17 @@ internal class EnvoySnapshotFactory(
             return current
         }
 
-        val removedClusters = previous - current.keys
-        return fixHttp2StatusUsingPreviousState(previous, current) + removedClusters
+        val fixedClusters = when (anyUnknownHttp2) {
+            true -> fixHttp2StatusUsingPreviousState(previous, current)
+            false -> current
+        }
+        return when (anyRemoved) {
+            true -> {
+                val removedClusters = previous - current.keys
+                fixedClusters + removedClusters
+            }
+            false -> fixedClusters
+        }
     }
 
     private fun fixHttp2StatusUsingPreviousState(

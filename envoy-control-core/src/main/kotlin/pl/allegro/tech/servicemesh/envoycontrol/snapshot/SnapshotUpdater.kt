@@ -171,9 +171,15 @@ class SnapshotUpdater(
 
     private fun Flux<StatesAndClusters>.modifyClustersUsingPreviousState(): Flux<StatesAndClusters> = this
         .scan { previous: StatesAndClusters, current: StatesAndClusters ->
-            current.copy(
-                clusters = snapshotFactory.modifyClustersUsingPreviousState(previous.clusters, current.clusters)
-            )
+            val modifiedClusters = snapshotFactory.modifyClustersUsingPreviousState(previous.clusters, current.clusters)
+            // reference equality - if modifiedClusters is the same object as current clusters, don't copy
+            if (modifiedClusters === current.clusters) {
+                current
+            } else {
+                current.copy(
+                    clusters = snapshotFactory.modifyClustersUsingPreviousState(previous.clusters, current.clusters)
+                )
+            }
         }
 
     private data class StatesAndClusters(
