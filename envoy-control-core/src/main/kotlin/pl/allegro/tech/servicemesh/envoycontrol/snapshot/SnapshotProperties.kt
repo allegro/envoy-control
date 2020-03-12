@@ -46,6 +46,7 @@ class AccessLogProperties {
 class OutgoingPermissionsProperties {
     var enabled = false
     var allServicesDependenciesValue = "*"
+    // TODO: docs
     var servicesNotIncludedInWildcardByPrefix: MutableSet<String> = mutableSetOf()
     var servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
 }
@@ -171,6 +172,8 @@ class EgressProperties {
     var handleInternalRedirect = false
     var http2 = Http2Properties()
     var commonHttp = CommonHttpProperties()
+    // TODO: docs
+    var neverRemoveClusters = true
 }
 
 class CommonHttpProperties {

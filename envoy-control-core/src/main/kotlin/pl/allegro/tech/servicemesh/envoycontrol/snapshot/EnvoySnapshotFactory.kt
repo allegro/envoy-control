@@ -99,7 +99,11 @@ internal class EnvoySnapshotFactory(
         current: Map<String, ClusterConfiguration>
     ): Map<String, ClusterConfiguration> {
 
-        val anyRemoved = previous.keys.any { it !in current }
+        val anyRemoved = if (properties.egress.neverRemoveClusters) {
+            previous.keys.any { it !in current }
+        } else {
+            false
+        }
         val anyUnknownHttp2 = current.any { it.value.http2Enabled == Http2Status.UNKNOWN }
 
         if (!anyRemoved && !anyUnknownHttp2) {
