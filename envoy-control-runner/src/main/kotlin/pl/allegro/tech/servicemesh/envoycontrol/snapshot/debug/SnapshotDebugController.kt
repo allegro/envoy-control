@@ -15,6 +15,7 @@ import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.envoy.api.v2.core.Node
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config
+import io.envoyproxy.envoy.config.filter.http.lua.v2.Lua
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import org.springframework.boot.jackson.JsonComponent
 import org.springframework.http.HttpStatus
@@ -88,6 +89,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             .add(Struct.getDescriptor())
             .add(Value.getDescriptor())
             .add(Any.getDescriptor())
+            .add(Lua.getDescriptor())
             .build()
 
         val printer: JsonFormat.Printer = JsonFormat.printer().usingTypeRegistry(typeRegistry)
