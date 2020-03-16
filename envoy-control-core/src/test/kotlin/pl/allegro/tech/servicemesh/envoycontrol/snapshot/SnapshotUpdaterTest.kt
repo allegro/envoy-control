@@ -116,27 +116,27 @@ class SnapshotUpdaterTest {
 
         // then
         hasSnapshot(cache, AllServicesGroup(communicationMode = XDS))
-            .hasClusters("existingService1", "existingService2")
+            .hasOnlyClustersFor("existingService1", "existingService2")
 
         hasSnapshot(cache, groupWithProxy)
-            .hasClusters("existingService1", "existingService2")
+            .hasOnlyClustersFor("existingService1", "existingService2")
             .hasSecuredIngressRoute("/endpoint", "client")
             .hasServiceNameRequestHeader("service")
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("existingService1")))
-            .hasClusters("existingService1")
+            .hasOnlyClustersFor("existingService1")
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("existingService2")))
-            .hasClusters("existingService2")
+            .hasOnlyClustersFor("existingService2")
 
         hasSnapshot(cache, groupWithServiceName)
-            .hasClusters("existingService2")
+            .hasOnlyClustersFor("existingService2")
             .hasServiceNameRequestHeader("ipsum-service")
 
         hasSnapshot(cache, groupOf(
             services = serviceDependencies("existingService1", "existingService2"),
             domains = domainDependencies("http://domain")
-        )).hasClusters("existingService1", "existingService2", "domain_80")
+        )).hasOnlyClustersFor("existingService1", "existingService2", "domain_80")
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("nonExistingService3")))
             .withoutClusters()
@@ -268,10 +268,10 @@ class SnapshotUpdaterTest {
 
         // then
         assertThat(results.size).isEqualTo(2)
-        assertHttp2Cluster(results[0].adsSnapshot!!, "service")
-        assertHttp2Cluster(results[0].xdsSnapshot!!, "service")
-        assertHttp2Cluster(results[1].adsSnapshot!!, "service")
-        assertHttp2Cluster(results[1].xdsSnapshot!!, "service")
+        results[0].adsSnapshot!!.hasHttp2Cluster("service")
+        results[0].xdsSnapshot!!.hasHttp2Cluster("service")
+        results[1].adsSnapshot!!.hasHttp2Cluster("service")
+        results[1].xdsSnapshot!!.hasHttp2Cluster("service")
     }
 
     @Test
@@ -305,36 +305,59 @@ class SnapshotUpdaterTest {
 
         // then
         assertThat(results.size).isEqualTo(2)
-        assertHttp2Cluster(results[0].adsSnapshot!!, "service")
-        assertHttp2Cluster(results[0].xdsSnapshot!!, "service")
-        assertHttp2Cluster(results[1].adsSnapshot!!, "service")
-        assertHttp2Cluster(results[1].xdsSnapshot!!, "service")
+
+        results[0].adsSnapshot!!
+            .hasHttp2Cluster("service")
+            .hasAnEndpoint("service", "127.0.0.3", 4444)
+        results[0].xdsSnapshot!!
+            .hasHttp2Cluster("service")
+            .hasAnEndpoint("service", "127.0.0.3", 4444)
+
+        results[1].adsSnapshot!!
+            .hasHttp2Cluster("service")
+            .hasEmptyEndpoints("service")
+        results[1].xdsSnapshot!!
+            .hasHttp2Cluster("service")
+            .hasEmptyEndpoints("service")
     }
 
-    // TODO: change to end-to-end test using start() method, to verify also routes
     @Test
-    fun `should not include blacklisted services in wildcard dependencies`() {
+    fun `should not include blacklisted services in wildcard dependencies but include in direct dependencies`() {
         // given
         val cache = newCache()
+
+        val allServicesGroup = AllServicesGroup(communicationMode = ADS)
+        val groupWithBlacklistedDependency = groupOf(services = serviceDependencies("mock-service"))
+
+        val groups = listOf(allServicesGroup, groupWithBlacklistedDependency)
+
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties().apply {
                 outgoingPermissions.servicesNotIncludedInWildcardByPrefix = mutableSetOf("mock-", "regression-tests")
             },
             scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
+            onGroupAdded = Flux.just(groups),
             meterRegistry = simpleMeterRegistry
         )
 
-        val expectedWhitelistedServices = setOf("s1", "mockito", "s2", "frontend")
+        val expectedWhitelistedServices = setOf("s1", "mockito", "s2", "frontend").toTypedArray()
 
         // when
-        val result = updater.services(fluxOfServices(
+        updater.start(fluxOfServices(
             "s1", "mockito", "regression-tests", "s2", "frontend", "mock-service"
-        )).blockFirst()
+        )).collectList().block()
 
         // then
-        assertThat(result!!.adsSnapshot!!.allServicesGroupsClusters.keys).isEqualTo(expectedWhitelistedServices)
+        hasSnapshot(cache, allServicesGroup)
+            .hasOnlyClustersFor(*expectedWhitelistedServices)
+            .hasOnlyEndpointsFor(*expectedWhitelistedServices)
+            .hasOnlyEgressRoutesForClusters(*expectedWhitelistedServices)
+
+        hasSnapshot(cache, groupWithBlacklistedDependency)
+            .hasOnlyClustersFor("mock-service")
+            .hasOnlyEndpointsFor("mock-service")
+            .hasOnlyEgressRoutesForClusters("mock-service")
     }
 
     private fun servicesGroupWithAnError(name: String): ServicesGroup {
@@ -409,9 +432,21 @@ class SnapshotUpdaterTest {
         return snapshot
     }
 
-    private fun Snapshot.hasClusters(vararg expected: String): Snapshot {
+    private fun Snapshot.hasOnlyClustersFor(vararg expected: String): Snapshot {
         assertThat(this.clusters().resources().keys.toSet())
             .isEqualTo(expected.toSet())
+        return this
+    }
+
+    private fun Snapshot.hasOnlyEndpointsFor(vararg expected: String): Snapshot {
+        assertThat(this.endpoints().resources().keys.toSet())
+            .isEqualTo(expected.toSet())
+        return this
+    }
+
+    private fun Snapshot.hasOnlyEgressRoutesForClusters(vararg expected: String): Snapshot {
+        assertThat(this.routes().resources()["default_routes"]!!.virtualHostsList.flatMap { it.domainsList }.toSet())
+            .isEqualTo(expected.toSet() + setOf("envoy-original-destination", "*"))
         return this
     }
 
@@ -449,10 +484,26 @@ class SnapshotUpdaterTest {
         )
     )
 
-    private fun assertHttp2Cluster(snapshot: GlobalSnapshot, clusterName: String) {
-        val cluster = snapshot.clusters.resources()[clusterName]
+    private fun GlobalSnapshot.hasHttp2Cluster(clusterName: String): GlobalSnapshot {
+        val cluster = this.clusters.resources()[clusterName]
         assertThat(cluster).isNotNull
         assertThat(cluster!!.hasHttp2ProtocolOptions()).isTrue()
+        return this
+    }
+
+    private fun GlobalSnapshot.hasAnEndpoint(clusterName: String, ip: String, port: Int): GlobalSnapshot {
+        val endpoints = this.endpoints.resources()[clusterName]
+        assertThat(endpoints).isNotNull
+        assertThat(endpoints!!.endpointsList.flatMap { it.lbEndpointsList })
+            .anyMatch { it.endpoint.address.socketAddress.let { it.address == ip && it.portValue == port } }
+        return this
+    }
+
+    private fun GlobalSnapshot.hasEmptyEndpoints(clusterName: String): GlobalSnapshot {
+        val endpoints = this.endpoints.resources()[clusterName]
+        assertThat(endpoints).isNotNull
+        assertThat(endpoints!!.endpointsList).isEmpty()
+        return this
     }
 }
 

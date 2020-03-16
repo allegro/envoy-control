@@ -108,7 +108,6 @@ class SnapshotUpdater(
                 .measureBuffer("snapshot-updater-services-published", meterRegistry)
                 .checkpoint("snapshot-updater-services-published")
                 .name("snapshot-updater-services-published").metrics()
-            // TODO: EnvoyClustersFactory - move here all ClusterConfiguration code
                 .createClusterConfigurations()
                 .map { (states, clusters) ->
                     var lastXdsSnapshot: GlobalSnapshot? = null
@@ -176,9 +175,7 @@ class SnapshotUpdater(
             if (modifiedClusters === current.clusters) {
                 current
             } else {
-                current.copy(
-                    clusters = snapshotFactory.modifyClustersUsingPreviousState(previous.clusters, current.clusters)
-                )
+                current.copy(clusters = modifiedClusters)
             }
         }
 

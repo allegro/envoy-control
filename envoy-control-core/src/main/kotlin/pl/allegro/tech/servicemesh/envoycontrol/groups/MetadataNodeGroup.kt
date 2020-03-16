@@ -143,8 +143,9 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         return when (properties.incomingPermissions.enabled) {
             true -> metadata.serviceName.orEmpty()
             // TODO: it is dangerous. Nobody remembers that serviceName is empty when incomingPermissions is disabled.
-            // Sooner or later somebody will use it to other purposes that incomingPermissions. We should get rid
-            // of this logic or at least signalise that it may be not set by changing type to String?
+            // Sooner or later somebody will use it to other purposes that incomingPermissions. We should validate
+            // that serviceName is always present (that means: envoys are required to provide serviceName)
+            // or signalise that it may be not set by changing type to String?
             false -> ""
         }
     }
