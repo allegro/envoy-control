@@ -18,8 +18,16 @@ fun RouteConfiguration.hasSingleVirtualHostThat(condition: VirtualHost.() -> Uni
     return this
 }
 
-fun RouteConfiguration.hasHeaderToAdd(key: String, value: String): RouteConfiguration {
+fun RouteConfiguration.hasRequestHeaderToAdd(key: String, value: String): RouteConfiguration {
     assertThat(this.requestHeadersToAddList).anySatisfy {
+        assertThat(it.header.key).isEqualTo(key)
+        assertThat(it.header.value).isEqualTo(value)
+    }
+    return this
+}
+
+fun RouteConfiguration.hasResponseHeaderToAdd(key: String, value: String): RouteConfiguration {
+    assertThat(this.responseHeadersToAddList).anySatisfy {
         assertThat(it.header.key).isEqualTo(key)
         assertThat(it.header.value).isEqualTo(value)
     }
@@ -36,8 +44,15 @@ fun RouteAction.hasCustomRequestTimeout(requestTimeout: Duration): RouteAction {
     return this
 }
 
-fun RouteConfiguration.hasNoHeaderToAdd(key: String): RouteConfiguration {
+fun RouteConfiguration.hasNoRequestHeaderToAdd(key: String): RouteConfiguration {
     assertThat(this.requestHeadersToAddList).noneSatisfy {
+        assertThat(it.header.key).isEqualTo(key)
+    }
+    return this
+}
+
+fun RouteConfiguration.hasNoResponseHeaderToAdd(key: String): RouteConfiguration {
+    assertThat(this.responseHeadersToAddList).noneSatisfy {
         assertThat(it.header.key).isEqualTo(key)
     }
     return this

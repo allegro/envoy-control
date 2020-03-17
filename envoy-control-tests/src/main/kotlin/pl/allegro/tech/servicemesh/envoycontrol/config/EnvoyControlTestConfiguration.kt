@@ -27,6 +27,7 @@ object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
 object AdsWithDisabledEndpointPermissions : EnvoyConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
 object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
+object AdsWithNoDependencies : EnvoyConfigFile("envoy/config_ads_no_dependencies.yaml")
 object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
 object RandomConfigFile :
     EnvoyConfigFile(filePath = if (Random.nextBoolean()) Ads.filePath else Xds.filePath)
@@ -180,6 +181,9 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
+        fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
+                call("", address)
+
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", address)
 
@@ -198,18 +202,20 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             address: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
-        ): Response =
-            client.newCall(
-                Request.Builder()
-                    .get()
-                    .header("Host", host)
-                    .apply {
-                        headers.forEach { name, value -> header(name, value) }
-                    }
-                    .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
-                    .build()
+        ): Response {
+            val request = client.newCall(
+                    Request.Builder()
+                            .get()
+                            .header("Host", host)
+                            .apply {
+                                headers.forEach { name, value -> header(name, value) }
+                            }
+                            .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
+                            .build()
             )
-                .execute()
+
+            return request.execute()
+        }
 
         fun callServiceWithOriginalDst(originalDstUrl: String, envoyUrl: String): Response =
             client.newCall(
@@ -386,6 +392,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
     fun ObjectAssert<Response>.hasLocationHeaderFrom(serviceName: String): ObjectAssert<Response> {
         matches { it.headers("location").contains("http://$serviceName/") }
+        return this
+    }
+
+    fun ObjectAssert<Response>.hasXEnvoyUpstreamRemoteAddressFrom(echoContainer: EchoContainer): ObjectAssert<Response> {
+        matches { it.headers("x-envoy-upstream-remote-address").contains(echoContainer.address()) }
         return this
     }
 

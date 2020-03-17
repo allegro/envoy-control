@@ -6,6 +6,7 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
@@ -447,7 +448,7 @@ internal class RBACFilterFactoryTest {
 
     private fun createGroup(serviceName: String, incomingPermission: Incoming? = null): ServicesGroup {
         val group = ServicesGroup(
-                ads = false,
+                communicationMode = CommunicationMode.ADS,
                 serviceName = serviceName,
                 proxySettings = ProxySettings(
                         incoming = incomingPermission ?: Incoming()

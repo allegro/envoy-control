@@ -27,7 +27,7 @@ fun node(
         meta.putFields("ads", Value.newBuilder().setBoolValue(ads).build())
     }
 
-    if (incomingSettings || !serviceDependencies.isEmpty()) {
+    if (incomingSettings || serviceDependencies.isNotEmpty()) {
         meta.putFields(
             "proxy_settings",
             proxySettingsProto(
@@ -98,7 +98,7 @@ fun proxySettingsProto(
             })
         })
     }
-    if (!serviceDependencies.isEmpty()) {
+    if (serviceDependencies.isNotEmpty()) {
         putFields("outgoing", struct {
             putFields("dependencies", list {
                 serviceDependencies.forEach {

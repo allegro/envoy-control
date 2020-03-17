@@ -6,6 +6,8 @@ import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import io.envoyproxy.envoy.api.v2.core.Node
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HttpMethod
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class AllDependenciesValidationException(serviceName: String?)
@@ -16,6 +18,11 @@ class AllDependenciesValidationException(serviceName: String?)
 class InvalidHttpMethodValidationException(serviceName: String?, method: String)
     : NodeMetadataValidationException(
         "Service: $serviceName defined an unknown method: $method in endpoint permissions."
+)
+
+class ConfigurationModeNotSupportedException(serviceName: String?, mode: String)
+    : NodeMetadataValidationException(
+    "Blocked service $serviceName from receiving updates. $mode is not supported by server."
 )
 
 class NodeMetadataValidator(
@@ -46,6 +53,7 @@ class NodeMetadataValidator(
         val metadata = NodeMetadata(node.metadata, properties)
 
         validateDependencies(metadata)
+        validateConfigurationMode(metadata)
     }
 
     private fun validateDependencies(metadata: NodeMetadata) {
@@ -78,4 +86,13 @@ class NodeMetadataValidator(
 
     private fun isAllowedToHaveAllServiceDependencies(metadata: NodeMetadata) = properties
         .outgoingPermissions.servicesAllowedToUseWildcard.contains(metadata.serviceName)
+
+    private fun validateConfigurationMode(metadata: NodeMetadata) {
+        if (metadata.communicationMode == ADS && !properties.enabledCommunicationModes.ads) {
+            throw ConfigurationModeNotSupportedException(metadata.serviceName, "ADS")
+        }
+        if (metadata.communicationMode == XDS && !properties.enabledCommunicationModes.xds) {
+            throw ConfigurationModeNotSupportedException(metadata.serviceName, "XDS")
+        }
+    }
 }

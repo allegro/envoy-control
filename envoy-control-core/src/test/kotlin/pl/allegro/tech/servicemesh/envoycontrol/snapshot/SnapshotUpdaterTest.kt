@@ -10,10 +10,18 @@ import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
@@ -29,7 +37,26 @@ import java.lang.RuntimeException
 import java.util.function.Consumer
 
 class SnapshotUpdaterTest {
-    val groupWithProxy = AllServicesGroup(ads = true, serviceName = "service")
+
+    companion object {
+        @JvmStatic
+        fun configurationModeNotSupported() = listOf(
+            Arguments.of(false, false, ADS, "ADS not supported by server"),
+            Arguments.of(false, false, XDS, "XDS not supported by server")
+        )
+    }
+
+    val proxySettings = ProxySettings(
+        incoming = Incoming(
+            endpoints = listOf(IncomingEndpoint(path = "/endpoint", clients = setOf("client"))),
+            permissionsEnabled = true
+        )
+    )
+    val groupWithProxy = AllServicesGroup(
+        communicationMode = ADS,
+        serviceName = "service",
+        proxySettings = proxySettings
+    )
     val groupWithServiceName = groupOf(
         services = setOf(ServiceDependency(service = "existingService2"))
     ).copy(serviceName = "ipsum-service")
@@ -42,9 +69,11 @@ class SnapshotUpdaterTest {
         val uninitializedSnapshot = null
 
         // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
-        val groups = listOf(AllServicesGroup(ads = false), groupWithProxy, groupWithServiceName,
+        val groups = listOf(
+            AllServicesGroup(communicationMode = XDS), groupWithProxy, groupWithServiceName,
                 groupOf(services = serviceDependencies("existingService1")),
-                groupOf(services = serviceDependencies("existingService2")))
+                groupOf(services = serviceDependencies("existingService2"))
+        )
         groups.forEach {
             cache.setSnapshot(it, uninitializedSnapshot)
         }
@@ -70,7 +99,7 @@ class SnapshotUpdaterTest {
         updater.startWithServices("existingService1", "existingService2")
 
         // then
-        hasSnapshot(cache, AllServicesGroup(ads = false))
+        hasSnapshot(cache, AllServicesGroup(communicationMode = XDS))
             .hasClusters("existingService1", "existingService2")
 
         hasSnapshot(cache, groupWithProxy)
@@ -94,30 +123,36 @@ class SnapshotUpdaterTest {
             .withoutClusters()
     }
 
-    @Test
-    fun `should not crash on bad snapshot generation`() {
-        // given
-        val servicesGroup = AllServicesGroup(ads = true, serviceName = "example-service")
-        val cache = FailingMockCache()
-        cache.setSnapshot(servicesGroup, null)
+    @ParameterizedTest
+    @MethodSource("configurationModeNotSupported")
+    fun `should not generate group snapshots for modes not supported by the server`(
+        adsSupported: Boolean,
+        xdsSupported: Boolean,
+        mode: CommunicationMode
+    ) {
+        val allServiceGroup = AllServicesGroup(communicationMode = mode)
+
+        val uninitializedSnapshot = null
+        val cache = MockCache()
+        cache.setSnapshot(allServiceGroup, uninitializedSnapshot)
+
         val updater = SnapshotUpdater(
-                cache,
-                properties = SnapshotProperties(),
-                scheduler = Schedulers.newSingle("update-snapshot"),
-                onGroupAdded = Flux.just(),
-                meterRegistry = simpleMeterRegistry
+            cache,
+            properties = SnapshotProperties().apply {
+                enabledCommunicationModes.ads = adsSupported; enabledCommunicationModes.xds = xdsSupported
+            },
+            scheduler = Schedulers.newSingle("update-snapshot"),
+            onGroupAdded = Flux.just(listOf()),
+            meterRegistry = simpleMeterRegistry
         )
 
         // when
         updater.start(
-                Flux.just(emptyList())
+            Flux.just(emptyList())
         ).blockFirst()
 
-        // then
-        val snapshot = cache.getSnapshot(servicesGroup)
-        assertThat(snapshot).isEqualTo(null)
-        assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
-            .counter()?.count()).isEqualTo(1.0)
+        // should not generate snapshot
+        assertThat(cache.getSnapshot(allServiceGroup)).isNull()
     }
 
     @Test
@@ -154,6 +189,35 @@ class SnapshotUpdaterTest {
         assertThat(snapshot.routes().resources().values
             .first { it.name == "default_routes" }.virtualHostsCount)
             .isEqualTo(2)
+    }
+
+    @Test
+    fun `should not crash on bad snapshot generation`() {
+        // given
+        val servicesGroup = AllServicesGroup(
+                communicationMode = ADS,
+                serviceName = "example-service"
+        )
+        val cache = FailingMockCache()
+        cache.setSnapshot(servicesGroup, null)
+        val updater = SnapshotUpdater(
+                cache,
+                properties = SnapshotProperties(),
+                scheduler = Schedulers.newSingle("update-snapshot"),
+                onGroupAdded = Flux.just(),
+                meterRegistry = simpleMeterRegistry
+        )
+
+        // when
+        updater.start(
+                Flux.just(emptyList())
+        ).blockFirst()
+
+        // then
+        val snapshot = cache.getSnapshot(servicesGroup)
+        assertThat(snapshot).isEqualTo(null)
+        assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
+                .counter()?.count()).isEqualTo(1.0)
     }
 
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
@@ -239,7 +303,7 @@ class SnapshotUpdaterTest {
         services: Set<ServiceDependency> = emptySet(),
         domains: Set<DomainDependency> = emptySet()
     ) = ServicesGroup(
-        ads = false,
+        communicationMode = XDS,
         proxySettings = ProxySettings().with(
             serviceDependencies = services, domainDependencies = domains
         )

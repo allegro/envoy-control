@@ -10,6 +10,7 @@ import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
@@ -21,7 +22,7 @@ internal class SnapshotsVersionsTest {
 
     private val snapshotsVersions = SnapshotsVersions()
 
-    private val group = AllServicesGroup(ads = false)
+    private val group = AllServicesGroup(communicationMode = XDS)
     private val clusters = listOf(cluster(name = "service1"))
     private val endpoints = listOf(endpoints(clusterName = "service1", instances = 1))
 
@@ -135,7 +136,7 @@ internal class SnapshotsVersionsTest {
 
     private fun createGroup(endpointPath: String): AllServicesGroup {
         return AllServicesGroup(
-                ads = false,
+                communicationMode = XDS,
                 serviceName = "name",
                 proxySettings = ProxySettings(
                     incoming = Incoming(

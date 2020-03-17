@@ -4,11 +4,16 @@ import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnabledCommunicationModes
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OutgoingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class NodeMetadataValidatorTest {
+
     val validator = NodeMetadataValidator(SnapshotProperties().apply {
         outgoingPermissions = createOutgoingPermissions(enabled = true, servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2"))
     })
@@ -43,11 +48,8 @@ class NodeMetadataValidatorTest {
 
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
-        // when
-        validator.onStreamRequest(123, request = request)
-
         // then
-        // no exception thrown
+        assertDoesNotThrow { validator.onStreamRequest(123, request = request) }
     }
 
     @Test
@@ -62,11 +64,72 @@ class NodeMetadataValidatorTest {
         )
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
-        // when
-        permissionsDisabledValidator.onStreamRequest(123, request = request)
+        // then
+        assertDoesNotThrow { permissionsDisabledValidator.onStreamRequest(123, request = request) }
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+        "false, true, true, ADS",
+        "true, false, false, XDS",
+        "false, false, false, XDS",
+        "false, false, true, ADS"
+    )
+    fun `should fail if service wants to use mode which server doesn't support`(
+        adsSupported: Boolean,
+        xdsSupported: Boolean,
+        ads: Boolean,
+        modeNotSupportedName: String
+    ) {
+        // given
+        val configurationModeValidator = NodeMetadataValidator(SnapshotProperties().apply {
+            enabledCommunicationModes = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
+        })
+
+        val node = node(
+            ads = ads,
+            serviceDependencies = setOf("a", "b", "c"),
+            serviceName = "regular-1"
+        )
+        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+
+        // expects
+        assertThatExceptionOfType(ConfigurationModeNotSupportedException::class.java)
+            .isThrownBy { configurationModeValidator.onStreamRequest(streamId = 123, request = request) }
+            .satisfies {
+                assertThat(it.status.description).isEqualTo(
+                    "Blocked service regular-1 from receiving updates. $modeNotSupportedName is not supported by server."
+                )
+                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+            }
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+        "true, true, true",
+        "true, false, true",
+        "false, true, false",
+        "true, true, false"
+    )
+    fun `should do nothing if service wants to use mode supported by the server`(
+        adsSupported: Boolean,
+        xdsSupported: Boolean,
+        ads: Boolean
+    ) {
+        // given
+        val configurationModeValidator = NodeMetadataValidator(SnapshotProperties().apply {
+            enabledCommunicationModes = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
+        })
+
+        val node = node(
+            ads = ads,
+            serviceDependencies = setOf("a", "b", "c"),
+            serviceName = "regular-1"
+        )
+        val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // then
-        // no exception thrown
+        assertDoesNotThrow { configurationModeValidator.onStreamRequest(123, request = request) }
     }
 
     private fun createOutgoingPermissions(
@@ -77,5 +140,12 @@ class NodeMetadataValidatorTest {
         outgoingPermissions.enabled = enabled
         outgoingPermissions.servicesAllowedToUseWildcard = servicesAllowedToUseWildcard
         return outgoingPermissions
+    }
+
+    private fun createCommunicationMode(ads: Boolean = true, xds: Boolean = true): EnabledCommunicationModes {
+        val enabledCommunicationModes = EnabledCommunicationModes()
+        enabledCommunicationModes.ads = ads
+        enabledCommunicationModes.xds = xds
+        return enabledCommunicationModes
     }
 }
