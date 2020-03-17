@@ -162,7 +162,7 @@ internal class EnvoyClustersFactory(
         cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
         cluster.setCircuitBreakers(allThresholds)
 
-        if (clusterConfiguration.http2Enabled == Http2Status.ENABLED) {
+        if (clusterConfiguration.http2 == Http2Status.ENABLED) {
             cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())
         }
 

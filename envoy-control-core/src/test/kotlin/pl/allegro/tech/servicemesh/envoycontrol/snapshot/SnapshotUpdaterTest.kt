@@ -334,7 +334,9 @@ class SnapshotUpdaterTest {
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties().apply {
-                outgoingPermissions.servicesNotIncludedInWildcardByPrefix = mutableSetOf("mock-", "regression-tests")
+                outgoingPermissions.allServicesDependencies.notIncludedByPrefix = mutableSetOf(
+                    "mock-", "regression-tests"
+                )
             },
             scheduler = Schedulers.newSingle("update-snapshot"),
             onGroupAdded = Flux.just(groups),

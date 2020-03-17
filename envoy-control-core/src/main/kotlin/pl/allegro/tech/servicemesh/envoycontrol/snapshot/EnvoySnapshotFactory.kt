@@ -78,8 +78,8 @@ internal class EnvoySnapshotFactory(
     }
 
     fun clusterConfigurations(servicesStates: List<LocalityAwareServicesState>): Map<String, ClusterConfiguration> {
-        if (properties.egress.http2.enabled) {
-            return servicesStates.flatMap {
+        return if (properties.egress.http2.enabled) {
+            servicesStates.flatMap {
                 it.servicesState.serviceNameToInstances.values
             }.groupBy {
                 it.serviceName
@@ -87,10 +87,10 @@ internal class EnvoySnapshotFactory(
                 toClusterConfiguration(instances, serviceName)
             }
         } else {
-            return servicesStates
+            servicesStates
                 .flatMap { it.servicesState.serviceNames() }
                 .distinct()
-                .associateWith { ClusterConfiguration(serviceName = it, http2Enabled = Http2Status.DISABLED) }
+                .associateWith { ClusterConfiguration(serviceName = it, http2 = Http2Status.DISABLED) }
         }
     }
 
@@ -104,7 +104,7 @@ internal class EnvoySnapshotFactory(
         } else {
             false
         }
-        val anyUnknownHttp2 = current.any { it.value.http2Enabled == Http2Status.UNKNOWN }
+        val anyUnknownHttp2 = current.any { it.value.http2 == Http2Status.UNKNOWN }
 
         if (!anyRemoved && !anyUnknownHttp2) {
             // fast path (most frequent)
@@ -112,7 +112,7 @@ internal class EnvoySnapshotFactory(
         }
 
         val fixedClusters = when (anyUnknownHttp2) {
-            true -> fixHttp2StatusUsingPreviousState(previous, current)
+            true -> setHttp2StatusUsingPreviousState(previous, current)
             false -> current
         }
         return when (anyRemoved) {
@@ -124,16 +124,16 @@ internal class EnvoySnapshotFactory(
         }
     }
 
-    private fun fixHttp2StatusUsingPreviousState(
+    private fun setHttp2StatusUsingPreviousState(
         previous: Map<String, ClusterConfiguration>,
         current: Map<String, ClusterConfiguration>
     ): Map<String, ClusterConfiguration> {
 
         return current.mapValues { (name, cluster) ->
-            if (cluster.http2Enabled == Http2Status.UNKNOWN) {
-                val previousStatus = previous[name]?.http2Enabled ?: Http2Status.UNKNOWN
+            if (cluster.http2 == Http2Status.UNKNOWN) {
+                val previousStatus = previous[name]?.http2 ?: Http2Status.UNKNOWN
                 if (previousStatus != Http2Status.UNKNOWN) {
-                    cluster.copy(http2Enabled = previousStatus)
+                    cluster.copy(http2 = previousStatus)
                 } else {
                     cluster
                 }
@@ -406,7 +406,7 @@ internal enum class Http2Status {
 
 internal data class ClusterConfiguration(
     val serviceName: String,
-    val http2Enabled: Http2Status
+    val http2: Http2Status
 )
 
 internal class RouteSpecification(

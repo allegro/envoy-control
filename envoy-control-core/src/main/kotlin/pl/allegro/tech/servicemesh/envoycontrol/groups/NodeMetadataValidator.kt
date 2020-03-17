@@ -58,7 +58,7 @@ class NodeMetadataValidator(
 
     private fun hasAllServicesDependencies(metadata: NodeMetadata) =
         metadata.proxySettings.outgoing.containsDependencyForService(
-            properties.outgoingPermissions.allServicesDependenciesValue
+            properties.outgoingPermissions.allServicesDependencies.identifier
         )
 
     private fun isAllowedToHaveAllServiceDependencies(metadata: NodeMetadata) = properties

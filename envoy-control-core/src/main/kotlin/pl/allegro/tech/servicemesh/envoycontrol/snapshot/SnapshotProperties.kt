@@ -45,9 +45,13 @@ class AccessLogProperties {
 
 class OutgoingPermissionsProperties {
     var enabled = false
-    var allServicesDependenciesValue = "*"
-    var servicesNotIncludedInWildcardByPrefix: MutableSet<String> = mutableSetOf()
+    var allServicesDependencies = AllServicesDependenciesProperties()
     var servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
+}
+
+class AllServicesDependenciesProperties {
+    var identifier = "*"
+    var notIncludedByPrefix: MutableSet<String> = mutableSetOf()
 }
 
 class IncomingPermissionsProperties {

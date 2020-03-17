@@ -29,7 +29,7 @@ private fun getClustersForAllServicesGroups(
     clusters: Map<String, Cluster>,
     properties: OutgoingPermissionsProperties
 ): Map<String, Cluster> {
-    val blacklist = properties.servicesNotIncludedInWildcardByPrefix
+    val blacklist = properties.allServicesDependencies.notIncludedByPrefix
     if (blacklist.isEmpty()) {
         return clusters
     } else {
