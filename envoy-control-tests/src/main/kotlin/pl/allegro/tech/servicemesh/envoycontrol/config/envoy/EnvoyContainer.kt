@@ -15,7 +15,7 @@ class EnvoyContainer(
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort
 ) : SSLGenericContainer<EnvoyContainer>(DockerfileBuilder()
         // We use envoy version from master. This is 1.14.0-dev.
-        .from("envoyproxy/envoy-alpine-dev:a9b9f8bed6f0923e12fa31c9e23a73ae10b2bb79")
+        .from("envoyproxy/envoy-alpine-dev:4c99797cd2234da59e21b5f678b3059400cccbb1")
         .run("apk --no-cache add curl iproute2")
 ) {
 
