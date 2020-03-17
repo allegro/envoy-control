@@ -16,6 +16,7 @@ class ServerProperties {
      */
     var snapshotUpdatePoolSize = 5
     var snapshotCleanup = SnapshotCleanupProperties()
+    var reportProtobufCacheMetrics = false
     var logFullRequest = false
     var logFullResponse = false
 }
