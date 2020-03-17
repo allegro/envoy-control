@@ -6,7 +6,6 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.HttpsEchoContainer
 
 class EnvoySANValidationTest : EnvoyControlTestConfiguration() {
@@ -19,10 +18,7 @@ class EnvoySANValidationTest : EnvoyControlTestConfiguration() {
         @JvmStatic
         @BeforeAll
         fun setupTest() {
-            setup(
-                    envoyConfig = RandomConfigFile,
-                    appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
-            )
+            setup(appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) })
             httpsEchoContainer.start()
             envoyContainer1.addHost("my.example.com", httpsEchoContainer.ipAddress())
             envoyContainer1.addHost("bad.host.example.com", httpsEchoContainer.ipAddress())
@@ -31,8 +27,6 @@ class EnvoySANValidationTest : EnvoyControlTestConfiguration() {
         @JvmStatic
         @AfterAll
         fun teardown() {
-            envoyContainer1.removeHost("my.example.com")
-            envoyContainer1.removeHost("bad.host.example.com")
             httpsEchoContainer.stop()
         }
     }
@@ -51,12 +45,13 @@ class EnvoySANValidationTest : EnvoyControlTestConfiguration() {
     fun `should reject certificate without matching SAN`() {
         untilAsserted {
             // when
-            callDomain("bad.host.example.com")
+            val response = callDomain("bad.host.example.com")
 
             val sanFailCount = envoyContainer1.admin().statValue(
                     "cluster.bad_host_example_com_443.ssl.fail_verify_san"
             )?.toInt()
             assertThat(sanFailCount).isGreaterThan(0)
+            assertThat(response).isUnreachable()
         }
     }
 }
