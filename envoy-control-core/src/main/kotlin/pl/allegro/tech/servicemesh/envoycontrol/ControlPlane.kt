@@ -152,7 +152,7 @@ class ControlPlane private constructor(
                 ),
                 groupChangeWatcher,
                 executorGroup,
-                CachedProtoResourcesSerializer()
+                CachedProtoResourcesSerializer(meterRegistry, properties.server.reportProtobufCacheMetrics)
             )
 
             return ControlPlane(
