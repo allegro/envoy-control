@@ -168,6 +168,9 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
+        fun callEnvoyIngress(path: String): Response =
+                call("", address = envoyContainer1.ingressListenerUrl(), pathAndQuery = path)
+
         fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
                 call("", address)
 
