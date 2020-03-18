@@ -30,7 +30,13 @@ internal class EnvoyIngressRoutesFactory(
             .setIdleTimeout(timeoutIdle)
     }
 
-    private val statusPathPattern = properties.routes.status.pathPrefix + ".*"
+    private val statusPathPrefix = properties.routes.status.pathPrefix
+
+    private val endpointsPrefixMatcher = HeaderMatcher.newBuilder()
+            .setName(":path").setPrefixMatch("/").build()
+
+    private val statusPrefixMatcher = HeaderMatcher.newBuilder()
+            .setName(":path").setPrefixMatch(statusPathPrefix).build()
 
     private fun statusRoute(localRouteAction: RouteAction.Builder): Route? {
         return Route.newBuilder()
@@ -107,17 +113,18 @@ internal class EnvoyIngressRoutesFactory(
 
     fun createSecuredIngressRouteConfig(proxySettings: ProxySettings): RouteConfiguration {
         val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
-            true ->
+            true -> {
                 listOf(
                     VirtualCluster.newBuilder()
-                        .setPattern(statusPathPattern)
+                        .addHeaders(statusPrefixMatcher)
                         .setName("status")
                         .build(),
                     VirtualCluster.newBuilder()
-                        .setPattern("/.*")
+                        .addHeaders(endpointsPrefixMatcher)
                         .setName("endpoints")
                         .build()
                 )
+            }
             false ->
                 emptyList()
         }

@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Duration
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
 import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
+import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.api.v2.route.RedirectAction
 import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import io.envoyproxy.envoy.api.v2.route.Route
@@ -60,8 +61,14 @@ fun RouteConfiguration.hasNoResponseHeaderToAdd(key: String): RouteConfiguration
 
 fun VirtualHost.hasStatusVirtualClusters(): VirtualHost {
     return this.hasVirtualClustersInOrder(
-        { it.pattern == "/status/.*" && it.name == "status" },
-        { it.pattern == "/.*" && it.name == "endpoints" }
+        {
+            it.headersList == listOf(HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/status/").build()) &&
+            it.name == "status"
+        },
+        {
+            it.headersList == listOf(HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/").build()) &&
+            it.name == "endpoints"
+        }
     )
 }
 
