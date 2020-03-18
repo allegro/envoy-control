@@ -25,9 +25,13 @@ class StatusRouteTest : EnvoyControlTestConfiguration() {
     fun `should allow defining custom status prefix`() {
         untilAsserted {
             // when
-            val ingressRoot = callEnvoyIngress("/my-status")
+            val ingressRoot = callEnvoyIngress("/my-status/abc")
 
             // then
+            val statusUpstreamOk = envoyContainer1.admin().statValue(
+                    "vhost.secured_local_service.vcluster.status.upstream_rq_200"
+            )?.toInt()
+            assertThat(statusUpstreamOk).isGreaterThan(0)
             assertThat(ingressRoot.code()).isEqualTo(200)
         }
     }
