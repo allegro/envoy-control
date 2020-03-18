@@ -46,7 +46,6 @@ class RBACFilterFactory(
 
             val combinedPermissions = createCombinedPermissions(incomingEndpoint)
             policy.addPermissions(combinedPermissions)
-            clientToPolicyBuilder[policyName] = policy
         }
 
         val clientToPolicy = clientToPolicyBuilder.mapValues { it.value.build() }
@@ -60,9 +59,9 @@ class RBACFilterFactory(
         val combinedPermissions = Permission.newBuilder()
         val pathPermission = Permission.newBuilder()
                 .setUrlPath(createPathMatcher(incomingEndpoint))
-        val methodPermissions = createMethodPermissions(incomingEndpoint)
 
         if (incomingEndpoint.methods.isNotEmpty()) {
+            val methodPermissions = createMethodPermissions(incomingEndpoint)
             combinedPermissions.setAndRules(
                     Permission.Set.newBuilder().addAllRules(listOf(
                             pathPermission.build(),

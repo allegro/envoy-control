@@ -57,7 +57,7 @@ internal class RBACFilterFactoryTest {
     @Test
     fun `should generate RBAC rules for incoming permissions with no endpoints allowed`() {
         // given
-        val rbacBuilder = getRBACFilter(exptectedEmptyEndpointPermissions)
+        val rbacBuilder = getRBACFilter(expectedEmptyEndpointPermissions)
         val incomingPermission = Incoming(
                 permissionsEnabled = true,
                 endpoints = listOf()
@@ -240,7 +240,7 @@ internal class RBACFilterFactoryTest {
     @Test
     fun `should generate RBAC rules for incoming permissions without clients`() {
         // given
-        val rbacBuilder = getRBACFilter(exptectedEmptyEndpointPermissions)
+        val rbacBuilder = getRBACFilter(expectedEmptyEndpointPermissions)
         val incomingPermission = Incoming(
                 permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
@@ -399,7 +399,7 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private val exptectedEmptyEndpointPermissions = """{ "policies": {} }"""
+    private val expectedEmptyEndpointPermissions = """{ "policies": {} }"""
 
     private fun pathRule(path: String): String {
         return """{

@@ -66,7 +66,7 @@ internal class EnvoyIngressRoutesFactory(
         .map { HttpMethod.valueOf(it.key) to retryPolicy(it.value) }
         .toMap()
 
-    private fun allOpenIngressRoutes(localRouteAction: RouteAction.Builder): List<Route> {
+    private fun ingressRoutes(localRouteAction: RouteAction.Builder): List<Route> {
         val nonRetryRoute = Route.newBuilder()
             .setMatch(
                 RouteMatch.newBuilder()
@@ -162,7 +162,7 @@ internal class EnvoyIngressRoutesFactory(
                 listOfNotNull(
                     statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }
                 ) +
-                allOpenIngressRoutes(localRouteAction)
+                ingressRoutes(localRouteAction)
     }
 
     private fun statusRouteVirtualClusterEnabled() =

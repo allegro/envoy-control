@@ -4,7 +4,6 @@ import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import io.envoyproxy.envoy.api.v2.core.Node
-import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
@@ -28,8 +27,6 @@ class ConfigurationModeNotSupportedException(serviceName: String?, mode: String)
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
-    private val logger by logger()
-
     override fun onStreamClose(streamId: Long, typeUrl: String?) {}
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String?, error: Throwable?) {}
@@ -66,13 +63,17 @@ class NodeMetadataValidator(
         }
     }
 
+    /**
+     * Exception is logged in DiscoveryRequestStreamObserver.onNext()
+     * @see io.envoyproxy.controlplane.server.DiscoveryRequestStreamObserver.onNext()
+     */
+    @Suppress("SwallowedException")
     private fun validateEndpointPermissionsMethods(metadata: NodeMetadata) {
         metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
             incomingEndpoint.methods.forEach { method ->
                 try {
                     HttpMethod.valueOf(method)
                 } catch (e: Exception) {
-                    logger.warn("Could not map http method $method in service ${metadata.serviceName}.", e)
                     throw InvalidHttpMethodValidationException(metadata.serviceName, method)
                 }
             }
