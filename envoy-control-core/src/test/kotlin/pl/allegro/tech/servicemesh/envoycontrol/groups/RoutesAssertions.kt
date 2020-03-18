@@ -62,11 +62,11 @@ fun RouteConfiguration.hasNoResponseHeaderToAdd(key: String): RouteConfiguration
 fun VirtualHost.hasStatusVirtualClusters(): VirtualHost {
     return this.hasVirtualClustersInOrder(
         {
-            it.headersList[0] == HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/status/").build() &&
+            it.headersList == listOf(HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/status/").build()) &&
             it.name == "status"
         },
         {
-            it.headersList[0] == HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/").build() &&
+            it.headersList == listOf(HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/").build()) &&
             it.name == "endpoints"
         }
     )
