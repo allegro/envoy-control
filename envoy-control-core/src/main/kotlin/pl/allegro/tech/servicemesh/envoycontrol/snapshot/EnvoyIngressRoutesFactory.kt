@@ -4,6 +4,7 @@ import com.google.protobuf.Duration
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
+import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import io.envoyproxy.envoy.api.v2.route.Route
 import io.envoyproxy.envoy.api.v2.route.RouteAction
