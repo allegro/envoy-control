@@ -15,7 +15,6 @@ class ConsulProperties {
 class ConsulWatcherOkHttpProperties {
     var readTimeout: Duration = Duration.ofMinutes(6)
     var connectTimeout: Duration = Duration.ofSeconds(2)
-    var maxRequests = 1000
     var dispatcherMaxPoolSize = 2000
     var dispatcherPoolKeepAliveTime: Duration = Duration.ofSeconds(30)
 }

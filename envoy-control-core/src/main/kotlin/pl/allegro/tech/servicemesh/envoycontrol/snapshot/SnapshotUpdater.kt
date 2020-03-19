@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -109,15 +108,16 @@ class SnapshotUpdater(
                 .measureBuffer("snapshot-updater-services-published", meterRegistry)
                 .checkpoint("snapshot-updater-services-published")
                 .name("snapshot-updater-services-published").metrics()
-                .map { states ->
-                    var lastXdsSnapshot: Snapshot? = null
-                    var lastAdsSnapshot: Snapshot? = null
+                .createClusterConfigurations()
+                .map { (states, clusters) ->
+                    var lastXdsSnapshot: GlobalSnapshot? = null
+                    var lastAdsSnapshot: GlobalSnapshot? = null
 
                     if (properties.enabledCommunicationModes.xds) {
-                        lastXdsSnapshot = snapshotFactory.newSnapshot(states, XDS)
+                        lastXdsSnapshot = snapshotFactory.newSnapshot(states, clusters, XDS)
                     }
                     if (properties.enabledCommunicationModes.ads) {
-                        lastAdsSnapshot = snapshotFactory.newSnapshot(states, ADS)
+                        lastAdsSnapshot = snapshotFactory.newSnapshot(states, clusters, ADS)
                     }
 
                     val updateResult = UpdateResult(
@@ -135,7 +135,7 @@ class SnapshotUpdater(
                 }
     }
 
-    private fun updateSnapshotForGroup(group: Group, globalSnapshot: Snapshot) {
+    private fun updateSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot) {
         try {
             val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, globalSnapshot)
             meterRegistry.timer("snapshot-updater.set-snapshot.${group.serviceName}.time").record {
@@ -162,6 +162,22 @@ class SnapshotUpdater(
             }
         }
     }
+
+    private fun Flux<List<LocalityAwareServicesState>>.createClusterConfigurations(): Flux<StatesAndClusters> = this
+        .scan(StatesAndClusters.initial) { previous, currentStates -> StatesAndClusters(
+            states = currentStates,
+            clusters = snapshotFactory.clusterConfigurations(currentStates, previous.clusters)
+        ) }
+        .filter { it !== StatesAndClusters.initial }
+
+    private data class StatesAndClusters(
+        val states: List<LocalityAwareServicesState>,
+        val clusters: Map<String, ClusterConfiguration>
+    ) {
+        companion object {
+            val initial = StatesAndClusters(emptyList(), emptyMap())
+        }
+    }
 }
 
 enum class Action {
@@ -171,6 +187,6 @@ enum class Action {
 class UpdateResult(
     val action: Action,
     val groups: List<Group> = listOf(),
-    val adsSnapshot: Snapshot? = null,
-    val xdsSnapshot: Snapshot? = null
+    val adsSnapshot: GlobalSnapshot? = null,
+    val xdsSnapshot: GlobalSnapshot? = null
 )

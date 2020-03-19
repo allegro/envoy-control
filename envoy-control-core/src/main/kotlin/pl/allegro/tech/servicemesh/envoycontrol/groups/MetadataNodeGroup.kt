@@ -135,13 +135,14 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
 
     private fun hasAllServicesDependencies(metadata: NodeMetadata): Boolean {
         return !properties.outgoingPermissions.enabled || metadata.proxySettings.outgoing.containsDependencyForService(
-            properties.outgoingPermissions.allServicesDependenciesValue
+            properties.outgoingPermissions.allServicesDependencies.identifier
         )
     }
 
     private fun serviceName(metadata: NodeMetadata): String {
         return when (properties.incomingPermissions.enabled) {
             true -> metadata.serviceName.orEmpty()
+            // TODO: https://github.com/allegro/envoy-control/issues/91
             false -> ""
         }
     }

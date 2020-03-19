@@ -5,13 +5,11 @@ import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
 import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
-import io.envoyproxy.envoy.api.v2.core.UpstreamHttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.cluster.CircuitBreakers
 import io.envoyproxy.envoy.api.v2.cluster.OutlierDetection
 import io.envoyproxy.envoy.api.v2.core.Address
@@ -25,6 +23,7 @@ import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.RoutingPriority
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.core.TransportSocket
+import io.envoyproxy.envoy.api.v2.core.UpstreamHttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
@@ -46,20 +45,20 @@ internal class EnvoyClustersFactory(
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
 
     fun getClustersForServices(
-        services: List<EnvoySnapshotFactory.ClusterConfiguration>,
+        services: Collection<ClusterConfiguration>,
         communicationMode: CommunicationMode
     ): List<Cluster> {
         return services.map { edsCluster(it, communicationMode) }
     }
 
-    fun getClustersForGroup(group: Group, globalSnapshot: Snapshot): List<Cluster> =
+    fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
         getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group)
 
-    private fun getEdsClustersForGroup(group: Group, globalSnapshot: Snapshot): List<Cluster> {
+    private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies()
-                .mapNotNull { globalSnapshot.clusters().resources().get(it.service) }
-            is AllServicesGroup -> globalSnapshot.clusters().resources().map { it.value }
+                .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
+            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map { it.value }
         }
     }
 
@@ -129,7 +128,7 @@ internal class EnvoyClustersFactory(
     }
 
     private fun edsCluster(
-        clusterConfiguration: EnvoySnapshotFactory.ClusterConfiguration,
+        clusterConfiguration: ClusterConfiguration,
         communicationMode: CommunicationMode
     ): Cluster {
         val clusterBuilder = Cluster.newBuilder()

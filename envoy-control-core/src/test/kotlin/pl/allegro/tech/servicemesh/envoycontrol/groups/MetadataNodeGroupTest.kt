@@ -225,7 +225,7 @@ class MetadataNodeGroupTest {
     ): SnapshotProperties {
         val snapshotProperties = SnapshotProperties()
         snapshotProperties.outgoingPermissions.enabled = outgoingPermissions
-        snapshotProperties.outgoingPermissions.allServicesDependenciesValue = allServicesDependenciesValue
+        snapshotProperties.outgoingPermissions.allServicesDependencies.identifier = allServicesDependenciesValue
         snapshotProperties.incomingPermissions.enabled = incomingPermissions
         return snapshotProperties
     }

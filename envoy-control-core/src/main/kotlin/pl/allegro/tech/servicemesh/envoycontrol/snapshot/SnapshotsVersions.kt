@@ -26,10 +26,13 @@ internal class SnapshotsVersions {
         val versionsWithData = versions.compute(group) { _, previous ->
             val version = when (previous) {
                 null -> Version(clusters = ClustersVersion(newVersion()), endpoints = EndpointsVersion(newVersion()))
-                else -> Version(
-                    clusters = selectClusters(previous, clusters),
-                    endpoints = selectEndpoints(previous, endpoints, previous.clusters != clusters)
-                )
+                else -> {
+                    val clustersChanged = previous.clusters != clusters
+                    Version(
+                        clusters = selectClusters(previous, clustersChanged),
+                        endpoints = selectEndpoints(previous, endpoints, clustersChanged)
+                    )
+                }
             }
             VersionsWithData(version, clusters, endpoints)
         }
@@ -51,8 +54,8 @@ internal class SnapshotsVersions {
 
     private fun selectClusters(
         previous: VersionsWithData,
-        clusters: List<Cluster>
-    ) = if (previous.clusters == clusters) previous.version.clusters else ClustersVersion(newVersion())
+        clustersChanged: Boolean
+    ) = if (!clustersChanged) previous.version.clusters else ClustersVersion(newVersion())
 
     /**
      * This should be called before setting new snapshot to cache. The cache cleans up not used groups by using
