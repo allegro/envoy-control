@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.Any
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
@@ -10,6 +11,7 @@ import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
 import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
+import io.envoyproxy.envoy.api.v2.core.UpstreamHttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.cluster.CircuitBreakers
 import io.envoyproxy.envoy.api.v2.cluster.OutlierDetection
 import io.envoyproxy.envoy.api.v2.core.Address
@@ -32,8 +34,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
-import com.google.protobuf.Any
-import io.envoyproxy.envoy.api.v2.core.UpstreamHttpProtocolOptions
 
 internal class EnvoyClustersFactory(
     private val properties: SnapshotProperties

@@ -4,6 +4,7 @@ import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import io.envoyproxy.envoy.api.v2.core.Node
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -11,6 +12,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 class AllDependenciesValidationException(serviceName: String?)
     : NodeMetadataValidationException(
     "Blocked service $serviceName from using all dependencies. Only defined services can use all dependencies"
+)
+
+class InvalidHttpMethodValidationException(serviceName: String?, method: String)
+    : NodeMetadataValidationException(
+        "Service: $serviceName defined an unknown method: $method in endpoint permissions."
 )
 
 class ConfigurationModeNotSupportedException(serviceName: String?, mode: String)
@@ -51,8 +57,26 @@ class NodeMetadataValidator(
         if (!properties.outgoingPermissions.enabled) {
             return
         }
+        validateEndpointPermissionsMethods(metadata)
         if (hasAllServicesDependencies(metadata) && !isAllowedToHaveAllServiceDependencies(metadata)) {
             throw AllDependenciesValidationException(metadata.serviceName)
+        }
+    }
+
+    /**
+     * Exception is logged in DiscoveryRequestStreamObserver.onNext()
+     * @see io.envoyproxy.controlplane.server.DiscoveryRequestStreamObserver.onNext()
+     */
+    @Suppress("SwallowedException")
+    private fun validateEndpointPermissionsMethods(metadata: NodeMetadata) {
+        metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
+            incomingEndpoint.methods.forEach { method ->
+                try {
+                    HttpMethod.valueOf(method)
+                } catch (e: Exception) {
+                    throw InvalidHttpMethodValidationException(metadata.serviceName, method)
+                }
+            }
         }
     }
 

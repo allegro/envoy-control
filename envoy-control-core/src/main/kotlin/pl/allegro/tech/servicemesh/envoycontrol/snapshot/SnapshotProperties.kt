@@ -51,10 +51,6 @@ class OutgoingPermissionsProperties {
 
 class IncomingPermissionsProperties {
     var enabled = false
-    /**
-     * unavailable = not found || unauthorized
-     */
-    var endpointUnavailableStatusCode = 503
     var clientIdentityHeader = "x-service-name"
 }
 

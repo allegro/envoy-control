@@ -120,7 +120,7 @@ open class BaseEnvoyTest {
             return consulOps.registerService(
                 id = id,
                 name = name,
-                address = echoContainerIp,
+                address = echoContainerIp!!,
                 port = port,
                 registerDefaultCheck = registerDefaultCheck,
                 tags = tags
