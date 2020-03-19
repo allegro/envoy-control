@@ -14,6 +14,7 @@ import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -24,6 +25,7 @@ object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.y
 object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_check.yaml")
 object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
+object AdsWithDisabledEndpointPermissions : EnvoyConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
 object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
 object AdsWithNoDependencies : EnvoyConfigFile("envoy/config_ads_no_dependencies.yaml")
 object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
@@ -32,6 +34,7 @@ object RandomConfigFile :
 
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {
+        private val logger by logger()
         private val client = OkHttpClient.Builder()
             // envoys default timeout is 15 seconds while OkHttp is 10
             .readTimeout(Duration.ofSeconds(20))
@@ -80,7 +83,12 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
             waitForEnvoyControlsHealthy()
             registerEnvoyControls(ec1RegisterPort, ec2RegisterPort, instancesInSameDc)
-            envoyContainer1.start()
+            try {
+                envoyContainer1.start()
+            } catch (e: Exception) {
+                logger.error("Logs from failed container: ${envoyContainer1.logs}")
+                throw e
+            }
 
             if (envoys == 2) {
                 envoyContainer2 = createEnvoyContainer(
@@ -90,7 +98,12 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     envoyConnectGrpcPort2,
                     echoContainer.ipAddress()
                 )
-                envoyContainer2.start()
+                try {
+                    envoyContainer2.start()
+                } catch (e: Exception) {
+                    logger.error("Logs from failed container: ${envoyContainer2.logs}")
+                    throw e
+                }
             }
         }
 

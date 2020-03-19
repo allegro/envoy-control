@@ -20,8 +20,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
-import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
@@ -35,6 +33,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
+import java.lang.RuntimeException
 import java.util.function.Consumer
 
 class SnapshotUpdaterTest {
@@ -49,16 +48,9 @@ class SnapshotUpdaterTest {
         private val uninitializedSnapshot = null
     }
 
-    val proxySettings = ProxySettings(
-        incoming = Incoming(
-            endpoints = listOf(IncomingEndpoint(path = "/endpoint", clients = setOf("client"))),
-            permissionsEnabled = true
-        )
-    )
     val groupWithProxy = AllServicesGroup(
         communicationMode = ADS,
-        serviceName = "service",
-        proxySettings = proxySettings
+        serviceName = "service"
     )
     val groupWithServiceName = groupOf(
         services = setOf(ServiceDependency(service = "existingService2"))
@@ -82,7 +74,7 @@ class SnapshotUpdaterTest {
 
     @Test
     fun `should generate group snapshots`() {
-        val cache = newCache()
+        val cache = MockCache()
 
         // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
         val groups = listOf(
@@ -120,8 +112,6 @@ class SnapshotUpdaterTest {
 
         hasSnapshot(cache, groupWithProxy)
             .hasOnlyClustersFor("existingService1", "existingService2")
-            .hasSecuredIngressRoute("/endpoint", "client")
-            .hasServiceNameRequestHeader("service")
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("existingService1")))
             .hasOnlyClustersFor("existingService1")
@@ -131,7 +121,6 @@ class SnapshotUpdaterTest {
 
         hasSnapshot(cache, groupWithServiceName)
             .hasOnlyClustersFor("existingService2")
-            .hasServiceNameRequestHeader("ipsum-service")
 
         hasSnapshot(cache, groupOf(
             services = serviceDependencies("existingService1", "existingService2"),
@@ -151,7 +140,7 @@ class SnapshotUpdaterTest {
     ) {
         val allServiceGroup = AllServicesGroup(communicationMode = mode)
 
-        val cache = newCache()
+        val cache = MockCache()
         cache.setSnapshot(allServiceGroup, uninitializedSnapshot)
 
         val updater = SnapshotUpdater(
@@ -178,7 +167,7 @@ class SnapshotUpdaterTest {
         // given
         val emptyGroup = groupOf()
 
-        val cache = newCache()
+        val cache = MockCache()
         cache.setSnapshot(emptyGroup, uninitializedSnapshot)
 
         val updater = SnapshotUpdater(
@@ -211,32 +200,36 @@ class SnapshotUpdaterTest {
     @Test
     fun `should not crash on bad snapshot generation`() {
         // given
-        val servicesGroup = servicesGroupWithAnError("example-service")
-        val cache = newCache()
-        val globalSnapshot = globalSnapshot(listOf(), listOf())
-        cache.setSnapshot(servicesGroup, uninitializedSnapshot)
+        val servicesGroup = AllServicesGroup(
+                communicationMode = ADS,
+                serviceName = "example-service"
+        )
+        val cache = FailingMockCache()
+        cache.setSnapshot(servicesGroup, null)
         val updater = SnapshotUpdater(
-            cache,
-            properties = SnapshotProperties(),
-            scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(),
-            meterRegistry = simpleMeterRegistry
+                cache,
+                properties = SnapshotProperties(),
+                scheduler = Schedulers.newSingle("update-snapshot"),
+                onGroupAdded = Flux.just(),
+                meterRegistry = simpleMeterRegistry
         )
 
         // when
-        updater.updateSnapshotForGroup(servicesGroup, globalSnapshot)
+        updater.start(
+                Flux.just(emptyList())
+        ).blockFirst()
 
         // then
         val snapshot = cache.getSnapshot(servicesGroup)
         assertThat(snapshot).isEqualTo(null)
         assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
-            .counter()?.count()).isEqualTo(1.0)
+                .counter()?.count()).isEqualTo(1.0)
     }
 
     @Test
     fun `should not disable http2 for cluster when instances disappeared`() {
         // given
-        val cache = newCache()
+        val cache = MockCache()
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties().apply {
@@ -277,7 +270,7 @@ class SnapshotUpdaterTest {
     @Test
     fun `should not remove clusters`() {
         // given
-        val cache = newCache()
+        val cache = MockCache()
         val updater = SnapshotUpdater(
             cache,
             properties = SnapshotProperties().apply {
@@ -324,7 +317,7 @@ class SnapshotUpdaterTest {
     @Test
     fun `should not include blacklisted services in wildcard dependencies but include in direct dependencies`() {
         // given
-        val cache = newCache()
+        val cache = MockCache()
 
         val allServicesGroup = AllServicesGroup(communicationMode = ADS)
         val groupWithBlacklistedDependency = groupOf(services = serviceDependencies("mock-service"))
@@ -362,20 +355,6 @@ class SnapshotUpdaterTest {
             .hasOnlyEgressRoutesForClusters("mock-service")
     }
 
-    private fun servicesGroupWithAnError(name: String): ServicesGroup {
-        val proxySettings = ProxySettings(
-            incoming = Incoming(
-                endpoints = listOf(
-                    IncomingEndpoint(
-                        methods = setOf("INVALID")
-                    )
-                ),
-                permissionsEnabled = true
-            )
-        )
-        return ServicesGroup(ADS, name, proxySettings)
-    }
-
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
         this.start(fluxOfServices(*services)).blockFirst()
     }
@@ -392,39 +371,50 @@ class SnapshotUpdaterTest {
         )
     )
 
-    private fun newCache(): SnapshotCache<Group> {
-        return object : SnapshotCache<Group> {
+    class FailingMockCache : MockCache() {
+        var called = 0
 
-            val groups: MutableMap<Group, Snapshot?> = mutableMapOf()
-
-            override fun groups(): MutableCollection<Group> {
-                return groups.keys.toMutableList()
+        override fun setSnapshot(group: Group, snapshot: Snapshot?) {
+            if (called > 0) {
+                throw FailingMockCacheException()
             }
+            called += 1
+            super.setSnapshot(group, snapshot)
+        }
+    }
 
-            override fun getSnapshot(group: Group): Snapshot? {
-                return groups[group]
-            }
+    class FailingMockCacheException : RuntimeException()
 
-            override fun setSnapshot(group: Group, snapshot: Snapshot?) {
-                groups[group] = snapshot
-            }
+    open class MockCache : SnapshotCache<Group> {
+        val groups: MutableMap<Group, Snapshot?> = mutableMapOf()
 
-            override fun statusInfo(group: Group): StatusInfo<Group> {
-                throw UnsupportedOperationException("not used in testing")
-            }
+        override fun groups(): MutableCollection<Group> {
+            return groups.keys.toMutableList()
+        }
 
-            override fun createWatch(
-                ads: Boolean,
-                request: DiscoveryRequest,
-                knownResourceNames: MutableSet<String>,
-                responseConsumer: Consumer<Response>
-            ): Watch {
-                throw UnsupportedOperationException("not used in testing")
-            }
+        override fun getSnapshot(group: Group): Snapshot? {
+            return groups[group]
+        }
 
-            override fun clearSnapshot(group: Group?): Boolean {
-                return false
-            }
+        override fun setSnapshot(group: Group, snapshot: Snapshot?) {
+            groups[group] = snapshot
+        }
+
+        override fun statusInfo(group: Group): StatusInfo<Group> {
+            throw UnsupportedOperationException("not used in testing")
+        }
+
+        override fun createWatch(
+            ads: Boolean,
+            request: DiscoveryRequest,
+            knownResourceNames: MutableSet<String>,
+            responseConsumer: Consumer<Response>
+        ): Watch {
+            throw UnsupportedOperationException("not used in testing")
+        }
+
+        override fun clearSnapshot(group: Group?): Boolean {
+            return false
         }
     }
 
@@ -449,26 +439,6 @@ class SnapshotUpdaterTest {
     private fun Snapshot.hasOnlyEgressRoutesForClusters(vararg expected: String): Snapshot {
         assertThat(this.routes().resources()["default_routes"]!!.virtualHostsList.flatMap { it.domainsList }.toSet())
             .isEqualTo(expected.toSet() + setOf("envoy-original-destination", "*"))
-        return this
-    }
-
-    private fun Snapshot.hasSecuredIngressRoute(endpoint: String, client: String): Snapshot {
-        assertThat(this.routes().resources().getValue("ingress_secured_routes").virtualHostsList.first().routesList
-            .map { it.match }
-            .filter { it.path == endpoint }
-            .filter {
-                it.headersList
-                    .any { it.name == "x-service-name" && it.exactMatch == client }
-            }
-        ).isNotEmpty
-        return this
-    }
-
-    private fun Snapshot.hasServiceNameRequestHeader(serviceName: String): Snapshot {
-        assertThat(this.routes().resources().getValue("default_routes").requestHeadersToAddList
-            .map { it.header }
-            .filter { it.key == "x-service-name" && it.value == serviceName }
-        ).hasSize(1)
         return this
     }
 

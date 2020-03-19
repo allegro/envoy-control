@@ -135,7 +135,7 @@ class SnapshotUpdater(
                 }
     }
 
-    fun updateSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot) {
+    private fun updateSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot) {
         try {
             val groupSnapshot = snapshotFactory.getSnapshotForGroup(group, globalSnapshot)
             meterRegistry.timer("snapshot-updater.set-snapshot.${group.serviceName}.time").record {
