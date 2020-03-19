@@ -120,7 +120,9 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
 
             // then
             assertThat(snapshotXdsNull.snapshot!!["clusters"]).isNotEmpty()
+            assertThat(snapshotXdsNull.snapshot["endpoints"]).isNotEmpty()
             assertThat(snapshotXdsFalse.snapshot!!["clusters"]).isNotEmpty()
+            assertThat(snapshotXdsFalse.snapshot["endpoints"]).isNotEmpty()
             assertThat(snapshotXdsNull.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains("ads")
             assertThat(snapshotXdsFalse.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains("ads")
         }

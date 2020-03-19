@@ -104,13 +104,13 @@ internal class EnvoySnapshotFactory(
         current: Map<String, ClusterConfiguration>
     ): Map<String, ClusterConfiguration> {
 
-        val anyRemoved = if (properties.egress.neverRemoveClusters) {
+        val shouldKeepRemoved = if (properties.egress.neverRemoveClusters) {
             previous.keys.any { it !in current }
         } else {
             false
         }
 
-        return when (anyRemoved) {
+        return when (shouldKeepRemoved) {
             true -> {
                 val removedClusters = previous - current.keys
                 current + removedClusters
