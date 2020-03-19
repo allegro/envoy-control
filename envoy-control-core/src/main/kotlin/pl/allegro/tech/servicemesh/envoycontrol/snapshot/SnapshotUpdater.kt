@@ -164,27 +164,20 @@ class SnapshotUpdater(
     }
 
     private fun Flux<List<LocalityAwareServicesState>>.createClusterConfigurations(): Flux<StatesAndClusters> = this
-        .map { states -> StatesAndClusters(
-            states = states,
-            clusters = snapshotFactory.clusterConfigurations(states)
+        .scan(StatesAndClusters.initial) { previous, currentStates -> StatesAndClusters(
+            states = currentStates,
+            clusters = snapshotFactory.clusterConfigurations(currentStates, previous.clusters)
         ) }
-        .modifyClustersUsingPreviousState()
-
-    private fun Flux<StatesAndClusters>.modifyClustersUsingPreviousState(): Flux<StatesAndClusters> = this
-        .scan { previous: StatesAndClusters, current: StatesAndClusters ->
-            val modifiedClusters = snapshotFactory.modifyClustersUsingPreviousState(previous.clusters, current.clusters)
-            // reference equality - if modifiedClusters is the same object as current clusters, don't copy
-            if (modifiedClusters === current.clusters) {
-                current
-            } else {
-                current.copy(clusters = modifiedClusters)
-            }
-        }
+        .filter { it !== StatesAndClusters.initial }
 
     private data class StatesAndClusters(
         val states: List<LocalityAwareServicesState>,
         val clusters: Map<String, ClusterConfiguration>
-    )
+    ) {
+        companion object {
+            val initial = StatesAndClusters(emptyList(), emptyMap())
+        }
+    }
 }
 
 enum class Action {
