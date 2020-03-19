@@ -18,16 +18,26 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
 class RBACFilterFactory(
-    private val properties: IncomingPermissionsProperties
+    private val incomingPermissionsProperties: IncomingPermissionsProperties,
+    statusRouteProperties: StatusRouteProperties
 ) {
     companion object {
         private val logger by logger()
     }
 
+    private val anyPrincipalName = "_ANY_"
+    private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
+
     private fun getRules(serviceName: String, incomingPermissions: Incoming): RBAC {
         val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
+
+        if (statusRoutePrincipal != null) {
+            clientToPolicyBuilder[anyPrincipalName] = statusRoutePrincipal
+        }
+
         incomingPermissions.endpoints.forEach { incomingEndpoint ->
             if (incomingEndpoint.clients.isEmpty()) {
                 logger.warn("An incoming endpoint definition for $serviceName does not have any clients defined." +
@@ -53,6 +63,23 @@ class RBACFilterFactory(
                 .setAction(RBAC.Action.ALLOW)
                 .putAllPolicies(clientToPolicy)
                 .build()
+    }
+
+    private fun createStatusRoutePrincipal(statusRouteProperties: StatusRouteProperties): Policy.Builder? {
+        return if (statusRouteProperties.enabled) {
+            val permission = Permission.newBuilder().setHeader(
+                    HeaderMatcher.newBuilder()
+                            .setName(":path")
+                            .setPrefixMatch(statusRouteProperties.pathPrefix)
+                            .build())
+                    .build()
+
+            Policy.newBuilder()
+                    .addPrincipals(Principal.newBuilder().setAny(true).build())
+                    .addPermissions(permission)
+        } else {
+            null
+        }
     }
 
     private fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
@@ -101,7 +128,7 @@ class RBACFilterFactory(
 
     private fun mapClientToPrincipal(client: String): Principal {
         val clientMatch = HeaderMatcher.newBuilder()
-                .setName(properties.clientIdentityHeader).setExactMatch(client).build()
+                .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
         return Principal.newBuilder().setHeader(clientMatch).build()
     }
 
@@ -128,7 +155,7 @@ class RBACFilterFactory(
     }
 
     fun createHttpFilter(group: Group): HttpFilter? {
-        return if (properties.enabled && group.proxySettings.incoming.permissionsEnabled) {
+        return if (incomingPermissionsProperties.enabled && group.proxySettings.incoming.permissionsEnabled) {
             val rules = getRules(group.serviceName, group.proxySettings.incoming)
             val rbacFilter = RBACFilter.newBuilder().setRules(rules).build()
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac").setTypedConfig(Any.pack(rbacFilter)).build()

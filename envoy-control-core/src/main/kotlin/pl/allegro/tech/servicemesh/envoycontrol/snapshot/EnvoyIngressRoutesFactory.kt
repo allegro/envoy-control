@@ -39,17 +39,6 @@ internal class EnvoyIngressRoutesFactory(
     private val statusPrefixMatcher = HeaderMatcher.newBuilder()
             .setName(":path").setPrefixMatch(statusPathPrefix).build()
 
-    private fun statusRoute(localRouteAction: RouteAction.Builder): Route? {
-        return Route.newBuilder()
-            .setMatch(
-                RouteMatch.newBuilder()
-                    .setPrefix(properties.routes.status.pathPrefix)
-                    .addHeaders(httpMethodMatcher(HttpMethod.GET))
-            )
-            .setRoute(localRouteAction)
-            .build()
-    }
-
     private fun retryPolicy(retryProps: RetryPolicyProperties): RetryPolicy = RetryPolicy.newBuilder().apply {
         retryOn = retryProps.retryOn.joinToString(separator = ",")
         numRetries = UInt32Value.of(retryProps.numRetries)
@@ -158,11 +147,7 @@ internal class EnvoyIngressRoutesFactory(
 
         val customHealthCheckRoute = customHealthCheckRoute(proxySettings)
 
-        return customHealthCheckRoute +
-                listOfNotNull(
-                    statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }
-                ) +
-                ingressRoutes(localRouteAction)
+        return customHealthCheckRoute + ingressRoutes(localRouteAction)
     }
 
     private fun statusRouteVirtualClusterEnabled() =

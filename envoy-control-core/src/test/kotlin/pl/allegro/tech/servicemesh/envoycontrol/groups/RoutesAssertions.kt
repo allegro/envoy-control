@@ -180,28 +180,10 @@ fun Route.hasNoRetryPolicy() {
     assertThat(this.route.retryPolicy).isEqualTo(RetryPolicy.newBuilder().build())
 }
 
-fun Route.allOpenIngressRoute() {
+fun Route.ingressRoute() {
     this.matchingOnPrefix("/")
         .publicAccess()
         .toCluster("local_service")
-}
-
-fun statusRoute(
-    idleTimeout: Duration? = null,
-    responseTimeout: Duration? = null,
-    clusterName: String = "local_service",
-    healthCheckPath: String = "/status/"
-): (Route) -> Unit = {
-    it.matchingOnPrefix(healthCheckPath)
-        .matchingOnMethod("GET")
-        .publicAccess()
-        .toCluster(clusterName)
-    if (responseTimeout != null) {
-        it.matchingOnResponseTimeout(responseTimeout)
-    }
-    if (idleTimeout != null) {
-        it.matchingOnIdleTimeout(idleTimeout)
-    }
 }
 
 fun configDumpAuthorizedRoute(): (Route) -> Unit = {

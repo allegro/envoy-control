@@ -12,7 +12,10 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
     companion object {
 
         private val properties = mapOf(
-            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true
+            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
+            "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
+            "envoy-control.envoy.snapshot.routes.status.enabled" to true
         )
 
         @JvmStatic
@@ -21,6 +24,21 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             })
+        }
+    }
+
+    @Test
+    fun `should allow access to status endpoint by all clients`() {
+        untilAsserted {
+            // when
+            val response = callLocalService(endpoint = "/status/", headers = Headers.of())
+            val statusUpstreamOk = envoyContainer1.admin().statValue(
+                    "vhost.secured_local_service.vcluster.status.upstream_rq_200"
+            )?.toInt()
+
+            // then
+            assertThat(response).isOk().isFrom(localServiceContainer)
+            assertThat(statusUpstreamOk).isGreaterThan(0)
         }
     }
 
