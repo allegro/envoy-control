@@ -57,6 +57,11 @@ class AllServicesDependenciesProperties {
 class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeader = "x-service-name"
+    var sourceIpAuthentication = SourceIpAuthenticationProperties()
+}
+
+class SourceIpAuthenticationProperties {
+    var enabledForServices: List<String> = listOf()
 }
 
 class LoadBalancingProperties {

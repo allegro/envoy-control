@@ -28,6 +28,8 @@ node:
       incoming:
         endpoints:
           - path: "/endpoint"
+            clients: ["authorizedClient"]
+          - path: "/ip_endpoint"
             clients: ["echo"]
       outgoing:
         dependencies:
@@ -78,7 +80,7 @@ static_resources:
     hosts:
       - socket_address:
           address: LOCAL_SERVICE_IP
-          port_value: 80
+          port_value: 5678
     connect_timeout: 1s
   - name: this_admin
     type: STATIC

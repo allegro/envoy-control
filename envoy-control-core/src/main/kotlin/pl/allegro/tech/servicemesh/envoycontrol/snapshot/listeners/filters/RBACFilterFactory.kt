@@ -132,25 +132,29 @@ class RBACFilterFactory(
     }
 
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        val principals = snapshot.endpoints.resources()
-                .filterKeys { client == it }.values
-                .flatMap { clusterLoadAssignment ->
-                    clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
-                        lbEndpoints.lbEndpointsList.map { lbEndpoint ->
-                            lbEndpoint.endpoint.address
+        val principals = if (client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
+            snapshot.endpoints.resources()
+                    .filterKeys { client == it }.values
+                    .flatMap { clusterLoadAssignment ->
+                        clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
+                            lbEndpoints.lbEndpointsList.map { lbEndpoint ->
+                                lbEndpoint.endpoint.address
+                            }
                         }
+                    }.map { address ->
+                        Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                                .setAddressPrefix(address.socketAddress.address)
+                                .setPrefixLen(UInt32Value.of(exactIpMask)).build())
+                                .build()
                     }
-        }.map { address ->
-                    Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
-                    .setAddressPrefix(address.socketAddress.address)
-                    .setPrefixLen(UInt32Value.of(exactIpMask)).build())
-                    .build()
-        }
+        } else null
 
         val clientMatch = HeaderMatcher.newBuilder()
                 .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
 
-        return principals + listOf(Principal.newBuilder().setHeader(clientMatch).build())
+        val allPrincipals = (principals ?: listOf<Principal>()) + listOf(Principal.newBuilder().setHeader(clientMatch).build())
+
+        return allPrincipals
     }
 
     private fun createPathMatcher(incomingEndpoint: IncomingEndpoint): PathMatcher {

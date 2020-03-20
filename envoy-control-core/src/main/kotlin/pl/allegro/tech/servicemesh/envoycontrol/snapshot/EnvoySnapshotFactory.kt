@@ -229,7 +229,7 @@ internal class EnvoySnapshotFactory(
 
         val endpoints = getServicesEndpointsForGroup(globalSnapshot, egressRouteSpecification)
 
-        val version = snapshotsVersions.version(group, clusters, endpoints)
+        val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
 
         return createSnapshot(
             clusters = clusters,
@@ -237,6 +237,7 @@ internal class EnvoySnapshotFactory(
             endpoints = endpoints,
             endpointsVersions = version.endpoints,
             listeners = listeners,
+            listenersVersion = version.listeners,
             // for now we assume that listeners don't change during lifecycle
             routes = routes,
             // we assume, that routes don't change during Envoy lifecycle unless clusters change

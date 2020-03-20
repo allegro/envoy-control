@@ -5,7 +5,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
 import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer
 import java.util.UUID
 
-class EchoContainer : GenericContainer<EchoContainer>("mendhak/http-https-echo:latest") {
+class EchoContainer : GenericContainer<EchoContainer>("hashicorp/http-echo:latest") {
 
     val response = UUID.randomUUID().toString()
 
@@ -20,6 +20,6 @@ class EchoContainer : GenericContainer<EchoContainer>("mendhak/http-https-echo:l
     fun address(): String = "${ipAddress()}:$PORT"
 
     companion object {
-        const val PORT = 80
+        const val PORT = 5678
     }
 }
