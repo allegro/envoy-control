@@ -14,7 +14,7 @@ node:
   cluster: test-cluster
   id: test-id
   metadata:
-    service_name: "echo2"
+    service_name: "echo"
     ads: true
     ingress_host: "0.0.0.0"
     ingress_port: 5001
@@ -25,34 +25,9 @@ node:
     add_upstream_external_address_header: true
     resources_dir: "/etc/envoy/extra"
     proxy_settings:
-      incoming:
-        endpoints:
-          - path: "/endpoint"
-            clients: ["authorizedClient"]
-          - path: "/ip_endpoint"
-            clients: ["echo"]
       outgoing:
         dependencies:
-          - service: "service-1"
-          - service: "service-2"
-          - service: "service-3"
-          - service: "service-4"
-          - service: "service-5"
-          - service: "echo"
-            timeoutPolicy:
-              requestTimeout: "15s"
-          - service: "consul"
-            timeoutPolicy:
-              requestTimeout: "15s"
-          - service: "proxy1"
-          - service: "proxy2"
-          - service: "service-redirect"
-            handleInternalRedirect: true
-          - domain: "https://my.example.com"
-          - domain: "https://bad.host.example.com"
-          - domain: "https://www.example.com"
-          - domain: "https://www.example-redirect.com"
-            handleInternalRedirect: true
+          - service: "echo2"
 
 static_resources:
   clusters:

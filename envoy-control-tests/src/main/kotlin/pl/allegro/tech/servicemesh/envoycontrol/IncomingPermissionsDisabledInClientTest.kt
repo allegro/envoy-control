@@ -21,7 +21,7 @@ internal class IncomingPermissionsDisabledInClientTest : EnvoyControlTestConfigu
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoyConfig = AdsWithDisabledEndpointPermissions)
+            }, envoy1Config = AdsWithDisabledEndpointPermissions)
         }
     }
 

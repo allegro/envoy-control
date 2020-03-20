@@ -20,17 +20,19 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
-sealed class EnvoyConfigFile(val filePath: String)
-object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.yaml")
-object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_check.yaml")
-object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
-object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
-object AdsWithDisabledEndpointPermissions : EnvoyConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
-object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
-object AdsWithNoDependencies : EnvoyConfigFile("envoy/config_ads_no_dependencies.yaml")
-object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
+sealed class envoy1ConfigFile(val filePath: String)
+object AdsAllDependencies : envoy1ConfigFile("envoy/config_ads_all_dependencies.yaml")
+object AdsCustomHealthCheck : envoy1ConfigFile("envoy/config_ads_custom_health_check.yaml")
+object FaultyConfig : envoy1ConfigFile("envoy/bad_config.yaml")
+object Ads : envoy1ConfigFile("envoy/config_ads.yaml")
+object Envoy1Ads : envoy1ConfigFile("envoy/config_ads_envoy1.yaml")
+object Envoy2Ads : envoy1ConfigFile("envoy/config_ads_envoy2.yaml")
+object AdsWithDisabledEndpointPermissions : envoy1ConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
+object AdsWithStaticListeners : envoy1ConfigFile("envoy/config_ads_static_listeners.yaml")
+object AdsWithNoDependencies : envoy1ConfigFile("envoy/config_ads_no_dependencies.yaml")
+object Xds : envoy1ConfigFile("envoy/config_xds.yaml")
 object RandomConfigFile :
-    EnvoyConfigFile(filePath = if (Random.nextBoolean()) Ads.filePath else Xds.filePath)
+    envoy1ConfigFile(filePath = if (Random.nextBoolean()) Ads.filePath else Xds.filePath)
 
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {
@@ -50,7 +52,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         @JvmStatic
         fun setup(
-            envoyConfig: EnvoyConfigFile = RandomConfigFile,
+            envoy1Config: envoy1ConfigFile = RandomConfigFile,
+            envoy2Config: envoy1ConfigFile = RandomConfigFile,
             appFactoryForEc1: (Int) -> EnvoyControlTestApp = defaultAppFactory(),
             appFactoryForEc2: (Int) -> EnvoyControlTestApp = appFactoryForEc1,
             envoyControls: Int = 1,
@@ -76,7 +79,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
             envoyContainer1 = createEnvoyContainer(
                 instancesInSameDc,
-                envoyConfig,
+                envoy1Config,
                 envoyConnectGrpcPort,
                 envoyConnectGrpcPort2
             )
@@ -93,10 +96,10 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             if (envoys == 2) {
                 envoyContainer2 = createEnvoyContainer(
                     true,
-                    envoyConfig,
+                    envoy2Config,
                     envoyConnectGrpcPort,
                     envoyConnectGrpcPort2,
-                    echoContainer.ipAddress()
+                    echoContainer2.ipAddress()
                 )
                 try {
                     envoyContainer2.start()
@@ -123,21 +126,21 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         private fun createEnvoyContainer(
             instancesInSameDc: Boolean,
-            envoyConfig: EnvoyConfigFile,
+            envoy1Config: envoy1ConfigFile,
             envoyConnectGrpcPort: Int?,
             envoyConnectGrpcPort2: Int?,
             localServiceIp: String = localServiceContainer.ipAddress()
         ): EnvoyContainer {
             return if (envoyControls == 2 && instancesInSameDc) {
                 EnvoyContainer(
-                    envoyConfig.filePath,
+                    envoy1Config.filePath,
                     localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort,
                     envoyConnectGrpcPort2 ?: envoyControl2.grpcPort
                 ).withNetwork(network)
             } else {
                 EnvoyContainer(
-                    envoyConfig.filePath,
+                    envoy1Config.filePath,
                     localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort
                 ).withNetwork(network)

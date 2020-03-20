@@ -13,7 +13,7 @@ internal class XdsEnvoyControlHttp2Test : EnvoyControlHttp2Test() {
         @JvmStatic
         @BeforeAll
         fun xdsSetup() {
-            setup(envoyConfig = Xds, envoys = 2)
+            setup(envoy1Config = Xds, envoys = 2)
         }
     }
 }
@@ -23,7 +23,7 @@ internal class AdsEnvoyControlHttp2Test : EnvoyControlHttp2Test() {
         @JvmStatic
         @BeforeAll
         fun adsSetup() {
-            setup(envoyConfig = Ads, envoys = 2)
+            setup(envoy1Config = Ads, envoys = 2)
         }
     }
 }

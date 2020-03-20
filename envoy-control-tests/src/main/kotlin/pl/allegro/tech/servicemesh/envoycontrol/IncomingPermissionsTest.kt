@@ -25,17 +25,15 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoyConfig = Ads)
+            }, envoy1Config = Ads)
         }
     }
 
     @Test
-    fun `should allow access to selected clients using source based authentication`() {
-        registerService(name = "echo")
-
+    fun `should allow access to status endpoint by all clients`() {
         untilAsserted {
             // when
-            val response = callLocalService("/ip_endpoint", Headers.of())
+            val response = callLocalService("/status/", Headers.of())
             val statusUpstreamOk = envoyContainer1.admin().statValue(
                     "vhost.secured_local_service.vcluster.status.upstream_rq_200"
             )?.toInt()
@@ -46,42 +44,27 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
         }
     }
 
-//    @Test
-//    fun `should allow access to status endpoint by all clients`() {
-//        untilAsserted {
-//            // when
-//            val response = callLocalService("/status/", Headers.of())
-//            val statusUpstreamOk = envoyContainer1.admin().statValue(
-//                    "vhost.secured_local_service.vcluster.status.upstream_rq_200"
-//            )?.toInt()
-//
-//            // then
-//            assertThat(response).isOk().isFrom(localServiceContainer)
-//            assertThat(statusUpstreamOk).isGreaterThan(0)
-//        }
-//    }
-//
-//    @Test
-//    fun `should allow access to endpoint by authorized client`() {
-//        untilAsserted {
-//            // when
-//            val response = callLocalService(endpoint = "/endpoint?a=b",
-//                headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
-//
-//            // then
-//            assertThat(response).isOk().isFrom(localServiceContainer)
-//        }
-//    }
-//
-//    @Test
-//    fun `should deny access to endpoint by unauthorized client`() {
-//        untilAsserted {
-//            // when
-//            val response = callLocalService(endpoint = "/endpoint",
-//                headers = Headers.of(mapOf("x-service-name" to "unuthorizedClient")))
-//
-//            // then
-//            assertThat(response).isForbidden()
-//        }
-//    }
+    @Test
+    fun `should allow access to endpoint by authorized client`() {
+        untilAsserted {
+            // when
+            val response = callLocalService(endpoint = "/endpoint?a=b",
+                headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
+
+            // then
+            assertThat(response).isOk().isFrom(localServiceContainer)
+        }
+    }
+
+    @Test
+    fun `should deny access to endpoint by unauthorized client`() {
+        untilAsserted {
+            // when
+            val response = callLocalService(endpoint = "/endpoint",
+                headers = Headers.of(mapOf("x-service-name" to "unuthorizedClient")))
+
+            // then
+            assertThat(response).isForbidden()
+        }
+    }
 }

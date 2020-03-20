@@ -17,7 +17,7 @@ class AdsOutgoingPermissionsTest : OutgoingPermissionsTest() {
         @BeforeAll
         fun setupTest() {
             setup(
-                envoyConfig = Ads,
+                envoy1Config = Ads,
                 appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
             )
         }
@@ -33,7 +33,7 @@ class XdsOutgoingPermissionsTest : OutgoingPermissionsTest() {
         @BeforeAll
         fun setupTest() {
             setup(
-                envoyConfig = Xds,
+                envoy1Config = Xds,
                 appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
             )
         }

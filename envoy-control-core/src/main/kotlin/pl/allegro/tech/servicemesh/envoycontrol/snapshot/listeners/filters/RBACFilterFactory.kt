@@ -152,9 +152,7 @@ class RBACFilterFactory(
         val clientMatch = HeaderMatcher.newBuilder()
                 .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
 
-        val allPrincipals = (principals ?: listOf<Principal>()) + listOf(Principal.newBuilder().setHeader(clientMatch).build())
-
-        return allPrincipals
+        return (principals ?: listOf()) + listOf(Principal.newBuilder().setHeader(clientMatch).build())
     }
 
     private fun createPathMatcher(incomingEndpoint: IncomingEndpoint): PathMatcher {
