@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRedirectRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.allOpenIngressRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRetryPolicy
@@ -21,7 +21,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
-import pl.allegro.tech.servicemesh.envoycontrol.groups.statusRoute
 import java.time.Duration
 
 internal class EnvoyIngressRoutesFactoryTest {
@@ -99,19 +98,18 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOneDomain("*")
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
-                    statusRoute(idleTimeout, responseTimeout),
                     {
-                        allOpenIngressRoute()
+                        ingressRoute()
                         matchingOnMethod("GET")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
                     },
                     {
-                        allOpenIngressRoute()
+                        ingressRoute()
                         matchingOnMethod("HEAD")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
                     },
                     {
-                        allOpenIngressRoute()
+                        ingressRoute()
                         matchingOnAnyMethod()
                         hasNoRetryPolicy()
                     }

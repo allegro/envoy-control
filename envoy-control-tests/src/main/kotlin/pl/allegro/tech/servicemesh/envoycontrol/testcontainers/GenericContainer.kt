@@ -3,11 +3,19 @@ package pl.allegro.tech.servicemesh.envoycontrol.testcontainers
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.Network
 import org.testcontainers.images.builder.ImageFromDockerfile
+import org.testcontainers.images.builder.dockerfile.statement.Statement
 import org.testcontainers.containers.GenericContainer as BaseGenericContainer
 
 open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContainer<SELF> {
     constructor(image: ImageFromDockerfile) : super(image)
     constructor(dockerImageName: String) : super(dockerImageName)
+    constructor(statements: List<Statement>) : super(
+            ImageFromDockerfile().withDockerfileFromBuilder { builder ->
+                statements.forEach {
+                    builder.withStatement(it)
+                }
+            }
+    )
 
     private val HOST_IP_SCRIPT = "testcontainers/host_ip.sh"
     private val HOST_IP_SCRIPT_DEST = "/usr/local/bin/host_ip.sh"
@@ -31,6 +39,16 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
         } else {
             this.self()
         }
+    }
+
+    fun addHost(host: String, ip: String) {
+        execInContainer("sh", "-c", "echo \"$ip\t$host\" >> /etc/hosts")
+    }
+
+    fun removeHost(host: String) {
+        execInContainer("sh", "-c", "grep -v '[[:blank:]]$host\$' /etc/hosts > /tmp/hosts")
+        // docker does not allow changing inode of mounted files
+        execInContainer("sh", "-c", "cat /tmp/hosts > /etc/hosts")
     }
 
     fun notAlreadyMounted(destination: String?) = binds.none { it.volume.path == destination }

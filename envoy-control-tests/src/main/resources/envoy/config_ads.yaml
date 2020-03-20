@@ -22,6 +22,7 @@ node:
     egress_port: 5000
     use_remote_address: true
     access_log_enabled: false
+    add_upstream_external_address_header: true
     resources_dir: "/etc/envoy/extra"
     proxy_settings:
       incoming:
@@ -44,6 +45,11 @@ node:
           - service: "proxy1"
           - service: "proxy2"
           - service: "service-redirect"
+            handleInternalRedirect: true
+          - domain: "https://my.example.com"
+          - domain: "https://bad.host.example.com"
+          - domain: "https://www.example.com"
+          - domain: "https://www.example-redirect.com"
             handleInternalRedirect: true
 
 static_resources:

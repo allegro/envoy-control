@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Duration
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
 import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
+import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.api.v2.route.RedirectAction
 import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import io.envoyproxy.envoy.api.v2.route.Route
@@ -18,8 +19,16 @@ fun RouteConfiguration.hasSingleVirtualHostThat(condition: VirtualHost.() -> Uni
     return this
 }
 
-fun RouteConfiguration.hasHeaderToAdd(key: String, value: String): RouteConfiguration {
+fun RouteConfiguration.hasRequestHeaderToAdd(key: String, value: String): RouteConfiguration {
     assertThat(this.requestHeadersToAddList).anySatisfy {
+        assertThat(it.header.key).isEqualTo(key)
+        assertThat(it.header.value).isEqualTo(value)
+    }
+    return this
+}
+
+fun RouteConfiguration.hasResponseHeaderToAdd(key: String, value: String): RouteConfiguration {
+    assertThat(this.responseHeadersToAddList).anySatisfy {
         assertThat(it.header.key).isEqualTo(key)
         assertThat(it.header.value).isEqualTo(value)
     }
@@ -36,8 +45,15 @@ fun RouteAction.hasCustomRequestTimeout(requestTimeout: Duration): RouteAction {
     return this
 }
 
-fun RouteConfiguration.hasNoHeaderToAdd(key: String): RouteConfiguration {
+fun RouteConfiguration.hasNoRequestHeaderToAdd(key: String): RouteConfiguration {
     assertThat(this.requestHeadersToAddList).noneSatisfy {
+        assertThat(it.header.key).isEqualTo(key)
+    }
+    return this
+}
+
+fun RouteConfiguration.hasNoResponseHeaderToAdd(key: String): RouteConfiguration {
+    assertThat(this.responseHeadersToAddList).noneSatisfy {
         assertThat(it.header.key).isEqualTo(key)
     }
     return this
@@ -45,8 +61,14 @@ fun RouteConfiguration.hasNoHeaderToAdd(key: String): RouteConfiguration {
 
 fun VirtualHost.hasStatusVirtualClusters(): VirtualHost {
     return this.hasVirtualClustersInOrder(
-        { it.pattern == "/status/.*" && it.name == "status" },
-        { it.pattern == "/.*" && it.name == "endpoints" }
+        {
+            it.headersList == listOf(HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/status/").build()) &&
+            it.name == "status"
+        },
+        {
+            it.headersList == listOf(HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/").build()) &&
+            it.name == "endpoints"
+        }
     )
 }
 
@@ -158,28 +180,10 @@ fun Route.hasNoRetryPolicy() {
     assertThat(this.route.retryPolicy).isEqualTo(RetryPolicy.newBuilder().build())
 }
 
-fun Route.allOpenIngressRoute() {
+fun Route.ingressRoute() {
     this.matchingOnPrefix("/")
         .publicAccess()
         .toCluster("local_service")
-}
-
-fun statusRoute(
-    idleTimeout: Duration? = null,
-    responseTimeout: Duration? = null,
-    clusterName: String = "local_service",
-    healthCheckPath: String = "/status/"
-): (Route) -> Unit = {
-    it.matchingOnPrefix(healthCheckPath)
-        .matchingOnMethod("GET")
-        .publicAccess()
-        .toCluster(clusterName)
-    if (responseTimeout != null) {
-        it.matchingOnResponseTimeout(responseTimeout)
-    }
-    if (idleTimeout != null) {
-        it.matchingOnIdleTimeout(idleTimeout)
-    }
 }
 
 fun configDumpAuthorizedRoute(): (Route) -> Unit = {

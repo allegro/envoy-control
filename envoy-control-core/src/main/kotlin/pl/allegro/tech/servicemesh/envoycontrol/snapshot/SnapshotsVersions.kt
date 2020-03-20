@@ -23,15 +23,27 @@ internal class SnapshotsVersions {
 
     private val versions = ConcurrentHashMap<Group, VersionsWithData>()
 
-    fun version(group: Group, clusters: List<Cluster>, endpoints: List<ClusterLoadAssignment>, listeners: List<Listener> = listOf()): Version {
+    fun version(
+        group: Group,
+        clusters: List<Cluster>,
+        endpoints: List<ClusterLoadAssignment>,
+        listeners: List<Listener> = listOf()
+    ): Version {
         val versionsWithData = versions.compute(group) { _, previous ->
             val version = when (previous) {
-                null -> Version(clusters = ClustersVersion(newVersion()), endpoints = EndpointsVersion(newVersion()), listeners = ListenersVersion(newVersion()))
-                else -> Version(
-                    clusters = selectClusters(previous, clusters),
-                    endpoints = selectEndpoints(previous, endpoints, previous.clusters != clusters),
-                    listeners = selectListeners(previous, previous.listeners != listeners)
+                null -> Version(
+                        clusters = ClustersVersion(newVersion()),
+                        endpoints = EndpointsVersion(newVersion()),
+                        listeners = ListenersVersion(newVersion())
                 )
+                else -> {
+                    val clustersChanged = previous.clusters != clusters
+                    Version(
+                        clusters = selectClusters(previous, clustersChanged),
+                        endpoints = selectEndpoints(previous, endpoints, clustersChanged),
+                        listeners = selectListeners(previous, previous.listeners != listeners)
+                    )
+                }
             }
             VersionsWithData(version, clusters, endpoints, listeners)
         }
@@ -49,13 +61,16 @@ internal class SnapshotsVersions {
         previous: VersionsWithData,
         endpoints: List<ClusterLoadAssignment>,
         clusterChanged: Boolean
-    ) = if (!clusterChanged && previous.endpoints == endpoints)
-        previous.version.endpoints else EndpointsVersion(newVersion())
+    ) = if (!clusterChanged && previous.endpoints == endpoints) {
+        previous.version.endpoints
+    } else {
+        EndpointsVersion(newVersion())
+    }
 
     private fun selectClusters(
         previous: VersionsWithData,
-        clusters: List<Cluster>
-    ) = if (previous.clusters == clusters) previous.version.clusters else ClustersVersion(newVersion())
+        clustersChanged: Boolean
+    ) = if (!clustersChanged) previous.version.clusters else ClustersVersion(newVersion())
 
     /**
      * This should be called before setting new snapshot to cache. The cache cleans up not used groups by using

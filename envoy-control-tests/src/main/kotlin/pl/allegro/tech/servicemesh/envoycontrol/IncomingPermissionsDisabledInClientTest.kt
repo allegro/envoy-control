@@ -26,7 +26,7 @@ internal class IncomingPermissionsDisabledInClientTest : EnvoyControlTestConfigu
     }
 
     @Test
-    fun `should allow access to endpoint by any client when endpoint permissions disabled`() {
+    fun `should allow access to endpoint by any client when endpoint permissions not defined in client`() {
         untilAsserted {
             // when
             val response = callLocalService(endpoint = "/",

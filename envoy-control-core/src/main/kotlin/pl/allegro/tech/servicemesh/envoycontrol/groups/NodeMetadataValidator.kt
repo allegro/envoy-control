@@ -4,8 +4,9 @@ import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import io.envoyproxy.envoy.api.v2.core.Node
-import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HttpMethod
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class AllDependenciesValidationException(serviceName: String?)
@@ -18,11 +19,14 @@ class InvalidHttpMethodValidationException(serviceName: String?, method: String)
         "Service: $serviceName defined an unknown method: $method in endpoint permissions."
 )
 
+class ConfigurationModeNotSupportedException(serviceName: String?, mode: String)
+    : NodeMetadataValidationException(
+    "Blocked service $serviceName from receiving updates. $mode is not supported by server."
+)
+
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
-    private val logger by logger()
-
     override fun onStreamClose(streamId: Long, typeUrl: String?) {}
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String?, error: Throwable?) {}
@@ -46,6 +50,7 @@ class NodeMetadataValidator(
         val metadata = NodeMetadata(node.metadata, properties)
 
         validateDependencies(metadata)
+        validateConfigurationMode(metadata)
     }
 
     private fun validateDependencies(metadata: NodeMetadata) {
@@ -58,13 +63,17 @@ class NodeMetadataValidator(
         }
     }
 
+    /**
+     * Exception is logged in DiscoveryRequestStreamObserver.onNext()
+     * @see io.envoyproxy.controlplane.server.DiscoveryRequestStreamObserver.onNext()
+     */
+    @Suppress("SwallowedException")
     private fun validateEndpointPermissionsMethods(metadata: NodeMetadata) {
         metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
             incomingEndpoint.methods.forEach { method ->
                 try {
                     HttpMethod.valueOf(method)
                 } catch (e: Exception) {
-                    logger.warn("Could not map http method $method in service ${metadata.serviceName}.", e)
                     throw InvalidHttpMethodValidationException(metadata.serviceName, method)
                 }
             }
@@ -73,9 +82,18 @@ class NodeMetadataValidator(
 
     private fun hasAllServicesDependencies(metadata: NodeMetadata) =
         metadata.proxySettings.outgoing.containsDependencyForService(
-            properties.outgoingPermissions.allServicesDependenciesValue
+            properties.outgoingPermissions.allServicesDependencies.identifier
         )
 
     private fun isAllowedToHaveAllServiceDependencies(metadata: NodeMetadata) = properties
         .outgoingPermissions.servicesAllowedToUseWildcard.contains(metadata.serviceName)
+
+    private fun validateConfigurationMode(metadata: NodeMetadata) {
+        if (metadata.communicationMode == ADS && !properties.enabledCommunicationModes.ads) {
+            throw ConfigurationModeNotSupportedException(metadata.serviceName, "ADS")
+        }
+        if (metadata.communicationMode == XDS && !properties.enabledCommunicationModes.xds) {
+            throw ConfigurationModeNotSupportedException(metadata.serviceName, "XDS")
+        }
+    }
 }

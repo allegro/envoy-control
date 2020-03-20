@@ -21,10 +21,10 @@ import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
@@ -41,65 +41,89 @@ internal class EnvoySnapshotFactory(
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
     private val serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(
-            properties.routing.serviceTags
+        properties.routing.serviceTags
     ),
     private val defaultDependencySettings: DependencySettings =
-DependencySettings(
-    handleInternalRedirect = properties.egress.handleInternalRedirect,
-    timeoutPolicy = Outgoing.TimeoutPolicy(
-        idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
-        requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-    )
-),
+        DependencySettings(
+            handleInternalRedirect = properties.egress.handleInternalRedirect,
+            timeoutPolicy = Outgoing.TimeoutPolicy(
+                idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
+                requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
+            )
+        ),
     private val meterRegistry: MeterRegistry
 ) {
-    fun newSnapshot(servicesStates: List<LocalityAwareServicesState>, ads: Boolean): Snapshot {
+    fun newSnapshot(
+        servicesStates: List<LocalityAwareServicesState>,
+        clusterConfigurations: Map<String, ClusterConfiguration>,
+        communicationMode: CommunicationMode
+    ): GlobalSnapshot {
         val sample = Timer.start(meterRegistry)
 
-        val serviceNames = servicesStates.flatMap { it.servicesState.serviceNames() }.distinct()
+        val clusters = clustersFactory.getClustersForServices(clusterConfigurations.values, communicationMode)
 
-        val clusterConfigurations = if (properties.egress.http2.enabled) {
-            servicesStates.flatMap {
-                it.servicesState.serviceNameToInstances.values
-            }.groupBy {
-                it.serviceName
-            }.map { (serviceName, instances) ->
-                toClusterConfiguration(instances, serviceName)
-            }
-        } else {
-            serviceNames.map { ClusterConfiguration(serviceName = it, http2Enabled = false) }
-        }
-
-        val clusters = clustersFactory.getClustersForServices(clusterConfigurations, ads)
-
-        val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(servicesStates)
-        val routes = listOf(
-            egressRoutesFactory.createEgressRouteConfig("", serviceNames.map {
-                RouteSpecification(
-                    clusterName = it,
-                    routeDomain = it,
-                    settings = defaultDependencySettings
-                )
-            }),
-            ingressRoutesFactory.createSecuredIngressRouteConfig(ProxySettings())
+        val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(
+            clusters = clusterConfigurations.keys,
+            localityAwareServicesStates = servicesStates
         )
 
-        val version = snapshotsVersions.version(AllServicesGroup(ads, listenersConfig = null), clusters, endpoints, listOf())
-
-        val snapshot = createSnapshot(
+        val snapshot = globalSnapshot(
             clusters = clusters,
-            clustersVersion = version.clusters,
             endpoints = endpoints,
-            endpointsVersions = version.endpoints,
-            routes = routes,
-            routesVersion = RoutesVersion(version.clusters.value)
+            properties = properties.outgoingPermissions
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 
         return snapshot
     }
 
-    private fun toClusterConfiguration(instances: List<ServiceInstances>, serviceName: String): ClusterConfiguration {
+    fun clusterConfigurations(
+        servicesStates: List<LocalityAwareServicesState>,
+        previousClusters: Map<String, ClusterConfiguration>
+    ): Map<String, ClusterConfiguration> {
+        val currentClusters = if (properties.egress.http2.enabled) {
+            servicesStates.flatMap {
+                it.servicesState.serviceNameToInstances.values
+            }.groupBy {
+                it.serviceName
+            }.mapValues { (serviceName, instances) ->
+                toClusterConfiguration(instances, serviceName, previousClusters[serviceName])
+            }
+        } else {
+            servicesStates
+                .flatMap { it.servicesState.serviceNames() }
+                .distinct()
+                .associateWith { ClusterConfiguration(serviceName = it, http2Enabled = false) }
+        }
+
+        return addRemovedClusters(previousClusters, currentClusters)
+    }
+
+    private fun addRemovedClusters(
+        previous: Map<String, ClusterConfiguration>,
+        current: Map<String, ClusterConfiguration>
+    ): Map<String, ClusterConfiguration> {
+
+        val shouldKeepRemoved = if (properties.egress.neverRemoveClusters) {
+            previous.keys.any { it !in current }
+        } else {
+            false
+        }
+
+        return when (shouldKeepRemoved) {
+            true -> {
+                val removedClusters = previous - current.keys
+                current + removedClusters
+            }
+            false -> current
+        }
+    }
+
+    private fun toClusterConfiguration(
+        instances: List<ServiceInstances>,
+        serviceName: String,
+        previousCluster: ClusterConfiguration?
+    ): ClusterConfiguration {
         val allInstances = instances.flatMap {
             it.instances
         }
@@ -110,21 +134,27 @@ DependencySettings(
             it.tags.contains(properties.egress.http2.tagName)
         }
 
-        return ClusterConfiguration(serviceName, allInstancesHaveEnvoyTag)
+        val http2Enabled = when {
+            allInstances.isEmpty() -> previousCluster?.http2Enabled ?: false
+            allInstancesHaveEnvoyTag -> true
+            else -> false
+        }
+
+        return ClusterConfiguration(serviceName, http2Enabled)
     }
 
-    fun getSnapshotForGroup(group: Group, globalSnapshot: Snapshot): Snapshot {
+    fun getSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot): Snapshot {
         val groupSample = Timer.start(meterRegistry)
-        if (group.isGlobalGroup()) {
-            return globalSnapshot
-        }
 
         val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
         groupSample.stop(meterRegistry.timer("snapshot-factory.get-snapshot-for-group.time"))
         return newSnapshotForGroup
     }
 
-    private fun getEgressRoutesSpecification(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
+    private fun getEgressRoutesSpecification(
+        group: Group,
+        globalSnapshot: GlobalSnapshot
+    ): Collection<RouteSpecification> {
         return getServiceRouteSpecifications(group, globalSnapshot) +
             getDomainRouteSpecifications(group)
     }
@@ -139,7 +169,10 @@ DependencySettings(
         }
     }
 
-    private fun getServiceRouteSpecifications(group: Group, globalSnapshot: Snapshot): Collection<RouteSpecification> {
+    private fun getServiceRouteSpecifications(
+        group: Group,
+        globalSnapshot: GlobalSnapshot
+    ): Collection<RouteSpecification> {
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().map {
                 RouteSpecification(
@@ -148,7 +181,7 @@ DependencySettings(
                     settings = it.settings
                 )
             }
-            is AllServicesGroup -> globalSnapshot.clusters().resources().map {
+            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map {
                 RouteSpecification(
                     clusterName = it.key,
                     routeDomain = it.key,
@@ -158,32 +191,31 @@ DependencySettings(
         }
     }
 
-    private fun getServicesEndpointsForGroup(group: Group, globalSnapshot: Snapshot): List<ClusterLoadAssignment> {
-        return getServiceRouteSpecifications(group, globalSnapshot)
-            .mapNotNull { globalSnapshot.endpoints().resources().get(it.clusterName) }
+    private fun getServicesEndpointsForGroup(
+        globalSnapshot: GlobalSnapshot,
+        egressRouteSpecifications: Collection<RouteSpecification>
+    ): List<ClusterLoadAssignment> {
+        return egressRouteSpecifications
+            .mapNotNull { globalSnapshot.endpoints.resources().get(it.clusterName) }
     }
 
     private fun newSnapshotForGroup(
         group: Group,
-        globalSnapshot: Snapshot
+        globalSnapshot: GlobalSnapshot
     ): Snapshot {
+
+        val egressRouteSpecification = getEgressRoutesSpecification(group, globalSnapshot)
 
         val clusters: List<Cluster> =
             clustersFactory.getClustersForGroup(group, globalSnapshot)
 
         val routes = listOf(
             egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, getEgressRoutesSpecification(group, globalSnapshot)
+                group.serviceName, egressRouteSpecification,
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )
-
-        if (clusters.isEmpty()) {
-            return createSnapshot(routes = routes)
-        }
-
-        val endpoints = getServicesEndpointsForGroup(group, globalSnapshot)
-
 
         val listeners = if (properties.dynamicListeners.enabled) {
             listenersFactory.createListeners(group, globalSnapshot)
@@ -191,18 +223,24 @@ DependencySettings(
             emptyList()
         }
 
-        val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
+        if (clusters.isEmpty()) {
+            return createSnapshot(routes = routes, listeners = listeners)
+        }
+
+        val endpoints = getServicesEndpointsForGroup(globalSnapshot, egressRouteSpecification)
+
+        val version = snapshotsVersions.version(group, clusters, endpoints)
 
         return createSnapshot(
-                clusters = clusters,
-                clustersVersion = version.clusters,
-                endpoints = endpoints,
-                endpointsVersions = version.endpoints,
-                listeners = listeners,
-                listenersVersion = version.listeners,
-                routes = routes,
-                // we assume, that routes don't change during Envoy lifecycle unless clusters change
-                routesVersion = RoutesVersion(version.clusters.value)
+            clusters = clusters,
+            clustersVersion = version.clusters,
+            endpoints = endpoints,
+            endpointsVersions = version.endpoints,
+            listeners = listeners,
+            // for now we assume that listeners don't change during lifecycle
+            routes = routes,
+            // we assume, that routes don't change during Envoy lifecycle unless clusters change
+            routesVersion = RoutesVersion(version.clusters.value)
         )
     }
 
@@ -292,24 +330,21 @@ DependencySettings(
     private fun toEnvoyPriority(locality: LocalityEnum): Int = if (locality == LocalityEnum.LOCAL) 0 else 1
 
     private fun createLoadAssignment(
+        clusters: Set<String>,
         localityAwareServicesStates: List<LocalityAwareServicesState>
     ): List<ClusterLoadAssignment> {
-        return localityAwareServicesStates
-            .flatMap {
-                val locality = it.locality
-                val zone = it.zone
 
-                it.servicesState.serviceNameToInstances.map { (serviceName, serviceInstances) ->
-                    serviceName to createEndpointsGroup(serviceInstances, zone, toEnvoyPriority(locality))
-                }
-            }
-            .groupBy { (serviceName) ->
-                serviceName
-            }
-            .map { (serviceName, serviceNameLocalityLbEndpointsPairs) ->
-                val localityLbEndpoints = serviceNameLocalityLbEndpointsPairs.map { (_, localityLbEndpoint) ->
-                    localityLbEndpoint
-                }
+        return clusters
+            .map { serviceName ->
+                val localityLbEndpoints = localityAwareServicesStates
+                    .mapNotNull {
+                        val locality = it.locality
+                        val zone = it.zone
+
+                        it.servicesState.get(serviceName)?.let {
+                            createEndpointsGroup(it, zone, toEnvoyPriority(locality))
+                        }
+                    }
 
                 ClusterLoadAssignment.newBuilder()
                     .setClusterName(serviceName)
@@ -340,11 +375,14 @@ DependencySettings(
             emptyList<Secret>(),
             SecretsVersion.EMPTY_VERSION.value
         )
-
-    internal data class ClusterConfiguration(val serviceName: String, val http2Enabled: Boolean)
 }
 
-class RouteSpecification(
+internal data class ClusterConfiguration(
+    val serviceName: String,
+    val http2Enabled: Boolean
+)
+
+internal class RouteSpecification(
     val clusterName: String,
     val routeDomain: String,
     val settings: DependencySettings

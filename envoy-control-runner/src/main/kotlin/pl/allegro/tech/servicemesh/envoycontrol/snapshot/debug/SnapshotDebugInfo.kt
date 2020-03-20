@@ -5,6 +5,7 @@ import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.Listener
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
 import net.openhft.hashing.LongHashFunction
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 
 fun version(version: String) = Version(
     version,
@@ -17,18 +18,20 @@ data class Version(
     val metric: String
 )
 
+private val emptyVersion = Version("", "")
+
 data class Versions(
-    val clusters: Version,
-    val endpoints: Version,
-    val routes: Version,
-    val listeners: Version
+    val clusters: Version = emptyVersion,
+    val endpoints: Version = emptyVersion,
+    val routes: Version = emptyVersion,
+    val listeners: Version = emptyVersion
 )
 
 data class Snapshot(
     val clusters: Map<String, Cluster>,
     val endpoints: Map<String, ClusterLoadAssignment>,
-    val listeners: Map<String, Listener>,
-    val routes: Map<String, RouteConfiguration>
+    val listeners: Map<String, Listener> = emptyMap(),
+    val routes: Map<String, RouteConfiguration> = emptyMap()
 )
 
 data class SnapshotDebugInfo(
@@ -48,5 +51,13 @@ data class SnapshotDebugInfo(
             listeners = version(snapshot.listeners().version()),
             routes = version(snapshot.routes().version())
         )
+    )
+
+    constructor(globalSnapshot: GlobalSnapshot) : this(
+        snapshot = Snapshot(
+            clusters = globalSnapshot.clusters.resources(),
+            endpoints = globalSnapshot.endpoints.resources()
+        ),
+        versions = Versions()
     )
 }

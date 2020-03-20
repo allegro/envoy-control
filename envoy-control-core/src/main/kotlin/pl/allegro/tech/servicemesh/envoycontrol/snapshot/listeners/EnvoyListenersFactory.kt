@@ -5,7 +5,6 @@ import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.envoy.api.v2.Listener
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
@@ -22,13 +21,17 @@ import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import com.google.protobuf.Any as ProtobufAny
 
-typealias HttpFilterFactory = (node: Group, snapshot: Snapshot) -> HttpFilter?
+typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFilter?
 
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
@@ -59,7 +62,7 @@ class EnvoyListenersFactory(
                 ).build()
     }
 
-    fun createListeners(group: Group, globalSnapshot: Snapshot): List<Listener> {
+    fun createListeners(group: Group, globalSnapshot: GlobalSnapshot): List<Listener> {
         if (group.listenersConfig == null) {
             return listOf()
         }
@@ -70,7 +73,11 @@ class EnvoyListenersFactory(
         return listOf(ingressListener, egressListener)
     }
 
-    private fun createEgressListener(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): Listener {
+    private fun createEgressListener(
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot
+    ): Listener {
         return Listener.newBuilder()
                 .setName("egress_listener")
                 .setAddress(
@@ -84,7 +91,11 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun createIngressListener(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): Listener {
+    private fun createIngressListener(
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot
+    ): Listener {
         return Listener.newBuilder()
                 .setName("ingress_listener")
                 .setAddress(
@@ -99,9 +110,9 @@ class EnvoyListenersFactory(
     }
 
     private fun createIngressFilterChain(
-            group: Group,
-            listenersConfig: ListenersConfig,
-            globalSnapshot: Snapshot
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot
     ): FilterChain {
 
         val filterChain = FilterChain.newBuilder()
@@ -111,28 +122,36 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun createEgressFilterChain(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): FilterChain {
+    private fun createEgressFilterChain(
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot
+    ): FilterChain {
         return FilterChain.newBuilder()
                 .addFilters(createEgressFilter(group, listenersConfig, globalSnapshot))
                 .build()
     }
 
-    private fun createEgressFilter(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): Filter {
+    private fun createEgressFilter(
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot
+    ): Filter {
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
                 .setStatPrefix("egress_http")
-                .setRds(egressRds(group.ads))
+                .setRds(egressRds(group.communicationMode))
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
 
         return createFilter(connectionManagerBuilder, egressFilters, group, "egress", listenersConfig, globalSnapshot)
     }
 
     private fun createFilter(
-            connectionManagerBuilder: HttpConnectionManager.Builder,
-            filterFactories: List<HttpFilterFactory>,
-            group: Group,
-            accessLogType: String,
-            listenersConfig: ListenersConfig,
-            globalSnapshot: Snapshot
+        connectionManagerBuilder: HttpConnectionManager.Builder,
+        filterFactories: List<HttpFilterFactory>,
+        group: Group,
+        accessLogType: String,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot
     ): Filter {
         filterFactories.forEach { filterFactory ->
             val filter = filterFactory(group, globalSnapshot)
@@ -159,14 +178,13 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun egressRds(ads: Boolean): Rds {
+    private fun egressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
                 .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
 
-        if (ads) {
-            configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-        } else {
-            configSource.setApiConfigSource(defaultApiConfigSource)
+        when (communicationMode) {
+            ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
+            XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
         }
 
         return Rds.newBuilder()
@@ -177,7 +195,7 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun createIngressFilter(group: Group, listenersConfig: ListenersConfig, globalSnapshot: Snapshot): Filter {
+    private fun createIngressFilter(group: Group, listenersConfig: ListenersConfig, globalSnapshot: GlobalSnapshot): Filter {
         val connectionIdleTimeout = group.proxySettings.incoming.timeoutPolicy.connectionIdleTimeout
             ?: Durations.fromMillis(localServiceProperties.connectionIdleTimeout.toMillis())
         val httpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(connectionIdleTimeout).build()
@@ -187,7 +205,7 @@ class EnvoyListenersFactory(
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCommonHttpProtocolOptions(httpProtocolOptions)
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
-                .setRds(ingressRds(group.ads))
+                .setRds(ingressRds(group.communicationMode))
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
 
         if (listenersConfig.useRemoteAddress) {
@@ -204,14 +222,13 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun ingressRds(ads: Boolean): Rds {
+    private fun ingressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
                 .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
 
-        if (ads) {
-            configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-        } else {
-            configSource.setApiConfigSource(defaultApiConfigSource)
+        when (communicationMode) {
+            ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
+            XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
         }
 
         return Rds.newBuilder()

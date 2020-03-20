@@ -4,6 +4,7 @@ import com.google.protobuf.Duration
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
+import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.api.v2.route.RetryPolicy
 import io.envoyproxy.envoy.api.v2.route.Route
 import io.envoyproxy.envoy.api.v2.route.RouteAction
@@ -30,18 +31,13 @@ internal class EnvoyIngressRoutesFactory(
             .setIdleTimeout(timeoutIdle)
     }
 
-    private val statusPathPattern = properties.routes.status.pathPrefix + ".*"
+    private val statusPathPrefix = properties.routes.status.pathPrefix
 
-    private fun statusRoute(localRouteAction: RouteAction.Builder): Route? {
-        return Route.newBuilder()
-            .setMatch(
-                RouteMatch.newBuilder()
-                    .setPrefix(properties.routes.status.pathPrefix)
-                    .addHeaders(httpMethodMatcher(HttpMethod.GET))
-            )
-            .setRoute(localRouteAction)
-            .build()
-    }
+    private val endpointsPrefixMatcher = HeaderMatcher.newBuilder()
+            .setName(":path").setPrefixMatch("/").build()
+
+    private val statusPrefixMatcher = HeaderMatcher.newBuilder()
+            .setName(":path").setPrefixMatch(statusPathPrefix).build()
 
     private fun retryPolicy(retryProps: RetryPolicyProperties): RetryPolicy = RetryPolicy.newBuilder().apply {
         retryOn = retryProps.retryOn.joinToString(separator = ",")
@@ -59,7 +55,7 @@ internal class EnvoyIngressRoutesFactory(
         .map { HttpMethod.valueOf(it.key) to retryPolicy(it.value) }
         .toMap()
 
-    private fun allOpenIngressRoutes(localRouteAction: RouteAction.Builder): List<Route> {
+    private fun ingressRoutes(localRouteAction: RouteAction.Builder): List<Route> {
         val nonRetryRoute = Route.newBuilder()
             .setMatch(
                 RouteMatch.newBuilder()
@@ -107,17 +103,18 @@ internal class EnvoyIngressRoutesFactory(
 
     fun createSecuredIngressRouteConfig(proxySettings: ProxySettings): RouteConfiguration {
         val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
-            true ->
+            true -> {
                 listOf(
                     VirtualCluster.newBuilder()
-                        .setPattern(statusPathPattern)
+                        .addHeaders(statusPrefixMatcher)
                         .setName("status")
                         .build(),
                     VirtualCluster.newBuilder()
-                        .setPattern("/.*")
+                        .addHeaders(endpointsPrefixMatcher)
                         .setName("endpoints")
                         .build()
                 )
+            }
             false ->
                 emptyList()
         }
@@ -150,11 +147,7 @@ internal class EnvoyIngressRoutesFactory(
 
         val customHealthCheckRoute = customHealthCheckRoute(proxySettings)
 
-        return customHealthCheckRoute +
-                listOfNotNull(
-                    statusRoute(localRouteAction).takeIf { properties.routes.status.enabled }
-                ) +
-                allOpenIngressRoutes(localRouteAction)
+        return customHealthCheckRoute + ingressRoutes(localRouteAction)
     }
 
     private fun statusRouteVirtualClusterEnabled() =
