@@ -90,7 +90,11 @@ internal class SnapshotsVersions {
         val listeners: List<Listener>
     )
 
-    internal data class Version(val clusters: ClustersVersion, val endpoints: EndpointsVersion, val listeners: ListenersVersion)
+    internal data class Version(
+        val clusters: ClustersVersion,
+        val endpoints: EndpointsVersion,
+        val listeners: ListenersVersion
+    )
 }
 
 data class ClustersVersion(val value: String) {

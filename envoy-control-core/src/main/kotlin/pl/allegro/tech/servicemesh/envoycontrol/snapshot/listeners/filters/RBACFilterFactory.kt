@@ -23,6 +23,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
+@SuppressWarnings("MagicNumber")
 class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,
     statusRouteProperties: StatusRouteProperties
@@ -32,6 +33,7 @@ class RBACFilterFactory(
     }
 
     private val anyPrincipalName = "_ANY_"
+    private val exactIpMask = 32
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
 
     private fun getRules(serviceName: String, incomingPermissions: Incoming, snapshot: GlobalSnapshot): RBAC {
@@ -138,10 +140,10 @@ class RBACFilterFactory(
                             lbEndpoint.endpoint.address
                         }
                     }
-        }.map {
-            Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
-                    .setAddressPrefix(it.socketAddress.address)
-                    .setPrefixLen(UInt32Value.of(32)).build())
+        }.map { address ->
+                    Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                    .setAddressPrefix(address.socketAddress.address)
+                    .setPrefixLen(UInt32Value.of(exactIpMask)).build())
                     .build()
         }
 

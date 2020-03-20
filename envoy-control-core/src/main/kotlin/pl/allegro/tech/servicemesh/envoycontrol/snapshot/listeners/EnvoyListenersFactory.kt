@@ -142,24 +142,30 @@ class EnvoyListenersFactory(
                 .setRds(egressRds(group.communicationMode))
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
 
-        return createFilter(connectionManagerBuilder, egressFilters, group, "egress", listenersConfig, globalSnapshot)
+        addHttpFilters(connectionManagerBuilder, egressFilters, group, globalSnapshot)
+
+        return createFilter(connectionManagerBuilder, "egress", listenersConfig)
     }
 
-    private fun createFilter(
+    private fun addHttpFilters(
         connectionManagerBuilder: HttpConnectionManager.Builder,
         filterFactories: List<HttpFilterFactory>,
         group: Group,
-        accessLogType: String,
-        listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot
-    ): Filter {
+    ) {
         filterFactories.forEach { filterFactory ->
             val filter = filterFactory(group, globalSnapshot)
             if (filter != null) {
                 connectionManagerBuilder.addHttpFilters(filter)
             }
         }
+    }
 
+    private fun createFilter(
+        connectionManagerBuilder: HttpConnectionManager.Builder,
+        accessLogType: String,
+        listenersConfig: ListenersConfig
+    ): Filter {
         if (listenersConfig.accessLogEnabled) {
             connectionManagerBuilder.addAccessLog(accessLog(listenersConfig.accessLogPath, accessLogType))
         }
@@ -195,11 +201,15 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun createIngressFilter(group: Group, listenersConfig: ListenersConfig, globalSnapshot: GlobalSnapshot): Filter {
+    private fun createIngressFilter(
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot
+    ): Filter {
         val connectionIdleTimeout = group.proxySettings.incoming.timeoutPolicy.connectionIdleTimeout
             ?: Durations.fromMillis(localServiceProperties.connectionIdleTimeout.toMillis())
         val httpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(connectionIdleTimeout).build()
-        val ingressHttp = HttpConnectionManager.newBuilder()
+        val connectionManagerBuilder = HttpConnectionManager.newBuilder()
                 .setStatPrefix("ingress_http")
                 .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
                 .setDelayedCloseTimeout(durationInSeconds(0))
@@ -209,10 +219,14 @@ class EnvoyListenersFactory(
                 .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
 
         if (listenersConfig.useRemoteAddress) {
-            ingressHttp.setXffNumTrustedHops(listenersFactoryProperties.httpFilters.ingressXffNumTrustedHops)
+            connectionManagerBuilder.setXffNumTrustedHops(
+                    listenersFactoryProperties.httpFilters.ingressXffNumTrustedHops
+            )
         }
 
-        return createFilter(ingressHttp, ingressFilters, group, "ingress", listenersConfig, globalSnapshot)
+        addHttpFilters(connectionManagerBuilder, ingressFilters, group, globalSnapshot)
+
+        return createFilter(connectionManagerBuilder, "ingress", listenersConfig)
     }
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
