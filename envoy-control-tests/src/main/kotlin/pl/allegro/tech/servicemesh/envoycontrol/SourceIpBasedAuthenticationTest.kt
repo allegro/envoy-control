@@ -34,11 +34,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
     @Test
     fun `should allow access to selected clients using source based authentication`() {
         registerService(name = "echo")
-        registerService(
-                id = "echo2",
-                name = "echo2", address = envoyContainer2.ipAddress(),
-                port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
-        )
+        registerEcho2WithEnvoyOnIngress()
 
         untilAsserted {
             // when
@@ -49,6 +45,14 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
             assertThat(validResponse).isOk().isFrom(echoContainer2)
             assertThat(invalidResponse).isForbidden()
         }
+    }
+
+    private fun registerEcho2WithEnvoyOnIngress() {
+        registerService(
+                id = "echo2",
+                name = "echo2", address = envoyContainer2.ipAddress(),
+                port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
+        )
     }
 
     private fun callEcho2ThroughEnvoy2Ingress(): Response {
