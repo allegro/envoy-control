@@ -67,7 +67,10 @@ class EnvoyContainer(
 
     fun egressListenerUrl() = "http://$containerIpAddress:${getMappedPort(EGRESS_LISTENER_CONTAINER_PORT)}/"
 
-    fun ingressListenerUrl() = "http://$containerIpAddress:${getMappedPort(INGRESS_LISTENER_CONTAINER_PORT)}"
+    fun ingressListenerUrl(secured: Boolean = false): String {
+        val schema = if (secured) "https" else "http"
+        return schema + "://$containerIpAddress:${getMappedPort(INGRESS_LISTENER_CONTAINER_PORT)}"
+    }
 
     fun adminUrl() = "http://$containerIpAddress:${getMappedPort(ADMIN_PORT)}"
 

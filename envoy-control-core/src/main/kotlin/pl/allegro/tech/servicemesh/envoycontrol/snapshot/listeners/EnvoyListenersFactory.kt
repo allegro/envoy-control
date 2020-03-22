@@ -120,19 +120,18 @@ class EnvoyListenersFactory(
             listener.addFilterChains(it)
         }
 
-
         return listener.build()
     }
 
     private fun createIngressFilterChain(
-            group: Group,
-            listenersConfig: ListenersConfig,
-            globalSnapshot: GlobalSnapshot,
-            secured: Boolean
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot,
+        secured: Boolean
     ): FilterChain? {
-        val privateKeyPath = group.listenersConfig?.privateKeyPath
-        val certificatePath = group.listenersConfig?.certificatePath
-        val trustedCaPath = group.listenersConfig?.trustedCaPath
+        val privateKeyPath = group.listenersConfig?.privateKeyPath ?: ""
+        val certificatePath = group.listenersConfig?.certificatePath ?: ""
+        val trustedCaPath = group.listenersConfig?.trustedCaPath ?: ""
 
         val transportProtocol = if (secured) "tls" else "raw_buffer"
 
@@ -140,14 +139,7 @@ class EnvoyListenersFactory(
                 .setFilterChainMatch(FilterChainMatch.newBuilder().setTransportProtocol(transportProtocol))
                 .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot))
 
-        if (secured &&
-                privateKeyPath != null &&
-                certificatePath != null &&
-                trustedCaPath != null &&
-                privateKeyPath.isNotBlank() &&
-                certificatePath.isNotBlank() &&
-                trustedCaPath.isNotBlank()) {
-
+        if (shouldAddTlsContext(secured, privateKeyPath, certificatePath, trustedCaPath)) {
             // might be optional
             if (group.serviceName !in snapshotProperties.incomingPermissions.tlsAuthentication.enabledForServices) {
                 return null
@@ -175,6 +167,15 @@ class EnvoyListenersFactory(
 
         return filterChain
                 .build()
+    }
+
+    private fun shouldAddTlsContext(
+        secured: Boolean,
+        privateKeyPath: String,
+        certificatePath: String,
+        trustedCaPath: String
+    ): Boolean {
+        return secured && privateKeyPath.isNotBlank() && certificatePath.isNotBlank() && trustedCaPath.isNotBlank()
     }
 
     private fun createEgressFilterChain(

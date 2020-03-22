@@ -6,6 +6,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import org.apache.http.client.methods.CloseableHttpResponse
+import org.apache.http.client.methods.HttpGet
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory
+import org.apache.http.conn.ssl.TrustAllStrategy
+import org.apache.http.impl.client.HttpClients
+import org.apache.http.ssl.SSLContextBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility.await
@@ -202,6 +208,15 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
         ): Response = call(service, address, headers, pathAndQuery)
+
+        fun insecureCall(url: String): CloseableHttpResponse {
+            val builder = SSLContextBuilder()
+            builder.loadTrustMaterial(null, TrustAllStrategy())
+            val sslsf = SSLConnectionSocketFactory(builder.build())
+            val httpclient = HttpClients.custom().setSSLSocketFactory(sslsf).build()
+            val httpGet = HttpGet(url)
+            return httpclient.execute(httpGet)
+        }
 
         private fun call(
             host: String,

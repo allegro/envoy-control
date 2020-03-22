@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import okhttp3.Response
+import org.apache.http.client.methods.CloseableHttpResponse
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -9,8 +9,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy2Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
-import pl.allegro.tech.servicemesh.envoycontrol.ssl.EnvoySANValidationTest
+import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
 
+@SuppressWarnings("SwallowedException")
 internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     companion object {
@@ -33,14 +35,13 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should allow access to selected clients using source based authentication`() {
+    fun `should encrypt traffic between selected services`() {
         registerService(name = "echo")
         registerEcho2WithEnvoyOnIngress()
 
         untilAsserted {
             // when
             val validResponse = callEcho2ThroughEnvoy1()
-            val invalidResponse = callEcho2ThroughEnvoy2Ingress()
 
             // then
             val sslHandshakes = envoyContainer1.admin().statValue("cluster.echo2.ssl.handshake")?.toInt()
@@ -50,8 +51,23 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             assertThat(sslConnections).isGreaterThan(0)
 
             assertThat(validResponse).isOk().isFrom(echoContainer2)
-            assertThat(invalidResponse).isUnreachable()
+
+            var invalidResponse: CloseableHttpResponse? = null
+            try {
+                invalidResponse = callEcho2ThroughEnvoy2Ingress()
+                assertThat(invalidResponse.statusLine.statusCode).isEqualTo(503)
+            } catch (e: SSLPeerUnverifiedException) {
+                assertEnvoyReportedSslError()
+            } catch (e: SSLHandshakeException) {
+                assertEnvoyReportedSslError()
+            } finally {
+                invalidResponse?.close()
+            }
         }
+}
+    private fun assertEnvoyReportedSslError() {
+        val sslHandshakeErrors = envoyContainer2.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_no_cert")?.toInt()
+        assertThat(sslHandshakeErrors).isGreaterThan(0)
     }
 
     private fun registerEcho2WithEnvoyOnIngress() {
@@ -62,12 +78,8 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         )
     }
 
-    private fun callEcho2ThroughEnvoy2Ingress(): Response {
-        return callService(
-                service = "local_service",
-                address = envoyContainer2.ingressListenerUrl(),
-                pathAndQuery = "/status/"
-        )
+    private fun callEcho2ThroughEnvoy2Ingress(): CloseableHttpResponse {
+        return insecureCall(url = envoyContainer2.ingressListenerUrl(secured = true) + "/status/")
     }
 
     private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/status/")
