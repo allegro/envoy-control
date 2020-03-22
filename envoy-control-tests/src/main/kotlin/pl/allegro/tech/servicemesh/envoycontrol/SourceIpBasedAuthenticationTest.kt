@@ -17,6 +17,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
             "envoy-control.envoy.snapshot.incoming-permissions.sourceIpAuthentication.enabledForServices" to listOf("echo"),
+//            "envoy-control.envoy.snapshot.incoming-permissions.tlsAuthentication.enabledForServices" to listOf("echo", "echo2"),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
             "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
@@ -42,6 +43,10 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
             val invalidResponse = callEcho2ThroughEnvoy2Ingress()
 
             // then
+//            val sslHandshakes = envoyContainer2.admin().statValue("cluster.echo2.ssl.handshake")?.toInt()
+//            assertThat(sslHandshakes).isGreaterThan(0)
+//            val sslConnections = envoyContainer2.admin().statValue("http.ingress_http.downstream_cx_ssl_total")?.toInt()
+//            assertThat(sslConnections).isGreaterThan(0)
             assertThat(validResponse).isOk().isFrom(echoContainer2)
             assertThat(invalidResponse).isForbidden()
         }

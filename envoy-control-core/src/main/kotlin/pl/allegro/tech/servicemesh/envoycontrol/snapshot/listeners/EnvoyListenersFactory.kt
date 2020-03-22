@@ -6,16 +6,22 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.Listener
+import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
+import io.envoyproxy.envoy.api.v2.auth.DownstreamTlsContext
+import io.envoyproxy.envoy.api.v2.auth.TlsCertificate
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
 import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
 import io.envoyproxy.envoy.api.v2.core.ConfigSource
+import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
+import io.envoyproxy.envoy.api.v2.core.TransportSocket
 import io.envoyproxy.envoy.api.v2.listener.Filter
 import io.envoyproxy.envoy.api.v2.listener.FilterChain
+import io.envoyproxy.envoy.api.v2.listener.FilterChainMatch
 import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
 import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
@@ -35,7 +41,7 @@ typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFil
 
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
-    snapshotProperties: SnapshotProperties,
+    private val snapshotProperties: SnapshotProperties,
     envoyHttpFilters: EnvoyHttpFilters
 ) {
     private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters
@@ -96,7 +102,10 @@ class EnvoyListenersFactory(
         listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot
     ): Listener {
-        return Listener.newBuilder()
+        val insecureIngressChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, secured = false)
+        val securedIngressChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, secured = true)
+
+        val listener = Listener.newBuilder()
                 .setName("ingress_listener")
                 .setAddress(
                         Address.newBuilder().setSocketAddress(
@@ -105,18 +114,57 @@ class EnvoyListenersFactory(
                                         .setAddress(listenersConfig.ingressHost)
                         )
                 )
-                .addFilterChains(createIngressFilterChain(group, listenersConfig, globalSnapshot))
-                .build()
+
+        listOfNotNull(securedIngressChain, insecureIngressChain).forEach {
+            listener.addFilterChains(it)
+        }
+
+
+        return listener.build()
     }
 
     private fun createIngressFilterChain(
-        group: Group,
-        listenersConfig: ListenersConfig,
-        globalSnapshot: GlobalSnapshot
-    ): FilterChain {
+            group: Group,
+            listenersConfig: ListenersConfig,
+            globalSnapshot: GlobalSnapshot,
+            secured: Boolean
+    ): FilterChain? {
+        val privateKeyPath = group.listenersConfig?.privateKeyPath
+        val certificatePath = group.listenersConfig?.certificatePath
+
+        val transportProtocol = if (secured) "tls" else "raw_buffer"
 
         val filterChain = FilterChain.newBuilder()
+                .setFilterChainMatch(FilterChainMatch.newBuilder().setTransportProtocol(transportProtocol))
                 .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot))
+
+        if (secured &&
+                privateKeyPath != null &&
+                certificatePath != null &&
+                privateKeyPath.isNotBlank() &&
+                certificatePath.isNotBlank()) {
+
+            // might be optional
+            if (group.serviceName !in snapshotProperties.incomingPermissions.tlsAuthentication.enabledForServices) {
+                return null
+            }
+
+            val downstreamTlsContext = DownstreamTlsContext.newBuilder()
+//                        .setRequireClientCertificate(BoolValue.of(true)) // uncomment to validate cert
+                    .setCommonTlsContext(CommonTlsContext.newBuilder()
+//                                .addAllAlpnProtocols(listOf("h2", "http/1.1")) // is this needed?
+                            .addTlsCertificates(TlsCertificate.newBuilder()
+                                    .setCertificateChain(DataSource.newBuilder().setFilename(certificatePath))
+                                    .setPrivateKey(DataSource.newBuilder().setFilename(privateKeyPath))
+                                    .build()
+                            )
+                    )
+            filterChain.setTransportSocket(TransportSocket.newBuilder()
+                    .setName("envoy.transport_sockets.tls")
+                    .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
+                    .build()
+            )
+        }
 
         return filterChain
                 .build()

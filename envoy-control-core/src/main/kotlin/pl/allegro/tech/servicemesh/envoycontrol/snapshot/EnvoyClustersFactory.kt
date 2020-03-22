@@ -166,6 +166,15 @@ internal class EnvoyClustersFactory(
             cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())
         }
 
+        if (clusterConfiguration.serviceName in properties.incomingPermissions.tlsAuthentication.enabledForServices) {
+            val upstreamTlsContext = UpstreamTlsContext.newBuilder()
+                    .setCommonTlsContext(CommonTlsContext.getDefaultInstance())
+                    .build()
+            cluster.setTransportSocket(TransportSocket.newBuilder()
+                    .setName("envoy.transport_sockets.tls")
+                    .setTypedConfig(Any.pack(upstreamTlsContext)))
+        }
+
         return cluster.build()
     }
 

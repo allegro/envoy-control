@@ -31,7 +31,9 @@ data class ListenersConfig(
     val enableLuaScript: Boolean = defaultEnableLuaScript,
     val accessLogPath: String = defaultAccessLogPath,
     val resourcesDir: String = defaultResourcesDir,
-    val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader
+    val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
+    val privateKeyPath: String?,
+    val certificatePath: String?
 ) {
     companion object {
         const val defaultAccessLogPath = "/dev/stdout"

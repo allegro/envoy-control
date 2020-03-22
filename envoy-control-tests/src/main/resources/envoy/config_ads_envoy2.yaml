@@ -24,6 +24,8 @@ node:
     access_log_enabled: false
     add_upstream_external_address_header: true
     resources_dir: "/etc/envoy/extra"
+    private_key_path: "/app/privkey.pem"
+    certificate_path: "/app/fullchain.pem"
     proxy_settings:
       incoming:
         endpoints:

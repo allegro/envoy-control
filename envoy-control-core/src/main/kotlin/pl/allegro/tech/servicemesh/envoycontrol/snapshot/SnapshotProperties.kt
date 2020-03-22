@@ -58,6 +58,11 @@ class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
+    var tlsAuthentication = TlsAuthenticationProperties()
+}
+
+class TlsAuthenticationProperties {
+    var enabledForServices: List<String> = listOf()
 }
 
 class SourceIpAuthenticationProperties {
