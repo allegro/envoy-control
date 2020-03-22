@@ -6,6 +6,7 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.Listener
+import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
 import io.envoyproxy.envoy.api.v2.auth.DownstreamTlsContext
 import io.envoyproxy.envoy.api.v2.auth.TlsCertificate
@@ -131,6 +132,7 @@ class EnvoyListenersFactory(
     ): FilterChain? {
         val privateKeyPath = group.listenersConfig?.privateKeyPath
         val certificatePath = group.listenersConfig?.certificatePath
+        val trustedCaPath = group.listenersConfig?.trustedCaPath
 
         val transportProtocol = if (secured) "tls" else "raw_buffer"
 
@@ -141,8 +143,10 @@ class EnvoyListenersFactory(
         if (secured &&
                 privateKeyPath != null &&
                 certificatePath != null &&
+                trustedCaPath != null &&
                 privateKeyPath.isNotBlank() &&
-                certificatePath.isNotBlank()) {
+                certificatePath.isNotBlank() &&
+                trustedCaPath.isNotBlank()) {
 
             // might be optional
             if (group.serviceName !in snapshotProperties.incomingPermissions.tlsAuthentication.enabledForServices) {
@@ -150,9 +154,12 @@ class EnvoyListenersFactory(
             }
 
             val downstreamTlsContext = DownstreamTlsContext.newBuilder()
-//                        .setRequireClientCertificate(BoolValue.of(true)) // uncomment to validate cert
+                    .setRequireClientCertificate(BoolValue.of(true)) // uncomment to validate cert
                     .setCommonTlsContext(CommonTlsContext.newBuilder()
-//                                .addAllAlpnProtocols(listOf("h2", "http/1.1")) // is this needed?
+//                            .addAllAlpnProtocols(listOf("h2,http/1.1"))
+                            .setValidationContext(CertificateValidationContext.newBuilder()
+                                    .setTrustedCa(DataSource.newBuilder().setFilename(trustedCaPath))
+                                    .build())
                             .addTlsCertificates(TlsCertificate.newBuilder()
                                     .setCertificateChain(DataSource.newBuilder().setFilename(certificatePath))
                                     .setPrivateKey(DataSource.newBuilder().setFilename(privateKeyPath))

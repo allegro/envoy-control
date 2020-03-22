@@ -33,8 +33,10 @@ data class ListenersConfig(
     val resourcesDir: String = defaultResourcesDir,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
     val privateKeyPath: String?,
-    val certificatePath: String?
+    val certificatePath: String?,
+    val trustedCaPath: String?
 ) {
+
     companion object {
         const val defaultAccessLogPath = "/dev/stdout"
         const val defaultUseRemoteAddress = false

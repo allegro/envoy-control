@@ -9,6 +9,7 @@ import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
+import io.envoyproxy.envoy.api.v2.auth.TlsCertificate
 import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
 import io.envoyproxy.envoy.api.v2.cluster.CircuitBreakers
 import io.envoyproxy.envoy.api.v2.cluster.OutlierDetection
@@ -56,8 +57,13 @@ internal class EnvoyClustersFactory(
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         return when (group) {
-            is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies()
-                .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
+            is ServicesGroup -> {
+                val clusters = group.proxySettings.outgoing.getServiceDependencies()
+                        .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
+
+                // todo add certificate and privkey to cluster
+                clusters
+            }
             is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map { it.value }
         }
     }
@@ -168,7 +174,16 @@ internal class EnvoyClustersFactory(
 
         if (clusterConfiguration.serviceName in properties.incomingPermissions.tlsAuthentication.enabledForServices) {
             val upstreamTlsContext = UpstreamTlsContext.newBuilder()
-                    .setCommonTlsContext(CommonTlsContext.getDefaultInstance())
+                    .setCommonTlsContext(CommonTlsContext.newBuilder()
+                            .addTlsCertificates(
+                            TlsCertificate.newBuilder()
+                                    .setPrivateKey(DataSource.newBuilder().setFilename("/app/privkey.pem"))
+                                    .setCertificateChain( DataSource.newBuilder().setFilename("/app/fullchain.pem"))
+                                    .build()
+                            )
+                            .addAlpnProtocols("h2,http/1.1")
+                            .build()
+                    )
                     .build()
             cluster.setTransportSocket(TransportSocket.newBuilder()
                     .setName("envoy.transport_sockets.tls")

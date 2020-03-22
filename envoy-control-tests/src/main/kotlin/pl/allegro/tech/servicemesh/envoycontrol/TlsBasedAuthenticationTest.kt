@@ -9,14 +9,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy2Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.ssl.EnvoySANValidationTest
 
-internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration() {
+internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     companion object {
 
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.sourceIpAuthentication.enabledForServices" to listOf("echo"),
+            "envoy-control.envoy.snapshot.incoming-permissions.tlsAuthentication.enabledForServices" to listOf("echo2"),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
             "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
@@ -42,8 +43,14 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
             val invalidResponse = callEcho2ThroughEnvoy2Ingress()
 
             // then
+            val sslHandshakes = envoyContainer1.admin().statValue("cluster.echo2.ssl.handshake")?.toInt()
+            assertThat(sslHandshakes).isGreaterThan(0)
+
+            val sslConnections = envoyContainer2.admin().statValue("http.ingress_http.downstream_cx_ssl_total")?.toInt()
+            assertThat(sslConnections).isGreaterThan(0)
+
             assertThat(validResponse).isOk().isFrom(echoContainer2)
-            assertThat(invalidResponse).isForbidden()
+            assertThat(invalidResponse).isUnreachable()
         }
     }
 
@@ -59,9 +66,9 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         return callService(
                 service = "local_service",
                 address = envoyContainer2.ingressListenerUrl(),
-                pathAndQuery = "/ip_endpoint"
+                pathAndQuery = "/status/"
         )
     }
 
-    private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/ip_endpoint")
+    private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/status/")
 }

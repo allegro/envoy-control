@@ -96,6 +96,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
             ?: false
         val privateKeyPath = metadata.fieldsMap["private_key_path"]?.stringValue
         val certificatePath = metadata.fieldsMap["certificate_path"]?.stringValue
+        val trustedCaPath = metadata.fieldsMap["trusted_ca_path"]?.stringValue
 
         return ListenersConfig(
                 listenersHostPort.ingressHost,
@@ -109,7 +110,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 resourcesDir,
                 addUpstreamExternalAddressHeader,
                 privateKeyPath,
-                certificatePath
+                certificatePath,
+                trustedCaPath
         )
     }
 
