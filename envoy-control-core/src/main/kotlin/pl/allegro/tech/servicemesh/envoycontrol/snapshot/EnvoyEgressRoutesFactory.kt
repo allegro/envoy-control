@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.BoolValue
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
@@ -34,6 +35,8 @@ internal class EnvoyEgressRoutesFactory(
                         .setIdleTimeout(Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()))
                         .setTimeout(Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis()))
                         .setCluster("envoy-original-destination")
+                        .setAutoHostRewrite(BoolValue.of(true))
+                        .setAutoHostRewriteHeader("Custom-Host-Test")
                 )
         )
         .build()
