@@ -390,7 +390,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     }
 
     fun ObjectAssert<Response>.hasOverriddenHostHeaderWithValue(overriddenHostHeader: String): ObjectAssert<Response> {
-        matches ({
+        matches({
             it.body()?.use { it.string().contains("\"Host\": \"$overriddenHostHeader\"") } ?: false
         }, "Header Host should be overridden with value: $overriddenHostHeader")
         return this
