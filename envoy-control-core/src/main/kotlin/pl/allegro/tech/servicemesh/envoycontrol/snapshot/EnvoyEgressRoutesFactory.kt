@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.BoolValue
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
@@ -119,6 +120,10 @@ internal class EnvoyEgressRoutesFactory(
         if (routeSpecification.settings.handleInternalRedirect) {
             routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
         }
+
+        routeAction
+            .setAutoHostRewrite(BoolValue.of(true))
+            .setAutoHostRewriteHeader("Custom-Host")
 
         return routeAction
     }
