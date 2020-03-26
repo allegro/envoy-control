@@ -15,9 +15,7 @@ class EnvoyCurrentVersionHttpsDependencyTest : EnvoyHttpsDependencyTest() {
         @JvmStatic
         @BeforeAll
         fun setupTest() {
-            setup(
-                appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
-            )
+            setup(appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) })
             setupTestCommon()
         }
     }
@@ -39,7 +37,6 @@ class EnvoyCompatibleVersionHttpsDependencyTest : EnvoyHttpsDependencyTest() {
 }
 
 abstract class EnvoyHttpsDependencyTest : EnvoyControlTestConfiguration() {
-
     companion object {
         @JvmStatic
         protected val properties = mapOf(
@@ -71,6 +68,7 @@ abstract class EnvoyHttpsDependencyTest : EnvoyControlTestConfiguration() {
             response
         }
 
+        // then
         assertThat(HttpsEchoResponse(response)).hasSNI("my.example.com")
     }
 }
