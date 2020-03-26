@@ -21,6 +21,7 @@ class EnvoyCurrentVersionHttpsDependencyTest : EnvoyHttpsDependencyTest() {
     }
 }
 
+// TODO(https://github.com/allegro/envoy-control/issues/97) - remove when envoy < 1.14.0-dev will be not supported
 class EnvoyCompatibleVersionHttpsDependencyTest : EnvoyHttpsDependencyTest() {
     companion object {
         @JvmStatic
