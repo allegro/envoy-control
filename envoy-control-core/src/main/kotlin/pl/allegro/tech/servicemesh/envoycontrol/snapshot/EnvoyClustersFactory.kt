@@ -110,7 +110,9 @@ internal class EnvoyClustersFactory(
                                     ).build()
                     ).build()
 
-            val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext).build()
+            val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext)
+                .setSni(host) // for envoy > 1.14.0-dev it will be overridden by setAutoSni below
+                .build()
             val transportSocket = TransportSocket.newBuilder()
                     .setTypedConfig(Any.pack(
                             upstreamTlsContext
