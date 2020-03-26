@@ -48,9 +48,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         var envoyControls: Int = 1
         var envoys: Int = 1
 
+        // We use envoy version from master. This is 1.14.0-dev.
+        const val defaultEnvoyImage = "envoyproxy/envoy-alpine-dev:6c2137468c25d167dbbe4719b0ecaf343bfb4233"
+
         @JvmStatic
         fun setup(
             envoyConfig: EnvoyConfigFile = RandomConfigFile,
+            envoyImage: String = defaultEnvoyImage,
             appFactoryForEc1: (Int) -> EnvoyControlTestApp = defaultAppFactory(),
             appFactoryForEc2: (Int) -> EnvoyControlTestApp = appFactoryForEc1,
             envoyControls: Int = 1,
@@ -78,7 +82,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 instancesInSameDc,
                 envoyConfig,
                 envoyConnectGrpcPort,
-                envoyConnectGrpcPort2
+                envoyConnectGrpcPort2,
+                envoyImage = envoyImage
             )
 
             waitForEnvoyControlsHealthy()
@@ -96,7 +101,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     envoyConfig,
                     envoyConnectGrpcPort,
                     envoyConnectGrpcPort2,
-                    echoContainer.ipAddress()
+                    echoContainer.ipAddress(),
+                    envoyImage = envoyImage
                 )
                 try {
                     envoyContainer2.start()
@@ -126,20 +132,23 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             envoyConfig: EnvoyConfigFile,
             envoyConnectGrpcPort: Int?,
             envoyConnectGrpcPort2: Int?,
-            localServiceIp: String = localServiceContainer.ipAddress()
+            localServiceIp: String = localServiceContainer.ipAddress(),
+            envoyImage: String = defaultEnvoyImage
         ): EnvoyContainer {
             return if (envoyControls == 2 && instancesInSameDc) {
                 EnvoyContainer(
                     envoyConfig.filePath,
                     localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort,
-                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort
+                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort,
+                    image = envoyImage
                 ).withNetwork(network)
             } else {
                 EnvoyContainer(
                     envoyConfig.filePath,
                     localServiceIp,
-                    envoyConnectGrpcPort ?: envoyControl1.grpcPort
+                    envoyConnectGrpcPort ?: envoyControl1.grpcPort,
+                    image = envoyImage
                 ).withNetwork(network)
             }
         }
@@ -361,8 +370,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
     }
 
-    fun untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (Unit)) {
-        await().atMost(wait).untilAsserted(fn)
+    fun <T> untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (T)): T {
+        var lastResult: T? = null
+        await().atMost(wait).untilAsserted({ lastResult = fn() })
+        assertThat(lastResult).isNotNull
+        return lastResult!!
     }
 
     fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
