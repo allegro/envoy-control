@@ -49,7 +49,6 @@ abstract class EnvoyHttpsDependencyTest : EnvoyControlTestConfiguration() {
         fun setupTestCommon() {
             httpsEchoContainer.start()
             envoyContainer1.addHost("my.example.com", httpsEchoContainer.ipAddress())
-            envoyContainer1.addHost("bad.host.example.com", httpsEchoContainer.ipAddress())
         }
 
         @JvmStatic

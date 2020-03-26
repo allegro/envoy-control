@@ -7,7 +7,13 @@ import org.assertj.core.api.Assertions
 import org.assertj.core.api.ObjectAssert
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
 
-class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("marcinfalkowski/http-https-echo") {
+class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http-https-echo@$hash") {
+
+    companion object {
+        // We need to use hash because the image doesn't use tags and the tests will fail if there is an older version
+        // of the image pulled locally
+        const val hash = "sha256:6b69d5da0245157d7f9d06dfb65d0dd25fbedf5389a66d912c806572d02b0d1d"
+    }
 
     override fun configure() {
         super.configure()
