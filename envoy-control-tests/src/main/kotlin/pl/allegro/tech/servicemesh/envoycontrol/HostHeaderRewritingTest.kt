@@ -46,7 +46,6 @@ internal class HostHeaderRewritingTest : EnvoyControlTestConfiguration() {
         }
     }
 
-
     @Test
     fun `should not override Host header while service is not whitelisted`() {
         // given
