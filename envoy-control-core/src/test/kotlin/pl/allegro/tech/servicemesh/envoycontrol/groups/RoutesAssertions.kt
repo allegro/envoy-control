@@ -45,6 +45,16 @@ fun RouteAction.hasCustomRequestTimeout(requestTimeout: Duration): RouteAction {
     return this
 }
 
+fun RouteAction.autoHostRewriteHeaderIsEmpty(): RouteAction {
+    assertThat(this.autoHostRewriteHeader).isEmpty()
+    return this
+}
+
+fun RouteAction.hasAutoHostRewriteHeader(header: String): RouteAction {
+    assertThat(this.autoHostRewriteHeader).isEqualTo(header)
+    return this
+}
+
 fun RouteConfiguration.hasNoRequestHeaderToAdd(key: String): RouteConfiguration {
     assertThat(this.requestHeadersToAddList).noneSatisfy {
         assertThat(it.header.key).isEqualTo(key)
@@ -63,11 +73,11 @@ fun VirtualHost.hasStatusVirtualClusters(): VirtualHost {
     return this.hasVirtualClustersInOrder(
         {
             it.headersList == listOf(HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/status/").build()) &&
-            it.name == "status"
+                it.name == "status"
         },
         {
             it.headersList == listOf(HeaderMatcher.newBuilder().setName(":path").setPrefixMatch("/").build()) &&
-            it.name == "endpoints"
+                it.name == "endpoints"
         }
     )
 }
