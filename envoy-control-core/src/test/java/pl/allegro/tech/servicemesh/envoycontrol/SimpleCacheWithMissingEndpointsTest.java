@@ -22,15 +22,15 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
     }
 
     protected static final Snapshot SNAPSHOT_WITH_MISSING_RESOURCES = Snapshot.create(
-        emptyList(),
-        ImmutableList.of(
-            ClusterLoadAssignment.newBuilder().setClusterName("none").build(),
-            ClusterLoadAssignment.newBuilder().setClusterName(CLUSTER_NAME).build()
-        ),
-        emptyList(),
-        emptyList(),
-        emptyList(),
-        VERSION2
+            emptyList(),
+            ImmutableList.of(
+                    ClusterLoadAssignment.newBuilder().setClusterName("none").build(),
+                    ClusterLoadAssignment.newBuilder().setClusterName(CLUSTER_NAME).build()
+            ),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            VERSION2
     );
 
     @Ignore
@@ -47,15 +47,16 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
         ResponseTracker responseTracker = new ResponseTracker();
 
         Watch watch = cache.createWatch(
-            true,
-            DiscoveryRequest.newBuilder()
-                .setNode(Node.getDefaultInstance())
-                .setTypeUrl(Resources.ENDPOINT_TYPE_URL)
-                .addResourceNames("none")
-                .addResourceNames(CLUSTER_NAME)
-                .build(),
-            Collections.emptySet(),
-            responseTracker);
+                true,
+                DiscoveryRequest.newBuilder()
+                        .setNode(Node.getDefaultInstance())
+                        .setTypeUrl(Resources.ENDPOINT_TYPE_URL)
+                        .addResourceNames("none")
+                        .addResourceNames(CLUSTER_NAME)
+                        .build(),
+                Collections.emptySet(),
+                responseTracker,
+                false);
 
         assertThatWatchReceivesSnapshot(new WatchAndTracker(watch, responseTracker), SNAPSHOT_WITH_MISSING_RESOURCES);
     }

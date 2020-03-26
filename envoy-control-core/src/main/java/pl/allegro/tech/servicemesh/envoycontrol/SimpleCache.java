@@ -56,7 +56,7 @@ public class SimpleCache<T> implements SnapshotCache<T> {
     /**
      * Constructs a simple cache.
      *
-     * @param groups maps an envoy host to a node group
+     * @param groups                     maps an envoy host to a node group
      * @param shouldSendMissingEndpoints if set to true it will respond with empty endpoints if there is no in snapshot
      */
     public SimpleCache(NodeGroup<T> groups, boolean shouldSendMissingEndpoints) {
@@ -98,7 +98,8 @@ public class SimpleCache<T> implements SnapshotCache<T> {
             boolean ads,
             DiscoveryRequest request,
             Set<String> knownResourceNames,
-            Consumer<Response> responseConsumer) {
+            Consumer<Response> responseConsumer,
+            boolean hasClusterChanged) {
 
         T group = groups.hash(request.getNode());
         // even though we're modifying, we take a readLock to allow multiple watches to be created in parallel since it
@@ -130,6 +131,10 @@ public class SimpleCache<T> implements SnapshotCache<T> {
 
                         return watch;
                     }
+                } else if (hasClusterChanged && request.getTypeUrl().equals(Resources.ENDPOINT_TYPE_URL)) {
+                    respond(watch, snapshot, group);
+
+                    return watch;
                 }
             }
 
@@ -221,6 +226,11 @@ public class SimpleCache<T> implements SnapshotCache<T> {
             return;
         }
 
+        // Responses should be in specific order and TYPE_URLS has a list of resources in the right order.
+        respondWithSpecificOrder(group, snapshot, status);
+    }
+
+    protected void respondWithSpecificOrder(T group, Snapshot snapshot, CacheStatusInfo<T> status) {
         for (String typeUrl : Resources.TYPE_URLS) {
             status.watchesRemoveIf((id, watch) -> {
                 if (!watch.request().getTypeUrl().equals(typeUrl)) {
@@ -294,28 +304,28 @@ public class SimpleCache<T> implements SnapshotCache<T> {
                 // If shouldSendMissingEndpoints is set to true, we will respond to such request anyway, to prevent
                 // such problems with Envoy.
                 if (shouldSendMissingEndpoints
-                    && watch.request().getTypeUrl().equals(Resources.ENDPOINT_TYPE_URL)) {
+                        && watch.request().getTypeUrl().equals(Resources.ENDPOINT_TYPE_URL)) {
                     LOGGER.info("adding missing resources [{}] to response for {} in ADS mode from node {} at version {}",
-                        String.join(", ", missingNames),
-                        watch.request().getTypeUrl(),
-                        group,
-                        snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList())
+                            String.join(", ", missingNames),
+                            watch.request().getTypeUrl(),
+                            group,
+                            snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList())
                     );
                     snapshotForMissingResources = new HashMap<>(missingNames.size());
                     for (String missingName : missingNames) {
                         snapshotForMissingResources.put(
-                            missingName,
-                            ClusterLoadAssignment.newBuilder().setClusterName(missingName).build()
+                                missingName,
+                                ClusterLoadAssignment.newBuilder().setClusterName(missingName).build()
                         );
                     }
                 } else {
                     LOGGER.info(
-                        "not responding in ADS mode for {} from node {} at version {} for request [{}] since [{}] not in snapshot",
-                        watch.request().getTypeUrl(),
-                        group,
-                        snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList()),
-                        String.join(", ", watch.request().getResourceNamesList()),
-                        String.join(", ", missingNames));
+                            "not responding in ADS mode for {} from node {} at version {} for request [{}] since [{}] not in snapshot",
+                            watch.request().getTypeUrl(),
+                            group,
+                            snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList()),
+                            String.join(", ", watch.request().getResourceNamesList()),
+                            String.join(", ", missingNames));
 
                     return false;
                 }
