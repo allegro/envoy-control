@@ -1,22 +1,23 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.HttpBinContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.HttpsEchoContainer
 
 internal class HostHeaderRewritingTest : EnvoyControlTestConfiguration() {
 
     companion object {
-        const val customHostHeader = "x-destination-host"
-        val httpBinContainer: HttpBinContainer = HttpBinContainer()
+        const val customHostHeader = "x-envoy-original-host-test"
+        val httpsEchoContainer = HttpsEchoContainer()
 
         @JvmStatic
         @BeforeAll
         fun setupTest() {
-            httpBinContainer.start()
+            httpsEchoContainer.start()
             setup(
                 appFactoryForEc1 = { consulPort ->
                     EnvoyControlRunnerTestApp(
@@ -28,12 +29,18 @@ internal class HostHeaderRewritingTest : EnvoyControlTestConfiguration() {
                 }
             )
         }
+
+        @JvmStatic
+        @AfterAll
+        fun teardown() {
+            httpsEchoContainer.stop()
+        }
     }
 
     @Test
     fun `should override Host header with value from specified custom header`() {
         // given
-        registerService(name = "host-rewrite-service", container = httpBinContainer, port = HttpBinContainer.PORT)
+        registerService(name = "host-rewrite-service", container = httpsEchoContainer, port = HttpsEchoContainer.PORT)
 
         untilAsserted {
             // when
@@ -51,7 +58,7 @@ internal class HostHeaderRewritingTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should not override Host header when target service has host-header-rewriting disabled`() {
         // given
-        registerService(name = "service-1", container = httpBinContainer, port = HttpBinContainer.PORT)
+        registerService(name = "service-1", container = httpsEchoContainer, port = HttpsEchoContainer.PORT)
 
         untilAsserted {
             // when

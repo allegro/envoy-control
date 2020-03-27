@@ -19,6 +19,10 @@ class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http
         super.configure()
         withNetwork(BaseEnvoyTest.network)
     }
+
+    companion object {
+        const val PORT = 80
+    }
 }
 
 class HttpsEchoResponse(val response: Response) {
