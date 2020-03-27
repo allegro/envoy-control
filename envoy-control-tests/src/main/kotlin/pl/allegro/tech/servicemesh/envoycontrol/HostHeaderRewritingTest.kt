@@ -11,16 +11,18 @@ internal class HostHeaderRewritingTest : EnvoyControlTestConfiguration() {
 
     companion object {
         const val customHostHeader = "x-destination-host"
+        val httpBinContainer: HttpBinContainer = HttpBinContainer()
 
         @JvmStatic
         @BeforeAll
         fun setupTest() {
+            httpBinContainer.start()
             setup(
                 appFactoryForEc1 = { consulPort ->
                     EnvoyControlRunnerTestApp(
                         consulPort = consulPort, properties = mapOf(
-                            "envoy-control.envoy.snapshot.host-header-rewriting.custom-host-header" to customHostHeader,
-                            "envoy-control.envoy.snapshot.host-header-rewriting.enabled" to true
+                            "envoy-control.envoy.snapshot.egress.host-header-rewriting.custom-host-header" to customHostHeader,
+                            "envoy-control.envoy.snapshot.egress.host-header-rewriting.enabled" to true
                         )
                     )
                 }
@@ -47,7 +49,7 @@ internal class HostHeaderRewritingTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should not override Host header while service is not whitelisted`() {
+    fun `should not override Host header when target service has host-header-rewriting disabled`() {
         // given
         registerService(name = "service-1", container = httpBinContainer, port = HttpBinContainer.PORT)
 

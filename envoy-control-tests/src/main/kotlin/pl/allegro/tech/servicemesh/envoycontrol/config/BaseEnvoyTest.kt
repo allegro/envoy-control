@@ -25,8 +25,6 @@ open class BaseEnvoyTest {
         val echoContainer: EchoContainer = EchoContainer()
         val echoContainer2: EchoContainer = EchoContainer()
 
-        val httpBinContainer: HttpBinContainer = HttpBinContainer()
-
         val consulMastersInDc1 = listOf(
             ConsulSetup(network, ConsulServerConfig(1, "dc1")),
             ConsulSetup(network, ConsulServerConfig(2, "dc1")),
@@ -51,7 +49,6 @@ open class BaseEnvoyTest {
         init {
             echoContainer.start()
             echoContainer2.start()
-            httpBinContainer.start()
             setupMultiDcConsul()
             consulAgentInDc1 = ConsulSetup(network, ConsulClientConfig(1, "dc1", consul.ipAddress()))
             consulAgentInDc1.container.start()

@@ -22,7 +22,6 @@ class SnapshotProperties {
     var dynamicListeners = ListenersFactoryProperties()
     var enabledCommunicationModes = EnabledCommunicationModes()
     var shouldSendMissingEndpoints = false
-    var hostHeaderRewriting = HostHeaderRewritingProperties()
 }
 
 class ListenersFactoryProperties {
@@ -173,6 +172,7 @@ class EgressProperties {
     var http2 = Http2Properties()
     var commonHttp = CommonHttpProperties()
     var neverRemoveClusters = true
+    var hostHeaderRewriting = HostHeaderRewritingProperties()
 }
 
 class CommonHttpProperties {
