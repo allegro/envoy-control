@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
@@ -230,6 +231,21 @@ public class SimpleCache<T> implements SnapshotCache<T> {
         respondWithSpecificOrder(group, snapshot, status);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public StatusInfo statusInfo(T group) {
+        readLock.lock();
+
+        try {
+            return statuses.get(group);
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    @VisibleForTesting
     protected void respondWithSpecificOrder(T group, Snapshot snapshot, CacheStatusInfo<T> status) {
         for (String typeUrl : Resources.TYPE_URLS) {
             status.watchesRemoveIf((id, watch) -> {
@@ -255,20 +271,6 @@ public class SimpleCache<T> implements SnapshotCache<T> {
                 // Do not discard the watch. The request version is the same as the snapshot version, so we wait to respond.
                 return false;
             });
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public StatusInfo statusInfo(T group) {
-        readLock.lock();
-
-        try {
-            return statuses.get(group);
-        } finally {
-            readLock.unlock();
         }
     }
 

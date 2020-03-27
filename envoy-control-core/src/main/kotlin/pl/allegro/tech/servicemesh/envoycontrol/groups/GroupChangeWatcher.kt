@@ -45,7 +45,7 @@ internal class GroupChangeWatcher(
         knownResourceNames: MutableSet<String>,
         responseConsumer: Consumer<Response>,
         hasClusterChanged: Boolean
-    ): Watch? {
+    ): Watch {
         val oldGroups = cache.groups()
         val watch = cache.createWatch(ads, request, knownResourceNames, responseConsumer, hasClusterChanged)
         val groups = cache.groups()
