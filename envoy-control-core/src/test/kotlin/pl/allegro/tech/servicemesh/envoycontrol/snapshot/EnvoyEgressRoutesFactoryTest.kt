@@ -103,7 +103,7 @@ internal class EnvoyEgressRoutesFactoryTest {
     fun `should not add auto rewrite host header when feature is disabled in configuration`() {
         // given
         val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
-            hostHeaderRewriting.enabled = false
+            egress.hostHeaderRewriting.enabled = false
         })
 
         // when
@@ -121,8 +121,8 @@ internal class EnvoyEgressRoutesFactoryTest {
     fun `should add auto rewrite host header when feature is disabled in configuration`() {
         // given
         val snapshotProperties = SnapshotProperties().apply {
-            hostHeaderRewriting.enabled = true
-            hostHeaderRewriting.customHostHeader = "test_header"
+            egress.hostHeaderRewriting.enabled = true
+            egress.hostHeaderRewriting.customHostHeader = "test_header"
         }
         val routesFactory = EnvoyEgressRoutesFactory(snapshotProperties)
 
@@ -134,6 +134,6 @@ internal class EnvoyEgressRoutesFactoryTest {
             .virtualHostsList[0]
             .routesList[0]
             .route
-            .hasAutoHostRewriteHeader(snapshotProperties.hostHeaderRewriting.customHostHeader)
+            .hasAutoHostRewriteHeader(snapshotProperties.egress.hostHeaderRewriting.customHostHeader)
     }
 }
