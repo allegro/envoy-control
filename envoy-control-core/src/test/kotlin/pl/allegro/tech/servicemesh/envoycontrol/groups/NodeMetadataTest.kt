@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
@@ -263,5 +264,37 @@ class NodeMetadataTest {
         assertThat(dependency.service).isEqualTo("service-1")
         assertThat(dependency.settings.timeoutPolicy!!.idleTimeout).isEqualTo(Durations.fromSeconds(10L))
         assertThat(dependency.settings.timeoutPolicy!!.requestTimeout).isEqualTo(Durations.fromSeconds(10L))
+    }
+
+    @Test
+    fun `should reject configuration with number timeout format`() {
+        // given
+        val proto = struct {
+            putFields("idleTimeout", Value.newBuilder().setNumberValue(10.0).build())
+        }
+
+        // when
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingTimeoutPolicy() }
+
+        // then
+        assertThat(exception.status.description).isEqualTo("Timeout definition has number format" +
+            " but should be in string format and ends with 's'")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should reject configuration with incorrect string timeout format`() {
+        // given
+        val proto = struct {
+            putFields("idleTimeout", Value.newBuilder().setStringValue("20").build())
+        }
+
+        // when
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingTimeoutPolicy() }
+
+        // then
+        assertThat(exception.status.description).isEqualTo("Timeout definition has incorrect format: " +
+            "Invalid duration string: 20")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 }

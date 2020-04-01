@@ -153,7 +153,7 @@ fun incomingEndpointProto(
     putFields("clients", list { addValues(string("client1")) })
 }
 
-private fun struct(fields: Struct.Builder.() -> Unit): Value {
+fun struct(fields: Struct.Builder.() -> Unit): Value {
     val builder = Struct.newBuilder()
     fields(builder)
     return Value.newBuilder().setStructValue(builder).build()

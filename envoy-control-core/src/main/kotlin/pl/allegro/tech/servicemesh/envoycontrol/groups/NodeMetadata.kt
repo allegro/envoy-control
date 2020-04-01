@@ -8,6 +8,7 @@ import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.net.URL
+import java.text.ParseException
 
 open class NodeMetadataValidationException(message: String)
     : RequestException(Status.INVALID_ARGUMENT.withDescription(message))
@@ -126,32 +127,41 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     }
 }
 
-private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
-    val idleTimeout: Duration? = this?.field("idleTimeout")?.stringValue
-        ?.takeIf { it.isNotBlank() }
-        ?.let { Durations.parse(it) }
-    val responseTimeout: Duration? = this?.field("responseTimeout")?.stringValue
-        ?.takeIf { it.isNotBlank() }
-        ?.let { Durations.parse(it) }
-
-    val connectionIdleTimeout: Duration? = this?.field("connectionIdleTimeout")?.stringValue
-        ?.takeIf { it.isNotBlank() }
-        ?.let { Durations.parse(it) }
+fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
+    val idleTimeout: Duration? = parseToDuration(this?.field("idleTimeout"))
+    val responseTimeout: Duration? = parseToDuration(this?.field("responseTimeout"))
+    val connectionIdleTimeout: Duration? = parseToDuration(this?.field("connectionIdleTimeout"))
 
     return Incoming.TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout)
 }
 
 private fun Value?.toOutgoingTimeoutPolicy(properties: SnapshotProperties): Outgoing.TimeoutPolicy {
-    val idleTimeout: Duration? = this?.field("idleTimeout")?.stringValue
-        ?.takeIf { it.isNotBlank() }
-        ?.let { Durations.parse(it) }
+    val idleTimeout: Duration? = parseToDuration(this?.field("idleTimeout"))
         ?: Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
-    val requestTimeout: Duration? = this?.field("requestTimeout")?.stringValue
-        ?.takeIf { it.isNotBlank() }
-        ?.let { Durations.parse(it) }
+    val requestTimeout: Duration? = parseToDuration(this?.field("requestTimeout"))
         ?: Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
 
     return Outgoing.TimeoutPolicy(idleTimeout, requestTimeout)
+}
+
+private fun parseToDuration(timeout: Value?): Duration? {
+    return when (timeout?.kindCase) {
+        Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException("Timeout definition has number format" +
+            " but should be in string format and ends with 's'")
+        Value.KindCase.STRING_VALUE -> timeout.toDuration()
+        else -> null
+    }
+}
+
+@Suppress("SwallowedException")
+private fun Value.toDuration(): Duration? {
+    return try {
+        this.stringValue
+            ?.takeIf { it.isNotBlank() }
+            ?.let { Durations.parse(it) }
+    } catch (ex: ParseException) {
+        throw NodeMetadataValidationException("Timeout definition has incorrect format: ${ex.message}")
+    }
 }
 
 data class Incoming(
