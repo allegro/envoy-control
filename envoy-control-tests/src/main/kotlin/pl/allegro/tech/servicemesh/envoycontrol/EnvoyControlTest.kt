@@ -14,7 +14,7 @@ internal class AdsWithStaticListenersEnvoyControlTest : EnvoyControlTest() {
         @JvmStatic
         @BeforeAll
         fun adsSetup() {
-            setup(envoy1Config = AdsWithStaticListeners)
+            setup(envoyConfig = AdsWithStaticListeners)
         }
     }
 }
@@ -25,7 +25,7 @@ internal class AdsEnvoyControlTest : EnvoyControlTest() {
         @JvmStatic
         @BeforeAll
         fun adsSetup() {
-            setup(envoy1Config = Ads)
+            setup(envoyConfig = Ads)
         }
     }
 }
@@ -36,7 +36,7 @@ internal class XdsEnvoyControlTest : EnvoyControlTest() {
         @JvmStatic
         @BeforeAll
         fun nonAdsSetup() {
-            setup(envoy1Config = Xds)
+            setup(envoyConfig = Xds)
         }
     }
 }

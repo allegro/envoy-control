@@ -21,7 +21,7 @@ internal class XdsConnectionsMeterTest : EnvoyControlTestConfiguration() {
         @JvmStatic
         @BeforeAll
         fun nonAdsSetup() {
-            setup(envoy1Config = Xds)
+            setup(envoyConfig = Xds)
         }
     }
 
@@ -56,7 +56,7 @@ internal class AdsConnectionsMeterTest : EnvoyControlTestConfiguration() {
         @JvmStatic
         @BeforeAll
         fun nonAdsSetup() {
-            setup(envoy1Config = Ads)
+            setup(envoyConfig = Ads)
         }
     }
 

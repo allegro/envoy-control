@@ -187,8 +187,6 @@ class SnapshotUpdaterTest {
         val snapshot = hasSnapshot(cache, emptyGroup)
         assertThat(snapshot.endpoints().version()).isEqualTo(EndpointsVersion.EMPTY_VERSION.value)
         assertThat(snapshot.clusters().version()).isEqualTo(ClustersVersion.EMPTY_VERSION.value)
-        assertThat(snapshot.listeners().version()).isEqualTo(ListenersVersion.EMPTY_VERSION.value)
-        assertThat(snapshot.routes().version()).isEqualTo(RoutesVersion.EMPTY_VERSION.value)
 
         assertThat(snapshot.routes().resources().values).hasSize(2)
         // two fallbacks: proxying direct IP requests and 503 for missing services

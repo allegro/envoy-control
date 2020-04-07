@@ -16,7 +16,7 @@ internal class LocalServiceCustomHealthCheckRouteTest : EnvoyControlTestConfigur
         @BeforeAll
         fun setupTest() {
             setup(
-                envoy1Config = AdsCustomHealthCheck,
+                envoyConfig = AdsCustomHealthCheck,
                 appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(emptyMap(), consulPort) }
             )
         }

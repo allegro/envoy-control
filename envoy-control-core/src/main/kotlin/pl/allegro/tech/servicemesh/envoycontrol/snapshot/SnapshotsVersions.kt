@@ -34,20 +34,26 @@ internal class SnapshotsVersions {
                 null -> Version(
                         clusters = ClustersVersion(newVersion()),
                         endpoints = EndpointsVersion(newVersion()),
-                        listeners = ListenersVersion(newVersion())
+                        listeners = ListenersVersion(newVersion()),
+                        routes = RoutesVersion(newVersion())
                 )
                 else -> {
                     val clustersChanged = previous.clusters != clusters
                     Version(
                         clusters = selectClusters(previous, clustersChanged),
                         endpoints = selectEndpoints(previous, endpoints, clustersChanged),
-                        listeners = selectListeners(previous, previous.listeners != listeners)
+                        listeners = selectListeners(previous, previous.listeners != listeners),
+                        routes = selectRoutes(previous, previous.listeners != listeners)
                     )
                 }
             }
             VersionsWithData(version, clusters, endpoints, listeners)
         }
         return versionsWithData!!.version
+    }
+
+    private fun selectRoutes(previous: VersionsWithData, haveListenersChanged: Boolean): RoutesVersion {
+        return if (haveListenersChanged) RoutesVersion(newVersion()) else previous.version.routes
     }
 
     private fun selectListeners(previous: VersionsWithData, hasChanged: Boolean): ListenersVersion {
@@ -93,7 +99,8 @@ internal class SnapshotsVersions {
     internal data class Version(
         val clusters: ClustersVersion,
         val endpoints: EndpointsVersion,
-        val listeners: ListenersVersion
+        val listeners: ListenersVersion,
+        val routes: RoutesVersion
     )
 }
 

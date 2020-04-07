@@ -3,6 +3,12 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
 import com.google.protobuf.Any
 import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.controlplane.cache.SnapshotResources
+import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
+import io.envoyproxy.envoy.api.v2.core.Address
+import io.envoyproxy.envoy.api.v2.core.SocketAddress
+import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
+import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
+import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 import org.assertj.core.api.Assertions.assertThat
@@ -16,6 +22,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SourceIpAuthenticationProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
 internal class RBACFilterFactoryTest {
@@ -23,10 +30,38 @@ internal class RBACFilterFactoryTest {
             IncomingPermissionsProperties().also { it.enabled = true },
             StatusRouteProperties()
     )
+    private val rbacFilterFactoryWithSourceIpAuth = RBACFilterFactory(
+            IncomingPermissionsProperties().also {
+                it.enabled = true
+                it.sourceIpAuthentication = SourceIpAuthenticationProperties()
+                it.sourceIpAuthentication.enabledForServices = listOf("client1")
+            },
+            StatusRouteProperties()
+    )
     val snapshot = GlobalSnapshot(
             SnapshotResources.create(listOf(), ""),
             mapOf(),
             SnapshotResources.create(listOf(), "")
+    )
+
+    val clusterLoadAssignment = ClusterLoadAssignment.newBuilder()
+            .setClusterName("client1")
+            .addEndpoints(LocalityLbEndpoints.newBuilder()
+                    .addLbEndpoints(LbEndpoint.newBuilder()
+                            .setEndpoint(Endpoint.newBuilder()
+                                    .setAddress(Address.newBuilder()
+                                            .setSocketAddress(SocketAddress.newBuilder()
+                                                    .setAddress("127.0.0.1")
+                                            )
+                                    )
+                            )
+                    )
+            ).build()
+
+    val snapshotForSourceIpAuth = GlobalSnapshot(
+            SnapshotResources.create(listOf(), ""),
+            mapOf(),
+            SnapshotResources.create(listOf(clusterLoadAssignment), "")
     )
 
     @Test
@@ -40,7 +75,7 @@ internal class RBACFilterFactoryTest {
         val expectedRbacBuilder = getRBACFilter(expectedStatusRoutePermissionsJson)
 
         // when
-        val generated = rbacFilterFactoryWithStatusRoute.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactoryWithStatusRoute.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -52,7 +87,7 @@ internal class RBACFilterFactoryTest {
         val incomingPermission = null
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(null)
@@ -64,7 +99,7 @@ internal class RBACFilterFactoryTest {
         val incomingPermission = Incoming(permissionsEnabled = false)
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(null)
@@ -76,7 +111,7 @@ internal class RBACFilterFactoryTest {
         val incomingPermission = Incoming(permissionsEnabled = true)
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isNotEqualTo(null)
@@ -92,7 +127,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -113,7 +148,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -139,7 +174,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -165,7 +200,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -191,7 +226,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -217,7 +252,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -238,7 +273,28 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with source ip authentication`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSourceIpAuthPermissionsJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf("client1", "client2")
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithSourceIpAuth.createHttpFilter(createGroup(incomingPermission), snapshotForSourceIpAuth)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -259,7 +315,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -280,7 +336,7 @@ internal class RBACFilterFactoryTest {
         )
 
         // when
-        val generated = rbacFilterFactory.createHttpFilter(createGroup("some-service", incomingPermission), snapshot)
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -326,6 +382,35 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
+                ${principalHeader("x-service-name", "client2")}
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedSourceIpAuthPermissionsJson = """
+        {
+          "policies": {
+            "client1,client2": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")},
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalSourceIp("127.0.0.1")},
                 ${principalHeader("x-service-name", "client2")}
               ]
             }
@@ -479,6 +564,16 @@ internal class RBACFilterFactoryTest {
         }"""
     }
 
+    private fun principalSourceIp(address: String): String {
+        return """{
+                "source_ip": {
+                  "address_prefix": "$address",
+                  "prefix_len": 32
+                }
+            }
+        """
+    }
+
     private fun principalHeader(header: String, principal: String): String {
         return """{
                     "header": {
@@ -505,7 +600,10 @@ internal class RBACFilterFactoryTest {
                 .build()
     }
 
-    private fun createGroup(serviceName: String, incomingPermission: Incoming? = null): ServicesGroup {
+    private fun createGroup(
+        incomingPermission: Incoming? = null,
+        serviceName: String = "some-service"
+    ): ServicesGroup {
         val group = ServicesGroup(
                 communicationMode = CommunicationMode.ADS,
                 serviceName = serviceName,

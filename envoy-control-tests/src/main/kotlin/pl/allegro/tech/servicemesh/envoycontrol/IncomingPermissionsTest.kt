@@ -14,7 +14,6 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
 
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.sourceIpAuthentication.enabledForServices" to listOf("echo"),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
             "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
@@ -25,7 +24,7 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoy1Config = Ads)
+            }, envoyConfig = Ads)
         }
     }
 

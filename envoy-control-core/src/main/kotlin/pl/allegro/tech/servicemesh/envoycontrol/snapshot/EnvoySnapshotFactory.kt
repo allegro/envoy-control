@@ -223,13 +223,19 @@ internal class EnvoySnapshotFactory(
             emptyList()
         }
 
-        if (clusters.isEmpty()) {
-            return createSnapshot(routes = routes, listeners = listeners)
-        }
-
         val endpoints = getServicesEndpointsForGroup(globalSnapshot, egressRouteSpecification)
 
         val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
+
+        if (clusters.isEmpty()) {
+            return createSnapshot(
+                    routes = routes,
+                    routesVersion = version.routes,
+                    listeners = listeners,
+                    // TODO: java-control-plane: https://github.com/envoyproxy/java-control-plane/pull/131#discussion_r393350488
+                    listenersVersion = version.listeners
+            )
+        }
 
         return createSnapshot(
             clusters = clusters,
@@ -237,11 +243,10 @@ internal class EnvoySnapshotFactory(
             endpoints = endpoints,
             endpointsVersions = version.endpoints,
             listeners = listeners,
+            // TODO: java-control-plane: https://github.com/envoyproxy/java-control-plane/pull/131#discussion_r393350488
             listenersVersion = version.listeners,
-            // for now we assume that listeners don't change during lifecycle
             routes = routes,
-            // we assume, that routes don't change during Envoy lifecycle unless clusters change
-            routesVersion = RoutesVersion(version.clusters.value)
+            routesVersion = version.routes
         )
     }
 

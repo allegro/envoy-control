@@ -15,7 +15,7 @@ internal class AdsWithNoDependenciesEnvoyControlSmokeTest : EnvoyControlSmokeTes
         @JvmStatic
         @BeforeAll
         fun adsSetup() {
-            setup(envoy1Config = AdsWithNoDependencies)
+            setup(envoyConfig = AdsWithNoDependencies)
         }
     }
 }
@@ -26,7 +26,7 @@ internal class AdsWithStaticListenersEnvoyControlSmokeTest : EnvoyControlSmokeTe
         @JvmStatic
         @BeforeAll
         fun adsSetup() {
-            setup(envoy1Config = AdsWithStaticListeners)
+            setup(envoyConfig = AdsWithStaticListeners)
         }
     }
 }
@@ -37,7 +37,7 @@ internal class AdsEnvoyControlSmokeTest : EnvoyControlSmokeTest() {
         @JvmStatic
         @BeforeAll
         fun adsSetup() {
-            setup(envoy1Config = Ads)
+            setup(envoyConfig = Ads)
         }
     }
 }
@@ -48,7 +48,7 @@ internal class XdsEnvoyControlSmokeTest : EnvoyControlSmokeTest() {
         @JvmStatic
         @BeforeAll
         fun nonAdsSetup() {
-            setup(envoy1Config = Xds)
+            setup(envoyConfig = Xds)
         }
     }
 }
