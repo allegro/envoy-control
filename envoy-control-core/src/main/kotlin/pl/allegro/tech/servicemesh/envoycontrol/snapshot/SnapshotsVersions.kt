@@ -43,7 +43,7 @@ internal class SnapshotsVersions {
                         clusters = selectClusters(previous, clustersChanged),
                         endpoints = selectEndpoints(previous, endpoints, clustersChanged),
                         listeners = selectListeners(previous, previous.listeners != listeners),
-                        routes = selectRoutes(previous, previous.listeners != listeners)
+                        routes = selectRoutes(previous, previous.listeners != listeners, clustersChanged)
                     )
                 }
             }
@@ -52,8 +52,12 @@ internal class SnapshotsVersions {
         return versionsWithData!!.version
     }
 
-    private fun selectRoutes(previous: VersionsWithData, haveListenersChanged: Boolean): RoutesVersion {
-        return if (haveListenersChanged) RoutesVersion(newVersion()) else previous.version.routes
+    private fun selectRoutes(
+        previous: VersionsWithData,
+        listenersChanged: Boolean,
+        clustersChanged: Boolean
+    ): RoutesVersion {
+        return if (listenersChanged || clustersChanged) RoutesVersion(newVersion()) else previous.version.routes
     }
 
     private fun selectListeners(previous: VersionsWithData, hasChanged: Boolean): ListenersVersion {

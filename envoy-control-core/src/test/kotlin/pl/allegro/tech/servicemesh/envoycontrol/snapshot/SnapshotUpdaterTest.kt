@@ -406,7 +406,8 @@ class SnapshotUpdaterTest {
             ads: Boolean,
             request: DiscoveryRequest,
             knownResourceNames: MutableSet<String>,
-            responseConsumer: Consumer<Response>
+            responseConsumer: Consumer<Response>,
+            hasClusterChanged: Boolean
         ): Watch {
             throw UnsupportedOperationException("not used in testing")
         }
