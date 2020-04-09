@@ -22,6 +22,11 @@ class SnapshotProperties {
     var dynamicListeners = ListenersFactoryProperties()
     var enabledCommunicationModes = EnabledCommunicationModes()
     var shouldSendMissingEndpoints = false
+    var metrics: MetricsProperties = MetricsProperties()
+}
+
+class MetricsProperties {
+    var cacheSetSnapshot = false
 }
 
 class ListenersFactoryProperties {
