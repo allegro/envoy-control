@@ -191,10 +191,10 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
 
         fun callEnvoyIngress(path: String): Response =
-                call("", address = envoyContainer1.ingressListenerUrl(), pathAndQuery = path)
+            call("", address = envoyContainer1.ingressListenerUrl(), pathAndQuery = path)
 
         fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
-                call("", address)
+            call("", address)
 
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", address)
@@ -216,14 +216,14 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             pathAndQuery: String = ""
         ): Response {
             val request = client.newCall(
-                    Request.Builder()
-                            .get()
-                            .header("Host", host)
-                            .apply {
-                                headers.forEach { name, value -> header(name, value) }
-                            }
-                            .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
-                            .build()
+                Request.Builder()
+                    .get()
+                    .header("Host", host)
+                    .apply {
+                        headers.forEach { name, value -> header(name, value) }
+                    }
+                    .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
+                    .build()
             )
 
             return request.execute()
@@ -250,7 +250,12 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             )
                 .execute()
 
-        fun callPostLocalService(endpoint: String, headers: Headers, body: RequestBody, envoyContainer: EnvoyContainer = envoyContainer1): Response =
+        fun callPostLocalService(
+            endpoint: String,
+            headers: Headers,
+            body: RequestBody,
+            envoyContainer: EnvoyContainer = envoyContainer1
+        ): Response =
             client.newCall(
                 Request.Builder()
                     .post(body)
@@ -386,6 +391,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         matches {
             it.body()?.use { it.string().contains(echoContainer.response) } ?: false
         }
+        return this
+    }
+
+    fun ObjectAssert<Response>.hasHostHeaderWithValue(overriddenHostHeader: String): ObjectAssert<Response> {
+        matches({
+            it.body()?.use { it.string().contains("\"host\": \"$overriddenHostHeader\"") } ?: false
+        }, "Header Host should be overridden with value: $overriddenHostHeader")
         return this
     }
 

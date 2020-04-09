@@ -9,8 +9,8 @@ import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.net.URL
 
-open class NodeMetadataValidationException(message: String)
-    : RequestException(Status.INVALID_ARGUMENT.withDescription(message))
+open class NodeMetadataValidationException(message: String) :
+    RequestException(Status.INVALID_ARGUMENT.withDescription(message))
 
 class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
     val serviceName: String? = metadata
@@ -69,8 +69,9 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
             idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
             requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
         )
+    val rewriteHostHeader = this.field("rewriteHostHeader")?.boolValue ?: false
 
-    val settings = DependencySettings(handleInternalRedirect, timeoutPolicy)
+    val settings = DependencySettings(handleInternalRedirect, timeoutPolicy, rewriteHostHeader)
 
     return when {
         service == null && domain == null || service != null && domain != null ->
@@ -226,7 +227,8 @@ data class DomainDependency(
 
 data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
-    val timeoutPolicy: Outgoing.TimeoutPolicy? = null
+    val timeoutPolicy: Outgoing.TimeoutPolicy? = null,
+    val rewriteHostHeader: Boolean = false
 )
 
 data class Role(
