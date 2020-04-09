@@ -127,40 +127,36 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     }
 }
 
-fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
-    val idleTimeout: Duration? = parseToDuration(this?.field("idleTimeout"))
-    val responseTimeout: Duration? = parseToDuration(this?.field("responseTimeout"))
-    val connectionIdleTimeout: Duration? = parseToDuration(this?.field("connectionIdleTimeout"))
+private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
+    val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
+    val responseTimeout: Duration? = this?.field("responseTimeout")?.toDuration()
+    val connectionIdleTimeout: Duration? = this?.field("connectionIdleTimeout")?.toDuration()
 
     return Incoming.TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout)
 }
 
 private fun Value?.toOutgoingTimeoutPolicy(properties: SnapshotProperties): Outgoing.TimeoutPolicy {
-    val idleTimeout: Duration? = parseToDuration(this?.field("idleTimeout"))
+    val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
         ?: Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
-    val requestTimeout: Duration? = parseToDuration(this?.field("requestTimeout"))
+    val requestTimeout: Duration? = this?.field("requestTimeout")?.toDuration()
         ?: Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
 
     return Outgoing.TimeoutPolicy(idleTimeout, requestTimeout)
 }
 
-private fun parseToDuration(timeout: Value?): Duration? {
-    return when (timeout?.kindCase) {
+@Suppress("SwallowedException")
+fun Value.toDuration(): Duration? {
+    return when (this.kindCase) {
         Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException("Timeout definition has number format" +
             " but should be in string format and ends with 's'")
-        Value.KindCase.STRING_VALUE -> timeout.toDuration()
+        Value.KindCase.STRING_VALUE -> {
+            try {
+                this.stringValue?.takeIf { it.isNotBlank() }?.let { Durations.parse(it) }
+            } catch (ex: ParseException) {
+                throw NodeMetadataValidationException("Timeout definition has incorrect format: ${ex.message}")
+            }
+        }
         else -> null
-    }
-}
-
-@Suppress("SwallowedException")
-private fun Value.toDuration(): Duration? {
-    return try {
-        this.stringValue
-            ?.takeIf { it.isNotBlank() }
-            ?.let { Durations.parse(it) }
-    } catch (ex: ParseException) {
-        throw NodeMetadataValidationException("Timeout definition has incorrect format: ${ex.message}")
     }
 }
 

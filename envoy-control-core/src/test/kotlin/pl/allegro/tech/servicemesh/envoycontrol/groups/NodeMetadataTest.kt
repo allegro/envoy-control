@@ -269,12 +269,10 @@ class NodeMetadataTest {
     @Test
     fun `should reject configuration with number timeout format`() {
         // given
-        val proto = struct {
-            putFields("idleTimeout", Value.newBuilder().setNumberValue(10.0).build())
-        }
+        val proto = Value.newBuilder().setNumberValue(10.0).build()
 
         // when
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingTimeoutPolicy() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toDuration() }
 
         // then
         assertThat(exception.status.description).isEqualTo("Timeout definition has number format" +
@@ -285,16 +283,39 @@ class NodeMetadataTest {
     @Test
     fun `should reject configuration with incorrect string timeout format`() {
         // given
-        val proto = struct {
-            putFields("idleTimeout", Value.newBuilder().setStringValue("20").build())
-        }
+        val proto = Value.newBuilder().setStringValue("20").build()
 
         // when
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingTimeoutPolicy() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toDuration() }
 
         // then
         assertThat(exception.status.description).isEqualTo("Timeout definition has incorrect format: " +
             "Invalid duration string: 20")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should return duration when correct configuration provided`() {
+        // given
+        val proto = Value.newBuilder().setStringValue("20s").build()
+
+        // when
+        val duration = proto.toDuration()
+
+        // then
+        assertThat(duration).isNotNull
+        assertThat(duration!!.seconds).isEqualTo(20L)
+    }
+
+    @Test
+    fun `should return null when empty value provided`() {
+        // given
+        val proto = Value.newBuilder().build()
+
+        // when
+        val duration = proto.toDuration()
+
+        // then
+        assertThat(duration).isNull()
     }
 }
