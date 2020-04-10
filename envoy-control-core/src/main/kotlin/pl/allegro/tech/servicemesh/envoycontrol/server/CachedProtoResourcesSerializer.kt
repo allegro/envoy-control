@@ -7,12 +7,19 @@ import com.google.protobuf.Message
 import io.envoyproxy.controlplane.server.serializer.ProtoResourcesSerializer
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.binder.cache.GuavaCacheMetrics
+import pl.allegro.tech.servicemesh.envoycontrol.utils.noopTimer
 import java.util.function.Supplier
 
 internal class CachedProtoResourcesSerializer(
-    private val meterRegistry: MeterRegistry,
-    private val reportMetrics: Boolean
+    meterRegistry: MeterRegistry,
+    reportMetrics: Boolean
 ) : ProtoResourcesSerializer {
+
+    private val serializeTimer = if (reportMetrics) {
+        meterRegistry.timer("protobuf-cache.serialize.time")
+    } else {
+        noopTimer
+    }
 
     private val cache: Cache<Collection<Message>, MutableCollection<Any>> = if (reportMetrics) {
         GuavaCacheMetrics
@@ -30,14 +37,8 @@ internal class CachedProtoResourcesSerializer(
             .build<Collection<Message>, MutableCollection<Any>>()
     }
 
-    override fun serialize(resources: MutableCollection<out Message>): MutableCollection<Any> {
-        return if (reportMetrics) {
-            meterRegistry.timer("protobuf-cache.serialize.time")
-                .record(Supplier { getResources(resources) })
-        } else {
-            getResources(resources)
-        }
-    }
+    override fun serialize(resources: MutableCollection<out Message>): MutableCollection<Any> = serializeTimer
+        .record(Supplier { getResources(resources) })
 
     private fun getResources(resources: MutableCollection<out Message>): MutableCollection<Any> {
         return cache.get(resources) {
