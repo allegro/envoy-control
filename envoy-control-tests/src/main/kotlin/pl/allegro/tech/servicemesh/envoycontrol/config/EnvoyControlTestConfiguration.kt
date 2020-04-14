@@ -54,6 +54,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         @JvmStatic
         fun setup(
             envoyConfig: EnvoyConfigFile = RandomConfigFile,
+            secondEnvoyConfig: EnvoyConfigFile = envoyConfig,
             envoyImage: String = defaultEnvoyImage,
             appFactoryForEc1: (Int) -> EnvoyControlTestApp = defaultAppFactory(),
             appFactoryForEc2: (Int) -> EnvoyControlTestApp = appFactoryForEc1,
@@ -98,7 +99,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             if (envoys == 2) {
                 envoyContainer2 = createEnvoyContainer(
                     true,
-                    envoyConfig,
+                    secondEnvoyConfig,
                     envoyConnectGrpcPort,
                     envoyConnectGrpcPort2,
                     echoContainer.ipAddress(),

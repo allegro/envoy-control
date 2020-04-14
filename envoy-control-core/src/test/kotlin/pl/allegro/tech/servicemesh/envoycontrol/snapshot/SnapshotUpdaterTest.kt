@@ -30,10 +30,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesSt
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
-import java.lang.RuntimeException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
 
 class SnapshotUpdaterTest {
@@ -93,14 +98,12 @@ class SnapshotUpdaterTest {
 
         cache.setSnapshot(groupOf(services = serviceDependencies("nonExistingService3")), uninitializedSnapshot)
 
-        val updater = SnapshotUpdater(
-            cache,
+        val updater = snapshotUpdater(
+            cache = cache,
             properties = SnapshotProperties().apply {
                 incomingPermissions.enabled = true
             },
-            scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(groups),
-            meterRegistry = simpleMeterRegistry
+            groups = groups
         )
 
         // when
@@ -143,14 +146,11 @@ class SnapshotUpdaterTest {
         val cache = MockCache()
         cache.setSnapshot(allServiceGroup, uninitializedSnapshot)
 
-        val updater = SnapshotUpdater(
-            cache,
+        val updater = snapshotUpdater(
+            cache = cache,
             properties = SnapshotProperties().apply {
                 enabledCommunicationModes.ads = adsSupported; enabledCommunicationModes.xds = xdsSupported
-            },
-            scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
-            meterRegistry = simpleMeterRegistry
+            }
         )
 
         // when
@@ -170,13 +170,7 @@ class SnapshotUpdaterTest {
         val cache = MockCache()
         cache.setSnapshot(emptyGroup, uninitializedSnapshot)
 
-        val updater = SnapshotUpdater(
-            cache,
-            properties = SnapshotProperties(),
-            scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
-            meterRegistry = simpleMeterRegistry
-        )
+        val updater = snapshotUpdater(cache = cache)
 
         // when
         updater.start(
@@ -206,13 +200,7 @@ class SnapshotUpdaterTest {
         )
         val cache = FailingMockCache()
         cache.setSnapshot(servicesGroup, null)
-        val updater = SnapshotUpdater(
-                cache,
-                properties = SnapshotProperties(),
-                scheduler = Schedulers.newSingle("update-snapshot"),
-                onGroupAdded = Flux.just(),
-                meterRegistry = simpleMeterRegistry
-        )
+        val updater = snapshotUpdater(cache = cache)
 
         // when
         updater.start(
@@ -230,14 +218,11 @@ class SnapshotUpdaterTest {
     fun `should not disable http2 for cluster when instances disappeared`() {
         // given
         val cache = MockCache()
-        val updater = SnapshotUpdater(
-            cache,
+        val updater = snapshotUpdater(
+            cache = cache,
             properties = SnapshotProperties().apply {
                 stateSampleDuration = Duration.ZERO
-            },
-            scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
-            meterRegistry = simpleMeterRegistry
+            }
         )
 
         val serviceWithNoInstances = LocalityAwareServicesState(
@@ -271,14 +256,11 @@ class SnapshotUpdaterTest {
     fun `should not remove clusters`() {
         // given
         val cache = MockCache()
-        val updater = SnapshotUpdater(
-            cache,
+        val updater = snapshotUpdater(
+            cache = cache,
             properties = SnapshotProperties().apply {
                 stateSampleDuration = Duration.ZERO
-            },
-            scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(listOf()),
-            meterRegistry = simpleMeterRegistry
+            }
         )
 
         val stateWithNoServices = LocalityAwareServicesState(
@@ -324,16 +306,14 @@ class SnapshotUpdaterTest {
 
         val groups = listOf(allServicesGroup, groupWithBlacklistedDependency)
 
-        val updater = SnapshotUpdater(
-            cache,
+        val updater = snapshotUpdater(
+            cache = cache,
             properties = SnapshotProperties().apply {
                 outgoingPermissions.allServicesDependencies.notIncludedByPrefix = mutableSetOf(
                     "mock-", "regression-tests"
                 )
             },
-            scheduler = Schedulers.newSingle("update-snapshot"),
-            onGroupAdded = Flux.just(groups),
-            meterRegistry = simpleMeterRegistry
+            groups = groups
         )
 
         val expectedWhitelistedServices = setOf("s1", "mockito", "s2", "frontend").toTypedArray()
@@ -353,6 +333,38 @@ class SnapshotUpdaterTest {
             .hasOnlyClustersFor("mock-service")
             .hasOnlyEndpointsFor("mock-service")
             .hasOnlyEgressRoutesForClusters("mock-service")
+    }
+
+    @Test
+    fun `should set snapshot in parallel`() {
+        // given
+        val cache = MockCache()
+        val groups = listOf(groupWithProxy, groupWithServiceName, AllServicesGroup(communicationMode = ADS))
+        groups.forEach {
+            cache.setSnapshot(it, uninitializedSnapshot)
+        }
+        val expectedConcurrency = 3
+        val updater = snapshotUpdater(
+            cache = cache,
+            groups = groups,
+            groupSnapshotScheduler = ParallelScheduler(
+                scheduler = Schedulers.fromExecutor(Executors.newFixedThreadPool(expectedConcurrency)),
+                parallelism = expectedConcurrency
+            )
+        )
+
+        cache.waitForConcurrentSetSnapshotInvocations(count = expectedConcurrency)
+
+        // when
+        updater.startWithServices("existingService1", "existingService2")
+
+        // then
+        hasSnapshot(cache, AllServicesGroup(communicationMode = ADS))
+            .hasOnlyClustersFor("existingService1", "existingService2")
+        hasSnapshot(cache, groupWithProxy)
+            .hasOnlyClustersFor("existingService1", "existingService2")
+        hasSnapshot(cache, groupWithServiceName)
+            .hasOnlyClustersFor("existingService2")
     }
 
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
@@ -387,6 +399,7 @@ class SnapshotUpdaterTest {
 
     open class MockCache : SnapshotCache<Group> {
         val groups: MutableMap<Group, Snapshot?> = mutableMapOf()
+        private var concurrentSetSnapshotCounter: CountDownLatch? = null
 
         override fun groups(): MutableCollection<Group> {
             return groups.keys.toMutableList()
@@ -397,6 +410,7 @@ class SnapshotUpdaterTest {
         }
 
         override fun setSnapshot(group: Group, snapshot: Snapshot?) {
+            setSnapshotWait()
             groups[group] = snapshot
         }
 
@@ -416,6 +430,19 @@ class SnapshotUpdaterTest {
 
         override fun clearSnapshot(group: Group?): Boolean {
             return false
+        }
+
+        fun waitForConcurrentSetSnapshotInvocations(count: Int) {
+            concurrentSetSnapshotCounter = CountDownLatch(count)
+        }
+
+        private fun setSnapshotWait() {
+            concurrentSetSnapshotCounter?.let { latch ->
+                latch.countDown()
+                assertThat(latch.await(4, TimeUnit.SECONDS))
+                    .describedAs("Timed out waiting for concurrent setSnapshot invocations")
+                    .isTrue()
+            }
         }
     }
 
@@ -478,6 +505,20 @@ class SnapshotUpdaterTest {
         assertThat(endpoints!!.endpointsList).isEmpty()
         return this
     }
+
+    private fun snapshotUpdater(
+        cache: SnapshotCache<Group>,
+        properties: SnapshotProperties = SnapshotProperties(),
+        groups: List<Group> = emptyList(),
+        groupSnapshotScheduler: ParallelizableScheduler = DirectScheduler
+    ) = SnapshotUpdater(
+        cache = cache,
+        properties = properties,
+        globalSnapshotScheduler = Schedulers.newSingle("update-snapshot"),
+        groupSnapshotScheduler = groupSnapshotScheduler,
+        onGroupAdded = Flux.just(groups),
+        meterRegistry = simpleMeterRegistry
+    )
 }
 
 fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =

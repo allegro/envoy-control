@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -10,6 +11,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesSt
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.noopTimer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
@@ -20,7 +23,8 @@ import reactor.core.scheduler.Scheduler
 class SnapshotUpdater(
     private val cache: SnapshotCache<Group>,
     private val properties: SnapshotProperties,
-    private val scheduler: Scheduler,
+    private val globalSnapshotScheduler: Scheduler,
+    private val groupSnapshotScheduler: ParallelizableScheduler,
     private val onGroupAdded: Flux<out List<Group>>,
     private val meterRegistry: MeterRegistry,
     envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters,
@@ -55,8 +59,8 @@ class SnapshotUpdater(
     fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
         return Flux.merge(
                 1, // prefetch 1, instead of default 32, to avoid processing stale items in case of backpressure
-                services(changes).subscribeOn(scheduler),
-                groups().subscribeOn(scheduler)
+                services(changes).subscribeOn(globalSnapshotScheduler),
+                groups().subscribeOn(globalSnapshotScheduler)
         )
                 .measureBuffer("snapshot-updater-merged", meterRegistry, innerSources = 2)
                 .checkpoint("snapshot-updater-merged")
@@ -69,7 +73,8 @@ class SnapshotUpdater(
                             xdsSnapshot = newUpdate.xdsSnapshot ?: previous.xdsSnapshot
                     )
                 }
-                .doOnNext { result ->
+                // concat map guarantees sequential processing (unlike flatMap)
+                .concatMap { result ->
                     val groups = if (result.action == Action.ALL_SERVICES_GROUP_ADDED) {
                         cache.groups()
                     } else {
@@ -78,14 +83,16 @@ class SnapshotUpdater(
 
                     if (result.adsSnapshot != null || result.xdsSnapshot != null) {
                         updateSnapshotForGroups(groups, result)
+                    } else {
+                        Mono.empty()
                     }
                 }
     }
 
-    fun groups(): Flux<UpdateResult> {
+    internal fun groups(): Flux<UpdateResult> {
         // see GroupChangeWatcher
         return onGroupAdded
-                .publishOn(scheduler)
+                .publishOn(globalSnapshotScheduler)
                 .measureBuffer("snapshot-updater-groups-published", meterRegistry)
                 .checkpoint("snapshot-updater-groups-published")
                 .name("snapshot-updater-groups-published").metrics()
@@ -99,13 +106,13 @@ class SnapshotUpdater(
                 }
     }
 
-    fun services(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
+    internal fun services(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
         return changes
                 .sample(properties.stateSampleDuration)
                 .name("snapshot-updater-services-sampled").metrics()
                 .onBackpressureLatestMeasured("snapshot-updater-services-sampled", meterRegistry)
                 // prefetch = 1, instead of default 256, to avoid processing stale states in case of backpressure
-                .publishOn(scheduler, 1)
+                .publishOn(globalSnapshotScheduler, 1)
                 .measureBuffer("snapshot-updater-services-published", meterRegistry)
                 .checkpoint("snapshot-updater-services-published")
                 .name("snapshot-updater-services-published").metrics()
@@ -159,20 +166,26 @@ class SnapshotUpdater(
     private fun updateSnapshotForGroups(
         groups: Collection<Group>,
         result: UpdateResult
-    ) = updateSnapshotForGroupsTimer.record {
+    ): Mono<UpdateResult> {
+        val sample = Timer.start()
         versions.retainGroups(cache.groups())
-        groups.forEach { group ->
-            if (result.adsSnapshot != null && group.communicationMode == ADS) {
-                updateSnapshotForGroup(group, result.adsSnapshot)
-            } else if (result.xdsSnapshot != null && group.communicationMode == XDS) {
-                updateSnapshotForGroup(group, result.xdsSnapshot)
-            } else {
-                meterRegistry.counter("snapshot-updater.communication-mode.errors").increment()
-                logger.error("Requested snapshot for ${group.communicationMode.name} mode, but it is not here. " +
-                    "Handling Envoy with not supported communication mode should have been rejected before." +
-                    " Please report this to EC developers.")
+        val results = Flux.fromIterable(groups)
+            .doOnNextScheduledOn(groupSnapshotScheduler) { group ->
+                if (result.adsSnapshot != null && group.communicationMode == ADS) {
+                    updateSnapshotForGroup(group, result.adsSnapshot)
+                } else if (result.xdsSnapshot != null && group.communicationMode == XDS) {
+                    updateSnapshotForGroup(group, result.xdsSnapshot)
+                } else {
+                    meterRegistry.counter("snapshot-updater.communication-mode.errors").increment()
+                    logger.error("Requested snapshot for ${group.communicationMode.name} mode, but it is not here. " +
+                        "Handling Envoy with not supported communication mode should have been rejected before." +
+                        " Please report this to EC developers.")
+                }
             }
-        }
+        return results.then(Mono.fromCallable {
+            sample.stop(updateSnapshotForGroupsTimer)
+            result
+        })
     }
 
     private fun Flux<List<LocalityAwareServicesState>>.createClusterConfigurations(): Flux<StatesAndClusters> = this
