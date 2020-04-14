@@ -45,6 +45,8 @@ node:
           - service: "proxy2"
           - service: "service-redirect"
             handleInternalRedirect: true
+          - service: "host-rewrite-service"
+            rewriteHostHeader: true
           - domain: "https://my.example.com"
           - domain: "https://bad.host.example.com"
           - domain: "https://www.example.com"

@@ -11,6 +11,8 @@ buildscript {
 
 plugins {
     id 'pl.allegro.tech.build.axion-release' version '1.10.2'
+    // TODO(https://github.com/allegro/envoy-control/issues/102):
+    //   upgrade to latest 1.3.x for bugfixes and performance improvements
     id 'org.jetbrains.kotlin.jvm' version '1.3.0'
     id 'org.jetbrains.kotlin.plugin.spring' version '1.3.0'
     id 'org.jetbrains.kotlin.plugin.allopen' version '1.3.0'
@@ -46,6 +48,8 @@ allprojects {
     apply plugin: 'kotlin-spring'
 
     project.ext.versions = [
+            // TODO(https://github.com/allegro/envoy-control/issues/102):
+            //   upgrade to latest 1.3.x for bugfixes and performance improvements
             kotlin            : '1.3.0',
             java_controlplane : '0.1.24-optimization-SNAPSHOT',
             spring_boot       : '2.1.5.RELEASE',

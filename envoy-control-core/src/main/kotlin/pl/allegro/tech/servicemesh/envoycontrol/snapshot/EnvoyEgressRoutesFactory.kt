@@ -120,6 +120,11 @@ internal class EnvoyEgressRoutesFactory(
             routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
         }
 
+        if (properties.egress.hostHeaderRewriting.enabled && routeSpecification.settings.rewriteHostHeader) {
+            routeAction
+                .setAutoHostRewriteHeader(properties.egress.hostHeaderRewriting.customHostHeader)
+        }
+
         return routeAction
     }
 }
