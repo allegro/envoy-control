@@ -75,7 +75,7 @@ class ControlPlane private constructor(
         var nioEventLoopExecutor: Executor? = null
         var executorGroup: ExecutorGroup? = null
         var globalSnapshotExecutor: Executor? = null
-        var groupSnapshotParallelExecutor: Executor? = null
+        var groupSnapshotParallelExecutorSupplier: () -> Executor? = { null }
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 
@@ -132,7 +132,7 @@ class ControlPlane private constructor(
                 ExecutorType.DIRECT -> DirectScheduler
                 ExecutorType.PARALLEL -> ParallelScheduler(
                     scheduler = Schedulers.fromExecutor(
-                        groupSnapshotParallelExecutor
+                        groupSnapshotParallelExecutorSupplier()
                             ?: Executors.newFixedThreadPool(
                                 groupSnapshotProperties.parallelPoolSize,
                                 ThreadNamingThreadFactory("group-snapshot")
@@ -220,8 +220,8 @@ class ControlPlane private constructor(
             return this
         }
 
-        fun withGroupSnapshotParallelExecutor(executor: Executor): ControlPlaneBuilder {
-            groupSnapshotParallelExecutor = executor
+        fun withGroupSnapshotParallelExecutor(executorSupplier: () -> Executor): ControlPlaneBuilder {
+            groupSnapshotParallelExecutorSupplier = executorSupplier
             return this
         }
 
