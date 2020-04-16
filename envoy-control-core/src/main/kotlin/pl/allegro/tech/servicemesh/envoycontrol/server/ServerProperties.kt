@@ -14,7 +14,11 @@ class ServerProperties {
     /**
      * Minimum size = 2, to work correctly with reactor operators merge and combineLatest
      */
-    var snapshotUpdatePoolSize = 5
+    var globalSnapshotUpdatePoolSize = 5
+    var groupSnapshotUpdateScheduler = ExecutorProperties().apply {
+        type = ExecutorType.DIRECT
+        parallelPoolSize = 1
+    }
     var snapshotCleanup = SnapshotCleanupProperties()
     var reportProtobufCacheMetrics = false
     var logFullRequest = false
