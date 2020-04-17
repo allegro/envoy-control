@@ -29,7 +29,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoyConfig = Envoy1Ads, envoy2Config = Envoy2Ads, envoys = 2)
+            }, envoyConfig = Envoy1Ads, secondEnvoyConfig = Envoy2Ads, envoys = 2)
         }
     }
 

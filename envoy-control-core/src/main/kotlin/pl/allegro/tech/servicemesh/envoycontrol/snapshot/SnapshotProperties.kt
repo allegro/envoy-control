@@ -22,6 +22,11 @@ class SnapshotProperties {
     var dynamicListeners = ListenersFactoryProperties()
     var enabledCommunicationModes = EnabledCommunicationModes()
     var shouldSendMissingEndpoints = false
+    var metrics: MetricsProperties = MetricsProperties()
+}
+
+class MetricsProperties {
+    var cacheSetSnapshot = false
 }
 
 class ListenersFactoryProperties {
@@ -38,7 +43,7 @@ class HttpFiltersProperties {
 class AccessLogProperties {
     var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
     var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
-            "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
+        "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
     var level = "TRACE"
     var logger = "envoy.AccessLog"
 }
@@ -177,6 +182,7 @@ class EgressProperties {
     var http2 = Http2Properties()
     var commonHttp = CommonHttpProperties()
     var neverRemoveClusters = true
+    var hostHeaderRewriting = HostHeaderRewritingProperties()
 }
 
 class CommonHttpProperties {
@@ -205,4 +211,9 @@ class Http2Properties {
 class EnabledCommunicationModes {
     var ads = true
     var xds = true
+}
+
+class HostHeaderRewritingProperties {
+    var enabled = false
+    var customHostHeader = "x-envoy-original-host"
 }

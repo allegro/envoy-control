@@ -23,6 +23,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnecti
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
@@ -72,7 +74,8 @@ class ControlPlane private constructor(
         var grpcServerExecutor: Executor? = null
         var nioEventLoopExecutor: Executor? = null
         var executorGroup: ExecutorGroup? = null
-        var updateSnapshotExecutor: Executor? = null
+        var globalSnapshotExecutor: Executor? = null
+        var groupSnapshotParallelExecutorSupplier: () -> Executor? = { null }
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 
@@ -103,6 +106,10 @@ class ControlPlane private constructor(
                 executorGroup = when (properties.server.executorGroup.type) {
                     ExecutorType.DIRECT -> DefaultExecutorGroup()
                     ExecutorType.PARALLEL -> {
+                        // TODO(https://github.com/allegro/envoy-control/issues/103) this implementation of parallel
+                        //   executor group is invalid, because it may lead to sending XDS responses out of order for
+                        //   given DiscoveryRequestStreamObserver. We should switch to multiple, single-threaded
+                        //   ThreadPoolExecutors. More info in linked task.
                         val executor = Executors.newFixedThreadPool(
                             properties.server.executorGroup.parallelPoolSize,
                             ThreadNamingThreadFactory("discovery-responses-executor")
@@ -112,10 +119,26 @@ class ControlPlane private constructor(
                 }
             }
 
-            if (updateSnapshotExecutor == null) {
-                updateSnapshotExecutor = Executors.newFixedThreadPool(
-                    properties.server.snapshotUpdatePoolSize,
+            if (globalSnapshotExecutor == null) {
+                globalSnapshotExecutor = Executors.newFixedThreadPool(
+                    properties.server.globalSnapshotUpdatePoolSize,
                     ThreadNamingThreadFactory("snapshot-update")
+                )
+            }
+
+            val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
+
+            val groupSnapshotScheduler = when (groupSnapshotProperties.type) {
+                ExecutorType.DIRECT -> DirectScheduler
+                ExecutorType.PARALLEL -> ParallelScheduler(
+                    scheduler = Schedulers.fromExecutor(
+                        groupSnapshotParallelExecutorSupplier()
+                            ?: Executors.newFixedThreadPool(
+                                groupSnapshotProperties.parallelPoolSize,
+                                ThreadNamingThreadFactory("group-snapshot")
+                            )
+                    ),
+                    parallelism = groupSnapshotProperties.parallelPoolSize
                 )
             }
 
@@ -160,7 +183,8 @@ class ControlPlane private constructor(
                 SnapshotUpdater(
                     cache,
                     properties.envoy.snapshot,
-                    Schedulers.fromExecutor(updateSnapshotExecutor!!),
+                    Schedulers.fromExecutor(globalSnapshotExecutor!!),
+                    groupSnapshotScheduler,
                     groupChangeWatcher.onGroupAdded(),
                     meterRegistry,
                     envoyHttpFilters
@@ -191,8 +215,13 @@ class ControlPlane private constructor(
             return this
         }
 
-        fun withUpdateSnapshotExecutor(executor: Executor): ControlPlaneBuilder {
-            updateSnapshotExecutor = executor
+        fun withGlobalSnapshotExecutor(executor: Executor): ControlPlaneBuilder {
+            globalSnapshotExecutor = executor
+            return this
+        }
+
+        fun withGroupSnapshotParallelExecutor(executorSupplier: () -> Executor): ControlPlaneBuilder {
+            groupSnapshotParallelExecutorSupplier = executorSupplier
             return this
         }
 

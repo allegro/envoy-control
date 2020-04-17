@@ -13,6 +13,7 @@ class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http
         // We need to use hash because the image doesn't use tags and the tests will fail if there is an older version
         // of the image pulled locally
         const val hash = "sha256:6b69d5da0245157d7f9d06dfb65d0dd25fbedf5389a66d912c806572d02b0d1d"
+        const val PORT = 80
     }
 
     override fun configure() {
