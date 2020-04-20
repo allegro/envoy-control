@@ -19,7 +19,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.tlsAuthentication.enabledForServices" to listOf("echo2"),
+            "envoy-control.envoy.snapshot.incoming-permissions.tlsAuthentication.enabledForServices" to listOf("echo", "echo2"),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
             "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
@@ -30,7 +30,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoy1Config = Envoy1Ads, envoy2Config = Envoy2Ads, envoys = 2)
+            }, envoyConfig = Envoy1Ads, secondEnvoyConfig = Envoy2Ads, envoys = 2)
 
             registerService(name = "echo")
             registerEcho2WithEnvoyOnIngress()
@@ -92,5 +92,5 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         return insecureCall(url = envoyContainer2.ingressListenerUrl(secured = true) + "/status/")
     }
 
-    private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/status/")
+    private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/ip_endpoint")
 }

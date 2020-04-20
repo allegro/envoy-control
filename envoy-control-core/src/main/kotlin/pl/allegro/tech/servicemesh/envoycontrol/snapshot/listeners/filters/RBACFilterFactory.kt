@@ -135,15 +135,9 @@ class RBACFilterFactory(
     }
 
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        if (client !in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
-            val clientMatch = HeaderMatcher.newBuilder()
-                    .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
-
-            return listOf(Principal.newBuilder().setHeader(clientMatch).build())
-        }
-
-        val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
-        return clientEndpoints.flatMap { clusterLoadAssignment ->
+        if (client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
+            val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
+            return clientEndpoints.flatMap { clusterLoadAssignment ->
                 clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
                     lbEndpoints.lbEndpointsList.map { lbEndpoint ->
                         lbEndpoint.endpoint.address
@@ -155,6 +149,22 @@ class RBACFilterFactory(
                         .setPrefixLen(UInt32Value.of(exactIpMask)).build())
                         .build()
             }
+        }
+
+        if (client in incomingPermissionsProperties.tlsAuthentication.enabledForServices) {
+            return listOf(Principal.newBuilder().setAuthenticated(
+                    Principal.Authenticated.newBuilder()
+                            .setPrincipalName(StringMatcher.newBuilder()
+                                    .setExact("spiffe://$client").build()
+                            )
+                    ).build()
+            )
+        }
+
+        val clientMatch = HeaderMatcher.newBuilder()
+                .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
+
+        return listOf(Principal.newBuilder().setHeader(clientMatch).build())
     }
 
     private fun createPathMatcher(incomingEndpoint: IncomingEndpoint): PathMatcher {
