@@ -32,7 +32,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             }, envoyConfig = Envoy1Ads, secondEnvoyConfig = Envoy2Ads, envoys = 2)
 
-            registerService(name = "echo")
+            registerService(name = "echo", tags = listOf("mtls:enabled"))
             registerEcho2WithEnvoyOnIngress()
         }
 
@@ -40,8 +40,9 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             registerService(
                     id = "echo2",
                     name = "echo2",
-                    address = envoyContainer2.ipAddress(),
-                    port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
+                    container = envoyContainer2,
+                    port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
+                    tags = listOf("mtls:enabled")
             )
         }
     }

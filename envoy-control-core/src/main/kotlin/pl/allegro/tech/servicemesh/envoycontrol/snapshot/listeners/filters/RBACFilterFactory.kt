@@ -135,8 +135,9 @@ class RBACFilterFactory(
     }
 
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
+        val tlsProperties = incomingPermissionsProperties.tlsAuthentication
+        val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
         if (client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
-            val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
             return clientEndpoints.flatMap { clusterLoadAssignment ->
                 clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
                     lbEndpoints.lbEndpointsList.map { lbEndpoint ->
@@ -151,7 +152,7 @@ class RBACFilterFactory(
             }
         }
 
-        if (client in incomingPermissionsProperties.tlsAuthentication.enabledForServices) {
+        if (snapshot.allClientEndpointsHaveTag(client, tlsProperties.mtlsEnabledTag)) {
             return listOf(Principal.newBuilder().setAuthenticated(
                     Principal.Authenticated.newBuilder()
                             .setPrincipalName(StringMatcher.newBuilder()

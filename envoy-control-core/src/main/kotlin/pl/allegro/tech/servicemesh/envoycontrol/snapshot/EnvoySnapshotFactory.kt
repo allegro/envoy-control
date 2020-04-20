@@ -68,6 +68,7 @@ internal class EnvoySnapshotFactory(
         )
 
         val snapshot = globalSnapshot(
+            servicesStates = servicesStates,
             clusters = clusters,
             endpoints = endpoints,
             properties = properties.outgoingPermissions

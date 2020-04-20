@@ -136,7 +136,7 @@ class EnvoyListenersFactory(
 
         if (shouldAddTlsContext(secured)) {
             // might be optional
-            if (group.serviceName !in tlsAuthenticationProperties.enabledForServices) {
+            if (globalSnapshot.allClientEndpointsHaveTag(group.serviceName, tlsAuthenticationProperties.mtlsEnabledTag)) {
                 return null
             }
 

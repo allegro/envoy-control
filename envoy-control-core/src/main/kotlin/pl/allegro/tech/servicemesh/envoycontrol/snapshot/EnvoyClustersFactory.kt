@@ -62,7 +62,7 @@ internal class EnvoyClustersFactory(
                         .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
 
                 clusters.map {
-                    if (shouldAddCertificateToCluster(it)) {
+                    if (globalSnapshot.allClientEndpointsHaveTag(it.name, properties.incomingPermissions.tlsAuthentication.mtlsEnabledTag)) {
                         val updatedCluster = Cluster.newBuilder(it)
                         val upstreamTlsContext = createTlsContextWithSdsSecretConfig()
                         updatedCluster.setTransportSocket(TransportSocket.newBuilder()
@@ -87,10 +87,6 @@ internal class EnvoyClustersFactory(
                         .build()
                 )
                 .build()
-    }
-
-    private fun shouldAddCertificateToCluster(it: Cluster): Boolean {
-        return it.name in properties.incomingPermissions.tlsAuthentication.enabledForServices
     }
 
     private fun getStrictDnsClustersForGroup(group: Group): List<Cluster> {
