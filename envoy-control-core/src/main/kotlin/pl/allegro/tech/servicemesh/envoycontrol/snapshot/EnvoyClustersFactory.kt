@@ -9,7 +9,7 @@ import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
-import io.envoyproxy.envoy.api.v2.auth.TlsCertificate
+import io.envoyproxy.envoy.api.v2.auth.SdsSecretConfig
 import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
 import io.envoyproxy.envoy.api.v2.cluster.CircuitBreakers
 import io.envoyproxy.envoy.api.v2.cluster.OutlierDetection
@@ -61,13 +61,10 @@ internal class EnvoyClustersFactory(
                 val clusters = group.proxySettings.outgoing.getServiceDependencies()
                         .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
 
-                val privateKeyPath = group.listenersConfig?.privateKeyPath ?: ""
-                val certificatePath = group.listenersConfig?.certificatePath ?: ""
-
                 clusters.map {
-                    if (shouldAddCertificateToCluster(it, privateKeyPath, certificatePath)) {
+                    if (shouldAddCertificateToCluster(it)) {
                         val updatedCluster = Cluster.newBuilder(it)
-                        val upstreamTlsContext = createTlsContextWithKeyCert(privateKeyPath, certificatePath)
+                        val upstreamTlsContext = createTlsContextWithSdsSecretConfig()
                         updatedCluster.setTransportSocket(TransportSocket.newBuilder()
                                 .setName("envoy.transport_sockets.tls")
                                 .setTypedConfig(Any.pack(upstreamTlsContext)))
@@ -79,14 +76,12 @@ internal class EnvoyClustersFactory(
         }
     }
 
-    private fun createTlsContextWithKeyCert(privateKeyPath: String, certificatePath: String): UpstreamTlsContext? {
+    private fun createTlsContextWithSdsSecretConfig(): UpstreamTlsContext? {
+        val tlsAuthenticationProperties = properties.incomingPermissions.tlsAuthentication
         return UpstreamTlsContext.newBuilder()
                 .setCommonTlsContext(CommonTlsContext.newBuilder()
-                        .addTlsCertificates(
-                                TlsCertificate.newBuilder()
-                                        .setPrivateKey(DataSource.newBuilder().setFilename(privateKeyPath))
-                                        .setCertificateChain(DataSource.newBuilder().setFilename(certificatePath))
-                                        .build()
+                        .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
+                                .setName(tlsAuthenticationProperties.tlsCertificateConfigName).build()
                         )
                         .addAlpnProtocols("h2,http/1.1")
                         .build()
@@ -94,10 +89,8 @@ internal class EnvoyClustersFactory(
                 .build()
     }
 
-    private fun shouldAddCertificateToCluster(it: Cluster, privateKeyPath: String, certificatePath: String): Boolean {
-        return it.name in properties.incomingPermissions.tlsAuthentication.enabledForServices &&
-                privateKeyPath.isNotBlank() &&
-                certificatePath.isNotBlank()
+    private fun shouldAddCertificateToCluster(it: Cluster): Boolean {
+        return it.name in properties.incomingPermissions.tlsAuthentication.enabledForServices
     }
 
     private fun getStrictDnsClustersForGroup(group: Group): List<Cluster> {

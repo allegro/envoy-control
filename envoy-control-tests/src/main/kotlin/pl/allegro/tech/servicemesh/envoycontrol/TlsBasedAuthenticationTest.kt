@@ -31,14 +31,23 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             }, envoy1Config = Envoy1Ads, envoy2Config = Envoy2Ads, envoys = 2)
+
+            registerService(name = "echo")
+            registerEcho2WithEnvoyOnIngress()
+        }
+
+        private fun registerEcho2WithEnvoyOnIngress() {
+            registerService(
+                    id = "echo2",
+                    name = "echo2",
+                    address = envoyContainer2.ipAddress(),
+                    port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
+            )
         }
     }
 
     @Test
     fun `should encrypt traffic between selected services`() {
-        registerService(name = "echo")
-        registerEcho2WithEnvoyOnIngress()
-
         untilAsserted {
             // when
             val validResponse = callEcho2ThroughEnvoy1()
@@ -51,10 +60,18 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             assertThat(sslConnections).isGreaterThan(0)
 
             assertThat(validResponse).isOk().isFrom(echoContainer2)
+        }
+    }
 
+    @Test
+    fun `should not allow unencrypted traffic between selected services`() {
+        untilAsserted {
             var invalidResponse: CloseableHttpResponse? = null
             try {
+                // when
                 invalidResponse = callEcho2ThroughEnvoy2Ingress()
+
+                // then
                 assertThat(invalidResponse.statusLine.statusCode).isEqualTo(503)
             } catch (e: SSLPeerUnverifiedException) {
                 assertEnvoyReportedSslError()
@@ -64,18 +81,11 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                 invalidResponse?.close()
             }
         }
-}
+    }
+
     private fun assertEnvoyReportedSslError() {
         val sslHandshakeErrors = envoyContainer2.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_no_cert")?.toInt()
         assertThat(sslHandshakeErrors).isGreaterThan(0)
-    }
-
-    private fun registerEcho2WithEnvoyOnIngress() {
-        registerService(
-                id = "echo2",
-                name = "echo2", address = envoyContainer2.ipAddress(),
-                port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
-        )
     }
 
     private fun callEcho2ThroughEnvoy2Ingress(): CloseableHttpResponse {

@@ -108,10 +108,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 enableLuaScript,
                 accessLogPath,
                 resourcesDir,
-                addUpstreamExternalAddressHeader,
-                privateKeyPath,
-                certificatePath,
-                trustedCaPath
+                addUpstreamExternalAddressHeader
         )
     }
 

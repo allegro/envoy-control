@@ -26,13 +26,24 @@ node:
     resources_dir: "/etc/envoy/extra"
     private_key_path: "/app/privkey.pem"
     certificate_path: "/app/fullchain.pem"
-    trusted_ca_path: "/usr/local/share/ca-certificates/root-ca.crt"
+    trusted_ca_path: ""
     proxy_settings:
       outgoing:
         dependencies:
           - service: "echo2"
 
 static_resources:
+  secrets:
+    - name: server_cert
+      tls_certificate:
+        certificate_chain:
+          filename: /app/fullchain.pem
+        private_key:
+          filename: /app/privkey.pem
+    - name: validation_context
+      validation_context:
+        trusted_ca:
+          filename: /usr/local/share/ca-certificates/root-ca.crt
   clusters:
   - connect_timeout: 1s
     hosts:

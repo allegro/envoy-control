@@ -63,6 +63,8 @@ class IncomingPermissionsProperties {
 
 class TlsAuthenticationProperties {
     var enabledForServices: List<String> = listOf()
+    var validationContextConfigName: String = "validation_context"
+    var tlsCertificateConfigName: String = "server_cert"
 }
 
 class SourceIpAuthenticationProperties {

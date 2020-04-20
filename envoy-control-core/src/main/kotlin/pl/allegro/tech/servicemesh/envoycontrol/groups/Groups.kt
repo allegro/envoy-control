@@ -31,10 +31,7 @@ data class ListenersConfig(
     val enableLuaScript: Boolean = defaultEnableLuaScript,
     val accessLogPath: String = defaultAccessLogPath,
     val resourcesDir: String = defaultResourcesDir,
-    val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
-    val privateKeyPath: String?,
-    val certificatePath: String?,
-    val trustedCaPath: String?
+    val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader
 ) {
 
     companion object {
