@@ -31,7 +31,7 @@ class ConsulInstancePropagationTest : EnvoyControlTestConfiguration() {
         @BeforeAll
         fun setupPropagationTest() {
             setup(
-                envoy1Config = AdsAllDependencies,
+                envoyConfig = AdsAllDependencies,
                 appFactoryForEc1 = { consulPort ->
                     EnvoyControlRunnerTestApp(
                         properties = mapOf(

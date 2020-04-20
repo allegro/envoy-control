@@ -145,3 +145,25 @@ private fun innerBufferExtractor(index: Int) = { s: Scannable ->
 private val queueSubscriptionBufferExtractor = { s: Fuseable.QueueSubscription<*> -> s.size.toDouble() }
 
 private fun bufferMetric(name: String) = "reactor-buffers.$name"
+
+sealed class ParallelizableScheduler
+object DirectScheduler : ParallelizableScheduler()
+data class ParallelScheduler(
+    val scheduler: Scheduler,
+    val parallelism: Int
+) : ParallelizableScheduler()
+
+fun <T> Flux<T>.doOnNextScheduledOn(
+    scheduler: ParallelizableScheduler,
+    doOnNext: (T) -> Unit
+): Flux<T> = when (scheduler) {
+    is DirectScheduler -> {
+        doOnNext(doOnNext)
+    }
+    is ParallelScheduler -> {
+        this.parallel(scheduler.parallelism)
+            .runOn(scheduler.scheduler)
+            .doOnNext(doOnNext)
+            .sequential()
+    }
+}

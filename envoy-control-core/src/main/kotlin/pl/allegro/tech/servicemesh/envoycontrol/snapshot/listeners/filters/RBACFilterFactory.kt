@@ -23,17 +23,16 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
-@SuppressWarnings("MagicNumber")
 class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,
     statusRouteProperties: StatusRouteProperties
 ) {
     companion object {
         private val logger by logger()
+        private const val anyPrincipalName = "_ANY_"
+        private const val exactIpMask = 32
     }
 
-    private val anyPrincipalName = "_ANY_"
-    private val exactIpMask = 32
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
 
     private fun getRules(serviceName: String, incomingPermissions: Incoming, snapshot: GlobalSnapshot): RBAC {
@@ -53,14 +52,18 @@ class RBACFilterFactory(
             val clients = resolveClients(incomingEndpoint, incomingPermissions.roles)
             val policyName = clients.joinToString(",")
 
-            val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(policyName) {
-                Policy.newBuilder().addAllPrincipals(
-                        clients.flatMap { mapClientToPrincipals(it, snapshot) }
-                )
-            }
+            val principals = clients.flatMap { mapClientToPrincipals(it, snapshot) }
 
-            val combinedPermissions = createCombinedPermissions(incomingEndpoint)
-            policy.addPermissions(combinedPermissions)
+            if (principals.isNotEmpty()) {
+                val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(policyName) {
+                    Policy.newBuilder().addAllPrincipals(
+                            clients.flatMap { mapClientToPrincipals(it, snapshot) }
+                    )
+                }
+
+                val combinedPermissions = createCombinedPermissions(incomingEndpoint)
+                policy.addPermissions(combinedPermissions)
+            }
         }
 
         val clientToPolicy = clientToPolicyBuilder.mapValues { it.value.build() }
@@ -132,27 +135,26 @@ class RBACFilterFactory(
     }
 
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        val principals = if (client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
-            snapshot.endpoints.resources()
-                    .filterKeys { client == it }.values
-                    .flatMap { clusterLoadAssignment ->
-                        clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
-                            lbEndpoints.lbEndpointsList.map { lbEndpoint ->
-                                lbEndpoint.endpoint.address
-                            }
-                        }
-                    }.map { address ->
-                        Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
-                                .setAddressPrefix(address.socketAddress.address)
-                                .setPrefixLen(UInt32Value.of(exactIpMask)).build())
-                                .build()
+        if (client !in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
+            val clientMatch = HeaderMatcher.newBuilder()
+                    .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
+
+            return listOf(Principal.newBuilder().setHeader(clientMatch).build())
+        }
+
+        val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
+        return clientEndpoints.flatMap { clusterLoadAssignment ->
+                clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
+                    lbEndpoints.lbEndpointsList.map { lbEndpoint ->
+                        lbEndpoint.endpoint.address
                     }
-        } else null
-
-        val clientMatch = HeaderMatcher.newBuilder()
-                .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
-
-        return (principals ?: listOf()) + listOf(Principal.newBuilder().setHeader(clientMatch).build())
+                }
+            }.map { address ->
+                Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                        .setAddressPrefix(address.socketAddress.address)
+                        .setPrefixLen(UInt32Value.of(exactIpMask)).build())
+                        .build()
+            }
     }
 
     private fun createPathMatcher(incomingEndpoint: IncomingEndpoint): PathMatcher {
