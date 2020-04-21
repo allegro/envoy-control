@@ -135,10 +135,9 @@ class RBACFilterFactory(
     }
 
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        val tlsProperties = incomingPermissionsProperties.tlsAuthentication
         val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
-        if (client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
-            return clientEndpoints.flatMap { clusterLoadAssignment ->
+        return if (client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
+            clientEndpoints.flatMap { clusterLoadAssignment ->
                 clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
                     lbEndpoints.lbEndpointsList.map { lbEndpoint ->
                         lbEndpoint.endpoint.address
@@ -150,22 +149,20 @@ class RBACFilterFactory(
                         .setPrefixLen(UInt32Value.of(exactIpMask)).build())
                         .build()
             }
-        }
-
-        if (snapshot.allClientEndpointsHaveTag(client, tlsProperties.mtlsEnabledTag)) {
-            return listOf(Principal.newBuilder().setAuthenticated(
+        } else if (snapshot.mtlsEnabledForCluster(client)) {
+            listOf(Principal.newBuilder().setAuthenticated(
                     Principal.Authenticated.newBuilder()
                             .setPrincipalName(StringMatcher.newBuilder()
                                     .setExact("spiffe://$client").build()
                             )
                     ).build()
             )
+        } else {
+            val clientMatch = HeaderMatcher.newBuilder()
+                    .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
+
+            listOf(Principal.newBuilder().setHeader(clientMatch).build())
         }
-
-        val clientMatch = HeaderMatcher.newBuilder()
-                .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
-
-        return listOf(Principal.newBuilder().setHeader(clientMatch).build())
     }
 
     private fun createPathMatcher(incomingEndpoint: IncomingEndpoint): PathMatcher {

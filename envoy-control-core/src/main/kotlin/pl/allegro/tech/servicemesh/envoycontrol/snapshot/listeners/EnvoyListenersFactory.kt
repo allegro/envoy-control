@@ -134,12 +134,7 @@ class EnvoyListenersFactory(
                 .setFilterChainMatch(FilterChainMatch.newBuilder().setTransportProtocol(transportProtocol))
                 .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot))
 
-        if (shouldAddTlsContext(secured)) {
-            // might be optional
-            if (globalSnapshot.allClientEndpointsHaveTag(group.serviceName, tlsAuthenticationProperties.mtlsEnabledTag)) {
-                return null
-            }
-
+        if (shouldAddTlsContext(secured, globalSnapshot, group.serviceName)) {
             val downstreamTlsContext = DownstreamTlsContext.newBuilder()
                     .setRequireClientCertificate(BoolValue.of(true)) // uncomment to validate cert
                     .setCommonTlsContext(CommonTlsContext.newBuilder()
@@ -164,9 +159,11 @@ class EnvoyListenersFactory(
     }
 
     private fun shouldAddTlsContext(
-        secured: Boolean
+        secured: Boolean,
+        globalSnapshot: GlobalSnapshot,
+        serviceName: String
     ): Boolean {
-        return secured
+        return secured && globalSnapshot.mtlsEnabledForCluster(serviceName)
     }
 
     private fun createEgressFilterChain(

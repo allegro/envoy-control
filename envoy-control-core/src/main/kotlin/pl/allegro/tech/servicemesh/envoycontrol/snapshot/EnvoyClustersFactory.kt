@@ -62,7 +62,7 @@ internal class EnvoyClustersFactory(
                         .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
 
                 clusters.map {
-                    if (globalSnapshot.allClientEndpointsHaveTag(it.name, properties.incomingPermissions.tlsAuthentication.mtlsEnabledTag)) {
+                    if (globalSnapshot.mtlsEnabledForCluster(it.name)) {
                         val updatedCluster = Cluster.newBuilder(it)
                         val upstreamTlsContext = createTlsContextWithSdsSecretConfig()
                         updatedCluster.setTransportSocket(TransportSocket.newBuilder()
