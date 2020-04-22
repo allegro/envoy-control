@@ -167,6 +167,16 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 .withStartupTimeout(Duration.ofSeconds(10))
         }
 
+        fun createEnvoyContainerWithEcho2San(): EnvoyContainer {
+            return EnvoyContainer(
+                    Envoy1Ads.filePath,
+                    localServiceContainer.ipAddress(),
+                    envoyControl1.grpcPort,
+                    image = defaultEnvoyImage,
+                    certificate = "testcontainers/ssl/fullchain_echo2.pem"
+            ).withNetwork(network)
+        }
+
         fun registerEnvoyControls(
             ec1RegisterPort: Int?,
             ec2RegisterPort: Int?,

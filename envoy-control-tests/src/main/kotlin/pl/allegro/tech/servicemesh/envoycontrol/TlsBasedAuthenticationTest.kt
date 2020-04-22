@@ -1,8 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import okhttp3.Response
 import org.apache.http.client.methods.CloseableHttpResponse
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy1Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy2Ads
@@ -25,13 +27,22 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
         )
 
+        private lateinit var envoyContainerInvalidSan: EnvoyContainer
+
         @JvmStatic
         @BeforeAll
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             }, envoyConfig = Envoy1Ads, secondEnvoyConfig = Envoy2Ads, envoys = 2)
+        }
 
+        @BeforeEach
+        fun setup() {
+            beforeeach()
+        }
+
+        private fun beforeeach() {
             registerService(name = "echo", tags = listOf("mtls:enabled"))
             registerEcho2WithEnvoyOnIngress()
         }
@@ -49,6 +60,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     fun `should encrypt traffic between selected services`() {
+        beforeeach()
         untilAsserted {
             // when
             val validResponse = callEcho2ThroughEnvoy1()
@@ -65,7 +77,28 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
+    fun `should not allow traffic that fails SAN validation`() {
+        beforeeach()
+        envoyContainerInvalidSan = createEnvoyContainerWithEcho2San()
+        envoyContainerInvalidSan.start()
+
+        untilAsserted {
+            // when
+            val invalidResponse = callEcho2ThroughEnvoyWithInvalidSan()
+
+            // then
+            val sanValidationFailure = envoyContainer2.admin().statValue("http.ingress_http.rbac.denied")?.toInt()
+            assertThat(sanValidationFailure).isGreaterThan(0)
+            assertThat(invalidResponse).isForbidden()
+        }
+
+        envoyContainerInvalidSan.stop()
+    }
+
+
+    @Test
     fun `should not allow unencrypted traffic between selected services`() {
+        beforeeach()
         untilAsserted {
             var invalidResponse: CloseableHttpResponse? = null
             try {
@@ -94,4 +127,8 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     }
 
     private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/ip_endpoint")
+
+    private fun callEcho2ThroughEnvoyWithInvalidSan(): Response {
+        return callService(address = envoyContainerInvalidSan.egressListenerUrl(), service = "echo2", pathAndQuery = "/ip_endpoint")
+    }
 }

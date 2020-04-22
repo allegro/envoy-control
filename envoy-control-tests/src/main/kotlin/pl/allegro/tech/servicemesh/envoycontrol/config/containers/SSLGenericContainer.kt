@@ -8,7 +8,7 @@ open class SSLGenericContainer<SELF : SSLGenericContainer<SELF>>(
     dockerfileBuilder: DockerfileBuilder,
     private val privateKey: String = "testcontainers/ssl/privkey.pem",
     private val privateKeyDest: String = "/app/privkey.pem",
-    private val certificate: String = "testcontainers/ssl/fullchain.pem",
+    private val certificate: String = "testcontainers/ssl/fullchain_echo.pem",
     private val certificateDest: String = "/app/fullchain.pem"
 ) : GenericContainer<SELF>(dockerfileBuilder.statements) {
     constructor(dockerImageName: String) : this(DockerfileBuilder().from(dockerImageName))
