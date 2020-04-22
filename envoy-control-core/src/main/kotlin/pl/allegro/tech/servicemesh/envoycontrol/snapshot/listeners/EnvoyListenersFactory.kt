@@ -102,7 +102,7 @@ class EnvoyListenersFactory(
         globalSnapshot: GlobalSnapshot
     ): Listener {
         val insecureIngressChain = createIngressFilterChain(group, listenersConfig, globalSnapshot)
-        val securedIngressChain = if (listenersConfig.addSecondaryFilterChainWithTlsContext) {
+        val securedIngressChain = if (listenersConfig.hasStaticSecretsDefined) {
             createSecuredIngressFilterChain(group, listenersConfig, globalSnapshot)
         } else null
 

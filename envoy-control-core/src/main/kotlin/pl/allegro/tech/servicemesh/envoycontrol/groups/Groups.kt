@@ -32,7 +32,7 @@ data class ListenersConfig(
     val accessLogPath: String = defaultAccessLogPath,
     val resourcesDir: String = defaultResourcesDir,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
-    val addSecondaryFilterChainWithTlsContext: Boolean = defaultAddSecondaryFilterChainWithTlsContext
+    val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined
 ) {
 
     companion object {
@@ -42,6 +42,6 @@ data class ListenersConfig(
         const val defaultEnableLuaScript = false
         const val defaultAddUpstreamExternalAddressHeader = false
         const val defaultResourcesDir = "envoy"
-        const val defaultAddSecondaryFilterChainWithTlsContext: Boolean = false
+        const val defaultHasStaticSecretsDefined: Boolean = false
     }
 }

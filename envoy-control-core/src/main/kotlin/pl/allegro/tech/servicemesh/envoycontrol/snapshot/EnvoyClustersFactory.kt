@@ -62,7 +62,7 @@ internal class EnvoyClustersFactory(
                         .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
 
                 clusters.map {
-                    if (globalSnapshot.mtlsEnabledForCluster(it.name)) {
+                    if (enableTlsForCluster(group, globalSnapshot, it.name)) {
                         val updatedCluster = Cluster.newBuilder(it)
                         val upstreamTlsContext = createTlsContextWithSdsSecretConfig()
                         updatedCluster.setTransportSocket(TransportSocket.newBuilder()
@@ -74,6 +74,13 @@ internal class EnvoyClustersFactory(
             }
             is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map { it.value }
         }
+    }
+
+    private fun enableTlsForCluster(group: Group, globalSnapshot: GlobalSnapshot, clusterName: String):Boolean {
+        val hasStaticSecretsDefined = group.listenersConfig?.hasStaticSecretsDefined ?: false
+        val mtlsEnabled = globalSnapshot.mtlsEnabledForCluster(clusterName)
+
+        return hasStaticSecretsDefined && mtlsEnabled
     }
 
     private fun createTlsContextWithSdsSecretConfig(): UpstreamTlsContext? {

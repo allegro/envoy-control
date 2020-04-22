@@ -37,16 +37,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             }, envoyConfig = Envoy1Ads, secondEnvoyConfig = Envoy2Ads, envoys = 2)
         }
 
-        @BeforeEach
-        fun setup() {
-            beforeeach()
-        }
-
-        private fun beforeeach() {
-            registerService(name = "echo", tags = listOf("mtls:enabled"))
-            registerEcho2WithEnvoyOnIngress()
-        }
-
         private fun registerEcho2WithEnvoyOnIngress() {
             registerService(
                     id = "echo2",
@@ -58,9 +48,14 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         }
     }
 
+    @BeforeEach
+    fun setup() {
+        registerService(name = "echo", tags = listOf("mtls:enabled"))
+        registerEcho2WithEnvoyOnIngress()
+    }
+
     @Test
     fun `should encrypt traffic between selected services`() {
-        beforeeach()
         untilAsserted {
             // when
             val validResponse = callEcho2ThroughEnvoy1()
@@ -78,7 +73,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     fun `should not allow traffic that fails SAN validation`() {
-        beforeeach()
         envoyContainerInvalidSan = createEnvoyContainerWithEcho2San()
         envoyContainerInvalidSan.start()
 
@@ -98,7 +92,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     fun `should not allow unencrypted traffic between selected services`() {
-        beforeeach()
         untilAsserted {
             var invalidResponse: CloseableHttpResponse? = null
             try {

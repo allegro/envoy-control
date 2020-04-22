@@ -95,7 +95,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
         val addSecondaryFilterChainWithTlsContext = metadata.fieldsMap["add_secondary_filter_chain_with_tls_context"]?.boolValue
-            ?: ListenersConfig.defaultAddSecondaryFilterChainWithTlsContext
+            ?: ListenersConfig.defaultHasStaticSecretsDefined
 
         return ListenersConfig(
                 listenersHostPort.ingressHost,
