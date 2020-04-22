@@ -135,9 +135,9 @@ class EnvoyListenersFactory(
     }
 
     private fun createSecuredIngressFilterChain(
-            group: Group,
-            listenersConfig: ListenersConfig,
-            globalSnapshot: GlobalSnapshot
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot
     ): FilterChain.Builder {
         val filterChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, "tls")
         val tlsAuthenticationProperties = snapshotProperties.incomingPermissions.tlsAuthentication

@@ -23,7 +23,7 @@ node:
     use_remote_address: true
     access_log_enabled: false
     add_upstream_external_address_header: true
-    add_secondary_filter_chain_with_tls_context: true
+    has_static_secrets_defined: true
     resources_dir: "/etc/envoy/extra"
     proxy_settings:
       incoming:

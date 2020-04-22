@@ -89,7 +89,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         envoyContainerInvalidSan.stop()
     }
 
-
     @Test
     fun `should not allow unencrypted traffic between selected services`() {
         untilAsserted {

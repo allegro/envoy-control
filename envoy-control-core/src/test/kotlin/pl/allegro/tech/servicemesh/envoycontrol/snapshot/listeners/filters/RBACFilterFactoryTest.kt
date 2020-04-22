@@ -42,7 +42,8 @@ internal class RBACFilterFactoryTest {
             SnapshotResources.create(listOf(), ""),
             mapOf(),
             SnapshotResources.create(listOf(), ""),
-            mapOf()
+            mapOf(),
+            SnapshotResources.create(listOf(), "")
     )
 
     val clusterLoadAssignment = ClusterLoadAssignment.newBuilder()
@@ -63,7 +64,8 @@ internal class RBACFilterFactoryTest {
             SnapshotResources.create(listOf(), ""),
             mapOf(),
             SnapshotResources.create(listOf(clusterLoadAssignment), ""),
-            mapOf()
+            mapOf(),
+            SnapshotResources.create(listOf(), "")
     )
 
     @Test

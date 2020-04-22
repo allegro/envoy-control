@@ -61,6 +61,11 @@ internal class EnvoySnapshotFactory(
         val sample = Timer.start(meterRegistry)
 
         val clusters = clustersFactory.getClustersForServices(clusterConfigurations.values, communicationMode)
+        val securedClusters = clustersFactory.getClustersForServices(
+                clusterConfigurations.values,
+                communicationMode,
+                secured = true
+        )
 
         val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(
             clusters = clusterConfigurations.keys,
@@ -70,6 +75,7 @@ internal class EnvoySnapshotFactory(
         val snapshot = globalSnapshot(
             clusterConfigurations = clusterConfigurations,
             clusters = clusters,
+            securedClusters = securedClusters,
             endpoints = endpoints,
             properties = properties.outgoingPermissions
         )

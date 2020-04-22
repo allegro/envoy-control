@@ -47,9 +47,10 @@ internal class EnvoyClustersFactory(
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,
-        communicationMode: CommunicationMode
+        communicationMode: CommunicationMode,
+        secured: Boolean = false
     ): List<Cluster> {
-        return services.map { edsCluster(it, communicationMode) }
+        return services.map { edsCluster(it, communicationMode, secured) }
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
@@ -57,26 +58,19 @@ internal class EnvoyClustersFactory(
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         return when (group) {
-            is ServicesGroup -> {
-                val clusters = group.proxySettings.outgoing.getServiceDependencies()
-                        .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
-
-                clusters.map {
-                    if (enableTlsForCluster(group, globalSnapshot, it.name)) {
-                        val updatedCluster = Cluster.newBuilder(it)
-                        val upstreamTlsContext = createTlsContextWithSdsSecretConfig()
-                        updatedCluster.setTransportSocket(TransportSocket.newBuilder()
-                                .setName("envoy.transport_sockets.tls")
-                                .setTypedConfig(Any.pack(upstreamTlsContext)))
-                                .build()
-                    } else it
+            is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies()
+                .mapNotNull {
+                    if (enableTlsForCluster(group, globalSnapshot, it.service)) {
+                        globalSnapshot.securedClusters.resources().get(it.service)
+                    } else {
+                        globalSnapshot.clusters.resources().get(it.service)
+                    }
                 }
-            }
             is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map { it.value }
         }
     }
 
-    private fun enableTlsForCluster(group: Group, globalSnapshot: GlobalSnapshot, clusterName: String):Boolean {
+    private fun enableTlsForCluster(group: Group, globalSnapshot: GlobalSnapshot, clusterName: String): Boolean {
         val hasStaticSecretsDefined = group.listenersConfig?.hasStaticSecretsDefined ?: false
         val mtlsEnabled = globalSnapshot.mtlsEnabledForCluster(clusterName)
 
@@ -168,7 +162,8 @@ internal class EnvoyClustersFactory(
 
     private fun edsCluster(
         clusterConfiguration: ClusterConfiguration,
-        communicationMode: CommunicationMode
+        communicationMode: CommunicationMode,
+        secured: Boolean
     ): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
@@ -197,6 +192,14 @@ internal class EnvoyClustersFactory(
             )
             .setLbPolicy(properties.loadBalancing.policy)
             .configureLbSubsets()
+
+        if (secured) {
+            val upstreamTlsContext = createTlsContextWithSdsSecretConfig()
+            cluster.setTransportSocket(TransportSocket.newBuilder()
+                    .setName("envoy.transport_sockets.tls")
+                    .setTypedConfig(Any.pack(upstreamTlsContext)))
+                    .build()
+        }
 
         cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
         cluster.setCircuitBreakers(allThresholds)
