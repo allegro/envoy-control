@@ -23,10 +23,8 @@ node:
     use_remote_address: true
     access_log_enabled: false
     add_upstream_external_address_header: true
+    add_secondary_filter_chain_with_tls_context: true
     resources_dir: "/etc/envoy/extra"
-    private_key_path: "/app/privkey.pem"
-    certificate_path: "/app/fullchain.pem"
-    trusted_ca_path: "/usr/local/share/ca-certificates/root-ca.crt"
     proxy_settings:
       incoming:
         endpoints:

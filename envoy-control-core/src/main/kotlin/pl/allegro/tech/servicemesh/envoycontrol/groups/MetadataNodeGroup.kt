@@ -93,10 +93,9 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         val resourcesDir = metadata.fieldsMap["resources_dir"]?.stringValue
                 ?: ListenersConfig.defaultResourcesDir
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
-            ?: false
-        val privateKeyPath = metadata.fieldsMap["private_key_path"]?.stringValue
-        val certificatePath = metadata.fieldsMap["certificate_path"]?.stringValue
-        val trustedCaPath = metadata.fieldsMap["trusted_ca_path"]?.stringValue
+            ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
+        val addSecondaryFilterChainWithTlsContext = metadata.fieldsMap["add_secondary_filter_chain_with_tls_context"]?.boolValue
+            ?: ListenersConfig.defaultAddSecondaryFilterChainWithTlsContext
 
         return ListenersConfig(
                 listenersHostPort.ingressHost,
@@ -108,7 +107,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 enableLuaScript,
                 accessLogPath,
                 resourcesDir,
-                addUpstreamExternalAddressHeader
+                addUpstreamExternalAddressHeader,
+                addSecondaryFilterChainWithTlsContext
         )
     }
 

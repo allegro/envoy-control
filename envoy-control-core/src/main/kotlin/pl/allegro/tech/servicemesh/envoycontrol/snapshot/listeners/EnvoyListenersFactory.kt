@@ -101,8 +101,10 @@ class EnvoyListenersFactory(
         listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot
     ): Listener {
-        val insecureIngressChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, secured = false)
-        val securedIngressChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, secured = true)
+        val insecureIngressChain = createIngressFilterChain(group, listenersConfig, globalSnapshot)
+        val securedIngressChain = if (listenersConfig.addSecondaryFilterChainWithTlsContext) {
+            createSecuredIngressFilterChain(group, listenersConfig, globalSnapshot)
+        } else null
 
         val listener = Listener.newBuilder()
                 .setName("ingress_listener")
@@ -115,7 +117,7 @@ class EnvoyListenersFactory(
                 )
 
         listOfNotNull(securedIngressChain, insecureIngressChain).forEach {
-            listener.addFilterChains(it)
+            listener.addFilterChains(it.build())
         }
 
         return listener.build()
@@ -125,45 +127,40 @@ class EnvoyListenersFactory(
         group: Group,
         listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot,
-        secured: Boolean
-    ): FilterChain? {
-        val transportProtocol = if (secured) "tls" else "raw_buffer"
-        val tlsAuthenticationProperties = snapshotProperties.incomingPermissions.tlsAuthentication
-
-        val filterChain = FilterChain.newBuilder()
+        transportProtocol: String = "raw_buffer"
+    ): FilterChain.Builder {
+        return FilterChain.newBuilder()
                 .setFilterChainMatch(FilterChainMatch.newBuilder().setTransportProtocol(transportProtocol))
                 .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot))
-
-        if (shouldAddTlsContext(secured, globalSnapshot, group.serviceName)) {
-            val downstreamTlsContext = DownstreamTlsContext.newBuilder()
-                    .setRequireClientCertificate(BoolValue.of(true)) // uncomment to validate cert
-                    .setCommonTlsContext(CommonTlsContext.newBuilder()
-                            .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
-                                    .setName(tlsAuthenticationProperties.tlsCertificateConfigName).build()
-                            )
-//                            .addAllAlpnProtocols(listOf("h2,http/1.1"))
-                            .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
-                                    .setName(tlsAuthenticationProperties.validationContextConfigName)
-                                    .build()
-                            )
-                    )
-            filterChain.setTransportSocket(TransportSocket.newBuilder()
-                    .setName("envoy.transport_sockets.tls")
-                    .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
-                    .build()
-            )
-        }
-
-        return filterChain
-                .build()
     }
 
-    private fun shouldAddTlsContext(
-        secured: Boolean,
-        globalSnapshot: GlobalSnapshot,
-        serviceName: String
-    ): Boolean {
-        return secured && globalSnapshot.mtlsEnabledForCluster(serviceName)
+    private fun createSecuredIngressFilterChain(
+            group: Group,
+            listenersConfig: ListenersConfig,
+            globalSnapshot: GlobalSnapshot
+    ): FilterChain.Builder {
+        val filterChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, "tls")
+        val tlsAuthenticationProperties = snapshotProperties.incomingPermissions.tlsAuthentication
+
+        val downstreamTlsContext = DownstreamTlsContext.newBuilder()
+                .setRequireClientCertificate(BoolValue.of(true)) // if false, will not validate cert
+                .setCommonTlsContext(CommonTlsContext.newBuilder()
+                        .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
+                                .setName(tlsAuthenticationProperties.tlsCertificateConfigName).build()
+                        )
+                        // .addAllAlpnProtocols(listOf("h2,http/1.1"))
+                        .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
+                                .setName(tlsAuthenticationProperties.validationContextConfigName)
+                                .build()
+                        )
+                )
+        filterChain.setTransportSocket(TransportSocket.newBuilder()
+                .setName("envoy.transport_sockets.tls")
+                .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
+                .build()
+        )
+
+        return filterChain
     }
 
     private fun createEgressFilterChain(
