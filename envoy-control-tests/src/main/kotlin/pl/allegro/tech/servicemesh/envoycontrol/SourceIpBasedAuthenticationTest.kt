@@ -35,8 +35,8 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
 
     @Test
     fun `should allow access to selected clients using source based authentication`() {
-        registerEcho1WithEnvoyOnIngress()
-        registerEcho2WithEnvoyOnIngress()
+        registerEcho1WithEnvoy1OnIngress()
+        registerEcho2WithEnvoy2OnIngress()
 
         untilAsserted {
             // when
@@ -49,7 +49,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         }
     }
 
-    private fun registerEcho1WithEnvoyOnIngress() {
+    private fun registerEcho1WithEnvoy1OnIngress() {
         registerService(
                 id = "echo",
                 name = "echo", address = envoyContainer1.ipAddress(),
@@ -57,7 +57,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         )
     }
 
-    private fun registerEcho2WithEnvoyOnIngress() {
+    private fun registerEcho2WithEnvoy2OnIngress() {
         registerService(
                 id = "echo2",
                 name = "echo2", address = envoyContainer2.ipAddress(),

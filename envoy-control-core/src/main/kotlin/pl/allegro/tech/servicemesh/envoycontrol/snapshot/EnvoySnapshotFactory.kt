@@ -232,7 +232,7 @@ internal class EnvoySnapshotFactory(
                     routes = routes,
                     routesVersion = version.routes,
                     listeners = listeners,
-                    // TODO: java-control-plane: https://github.com/envoyproxy/java-control-plane/pull/131#discussion_r393350488
+                    // TODO: java-control-plane: https://github.com/envoyproxy/java-control-plane/issues/134
                     listenersVersion = version.listeners
             )
         }
@@ -243,7 +243,7 @@ internal class EnvoySnapshotFactory(
             endpoints = endpoints,
             endpointsVersions = version.endpoints,
             listeners = listeners,
-            // TODO: java-control-plane: https://github.com/envoyproxy/java-control-plane/pull/131#discussion_r393350488
+            // TODO: java-control-plane: https://github.com/envoyproxy/java-control-plane/issues/134
             listenersVersion = version.listeners,
             routes = routes,
             routesVersion = version.routes

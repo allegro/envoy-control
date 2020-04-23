@@ -4,6 +4,7 @@ import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.Listener
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions.Companion.newVersion
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -20,6 +21,9 @@ import java.util.concurrent.ConcurrentHashMap
  * We don't need strong consistency there.
  */
 internal class SnapshotsVersions {
+    companion object {
+        fun newVersion(): String = UUID.randomUUID().toString().replace("-", "")
+    }
 
     private val versions = ConcurrentHashMap<Group, VersionsWithData>()
 
@@ -32,23 +36,25 @@ internal class SnapshotsVersions {
         val versionsWithData = versions.compute(group) { _, previous ->
             val version = when (previous) {
                 null -> Version(
-                        clusters = ClustersVersion(newVersion()),
-                        endpoints = EndpointsVersion(newVersion()),
+                        clusters = ClustersVersion(clusters),
+                        endpoints = EndpointsVersion(endpoints),
                         listeners = ListenersVersion(newVersion()),
                         routes = RoutesVersion(newVersion())
                 )
                 else -> {
                     val clustersChanged = previous.clusters != clusters
+                    val haveListenersChanged = previous.listeners != listeners
                     Version(
-                        clusters = selectClusters(previous, clustersChanged),
+                        clusters = selectClusters(previous, clusters, clustersChanged),
                         endpoints = selectEndpoints(previous, endpoints, clustersChanged),
-                        listeners = selectListeners(previous, previous.listeners != listeners),
-                        routes = selectRoutes(previous, previous.listeners != listeners, clustersChanged)
+                        listeners = selectListeners(previous, haveListenersChanged),
+                        routes = selectRoutes(previous, haveListenersChanged, clustersChanged)
                     )
                 }
             }
             VersionsWithData(version, clusters, endpoints, listeners)
         }
+
         return versionsWithData!!.version
     }
 
@@ -74,13 +80,14 @@ internal class SnapshotsVersions {
     ) = if (!clusterChanged && previous.endpoints == endpoints) {
         previous.version.endpoints
     } else {
-        EndpointsVersion(newVersion())
+        EndpointsVersion(endpoints)
     }
 
     private fun selectClusters(
         previous: VersionsWithData,
+        current: List<Cluster>,
         clustersChanged: Boolean
-    ) = if (!clustersChanged) previous.version.clusters else ClustersVersion(newVersion())
+    ) = if (!clustersChanged) previous.version.clusters else ClustersVersion(current)
 
     /**
      * This should be called before setting new snapshot to cache. The cache cleans up not used groups by using
@@ -90,8 +97,6 @@ internal class SnapshotsVersions {
         val toRemove = versions.keys - groups
         toRemove.forEach { group -> versions.remove(group) }
     }
-
-    private fun newVersion(): String = UUID.randomUUID().toString().replace("-", "")
 
     private data class VersionsWithData(
         val version: Version,
@@ -109,12 +114,20 @@ internal class SnapshotsVersions {
 }
 
 data class ClustersVersion(val value: String) {
+    constructor(clusters: List<Cluster>) : this(
+            if (clusters.isEmpty()) newVersion() else EMPTY_VERSION.value
+    )
+
     companion object {
         val EMPTY_VERSION = ClustersVersion("empty")
     }
 }
 
 data class EndpointsVersion(val value: String) {
+    constructor(endpoints: List<ClusterLoadAssignment>) : this(
+            if (endpoints.isEmpty()) newVersion() else EMPTY_VERSION.value
+    )
+
     companion object {
         val EMPTY_VERSION = EndpointsVersion("empty")
     }

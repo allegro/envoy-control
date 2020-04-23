@@ -30,7 +30,7 @@ class RBACFilterFactory(
     companion object {
         private val logger by logger()
         private const val anyPrincipalName = "_ANY_"
-        private const val exactIpMask = 32
+        private val exactIpMask = UInt32Value.of(32)
     }
 
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
@@ -51,16 +51,13 @@ class RBACFilterFactory(
 
             val clients = resolveClients(incomingEndpoint, incomingPermissions.roles)
             val policyName = clients.joinToString(",")
+            val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(policyName) {
+                Policy.newBuilder().addAllPrincipals(
+                        clients.flatMap { mapClientToPrincipals(it, snapshot) }
+                )
+            }
 
-            val principals = clients.flatMap { mapClientToPrincipals(it, snapshot) }
-
-            if (principals.isNotEmpty()) {
-                val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(policyName) {
-                    Policy.newBuilder().addAllPrincipals(
-                            clients.flatMap { mapClientToPrincipals(it, snapshot) }
-                    )
-                }
-
+            if (policy.principalsList.isNotEmpty()) {
                 val combinedPermissions = createCombinedPermissions(incomingEndpoint)
                 policy.addPermissions(combinedPermissions)
             }
@@ -152,7 +149,7 @@ class RBACFilterFactory(
             }.map { address ->
                 Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
                         .setAddressPrefix(address.socketAddress.address)
-                        .setPrefixLen(UInt32Value.of(exactIpMask)).build())
+                        .setPrefixLen(exactIpMask).build())
                         .build()
             }
     }
