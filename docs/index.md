@@ -1,4 +1,4 @@
-# Envoy Control
+# ![logo](assets/images/logo.png) Envoy Control
 
 Envoy Control is a production-ready Control Plane for Service Mesh based on [Envoy Proxy](https://www.envoyproxy.io/)
 Data Plane that is platform agnostic.
