@@ -54,7 +54,6 @@ internal class SnapshotsVersions {
             }
             VersionsWithData(version, clusters, endpoints, listeners)
         }
-
         return versionsWithData!!.version
     }
 
@@ -115,7 +114,7 @@ internal class SnapshotsVersions {
 
 data class ClustersVersion(val value: String) {
     constructor(clusters: List<Cluster>) : this(
-            if (clusters.isEmpty()) newVersion() else EMPTY_VERSION.value
+            if (clusters.isEmpty()) EMPTY_VERSION.value else newVersion()
     )
 
     companion object {
@@ -125,7 +124,7 @@ data class ClustersVersion(val value: String) {
 
 data class EndpointsVersion(val value: String) {
     constructor(endpoints: List<ClusterLoadAssignment>) : this(
-            if (endpoints.isEmpty()) newVersion() else EMPTY_VERSION.value
+            if (endpoints.isEmpty()) EMPTY_VERSION.value else newVersion()
     )
 
     companion object {
