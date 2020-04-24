@@ -163,7 +163,7 @@ class SnapshotUpdaterTest {
     }
 
     @Test
-    fun `should generate snapshot with empty clusters version and one route`() {
+    fun `should generate snapshot with empty clusters and endpoints version and one route`() {
         // given
         val emptyGroup = groupOf()
 
@@ -180,7 +180,7 @@ class SnapshotUpdaterTest {
         // then version is set to empty
         val snapshot = hasSnapshot(cache, emptyGroup)
         assertThat(snapshot.clusters().version()).isEqualTo(ClustersVersion.EMPTY_VERSION.value)
-        assertThat(snapshot.endpoints().version()).isNotEqualTo(EndpointsVersion.EMPTY_VERSION.value)
+        assertThat(snapshot.endpoints().version()).isEqualTo(EndpointsVersion.EMPTY_VERSION.value)
         assertThat(snapshot.listeners().version()).isNotEqualTo(ListenersVersion.EMPTY_VERSION.value)
         assertThat(snapshot.routes().version()).isNotEqualTo(RoutesVersion.EMPTY_VERSION.value)
 

@@ -37,7 +37,7 @@ internal class SnapshotsVersions {
             val version = when (previous) {
                 null -> Version(
                         clusters = ClustersVersion(clusters),
-                        endpoints = EndpointsVersion(newVersion()),
+                        endpoints = EndpointsVersion(clusters),
                         listeners = ListenersVersion(newVersion()),
                         routes = RoutesVersion(newVersion())
                 )
@@ -123,6 +123,10 @@ data class ClustersVersion(val value: String) {
 }
 
 data class EndpointsVersion(val value: String) {
+    constructor(clusters: List<Cluster>) : this(
+            if (clusters.isEmpty()) EMPTY_VERSION.value else newVersion()
+    )
+
     companion object {
         val EMPTY_VERSION = EndpointsVersion("empty")
     }
