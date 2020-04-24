@@ -29,7 +29,7 @@ class RBACFilterFactory(
     companion object {
         private val logger by logger()
         private const val ANY_PRINCIPAL_NAME = "_ANY_"
-        private const val EXACT_IP_MASK = 32
+        private val EXACT_IP_MASK = UInt32Value.of(32)
     }
 
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
@@ -148,7 +148,7 @@ class RBACFilterFactory(
         }.map { address ->
             Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
                     .setAddressPrefix(address.socketAddress.address)
-                    .setPrefixLen(UInt32Value.of(EXACT_IP_MASK)).build())
+                    .setPrefixLen(EXACT_IP_MASK).build())
                     .build()
         }
     }

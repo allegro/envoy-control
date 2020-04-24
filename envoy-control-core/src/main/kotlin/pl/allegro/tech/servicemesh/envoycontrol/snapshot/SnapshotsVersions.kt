@@ -37,7 +37,7 @@ internal class SnapshotsVersions {
             val version = when (previous) {
                 null -> Version(
                         clusters = ClustersVersion(clusters),
-                        endpoints = EndpointsVersion(endpoints),
+                        endpoints = EndpointsVersion(newVersion()),
                         listeners = ListenersVersion(newVersion()),
                         routes = RoutesVersion(newVersion())
                 )
@@ -79,7 +79,7 @@ internal class SnapshotsVersions {
     ) = if (!clusterChanged && previous.endpoints == endpoints) {
         previous.version.endpoints
     } else {
-        EndpointsVersion(endpoints)
+        EndpointsVersion(newVersion())
     }
 
     private fun selectClusters(
@@ -123,10 +123,6 @@ data class ClustersVersion(val value: String) {
 }
 
 data class EndpointsVersion(val value: String) {
-    constructor(endpoints: List<ClusterLoadAssignment>) : this(
-            if (endpoints.isEmpty()) EMPTY_VERSION.value else newVersion()
-    )
-
     companion object {
         val EMPTY_VERSION = EndpointsVersion("empty")
     }
