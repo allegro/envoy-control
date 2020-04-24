@@ -30,7 +30,6 @@ class MetricsProperties {
 }
 
 class ListenersFactoryProperties {
-    val initialVersion: String = "empty"
     var enabled = true
     var httpFilters = HttpFiltersProperties()
 }
@@ -88,7 +87,6 @@ class LoadBalancingWeightsProperties {
 }
 
 class RoutesProperties {
-    var initialVersion = "empty"
     var admin = AdminRouteProperties()
     var status = StatusRouteProperties()
     var authorization = AuthorizationProperties()

@@ -43,12 +43,12 @@ internal class SnapshotsVersions {
                 )
                 else -> {
                     val clustersChanged = previous.clusters != clusters
-                    val haveListenersChanged = previous.listeners != listeners
+                    val listenersChanged = previous.listeners != listeners
                     Version(
                         clusters = selectClusters(previous, clusters, clustersChanged),
                         endpoints = selectEndpoints(previous, endpoints, clustersChanged),
-                        listeners = selectListeners(previous, haveListenersChanged),
-                        routes = selectRoutes(previous, haveListenersChanged, clustersChanged)
+                        listeners = selectListeners(previous, listenersChanged),
+                        routes = selectRoutes(previous, listenersChanged, clustersChanged)
                     )
                 }
             }
