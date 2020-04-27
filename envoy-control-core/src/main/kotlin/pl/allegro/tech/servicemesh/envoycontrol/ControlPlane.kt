@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import io.envoyproxy.controlplane.cache.NodeGroup
-import io.envoyproxy.controlplane.cache.SimpleCache
+import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.server.DefaultExecutorGroup
 import io.envoyproxy.controlplane.server.DiscoveryServer
 import io.envoyproxy.controlplane.server.ExecutorGroup
@@ -22,6 +22,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
@@ -37,14 +40,18 @@ import java.util.concurrent.atomic.AtomicInteger
 class ControlPlane private constructor(
     val grpcServer: Server,
     val snapshotUpdater: SnapshotUpdater,
+    val nodeGroup: NodeGroup<Group>,
+    val cache: SnapshotCache<Group>,
     private val changes: Flux<List<LocalityAwareServicesState>>
 ) : AutoCloseable {
 
     private var servicesDisposable: Disposable? = null
 
     companion object {
-        fun builder(properties: EnvoyControlProperties, meterRegistry: MeterRegistry) =
-            ControlPlaneBuilder(properties, meterRegistry)
+        fun builder(
+            properties: EnvoyControlProperties,
+            meterRegistry: MeterRegistry
+        ) = ControlPlaneBuilder(properties, meterRegistry)
     }
 
     fun start() {
@@ -67,8 +74,10 @@ class ControlPlane private constructor(
         var grpcServerExecutor: Executor? = null
         var nioEventLoopExecutor: Executor? = null
         var executorGroup: ExecutorGroup? = null
-        var updateSnapshotExecutor: Executor? = null
-        var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics()
+        var globalSnapshotExecutor: Executor? = null
+        var groupSnapshotParallelExecutorSupplier: () -> Executor? = { null }
+        var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
+        var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
@@ -97,6 +106,10 @@ class ControlPlane private constructor(
                 executorGroup = when (properties.server.executorGroup.type) {
                     ExecutorType.DIRECT -> DefaultExecutorGroup()
                     ExecutorType.PARALLEL -> {
+                        // TODO(https://github.com/allegro/envoy-control/issues/103) this implementation of parallel
+                        //   executor group is invalid, because it may lead to sending XDS responses out of order for
+                        //   given DiscoveryRequestStreamObserver. We should switch to multiple, single-threaded
+                        //   ThreadPoolExecutors. More info in linked task.
                         val executor = Executors.newFixedThreadPool(
                             properties.server.executorGroup.parallelPoolSize,
                             ThreadNamingThreadFactory("discovery-responses-executor")
@@ -106,15 +119,34 @@ class ControlPlane private constructor(
                 }
             }
 
-            if (updateSnapshotExecutor == null) {
-                updateSnapshotExecutor = Executors.newSingleThreadExecutor(ThreadNamingThreadFactory("snapshot-update"))
+            if (globalSnapshotExecutor == null) {
+                globalSnapshotExecutor = Executors.newFixedThreadPool(
+                    properties.server.globalSnapshotUpdatePoolSize,
+                    ThreadNamingThreadFactory("snapshot-update")
+                )
             }
 
-            val cache = SimpleCache(nodeGroup)
+            val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
+
+            val groupSnapshotScheduler = when (groupSnapshotProperties.type) {
+                ExecutorType.DIRECT -> DirectScheduler
+                ExecutorType.PARALLEL -> ParallelScheduler(
+                    scheduler = Schedulers.fromExecutor(
+                        groupSnapshotParallelExecutorSupplier()
+                            ?: Executors.newFixedThreadPool(
+                                groupSnapshotProperties.parallelPoolSize,
+                                ThreadNamingThreadFactory("group-snapshot")
+                            )
+                    ),
+                    parallelism = groupSnapshotProperties.parallelPoolSize
+                )
+            }
+
+            val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
 
             val cleanupProperties = properties.server.snapshotCleanup
 
-            val groupChangeWatcher = GroupChangeWatcher(cache, metrics)
+            val groupChangeWatcher = GroupChangeWatcher(cache, metrics, meterRegistry)
 
             val discoveryServer = DiscoveryServer(
                 listOf(
@@ -128,7 +160,10 @@ class ControlPlane private constructor(
                             cleanupProperties.collectAfterMillis.toMillis(),
                             cleanupProperties.collectionIntervalMillis.toMillis()
                         ),
-                        LoggingDiscoveryServerCallbacks(),
+                        LoggingDiscoveryServerCallbacks(
+                            properties.server.logFullRequest,
+                            properties.server.logFullResponse
+                        ),
                         MeteredConnectionsCallbacks().also {
                             meterRegistry.gauge("grpc.all-connections", it.connections)
                             MeteredConnectionsCallbacks.MetricsStreamType.values().map { type ->
@@ -140,7 +175,7 @@ class ControlPlane private constructor(
                 ),
                 groupChangeWatcher,
                 executorGroup,
-                CachedProtoResourcesSerializer()
+                CachedProtoResourcesSerializer(meterRegistry, properties.server.reportProtobufCacheMetrics)
             )
 
             return ControlPlane(
@@ -148,10 +183,14 @@ class ControlPlane private constructor(
                 SnapshotUpdater(
                     cache,
                     properties.envoy.snapshot,
-                    Schedulers.fromExecutor(updateSnapshotExecutor!!),
+                    Schedulers.fromExecutor(globalSnapshotExecutor!!),
+                    groupSnapshotScheduler,
                     groupChangeWatcher.onGroupAdded(),
-                    meterRegistry
+                    meterRegistry,
+                    envoyHttpFilters
                 ),
+                nodeGroup,
+                cache,
                 changes
             )
         }
@@ -176,13 +215,23 @@ class ControlPlane private constructor(
             return this
         }
 
-        fun withUpdateSnapshotExecutor(executor: Executor): ControlPlaneBuilder {
-            updateSnapshotExecutor = executor
+        fun withGlobalSnapshotExecutor(executor: Executor): ControlPlaneBuilder {
+            globalSnapshotExecutor = executor
+            return this
+        }
+
+        fun withGroupSnapshotParallelExecutor(executorSupplier: () -> Executor): ControlPlaneBuilder {
+            groupSnapshotParallelExecutorSupplier = executorSupplier
             return this
         }
 
         fun withMetrics(metrics: EnvoyControlMetrics): ControlPlaneBuilder {
             this.metrics = metrics
+            return this
+        }
+
+        fun withEnvoyHttpFilters(envoyHttpFilters: EnvoyHttpFilters): ControlPlaneBuilder {
+            this.envoyHttpFilters = envoyHttpFilters
             return this
         }
 

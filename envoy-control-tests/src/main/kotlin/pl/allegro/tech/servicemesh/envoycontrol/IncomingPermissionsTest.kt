@@ -13,7 +13,9 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
 
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.endpoint-unavailable-status-code" to 403
+            "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
+            "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
+            "envoy-control.envoy.snapshot.routes.status.enabled" to true
         )
 
         @JvmStatic
@@ -26,10 +28,25 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
+    fun `should allow access to status endpoint by all clients`() {
+        untilAsserted {
+            // when
+            val response = callLocalService("/status/", Headers.of())
+            val statusUpstreamOk = envoyContainer1.admin().statValue(
+                    "vhost.secured_local_service.vcluster.status.upstream_rq_200"
+            )?.toInt()
+
+            // then
+            assertThat(response).isOk().isFrom(localServiceContainer)
+            assertThat(statusUpstreamOk).isGreaterThan(0)
+        }
+    }
+
+    @Test
     fun `should allow access to endpoint by authorized client`() {
         untilAsserted {
             // when
-            val response = callLocalService(endpoint = "/endpoint",
+            val response = callLocalService(endpoint = "/endpoint?a=b",
                 headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
 
             // then

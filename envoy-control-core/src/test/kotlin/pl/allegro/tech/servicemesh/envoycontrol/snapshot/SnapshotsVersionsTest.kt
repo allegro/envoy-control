@@ -10,6 +10,7 @@ import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
@@ -21,7 +22,7 @@ internal class SnapshotsVersionsTest {
 
     private val snapshotsVersions = SnapshotsVersions()
 
-    private val group = AllServicesGroup(ads = false)
+    private val group = AllServicesGroup(communicationMode = XDS)
     private val clusters = listOf(cluster(name = "service1"))
     private val endpoints = listOf(endpoints(clusterName = "service1", instances = 1))
 
@@ -50,7 +51,7 @@ internal class SnapshotsVersionsTest {
     }
 
     @Test
-    fun `should generate new version only for clusters when they are different`() {
+    fun `should generate new version for clusters and endpoints when clusters are different`() {
         // given
         val versions = snapshotsVersions.version(group, clusters, endpoints)
 
@@ -59,7 +60,7 @@ internal class SnapshotsVersionsTest {
         val newVersions = snapshotsVersions.version(group, newClusters, endpoints)
 
         // then
-        assertThat(newVersions.endpoints).isEqualTo(versions.endpoints)
+        assertThat(newVersions.endpoints).isNotEqualTo(versions.endpoints)
         assertThat(newVersions.clusters).isNotEqualTo(versions.clusters)
     }
 
@@ -135,28 +136,28 @@ internal class SnapshotsVersionsTest {
 
     private fun createGroup(endpointPath: String): AllServicesGroup {
         return AllServicesGroup(
-            ads = false,
-            serviceName = "name",
-            proxySettings = ProxySettings(
-                incoming = Incoming(
-                    endpoints = listOf(
-                        IncomingEndpoint(
-                            path = endpointPath,
-                            pathMatchingType = PathMatchingType.PATH,
-                            methods = setOf("GET", "PUT"),
-                            clients = setOf("client1", "role1")
+                communicationMode = XDS,
+                serviceName = "name",
+                proxySettings = ProxySettings(
+                    incoming = Incoming(
+                        endpoints = listOf(
+                            IncomingEndpoint(
+                                path = endpointPath,
+                                pathMatchingType = PathMatchingType.PATH,
+                                methods = setOf("GET", "PUT"),
+                                clients = setOf("client1", "role1")
+                            )
+                        ),
+                        permissionsEnabled = true,
+                        roles = listOf(
+                            Role(
+                                name = "role1",
+                                clients = setOf("client2", "client3")
+                            )
                         )
                     ),
-                    permissionsEnabled = true,
-                    roles = listOf(
-                        Role(
-                            name = "role1",
-                            clients = setOf("client2", "client3")
-                        )
-                    )
-                ),
-                outgoing = Outgoing(listOf())
-            )
+                    outgoing = Outgoing(listOf())
+                )
         )
     }
 }

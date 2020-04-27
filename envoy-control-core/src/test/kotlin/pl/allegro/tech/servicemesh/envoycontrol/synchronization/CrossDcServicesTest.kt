@@ -101,8 +101,9 @@ class CrossDcServicesTest {
         return object : ControlPlaneInstanceFetcher {
             override fun instances(dc: String): List<URI> {
                 val uri = URI.create("http://$dc")
-                if (uri.path == "/noinstances")
+                if (uri.path == "/noinstances") {
                     return emptyList()
+                }
                 return listOf(uri)
             }
         }

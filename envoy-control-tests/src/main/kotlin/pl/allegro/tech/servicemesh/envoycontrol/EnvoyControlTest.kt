@@ -4,8 +4,20 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
+import pl.allegro.tech.servicemesh.envoycontrol.config.AdsWithStaticListeners
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
+
+internal class AdsWithStaticListenersEnvoyControlTest : EnvoyControlTest() {
+    companion object {
+
+        @JvmStatic
+        @BeforeAll
+        fun adsSetup() {
+            setup(envoyConfig = AdsWithStaticListeners)
+        }
+    }
+}
 
 internal class AdsEnvoyControlTest : EnvoyControlTest() {
     companion object {

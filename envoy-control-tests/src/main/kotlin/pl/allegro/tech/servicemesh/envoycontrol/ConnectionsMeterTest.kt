@@ -36,7 +36,7 @@ internal class XdsConnectionsMeterTest : EnvoyControlTestConfiguration() {
             mapOf(
                 CDS to 1,
                 EDS to 2, // separate streams for consul and echo
-                LDS to 0,
+                LDS to 1,
                 RDS to 2, // default_routes
                 SDS to 0,
                 ADS to 0,

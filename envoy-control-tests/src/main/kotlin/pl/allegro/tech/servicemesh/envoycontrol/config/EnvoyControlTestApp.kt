@@ -2,16 +2,21 @@ package pl.allegro.tech.servicemesh.envoycontrol.config
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.pszymczyk.consul.infrastructure.Ports
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
 import org.springframework.boot.actuate.health.Status
 import org.springframework.boot.builder.SpringApplicationBuilder
+import org.springframework.http.HttpStatus
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControl
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.debug.Versions
 import java.time.Duration
 
 interface EnvoyControlTestApp {
@@ -22,6 +27,8 @@ interface EnvoyControlTestApp {
     fun stop()
     fun isHealthy(): Boolean
     fun getState(): ServicesState
+    fun getSnapshot(nodeJson: String): SnapshotDebugResponse
+    fun getGlobalSnapshot(xds: Boolean?): SnapshotDebugResponse
     fun getHealthStatus(): Health
     fun <T> bean(clazz: Class<T>): T
 }
@@ -80,6 +87,54 @@ class EnvoyControlRunnerTestApp(
         return objectMapper.readValue(response.body()?.use { it.string() }, ServicesState::class.java)
     }
 
+    override fun getSnapshot(nodeJson: String): SnapshotDebugResponse {
+        val response = httpClient.newCall(
+            Request.Builder()
+                .post(RequestBody.create(MediaType.get("application/json"), nodeJson))
+                .url("http://localhost:$appPort/snapshot")
+                .build()
+        ).execute()
+
+        if (response.code() == HttpStatus.NOT_FOUND.value()) {
+            return SnapshotDebugResponse(found = false)
+        } else if (!response.isSuccessful) {
+            throw SnapshotDebugResponseInvalidStatusException(response.code())
+        }
+
+        return response.body()
+            ?.use { objectMapper.readValue(it.byteStream(), SnapshotDebugResponse::class.java) }
+            ?.copy(found = true) ?: throw SnapshotDebugResponseMissingException()
+    }
+
+    override fun getGlobalSnapshot(xds: Boolean?): SnapshotDebugResponse {
+        var url = "http://localhost:$appPort/snapshot-global"
+        if (xds != null) {
+            url += "?xds=$xds"
+        }
+        val response = httpClient.newCall(
+            Request.Builder()
+                .get()
+                .url(url)
+                .build()
+        ).execute()
+
+        if (response.code() == HttpStatus.NOT_FOUND.value()) {
+            return SnapshotDebugResponse(found = false)
+        } else if (!response.isSuccessful) {
+            throw SnapshotDebugResponseInvalidStatusException(response.code())
+        }
+
+        return response.body()
+            ?.use { objectMapper.readValue(it.byteStream(), SnapshotDebugResponse::class.java) }
+            ?.copy(found = true) ?: throw SnapshotDebugResponseMissingException()
+    }
+
+    class SnapshotDebugResponseMissingException :
+        RuntimeException("Expected snapshot debug in response body but got none")
+
+    class SnapshotDebugResponseInvalidStatusException(status: Int) :
+        RuntimeException("Invalid snapshot debug response status: $status")
+
     private fun getApplicationStatusResponse(): Response =
         httpClient
             .newCall(
@@ -107,4 +162,10 @@ data class Health(
 
 data class HealthDetails(
     val status: Status
+)
+
+data class SnapshotDebugResponse(
+    val found: Boolean,
+    val versions: Versions? = null,
+    val snapshot: ObjectNode? = null
 )

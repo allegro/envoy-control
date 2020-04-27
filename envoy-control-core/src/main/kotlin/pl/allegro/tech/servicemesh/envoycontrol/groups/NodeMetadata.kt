@@ -8,14 +8,17 @@ import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.net.URL
+import java.text.ParseException
 
-open class NodeMetadataValidationException(message: String)
-    : RequestException(Status.INVALID_ARGUMENT.withDescription(message))
+open class NodeMetadataValidationException(message: String) :
+    RequestException(Status.INVALID_ARGUMENT.withDescription(message))
 
 class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
     val serviceName: String? = metadata
         .fieldsMap["service_name"]
         ?.stringValue
+
+    val communicationMode = getCommunicationMode(metadata.fieldsMap["ads"])
 
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
 }
@@ -40,6 +43,17 @@ data class ProxySettings(
     )
 }
 
+private fun getCommunicationMode(proto: Value?): CommunicationMode {
+    val ads = proto
+        ?.boolValue
+        ?: false
+
+    return when (ads) {
+        true -> CommunicationMode.ADS
+        else -> CommunicationMode.XDS
+    }
+}
+
 private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     return Outgoing(
         dependencies = this?.field("dependencies")?.list().orEmpty().map { it.toDependency(properties) }
@@ -56,8 +70,9 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
             idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
             requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
         )
+    val rewriteHostHeader = this.field("rewriteHostHeader")?.boolValue ?: false
 
-    val settings = DependencySettings(handleInternalRedirect, timeoutPolicy)
+    val settings = DependencySettings(handleInternalRedirect, timeoutPolicy, rewriteHostHeader)
 
     return when {
         service == null && domain == null || service != null && domain != null ->
@@ -73,15 +88,26 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
     }
 }
 
-private fun Value?.toIncoming(): Incoming {
+fun Value?.toIncoming(): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     return Incoming(
         endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
+        healthCheck = this?.field("healthCheck").toHealthCheck(),
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
         timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy()
     )
+}
+
+fun Value?.toHealthCheck(): HealthCheck {
+    val path = this?.field("path")?.stringValue
+    val clusterName = this?.field("clusterName")?.stringValue ?: "local_service_health_check"
+
+    return when {
+        path != null -> HealthCheck(path = path, clusterName = clusterName)
+        else -> HealthCheck()
+    }
 }
 
 fun Value.toIncomingEndpoint(): IncomingEndpoint {
@@ -103,39 +129,52 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
 }
 
 private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
-    val idleTimeout: Duration? = this?.field("idleTimeout")?.stringValue
-        ?.takeIf { it.isNotBlank() }
-        ?.let { Durations.parse(it) }
-    val responseTimeout: Duration? = this?.field("responseTimeout")?.stringValue
-        ?.takeIf { it.isNotBlank() }
-        ?.let { Durations.parse(it) }
+    val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
+    val responseTimeout: Duration? = this?.field("responseTimeout")?.toDuration()
+    val connectionIdleTimeout: Duration? = this?.field("connectionIdleTimeout")?.toDuration()
 
-    return Incoming.TimeoutPolicy(idleTimeout, responseTimeout)
+    return Incoming.TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout)
 }
 
 private fun Value?.toOutgoingTimeoutPolicy(properties: SnapshotProperties): Outgoing.TimeoutPolicy {
-    val idleTimeout: Duration? = this?.field("idleTimeout")?.stringValue
-        ?.takeIf { it.isNotBlank() }
-        ?.let { Durations.parse(it) }
+    val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
         ?: Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
-    val requestTimeout: Duration? = this?.field("requestTimeout")?.stringValue
-        ?.takeIf { it.isNotBlank() }
-        ?.let { Durations.parse(it) }
+    val requestTimeout: Duration? = this?.field("requestTimeout")?.toDuration()
         ?: Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
 
     return Outgoing.TimeoutPolicy(idleTimeout, requestTimeout)
 }
 
+@Suppress("SwallowedException")
+fun Value.toDuration(): Duration? {
+    return when (this.kindCase) {
+        Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException("Timeout definition has number format" +
+            " but should be in string format and ends with 's'")
+        Value.KindCase.STRING_VALUE -> {
+            try {
+                this.stringValue?.takeIf { it.isNotBlank() }?.let { Durations.parse(it) }
+            } catch (ex: ParseException) {
+                throw NodeMetadataValidationException("Timeout definition has incorrect format: ${ex.message}")
+            }
+        }
+        else -> null
+    }
+}
+
 data class Incoming(
     val endpoints: List<IncomingEndpoint> = emptyList(),
     val permissionsEnabled: Boolean = false,
+    val healthCheck: HealthCheck = HealthCheck(),
     val roles: List<Role> = emptyList(),
-    val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(idleTimeout = null, responseTimeout = null)
+    val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(
+        idleTimeout = null, responseTimeout = null, connectionIdleTimeout = null
+    )
 ) {
 
     data class TimeoutPolicy(
         val idleTimeout: Duration?,
-        val responseTimeout: Duration?
+        val responseTimeout: Duration?,
+        val connectionIdleTimeout: Duration?
     )
 }
 
@@ -194,7 +233,8 @@ data class DomainDependency(
 
 data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
-    val timeoutPolicy: Outgoing.TimeoutPolicy? = null
+    val timeoutPolicy: Outgoing.TimeoutPolicy? = null,
+    val rewriteHostHeader: Boolean = false
 )
 
 data class Role(
@@ -207,6 +247,13 @@ data class Role(
     )
 }
 
+data class HealthCheck(
+    val path: String = "",
+    val clusterName: String = "local_service_health_check"
+) {
+    fun hasCustomHealthCheck() = !path.isBlank()
+}
+
 data class IncomingEndpoint(
     override val path: String = "",
     override val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
@@ -216,6 +263,10 @@ data class IncomingEndpoint(
 
 enum class PathMatchingType {
     PATH, PATH_PREFIX
+}
+
+enum class CommunicationMode {
+    ADS, XDS
 }
 
 interface EndpointBase {

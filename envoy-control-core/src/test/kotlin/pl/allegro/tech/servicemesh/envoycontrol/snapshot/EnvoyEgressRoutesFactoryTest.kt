@@ -6,8 +6,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomIdleTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomRequestTimeout
-import pl.allegro.tech.servicemesh.envoycontrol.groups.hasHeaderToAdd
-import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.autoHostRewriteHeaderIsEmpty
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasAutoHostRewriteHeader
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRequestHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
 
 internal class EnvoyEgressRoutesFactoryTest {
 
@@ -20,7 +23,8 @@ internal class EnvoyEgressRoutesFactoryTest {
                 timeoutPolicy = Outgoing.TimeoutPolicy(
                     idleTimeout = Durations.fromSeconds(10L),
                     requestTimeout = Durations.fromSeconds(10L)
-                )
+                ),
+                rewriteHostHeader = true
             )
         )
     )
@@ -33,11 +37,11 @@ internal class EnvoyEgressRoutesFactoryTest {
         })
 
         // when
-        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters)
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
 
         // then
         routeConfig
-            .hasHeaderToAdd("x-service-name", "client1")
+            .hasRequestHeaderToAdd("x-service-name", "client1")
 
         routeConfig
             .virtualHostsList[0]
@@ -55,11 +59,11 @@ internal class EnvoyEgressRoutesFactoryTest {
         })
 
         // when
-        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters)
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
 
         // then
         routeConfig
-            .hasNoHeaderToAdd("x-service-name")
+            .hasNoRequestHeaderToAdd("x-service-name")
 
         routeConfig
             .virtualHostsList[0]
@@ -67,5 +71,69 @@ internal class EnvoyEgressRoutesFactoryTest {
             .route
             .hasCustomIdleTimeout(Durations.fromSeconds(10L))
             .hasCustomRequestTimeout(Durations.fromSeconds(10L))
+    }
+
+    @Test
+    fun `should add upstream remote address header if addUpstreamAddress is enabled`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+
+        // when
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, true)
+
+        // then
+        routeConfig
+            .hasResponseHeaderToAdd("x-envoy-upstream-remote-address", "%UPSTREAM_REMOTE_ADDRESS%")
+    }
+
+    @Test
+    fun `should not add upstream remote address header if addUpstreamAddress is disabled`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+
+        // when
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
+
+        // then
+        routeConfig
+            .hasNoRequestHeaderToAdd("x-envoy-upstream-remote-address")
+    }
+
+    @Test
+    fun `should not add auto rewrite host header when feature is disabled in configuration`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
+            egress.hostHeaderRewriting.enabled = false
+        })
+
+        // when
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
+
+        // then
+        routeConfig
+            .virtualHostsList[0]
+            .routesList[0]
+            .route
+            .autoHostRewriteHeaderIsEmpty()
+    }
+
+    @Test
+    fun `should add auto rewrite host header when feature is disabled in configuration`() {
+        // given
+        val snapshotProperties = SnapshotProperties().apply {
+            egress.hostHeaderRewriting.enabled = true
+            egress.hostHeaderRewriting.customHostHeader = "test_header"
+        }
+        val routesFactory = EnvoyEgressRoutesFactory(snapshotProperties)
+
+        // when
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
+
+        // then
+        routeConfig
+            .virtualHostsList[0]
+            .routesList[0]
+            .route
+            .hasAutoHostRewriteHeader(snapshotProperties.egress.hostHeaderRewriting.customHostHeader)
     }
 }

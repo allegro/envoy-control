@@ -12,7 +12,10 @@ fun node(
     serviceName: String? = null,
     incomingSettings: Boolean = false,
     idleTimeout: String? = null,
-    responseTimeout: String? = null
+    responseTimeout: String? = null,
+    connectionIdleTimeout: String? = null,
+    healthCheckPath: String? = null,
+    healthCheckClusterName: String? = null
 ): Node {
     val meta = Node.newBuilder().metadataBuilder
 
@@ -24,7 +27,7 @@ fun node(
         meta.putFields("ads", Value.newBuilder().setBoolValue(ads).build())
     }
 
-    if (incomingSettings || !serviceDependencies.isEmpty()) {
+    if (incomingSettings || serviceDependencies.isNotEmpty()) {
         meta.putFields(
             "proxy_settings",
             proxySettingsProto(
@@ -32,7 +35,10 @@ fun node(
                 serviceDependencies = serviceDependencies,
                 incomingSettings = incomingSettings,
                 idleTimeout = idleTimeout,
-                responseTimeout = responseTimeout
+                responseTimeout = responseTimeout,
+                connectionIdleTimeout = connectionIdleTimeout,
+                healthCheckPath = healthCheckPath,
+                healthCheckClusterName = healthCheckClusterName
             )
         )
     }
@@ -61,10 +67,21 @@ fun proxySettingsProto(
     path: String? = null,
     serviceDependencies: Set<String> = emptySet(),
     idleTimeout: String? = null,
-    responseTimeout: String? = null
+    responseTimeout: String? = null,
+    connectionIdleTimeout: String? = null,
+    healthCheckPath: String? = null,
+    healthCheckClusterName: String? = null
 ): Value = struct {
     if (incomingSettings) {
         putFields("incoming", struct {
+            putFields("healthCheck", struct {
+                healthCheckPath?.let {
+                    putFields("path", string(it))
+                }
+                healthCheckClusterName?.let {
+                    putFields("clusterName", string(it))
+                }
+            })
             putFields("endpoints", list {
                 addValues(incomingEndpointProto(path = path))
             })
@@ -75,10 +92,13 @@ fun proxySettingsProto(
                 responseTimeout?.let {
                     putFields("responseTimeout", string(it))
                 }
+                connectionIdleTimeout?.let {
+                    putFields("connectionIdleTimeout", string(it))
+                }
             })
         })
     }
-    if (!serviceDependencies.isEmpty()) {
+    if (serviceDependencies.isNotEmpty()) {
         putFields("outgoing", struct {
             putFields("dependencies", list {
                 serviceDependencies.forEach {
@@ -133,7 +153,7 @@ fun incomingEndpointProto(
     putFields("clients", list { addValues(string("client1")) })
 }
 
-private fun struct(fields: Struct.Builder.() -> Unit): Value {
+fun struct(fields: Struct.Builder.() -> Unit): Value {
     val builder = Struct.newBuilder()
     fields(builder)
     return Value.newBuilder().setStructValue(builder).build()

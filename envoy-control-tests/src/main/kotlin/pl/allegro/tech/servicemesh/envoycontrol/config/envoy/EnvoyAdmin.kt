@@ -3,25 +3,25 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import okhttp3.MediaType
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 
 class EnvoyAdmin(
-    val address: String,
-    val objectMapper: ObjectMapper = ObjectMapper()
+    private val address: String,
+    private val objectMapper: ObjectMapper = ObjectMapper()
         .registerModule(KotlinModule())
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 ) {
 
     fun cluster(name: String): ClusterStatus? =
         clusters()
-            .filter { it.name == name }
-            .firstOrNull()
+            .firstOrNull { it.name == name }
 
     fun numOfEndpoints(clusterName: String): Int =
         cluster(clusterName)
@@ -44,7 +44,11 @@ class EnvoyAdmin(
             }
 
     fun statValue(statName: String): String? = get("stats?filter=$statName").body()?.use {
-        it.string().lines().first().split(":").get(1).trim()
+        val splitedStats = it.string().lines().first().split(":")
+        if (splitedStats.size != 2) {
+            return "-1"
+        }
+        return splitedStats[1].trim()
     }
 
     fun resetCounters() {
@@ -58,6 +62,22 @@ class EnvoyAdmin(
         }
     }
 
+    private fun configDump(): String {
+        val response = get("config_dump")
+        return response.body().use { it!!.string() }
+    }
+
+    fun nodeInfo(): String {
+        val configDump = configDump()
+        val bootstrapConfigDump = bootstrapConfigDump(configDump)
+        val node = bootstrapConfigDump.at("/bootstrap/node")
+        (node as ObjectNode).remove("hidden_envoy_deprecated_build_version")
+        return objectMapper.writeValueAsString(node)
+    }
+
+    private fun bootstrapConfigDump(configDump: String) =
+        objectMapper.readTree(configDump).at("/configs/0")
+
     fun circuitBreakerSetting(
         cluster: String,
         setting: String,
@@ -66,8 +86,8 @@ class EnvoyAdmin(
         val regex = "$cluster::$priority::$setting::(.+)".toRegex()
         val response = get("clusters")
         return response.body()?.use { it.string().lines() }
-                ?.find { it.matches(regex) }
-                ?.let { regex.find(it)!!.groupValues[1].toInt() }!!
+            ?.find { it.matches(regex) }
+            ?.let { regex.find(it)!!.groupValues[1].toInt() }!!
     }
 
     fun zone(cluster: String, ip: String): AdminInstance? {

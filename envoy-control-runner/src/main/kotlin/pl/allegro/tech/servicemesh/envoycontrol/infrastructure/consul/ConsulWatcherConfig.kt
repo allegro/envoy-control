@@ -72,8 +72,8 @@ open class ConsulWatcherConfig {
         watcherConfig: ConsulWatcherOkHttpProperties
     ): OkHttpClient.Builder {
         val dispatcher = Dispatcher(createDispatcherPool(watcherConfig))
-        dispatcher.maxRequests = watcherConfig.maxRequests
-        dispatcher.maxRequestsPerHost = watcherConfig.maxRequests
+        dispatcher.maxRequests = watcherConfig.dispatcherMaxPoolSize
+        dispatcher.maxRequestsPerHost = watcherConfig.dispatcherMaxPoolSize
 
         return builder.addInterceptor(NoGzipIntercetor())
             .dispatcher(dispatcher)

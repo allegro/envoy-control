@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.api.v2.RouteConfiguration
 import io.envoyproxy.envoy.api.v2.core.HeaderValue
@@ -30,6 +31,8 @@ internal class EnvoyEgressRoutesFactory(
                 )
                 .setRoute(
                     RouteAction.newBuilder()
+                        .setIdleTimeout(Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()))
+                        .setTimeout(Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis()))
                         .setCluster("envoy-original-destination")
                 )
         )
@@ -51,10 +54,19 @@ internal class EnvoyEgressRoutesFactory(
         )
         .build()
 
+    private val upstreamAddressHeader = HeaderValueOption.newBuilder().setHeader(
+        HeaderValue.newBuilder().setKey("x-envoy-upstream-remote-address")
+            .setValue("%UPSTREAM_REMOTE_ADDRESS%").build()
+    )
+
     /**
      * @see TestResources.createRoute
      */
-    fun createEgressRouteConfig(serviceName: String, routes: Collection<RouteSpecification>): RouteConfiguration {
+    fun createEgressRouteConfig(
+        serviceName: String,
+        routes: Collection<RouteSpecification>,
+        addUpstreamAddressHeader: Boolean
+    ): RouteConfiguration {
         val virtualHosts = routes.map { routeSpecification ->
             VirtualHost.newBuilder()
                 .setName(routeSpecification.clusterName)
@@ -72,7 +84,7 @@ internal class EnvoyEgressRoutesFactory(
                 .build()
         }
 
-        return RouteConfiguration.newBuilder()
+        var routeConfiguration = RouteConfiguration.newBuilder()
             .setName("default_routes")
             .addAllVirtualHosts(
                 virtualHosts + originalDestinationRoute + wildcardRoute
@@ -88,7 +100,11 @@ internal class EnvoyEgressRoutesFactory(
                     )
                 }
             }
-            .build()
+        if (addUpstreamAddressHeader) {
+            routeConfiguration = routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
+        }
+
+        return routeConfiguration.build()
     }
 
     private fun createRouteAction(routeSpecification: RouteSpecification): RouteAction.Builder {
@@ -102,6 +118,11 @@ internal class EnvoyEgressRoutesFactory(
 
         if (routeSpecification.settings.handleInternalRedirect) {
             routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
+        }
+
+        if (properties.egress.hostHeaderRewriting.enabled && routeSpecification.settings.rewriteHostHeader) {
+            routeAction
+                .setAutoHostRewriteHeader(properties.egress.hostHeaderRewriting.customHostHeader)
         }
 
         return routeAction

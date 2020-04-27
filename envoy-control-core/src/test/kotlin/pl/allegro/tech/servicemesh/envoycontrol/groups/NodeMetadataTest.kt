@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
@@ -184,6 +185,54 @@ class NodeMetadataTest {
     }
 
     @Test
+    fun `should accept incoming settings with custom healthCheckPath`() {
+        // given
+        val proto = proxySettingsProto(
+            incomingSettings = true,
+            path = "/path",
+            healthCheckPath = "/status/ping"
+        )
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
+
+        // expects
+        assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
+        assertThat(incoming.healthCheck.path).isEqualTo("/status/ping")
+        assertThat(incoming.healthCheck.hasCustomHealthCheck()).isTrue()
+    }
+
+    @Test
+    fun `should set empty healthCheckPath for incoming settings when healthCheckPath is empty`() {
+        // given
+        val proto = proxySettingsProto(
+            incomingSettings = true,
+            path = "/path"
+        )
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
+
+        // expects
+        assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
+        assertThat(incoming.healthCheck.path).isEqualTo("")
+        assertThat(incoming.healthCheck.hasCustomHealthCheck()).isFalse()
+    }
+
+    @Test
+    fun `should set healthCheckPath and healthCheckClusterName for incoming settings`() {
+        // given
+        val proto = proxySettingsProto(
+            incomingSettings = true,
+            path = "/path",
+            healthCheckPath = "/status/ping",
+            healthCheckClusterName = "local_service_health_check"
+        )
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
+
+        // expects
+        assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
+        assertThat(incoming.healthCheck.path).isEqualTo("/status/ping")
+        assertThat(incoming.healthCheck.hasCustomHealthCheck()).isTrue()
+    }
+
+    @Test
     fun `should accept service dependency with idleTimeout defined`() {
         // given
         val proto = outgoingDependencyProto(service = "service-1", idleTimeout = "10s")
@@ -215,5 +264,58 @@ class NodeMetadataTest {
         assertThat(dependency.service).isEqualTo("service-1")
         assertThat(dependency.settings.timeoutPolicy!!.idleTimeout).isEqualTo(Durations.fromSeconds(10L))
         assertThat(dependency.settings.timeoutPolicy!!.requestTimeout).isEqualTo(Durations.fromSeconds(10L))
+    }
+
+    @Test
+    fun `should reject configuration with number timeout format`() {
+        // given
+        val proto = Value.newBuilder().setNumberValue(10.0).build()
+
+        // when
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toDuration() }
+
+        // then
+        assertThat(exception.status.description).isEqualTo("Timeout definition has number format" +
+            " but should be in string format and ends with 's'")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should reject configuration with incorrect string timeout format`() {
+        // given
+        val proto = Value.newBuilder().setStringValue("20").build()
+
+        // when
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toDuration() }
+
+        // then
+        assertThat(exception.status.description).isEqualTo("Timeout definition has incorrect format: " +
+            "Invalid duration string: 20")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should return duration when correct configuration provided`() {
+        // given
+        val proto = Value.newBuilder().setStringValue("20s").build()
+
+        // when
+        val duration = proto.toDuration()
+
+        // then
+        assertThat(duration).isNotNull
+        assertThat(duration!!.seconds).isEqualTo(20L)
+    }
+
+    @Test
+    fun `should return null when empty value provided`() {
+        // given
+        val proto = Value.newBuilder().build()
+
+        // when
+        val duration = proto.toDuration()
+
+        // then
+        assertThat(duration).isNull()
     }
 }

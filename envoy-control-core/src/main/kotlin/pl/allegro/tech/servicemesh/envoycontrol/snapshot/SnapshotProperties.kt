@@ -19,21 +19,53 @@ class SnapshotProperties {
     var stateSampleDuration: Duration = Duration.ofSeconds(1)
     var staticClusterConnectionTimeout: Duration = Duration.ofSeconds(2)
     var trustedCaFile = "/etc/ssl/certs/ca-certificates.crt"
+    var dynamicListeners = ListenersFactoryProperties()
+    var enabledCommunicationModes = EnabledCommunicationModes()
+    var shouldSendMissingEndpoints = false
+    var metrics: MetricsProperties = MetricsProperties()
+}
+
+class MetricsProperties {
+    var cacheSetSnapshot = false
+}
+
+class ListenersFactoryProperties {
+    var enabled = true
+    var httpFilters = HttpFiltersProperties()
+}
+
+class HttpFiltersProperties {
+    var accessLog = AccessLogProperties()
+    var ingressXffNumTrustedHops = 1
+}
+
+class AccessLogProperties {
+    var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
+    var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
+        "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
+    var level = "TRACE"
+    var logger = "envoy.AccessLog"
 }
 
 class OutgoingPermissionsProperties {
     var enabled = false
-    var allServicesDependenciesValue = "*"
+    var allServicesDependencies = AllServicesDependenciesProperties()
     var servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
+}
+
+class AllServicesDependenciesProperties {
+    var identifier = "*"
+    var notIncludedByPrefix: MutableSet<String> = mutableSetOf()
 }
 
 class IncomingPermissionsProperties {
     var enabled = false
-    /**
-     * unavailable = not found || unauthorized
-     */
-    var endpointUnavailableStatusCode = 503
     var clientIdentityHeader = "x-service-name"
+    var sourceIpAuthentication = SourceIpAuthenticationProperties()
+}
+
+class SourceIpAuthenticationProperties {
+    var enabledForServices: List<String> = listOf()
 }
 
 class LoadBalancingProperties {
@@ -41,6 +73,7 @@ class LoadBalancingProperties {
     var regularMetadataKey = "lb_regular"
     var weights = LoadBalancingWeightsProperties()
     var policy = Cluster.LbPolicy.LEAST_REQUEST
+    var useKeysSubsetFallbackPolicy = true
 }
 
 class CanaryProperties {
@@ -54,7 +87,6 @@ class LoadBalancingWeightsProperties {
 }
 
 class RoutesProperties {
-    var initialVersion = "empty"
     var admin = AdminRouteProperties()
     var status = StatusRouteProperties()
     var authorization = AuthorizationProperties()
@@ -102,6 +134,7 @@ class AdminDisableProperties {
 class LocalServiceProperties {
     var idleTimeout: Duration = Duration.ofSeconds(60)
     var responseTimeout: Duration = Duration.ofSeconds(15)
+    var connectionIdleTimeout: Duration = Duration.ofSeconds(120)
     var retryPolicy: RetryPoliciesProperties = RetryPoliciesProperties()
 }
 
@@ -127,6 +160,7 @@ class AuthorizationProperties {
 class ServiceTagsProperties {
     var enabled = false
     var metadataKey = "tag"
+    var header = "x-service-tag"
     var routingExcludedTags: MutableList<String> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
 }
@@ -145,6 +179,8 @@ class EgressProperties {
     var handleInternalRedirect = false
     var http2 = Http2Properties()
     var commonHttp = CommonHttpProperties()
+    var neverRemoveClusters = true
+    var hostHeaderRewriting = HostHeaderRewritingProperties()
 }
 
 class CommonHttpProperties {
@@ -168,4 +204,14 @@ class Threshold(var priority: String) {
 class Http2Properties {
     var enabled = true
     var tagName = "envoy"
+}
+
+class EnabledCommunicationModes {
+    var ads = true
+    var xds = true
+}
+
+class HostHeaderRewritingProperties {
+    var enabled = false
+    var customHostHeader = "x-envoy-original-host"
 }

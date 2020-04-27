@@ -11,7 +11,18 @@ class ServerProperties {
     var serverPoolKeepAlive: Duration = Duration.ofMinutes(10)
     var executorGroup = ExecutorProperties()
     var netty = NettyProperties()
+    /**
+     * Minimum size = 2, to work correctly with reactor operators merge and combineLatest
+     */
+    var globalSnapshotUpdatePoolSize = 5
+    var groupSnapshotUpdateScheduler = ExecutorProperties().apply {
+        type = ExecutorType.DIRECT
+        parallelPoolSize = 1
+    }
     var snapshotCleanup = SnapshotCleanupProperties()
+    var reportProtobufCacheMetrics = false
+    var logFullRequest = false
+    var logFullResponse = false
 }
 
 enum class ExecutorType {

@@ -2,10 +2,13 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.cache.ConfigWatcher
 import io.envoyproxy.controlplane.cache.Response
-import io.envoyproxy.controlplane.cache.SimpleCache
 import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
+import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
+import pl.allegro.tech.servicemesh.envoycontrol.SimpleCache
+import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.util.function.Consumer
@@ -18,32 +21,42 @@ import java.util.function.Consumer
  */
 internal class GroupChangeWatcher(
     private val cache: SimpleCache<Group>,
-    private val metrics: EnvoyControlMetrics
+    private val metrics: EnvoyControlMetrics,
+    private val meterRegistry: MeterRegistry
 ) : ConfigWatcher {
-    private val groupAddedFlux: Flux<Any> = Flux.create { groupAddedSink = it }
-    private var groupAddedSink: FluxSink<Any>? = null
+    private val groupsChanged: Flux<List<Group>> = Flux.create { groupChangeEmitter = it }
+    private var groupChangeEmitter: FluxSink<List<Group>>? = null
 
-    fun onGroupAdded(): Flux<Any> {
-        return groupAddedFlux
+    private val logger by logger()
+
+    fun onGroupAdded(): Flux<List<Group>> {
+        return groupsChanged
+            .measureBuffer("group-change-watcher-emitted", meterRegistry)
+            .checkpoint("group-change-watcher-emitted")
+            .name("group-change-watcher-emitted").metrics()
+            .doOnCancel {
+                logger.warn("Cancelling watching group changes")
+            }
     }
 
     override fun createWatch(
         ads: Boolean,
         request: DiscoveryRequest,
         knownResourceNames: MutableSet<String>,
-        responseConsumer: Consumer<Response>
+        responseConsumer: Consumer<Response>,
+        hasClusterChanged: Boolean
     ): Watch {
         val oldGroups = cache.groups()
-        val watch = cache.createWatch(ads, request, knownResourceNames, responseConsumer)
+        val watch = cache.createWatch(ads, request, knownResourceNames, responseConsumer, hasClusterChanged)
         val groups = cache.groups()
         metrics.setCacheGroupsCount(groups.size)
         if (oldGroups != groups) {
-            emitNewGroupsEvent()
+            emitNewGroupsEvent(groups - oldGroups)
         }
         return watch
     }
 
-    private fun emitNewGroupsEvent() {
-        groupAddedSink?.next(true)
+    private fun emitNewGroupsEvent(difference: List<Group>) {
+        groupChangeEmitter?.next(difference)
     }
 }

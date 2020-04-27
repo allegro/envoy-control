@@ -14,6 +14,7 @@ import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -21,14 +22,21 @@ import kotlin.random.Random
 
 sealed class EnvoyConfigFile(val filePath: String)
 object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.yaml")
+object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_check.yaml")
 object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
+object Envoy1AuthConfig : EnvoyConfigFile("envoy/envoy1_auth_config.yaml")
+object Envoy2AuthConfig : EnvoyConfigFile("envoy/envoy2_auth_config.yaml")
+object AdsWithDisabledEndpointPermissions : EnvoyConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
+object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
+object AdsWithNoDependencies : EnvoyConfigFile("envoy/config_ads_no_dependencies.yaml")
 object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
 object RandomConfigFile :
     EnvoyConfigFile(filePath = if (Random.nextBoolean()) Ads.filePath else Xds.filePath)
 
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {
+        private val logger by logger()
         private val client = OkHttpClient.Builder()
             // envoys default timeout is 15 seconds while OkHttp is 10
             .readTimeout(Duration.ofSeconds(20))
@@ -42,9 +50,14 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         var envoyControls: Int = 1
         var envoys: Int = 1
 
+        // We use envoy version from master. This is 1.14.0-dev.
+        const val defaultEnvoyImage = "envoyproxy/envoy-alpine-dev:6c2137468c25d167dbbe4719b0ecaf343bfb4233"
+
         @JvmStatic
         fun setup(
             envoyConfig: EnvoyConfigFile = RandomConfigFile,
+            secondEnvoyConfig: EnvoyConfigFile = envoyConfig,
+            envoyImage: String = defaultEnvoyImage,
             appFactoryForEc1: (Int) -> EnvoyControlTestApp = defaultAppFactory(),
             appFactoryForEc2: (Int) -> EnvoyControlTestApp = appFactoryForEc1,
             envoyControls: Int = 1,
@@ -72,22 +85,34 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 instancesInSameDc,
                 envoyConfig,
                 envoyConnectGrpcPort,
-                envoyConnectGrpcPort2
+                envoyConnectGrpcPort2,
+                envoyImage = envoyImage
             )
 
             waitForEnvoyControlsHealthy()
             registerEnvoyControls(ec1RegisterPort, ec2RegisterPort, instancesInSameDc)
-            envoyContainer1.start()
+            try {
+                envoyContainer1.start()
+            } catch (e: Exception) {
+                logger.error("Logs from failed container: ${envoyContainer1.logs}")
+                throw e
+            }
 
             if (envoys == 2) {
                 envoyContainer2 = createEnvoyContainer(
                     true,
-                    envoyConfig,
+                    secondEnvoyConfig,
                     envoyConnectGrpcPort,
                     envoyConnectGrpcPort2,
-                    echoContainer.ipAddress()
+                    echoContainer2.ipAddress(),
+                    envoyImage = envoyImage
                 )
-                envoyContainer2.start()
+                try {
+                    envoyContainer2.start()
+                } catch (e: Exception) {
+                    logger.error("Logs from failed container: ${envoyContainer2.logs}")
+                    throw e
+                }
             }
         }
 
@@ -110,20 +135,23 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             envoyConfig: EnvoyConfigFile,
             envoyConnectGrpcPort: Int?,
             envoyConnectGrpcPort2: Int?,
-            localServiceIp: String = localServiceContainer.ipAddress()
+            localServiceIp: String = localServiceContainer.ipAddress(),
+            envoyImage: String = defaultEnvoyImage
         ): EnvoyContainer {
             return if (envoyControls == 2 && instancesInSameDc) {
                 EnvoyContainer(
                     envoyConfig.filePath,
                     localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort,
-                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort
+                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort,
+                    image = envoyImage
                 ).withNetwork(network)
             } else {
                 EnvoyContainer(
                     envoyConfig.filePath,
                     localServiceIp,
-                    envoyConnectGrpcPort ?: envoyControl1.grpcPort
+                    envoyConnectGrpcPort ?: envoyControl1.grpcPort,
+                    image = envoyImage
                 ).withNetwork(network)
             }
         }
@@ -165,6 +193,12 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
+        fun callEnvoyIngress(path: String): Response =
+            call("", address = envoyContainer1.ingressListenerUrl(), pathAndQuery = path)
+
+        fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
+            call("", address)
+
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", address)
 
@@ -183,8 +217,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             address: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
-        ): Response =
-            client.newCall(
+        ): Response {
+            val request = client.newCall(
                 Request.Builder()
                     .get()
                     .header("Host", host)
@@ -194,7 +228,9 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
                     .build()
             )
-                .execute()
+
+            return request.execute()
+        }
 
         fun callServiceWithOriginalDst(originalDstUrl: String, envoyUrl: String): Response =
             client.newCall(
@@ -207,17 +243,26 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             )
                 .execute()
 
-        fun callLocalService(endpoint: String, headers: Headers): Response =
+        fun callLocalService(
+            endpoint: String,
+            headers: Headers,
+            envoyContainer: EnvoyContainer = envoyContainer1
+        ): Response =
             client.newCall(
                 Request.Builder()
                     .get()
                     .headers(headers)
-                    .url(envoyContainer1.ingressListenerUrl() + endpoint)
+                    .url(envoyContainer.ingressListenerUrl() + endpoint)
                     .build()
             )
                 .execute()
 
-        fun callPostLocalService(endpoint: String, headers: Headers, body: RequestBody, envoyContainer: EnvoyContainer = envoyContainer1): Response =
+        fun callPostLocalService(
+            endpoint: String,
+            headers: Headers,
+            body: RequestBody,
+            envoyContainer: EnvoyContainer = envoyContainer1
+        ): Response =
             client.newCall(
                 Request.Builder()
                     .post(body)
@@ -337,8 +382,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
     }
 
-    fun untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (Unit)) {
-        await().atMost(wait).untilAsserted(fn)
+    fun <T> untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (T)): T {
+        var lastResult: T? = null
+        await().atMost(wait).untilAsserted({ lastResult = fn() })
+        assertThat(lastResult).isNotNull
+        return lastResult!!
     }
 
     fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
@@ -350,6 +398,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         matches {
             it.body()?.use { it.string().contains(echoContainer.response) } ?: false
         }
+        return this
+    }
+
+    fun ObjectAssert<Response>.hasHostHeaderWithValue(overriddenHostHeader: String): ObjectAssert<Response> {
+        matches({
+            it.body()?.use { it.string().contains("\"host\": \"$overriddenHostHeader\"") } ?: false
+        }, "Header Host should be overridden with value: $overriddenHostHeader")
         return this
     }
 
@@ -371,6 +426,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
     fun ObjectAssert<Response>.hasLocationHeaderFrom(serviceName: String): ObjectAssert<Response> {
         matches { it.headers("location").contains("http://$serviceName/") }
+        return this
+    }
+
+    fun ObjectAssert<Response>.hasXEnvoyUpstreamRemoteAddressFrom(echoContainer: EchoContainer): ObjectAssert<Response> {
+        matches { it.headers("x-envoy-upstream-remote-address").contains(echoContainer.address()) }
         return this
     }
 

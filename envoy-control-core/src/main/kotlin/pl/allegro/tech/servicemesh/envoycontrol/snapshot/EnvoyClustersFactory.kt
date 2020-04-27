@@ -1,10 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.protobuf.Any
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
@@ -22,10 +22,15 @@ import io.envoyproxy.envoy.api.v2.core.Http2ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.RoutingPriority
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
+import io.envoyproxy.envoy.api.v2.core.TransportSocket
+import io.envoyproxy.envoy.api.v2.core.UpstreamHttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 
@@ -39,18 +44,21 @@ internal class EnvoyClustersFactory(
     private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
 
-    fun getClustersForServices(services: List<EnvoySnapshotFactory.ClusterConfiguration>, ads: Boolean): List<Cluster> {
-        return services.map { edsCluster(it, ads) }
+    fun getClustersForServices(
+        services: Collection<ClusterConfiguration>,
+        communicationMode: CommunicationMode
+    ): List<Cluster> {
+        return services.map { edsCluster(it, communicationMode) }
     }
 
-    fun getClustersForGroup(group: Group, globalSnapshot: Snapshot): List<Cluster> =
+    fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
         getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group)
 
-    private fun getEdsClustersForGroup(group: Group, globalSnapshot: Snapshot): List<Cluster> {
+    private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies()
-                .mapNotNull { globalSnapshot.clusters().resources().get(it.service) }
-            is AllServicesGroup -> globalSnapshot.clusters().resources().map { it.value }
+                .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
+            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map { it.value }
         }
     }
 
@@ -93,22 +101,41 @@ internal class EnvoyClustersFactory(
             .setLbPolicy(properties.loadBalancing.policy)
 
         if (ssl) {
-            var tlsContextBuilder = UpstreamTlsContext.newBuilder()
-            tlsContextBuilder = tlsContextBuilder.setCommonTlsContext(
-                CommonTlsContext.newBuilder()
+            val commonTlsContext = CommonTlsContext.newBuilder()
                     .setValidationContext(
-                        CertificateValidationContext.newBuilder().setTrustedCa(
-                            // TODO: https://github.com/allegro/envoy-control/issues/5
-                            DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
-                        )
+                            CertificateValidationContext.newBuilder()
+                                    .setTrustedCa(
+                                            // TODO: https://github.com/allegro/envoy-control/issues/5
+                                            DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
+                                    ).build()
+                    ).build()
+
+            val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext)
+                // for envoy >= 1.14.0-dev it will be overridden by setAutoSni below
+                // TODO(https://github.com/allegro/envoy-control/issues/97)
+                //     remove when envoy < 1.14.0-dev will be not supported
+                .setSni(host)
+                .build()
+            val transportSocket = TransportSocket.newBuilder()
+                    .setTypedConfig(Any.pack(
+                            upstreamTlsContext
+                    ))
+                    .setName("envoy.transport_sockets.tls").build()
+
+            clusterBuilder
+                    .setTransportSocket(transportSocket)
+                    .setUpstreamHttpProtocolOptions(
+                            UpstreamHttpProtocolOptions.newBuilder().setAutoSanValidation(true).setAutoSni(true).build()
                     )
-            ).setSni(host)
-            clusterBuilder = clusterBuilder.setTlsContext(tlsContextBuilder.build())
         }
+
         return clusterBuilder.build()
     }
 
-    private fun edsCluster(clusterConfiguration: EnvoySnapshotFactory.ClusterConfiguration, ads: Boolean): Cluster {
+    private fun edsCluster(
+        clusterConfiguration: ClusterConfiguration,
+        communicationMode: CommunicationMode
+    ): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
         if (properties.clusterOutlierDetection.enabled) {
@@ -120,9 +147,9 @@ internal class EnvoyClustersFactory(
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
             .setEdsClusterConfig(
                 Cluster.EdsClusterConfig.newBuilder().setEdsConfig(
-                    if (ads) {
-                        ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
-                    } else {
+                    when (communicationMode) {
+                        ADS -> ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
+                        XDS ->
                         ConfigSource.newBuilder().setApiConfigSource(
                             ApiConfigSource.newBuilder().setApiType(ApiConfigSource.ApiType.GRPC)
                                 .addGrpcServices(0, GrpcService.newBuilder().setEnvoyGrpc(
@@ -181,17 +208,28 @@ internal class EnvoyClustersFactory(
                     setListAsAny(true) // allowing for an endpoint to have multiple tags
                 }
                 if (tagsEnabled && canaryEnabled) {
-                    addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
-                        .addKeys(properties.routing.serviceTags.metadataKey)
-                        .addKeys(properties.loadBalancing.canary.metadataKey)
-                        .setFallbackPolicy(
-                            Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.KEYS_SUBSET)
-                        .addFallbackKeysSubset(properties.routing.serviceTags.metadataKey)
-                    )
+                    addTagsAndCanarySelector()
                 }
             }
         )
     }
+
+    private fun Cluster.LbSubsetConfig.Builder.addTagsAndCanarySelector() = this.addSubsetSelectors(
+        Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+            .addKeys(properties.routing.serviceTags.metadataKey)
+            .addKeys(properties.loadBalancing.canary.metadataKey)
+            .run {
+                if (properties.loadBalancing.useKeysSubsetFallbackPolicy) {
+                    setFallbackPolicy(
+                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.KEYS_SUBSET)
+                    addFallbackKeysSubset(properties.routing.serviceTags.metadataKey)
+                } else {
+                    // optionally don't use KEYS_SUBSET for compatibility with envoy version <= 1.12.x
+                    setFallbackPolicy(
+                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                }
+            }
+    )
 
     private fun mapPropertiesToThresholds(): List<CircuitBreakers.Thresholds> {
         return listOf(

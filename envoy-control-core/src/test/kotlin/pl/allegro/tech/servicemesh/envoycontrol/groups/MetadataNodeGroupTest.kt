@@ -4,6 +4,8 @@ import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.core.Node
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
 
@@ -22,8 +24,8 @@ class MetadataNodeGroupTest {
             // we have to preserve all services even if wildcard is present,
             // because service may define different settings for different dependencies (for example endpoints, which
             // will be implemented in https://github.com/allegro/envoy-control/issues/6
-            proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*", "a", "b", "c")),
-            ads = false
+                communicationMode = XDS,
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*", "a", "b", "c"))
         ))
     }
 
@@ -37,7 +39,10 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group).isEqualTo(
-            ServicesGroup(proxySettings = ProxySettings().with(serviceDependencies = setOf()), ads = false)
+            ServicesGroup(
+                proxySettings = ProxySettings().with(serviceDependencies = setOf()),
+                communicationMode = XDS
+            )
         )
     }
 
@@ -54,7 +59,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-                ads = false
+                communicationMode = XDS
             )
         )
     }
@@ -71,8 +76,8 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             AllServicesGroup(
-                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*")),
-                ads = true
+                    communicationMode = ADS,
+                    proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*"))
             )
         )
     }
@@ -90,7 +95,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-                ads = true
+                communicationMode = ADS
             )
         )
     }
@@ -108,8 +113,8 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(AllServicesGroup(
             // we have to preserve all services even if outgoingPermissions is disabled,
             // because service may define different settings for different dependencies (for example retry config)
-            proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-            ads = true
+                communicationMode = ADS,
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c"))
         ))
     }
 
@@ -130,7 +135,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-                ads = false
+                communicationMode = XDS
             )
         )
     }
@@ -159,7 +164,7 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group).isEqualTo(ServicesGroup(
-            ads = true,
+            communicationMode = ADS,
             serviceName = "app1",
             proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("a", "b"))
         ))
@@ -176,9 +181,9 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group).isEqualTo(AllServicesGroup(
-            ads = false,
-            serviceName = "app1",
-            proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("*"))
+                communicationMode = XDS,
+                serviceName = "app1",
+                proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("*"))
         ))
     }
 
@@ -194,8 +199,23 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group.proxySettings.incoming.timeoutPolicy.responseTimeout?.seconds).isEqualTo(777)
-        assertThat(group.proxySettings.incoming.timeoutPolicy.idleTimeout).isEqualTo(Durations.parse("13.33s")
-        )
+        assertThat(group.proxySettings.incoming.timeoutPolicy.idleTimeout).isEqualTo(Durations.parse("13.33s"))
+    }
+
+    @Test
+    fun `should parse proto with custom healthCheck definition`() {
+        // when
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties(incomingPermissions = true))
+        val node = node(serviceDependencies = setOf("*"), ads = true, incomingSettings = true,
+            healthCheckPath = "/status/ping", healthCheckClusterName = "local_service_health_check")
+
+        // when
+        val group = nodeGroup.hash(node)
+
+        // then
+        assertThat(group.proxySettings.incoming.healthCheck.path).isEqualTo("/status/ping")
+        assertThat(group.proxySettings.incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
+        assertThat(group.proxySettings.incoming.healthCheck.hasCustomHealthCheck()).isTrue()
     }
 
     private fun createSnapshotProperties(
@@ -205,7 +225,7 @@ class MetadataNodeGroupTest {
     ): SnapshotProperties {
         val snapshotProperties = SnapshotProperties()
         snapshotProperties.outgoingPermissions.enabled = outgoingPermissions
-        snapshotProperties.outgoingPermissions.allServicesDependenciesValue = allServicesDependenciesValue
+        snapshotProperties.outgoingPermissions.allServicesDependencies.identifier = allServicesDependenciesValue
         snapshotProperties.incomingPermissions.enabled = incomingPermissions
         return snapshotProperties
     }

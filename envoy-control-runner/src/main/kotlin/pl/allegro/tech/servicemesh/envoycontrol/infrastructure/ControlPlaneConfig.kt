@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.converter.protobuf.ProtobufJsonFormatHttpMessageConverter
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes
 import pl.allegro.tech.discovery.consul.recipes.datacenter.ConsulDatacenterReader
 import pl.allegro.tech.discovery.consul.recipes.json.JacksonJsonDeserializer
@@ -29,6 +30,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMe
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServiceInstancesFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalServiceChanges
 import reactor.core.scheduler.Schedulers
 import java.net.URI
@@ -53,10 +55,12 @@ class ControlPlaneConfig {
         properties: EnvoyControlProperties,
         meterRegistry: MeterRegistry,
         globalServiceChanges: GlobalServiceChanges,
-        metrics: EnvoyControlMetrics
+        metrics: EnvoyControlMetrics,
+        envoyHttpFilters: EnvoyHttpFilters
     ): ControlPlane =
         ControlPlane.builder(properties, meterRegistry)
             .withMetrics(metrics)
+            .withEnvoyHttpFilters(envoyHttpFilters)
             .build(globalServiceChanges.combined())
 
     @Bean
@@ -117,20 +121,34 @@ class ControlPlaneConfig {
 
     @Bean
     fun globalServiceChanges(
-        serviceChanges: Array<ServiceChanges>
+        serviceChanges: Array<ServiceChanges>,
+        meterRegistry: MeterRegistry,
+        properties: EnvoyControlProperties
     ): GlobalServiceChanges =
-        GlobalServiceChanges(serviceChanges)
+        GlobalServiceChanges(serviceChanges, meterRegistry, properties.sync)
+
+    @Bean
+    fun envoyHttpFilters(
+        properties: EnvoyControlProperties
+    ): EnvoyHttpFilters {
+        return EnvoyHttpFilters.defaultFilters(properties.envoy.snapshot)
+    }
 
     fun localDatacenter(properties: ConsulProperties) =
         ConsulClient(properties.host, properties.port).agentSelf.value?.config?.datacenter ?: "local"
 
     fun controlPlaneMetrics(meterRegistry: MeterRegistry) =
-        DefaultEnvoyControlMetrics().also {
+        DefaultEnvoyControlMetrics(meterRegistry = meterRegistry).also {
             meterRegistry.gauge("services.added", it.servicesAdded)
             meterRegistry.gauge("services.removed", it.servicesRemoved)
             meterRegistry.gauge("services.instanceChanged", it.instanceChanges)
             meterRegistry.gauge("services.snapshotChanged", it.snapshotChanges)
             meterRegistry.gauge("cache.groupsCount", it.cacheGroupsCount)
-            meterRegistry.more().counter("services.watch.errors", listOf(), it.errorWatchingServices)
+            it.meterRegistry.more().counter("services.watch.errors", listOf(), it.errorWatchingServices)
         }
+
+    @Bean
+    fun protobufJsonFormatHttpMessageConverter(): ProtobufJsonFormatHttpMessageConverter {
+        return ProtobufJsonFormatHttpMessageConverter()
+    }
 }
