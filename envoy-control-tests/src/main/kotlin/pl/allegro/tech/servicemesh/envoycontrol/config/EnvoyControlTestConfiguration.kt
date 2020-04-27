@@ -25,6 +25,8 @@ object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.y
 object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_check.yaml")
 object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
+object Envoy1AuthConfig : EnvoyConfigFile("envoy/envoy1_auth_config.yaml")
+object Envoy2AuthConfig : EnvoyConfigFile("envoy/envoy2_auth_config.yaml")
 object AdsWithDisabledEndpointPermissions : EnvoyConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
 object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
 object AdsWithNoDependencies : EnvoyConfigFile("envoy/config_ads_no_dependencies.yaml")
@@ -102,7 +104,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     secondEnvoyConfig,
                     envoyConnectGrpcPort,
                     envoyConnectGrpcPort2,
-                    echoContainer.ipAddress(),
+                    echoContainer2.ipAddress(),
                     envoyImage = envoyImage
                 )
                 try {
@@ -241,12 +243,16 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             )
                 .execute()
 
-        fun callLocalService(endpoint: String, headers: Headers): Response =
+        fun callLocalService(
+            endpoint: String,
+            headers: Headers,
+            envoyContainer: EnvoyContainer = envoyContainer1
+        ): Response =
             client.newCall(
                 Request.Builder()
                     .get()
                     .headers(headers)
-                    .url(envoyContainer1.ingressListenerUrl() + endpoint)
+                    .url(envoyContainer.ingressListenerUrl() + endpoint)
                     .build()
             )
                 .execute()

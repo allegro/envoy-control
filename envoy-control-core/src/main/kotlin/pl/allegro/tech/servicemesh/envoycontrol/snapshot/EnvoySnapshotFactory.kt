@@ -218,18 +218,14 @@ internal class EnvoySnapshotFactory(
         )
 
         val listeners = if (properties.dynamicListeners.enabled) {
-            listenersFactory.createListeners(group)
+            listenersFactory.createListeners(group, globalSnapshot)
         } else {
             emptyList()
         }
 
-        if (clusters.isEmpty()) {
-            return createSnapshot(routes = routes, listeners = listeners)
-        }
-
         val endpoints = getServicesEndpointsForGroup(globalSnapshot, egressRouteSpecification)
 
-        val version = snapshotsVersions.version(group, clusters, endpoints)
+        val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
 
         return createSnapshot(
             clusters = clusters,
@@ -237,10 +233,10 @@ internal class EnvoySnapshotFactory(
             endpoints = endpoints,
             endpointsVersions = version.endpoints,
             listeners = listeners,
-            // for now we assume that listeners don't change during lifecycle
+            // TODO: java-control-plane: https://github.com/envoyproxy/java-control-plane/issues/134
+            listenersVersion = version.listeners,
             routes = routes,
-            // we assume, that routes don't change during Envoy lifecycle unless clusters change
-            routesVersion = RoutesVersion(version.clusters.value)
+            routesVersion = version.routes
         )
     }
 
@@ -359,9 +355,9 @@ internal class EnvoySnapshotFactory(
         endpoints: List<ClusterLoadAssignment> = emptyList(),
         endpointsVersions: EndpointsVersion = EndpointsVersion.EMPTY_VERSION,
         routes: List<RouteConfiguration> = emptyList(),
-        routesVersion: RoutesVersion = RoutesVersion(properties.routes.initialVersion),
+        routesVersion: RoutesVersion,
         listeners: List<Listener> = emptyList(),
-        listenersVersion: ListenersVersion = ListenersVersion(properties.dynamicListeners.initialVersion)
+        listenersVersion: ListenersVersion
     ): Snapshot =
         Snapshot.create(
             clusters,

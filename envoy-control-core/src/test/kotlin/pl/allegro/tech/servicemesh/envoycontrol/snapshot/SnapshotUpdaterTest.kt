@@ -163,7 +163,7 @@ class SnapshotUpdaterTest {
     }
 
     @Test
-    fun `should generate snapshot with empty version and one route`() {
+    fun `should generate snapshot with empty clusters and endpoints version and one route`() {
         // given
         val emptyGroup = groupOf()
 
@@ -179,10 +179,10 @@ class SnapshotUpdaterTest {
 
         // then version is set to empty
         val snapshot = hasSnapshot(cache, emptyGroup)
-        assertThat(snapshot.endpoints().version()).isEqualTo(EndpointsVersion.EMPTY_VERSION.value)
         assertThat(snapshot.clusters().version()).isEqualTo(ClustersVersion.EMPTY_VERSION.value)
-        assertThat(snapshot.listeners().version()).isEqualTo(ListenersVersion.EMPTY_VERSION.value)
-        assertThat(snapshot.routes().version()).isEqualTo(RoutesVersion.EMPTY_VERSION.value)
+        assertThat(snapshot.endpoints().version()).isEqualTo(EndpointsVersion.EMPTY_VERSION.value)
+        assertThat(snapshot.listeners().version()).isNotEqualTo(ListenersVersion.EMPTY_VERSION.value)
+        assertThat(snapshot.routes().version()).isNotEqualTo(RoutesVersion.EMPTY_VERSION.value)
 
         assertThat(snapshot.routes().resources().values).hasSize(2)
         // two fallbacks: proxying direct IP requests and 503 for missing services

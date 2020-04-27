@@ -31,7 +31,7 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
     fun `should allow access to status endpoint by all clients`() {
         untilAsserted {
             // when
-            val response = callLocalService(endpoint = "/status/", headers = Headers.of())
+            val response = callLocalService("/status/", Headers.of())
             val statusUpstreamOk = envoyContainer1.admin().statValue(
                     "vhost.secured_local_service.vcluster.status.upstream_rq_200"
             )?.toInt()

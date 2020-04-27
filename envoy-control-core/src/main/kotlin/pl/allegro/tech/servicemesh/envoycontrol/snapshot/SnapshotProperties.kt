@@ -30,7 +30,6 @@ class MetricsProperties {
 }
 
 class ListenersFactoryProperties {
-    val initialVersion: String = "empty"
     var enabled = true
     var httpFilters = HttpFiltersProperties()
 }
@@ -62,6 +61,11 @@ class AllServicesDependenciesProperties {
 class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeader = "x-service-name"
+    var sourceIpAuthentication = SourceIpAuthenticationProperties()
+}
+
+class SourceIpAuthenticationProperties {
+    var enabledForServices: List<String> = listOf()
 }
 
 class LoadBalancingProperties {
@@ -83,7 +87,6 @@ class LoadBalancingWeightsProperties {
 }
 
 class RoutesProperties {
-    var initialVersion = "empty"
     var admin = AdminRouteProperties()
     var status = StatusRouteProperties()
     var authorization = AuthorizationProperties()
