@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import okhttp3.Response
-import org.apache.http.client.methods.CloseableHttpResponse
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -92,19 +91,17 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should not allow unencrypted traffic between selected services`() {
         untilAsserted {
-            var invalidResponse: CloseableHttpResponse? = null
+            var invalidResponse: Response? = null
             try {
                 // when
                 invalidResponse = callEcho2ThroughEnvoy2Ingress()
 
                 // then
-                assertThat(invalidResponse.statusLine.statusCode).isEqualTo(503)
-            } catch (e: SSLPeerUnverifiedException) {
+                assertThat(invalidResponse).isUnreachable()
+            } catch (_: SSLPeerUnverifiedException) {
                 assertEnvoyReportedSslError()
-            } catch (e: SSLHandshakeException) {
+            } catch (_: SSLHandshakeException) {
                 assertEnvoyReportedSslError()
-            } finally {
-                invalidResponse?.close()
             }
         }
     }
@@ -114,8 +111,8 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         assertThat(sslHandshakeErrors).isGreaterThan(0)
     }
 
-    private fun callEcho2ThroughEnvoy2Ingress(): CloseableHttpResponse {
-        return insecureCall(url = envoyContainer2.ingressListenerUrl(secured = true) + "/status/")
+    private fun callEcho2ThroughEnvoy2Ingress(): Response {
+        return insecureCallService(address = envoyContainer2.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
     }
 
     private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/ip_endpoint")
