@@ -33,8 +33,9 @@ internal class RBACFilterFactoryTest {
     private val rbacFilterFactoryWithSourceIpAuth = RBACFilterFactory(
             IncomingPermissionsProperties().also {
                 it.enabled = true
-                it.sourceIpAuthentication = SourceIpAuthenticationProperties()
-                it.sourceIpAuthentication.enabledForServices = listOf("client1")
+                it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
+                    ipProperties.enabledForServices = listOf("client1")
+                }
             },
             StatusRouteProperties()
     )

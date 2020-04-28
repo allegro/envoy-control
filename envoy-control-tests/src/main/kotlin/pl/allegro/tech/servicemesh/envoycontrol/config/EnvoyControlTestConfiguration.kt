@@ -31,8 +31,8 @@ object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.y
 object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_check.yaml")
 object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
-object Envoy1Ads : EnvoyConfigFile("envoy/config_ads_envoy1.yaml")
-object Envoy2Ads : EnvoyConfigFile("envoy/config_ads_envoy2.yaml")
+object Envoy1AuthConfig : EnvoyConfigFile("envoy/envoy1_auth_config.yaml")
+object Envoy2AuthConfig : EnvoyConfigFile("envoy/envoy2_auth_config.yaml")
 object AdsWithDisabledEndpointPermissions : EnvoyConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
 object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
 object AdsWithNoDependencies : EnvoyConfigFile("envoy/config_ads_no_dependencies.yaml")
@@ -169,7 +169,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         fun createEnvoyContainerWithEcho2San(): EnvoyContainer {
             return EnvoyContainer(
-                    Envoy1Ads.filePath,
+                    Envoy1AuthConfig.filePath,
                     localServiceContainer.ipAddress(),
                     envoyControl1.grpcPort,
                     image = defaultEnvoyImage,

@@ -5,8 +5,8 @@ import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy1Ads
-import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy2Ads
+import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy1AuthConfig
+import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy2AuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
@@ -29,14 +29,14 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoyConfig = Envoy1Ads, secondEnvoyConfig = Envoy2Ads, envoys = 2)
+            }, envoyConfig = Envoy1AuthConfig, secondEnvoyConfig = Envoy2AuthConfig, envoys = 2)
         }
     }
 
     @Test
     fun `should allow access to selected clients using source based authentication`() {
-        registerEcho1WithEnvoyOnIngress()
-        registerEcho2WithEnvoyOnIngress()
+        registerEcho1WithEnvoy1OnIngress()
+        registerEcho2WithEnvoy2OnIngress()
 
         untilAsserted {
             // when
@@ -49,7 +49,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         }
     }
 
-    private fun registerEcho1WithEnvoyOnIngress() {
+    private fun registerEcho1WithEnvoy1OnIngress() {
         registerService(
                 id = "echo",
                 name = "echo", address = envoyContainer1.ipAddress(),
@@ -57,7 +57,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         )
     }
 
-    private fun registerEcho2WithEnvoyOnIngress() {
+    private fun registerEcho2WithEnvoy2OnIngress() {
         registerService(
                 id = "echo2",
                 name = "echo2", address = envoyContainer2.ipAddress(),

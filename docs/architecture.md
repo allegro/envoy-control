@@ -16,10 +16,12 @@ circuit breaking and much more.
 ## Envoy control
 
 Envoy Control is responsible for feeding Envoys with configuration of 
-[CDS](https://www.envoyproxy.io/docs/envoy/latest/configuration/upstream/cluster_manager/cds),
-[EDS](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/service_discovery#arch-overview-service-discovery-types-eds),
-and [RDS](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/rds.html) data based on custom metadata.
-Right now CDS and EDS data comes from Consul service discovery,
+[CDS](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/operations/dynamic_configuration#cds),
+[EDS](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/operations/dynamic_configuration#eds),
+[RDS](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/operations/dynamic_configuration#rds),
+and [LDS](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/operations/dynamic_configuration#lds)
+data based on custom metadata.
+Right now CDS, and EDS data comes from Consul service discovery,
 but there is nothing special about our integration with Consul and users can integrate as many sources as they want.
 
 ![envoy control modules drawing](assets/images/envoy-control-modules-drawing.png)
