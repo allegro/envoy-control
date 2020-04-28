@@ -35,6 +35,8 @@ class SnapshotUpdater(
     }
 
     private val versions = SnapshotsVersions()
+
+    // TODO(dj): #110 consider plugging the factories externally
     private val snapshotFactory = EnvoySnapshotFactory(
         ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
         egressRoutesFactory = EnvoyEgressRoutesFactory(properties),

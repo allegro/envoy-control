@@ -15,7 +15,7 @@ class ConsulLocalServiceChanges(
     private val transformers: List<ServiceInstancesTransformer> = emptyList(),
     override val latestServiceState: AtomicReference<ServicesState> = AtomicReference(ServicesState())
 ) : LocalServiceChanges {
-    override fun stream(): Flux<Set<LocalityAwareServicesState>> =
+    override fun stream(): Flux<List<LocalityAwareServicesState>> =
         consulChanges
             .watchState()
             .map { state ->
@@ -28,7 +28,7 @@ class ConsulLocalServiceChanges(
             }
             .doOnNext { latestServiceState.set(it) }
             .map {
-                setOf(LocalityAwareServicesState(it, locality, localDc))
+                listOf(LocalityAwareServicesState(it, locality, localDc))
             }
 
     override fun isServiceStateLoaded(): Boolean = latestServiceState.get() != ServicesState()

@@ -22,7 +22,7 @@ class CrossDcServices(
     private val logger by logger()
     private val dcServicesCache = ConcurrentHashMap<String, LocalityAwareServicesState>()
 
-    fun getChanges(interval: Long): Flux<Set<LocalityAwareServicesState>> {
+    fun getChanges(interval: Long): Flux<List<LocalityAwareServicesState>> {
         return Flux
             .interval(Duration.ofSeconds(0), Duration.ofSeconds(interval))
             .checkpoint("cross-dc-services-ticks")
@@ -38,7 +38,7 @@ class CrossDcServices(
                     .map { dc -> dcWithControlPlaneInstances(dc) }
                     .filter { (_, instances) -> instances.isNotEmpty() }
                     .flatMap { (dc, instances) -> servicesStateFromDc(dc, instances) }
-                    .collect(Collectors.toSet())
+                    .collect(Collectors.toList())
             }
             .measureBuffer("cross-dc-services-flat-map", meterRegistry)
             .filter {
