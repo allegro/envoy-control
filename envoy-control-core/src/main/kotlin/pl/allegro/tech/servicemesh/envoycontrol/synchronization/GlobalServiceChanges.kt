@@ -17,7 +17,8 @@ class GlobalServiceChanges(
     private val scheduler = Schedulers.newElastic("global-service-changes-combinator")
 
     fun combined(): Flux<List<LocalityAwareServicesState>> {
-        val serviceStatesStreams: List<Flux<Set<LocalityAwareServicesState>>> = serviceChanges.map { it.stream() }
+        // TODO(dj): #110 List<Flux<List<X>>> needs to look like domain oriented code
+        val serviceStatesStreams: List<Flux<List<LocalityAwareServicesState>>> = serviceChanges.map { it.stream() }
 
         if (properties.combineServiceChangesExperimentalFlow) {
             return combinedExperimentalFlow(serviceStatesStreams)
@@ -42,7 +43,7 @@ class GlobalServiceChanges(
     }
 
     private fun combinedExperimentalFlow(
-        serviceStatesStreams: List<Flux<Set<LocalityAwareServicesState>>>
+        serviceStatesStreams: List<Flux<List<LocalityAwareServicesState>>>
     ): Flux<List<LocalityAwareServicesState>> {
 
         return Flux.combineLatest(

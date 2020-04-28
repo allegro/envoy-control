@@ -7,12 +7,12 @@ import reactor.core.publisher.Flux
 
 class CrossDcServiceChanges(
     val properties: EnvoyControlProperties,
-    val crossDcService: CrossDcServices
+    private val crossDcService: CrossDcServices
 ) : ServiceChanges {
-    override fun stream(): Flux<Set<LocalityAwareServicesState>> =
+    override fun stream(): Flux<List<LocalityAwareServicesState>> =
         crossDcService
             .getChanges(properties.sync.pollingInterval)
-            .startWith(emptySet<LocalityAwareServicesState>())
+            .startWith(emptyList<LocalityAwareServicesState>())
             .distinctUntilChanged()
             .name("cross-dc-changes-distinct").metrics()
 }

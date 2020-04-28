@@ -21,7 +21,7 @@ class CrossDcServicesTest {
         val result = service
             .getChanges(1)
             .blockFirst()
-            ?: emptySet()
+            ?: emptyList()
 
         assertThat(result).hasSize(2)
         assertThat(result.map { it.zone }.toSet()).isEqualTo(setOf("dc1", "dc2"))
@@ -34,7 +34,7 @@ class CrossDcServicesTest {
         val result = service
             .getChanges(1)
             .blockFirst()
-            ?: emptySet()
+            ?: emptyList()
 
         assertThat(result).hasSize(1)
         assertThat(result.map { it.zone }).contains("dc1")
@@ -52,7 +52,7 @@ class CrossDcServicesTest {
         val result = service
             .getChanges(1)
             .blockFirst()
-            ?: emptySet()
+            ?: emptyList()
 
         assertThat(result).isNotEmpty
         assertThat(result.flatMap { it.servicesState.serviceNames() }.toSet()).isEqualTo(setOf("dc1", "dc3"))
@@ -66,14 +66,14 @@ class CrossDcServicesTest {
         val successfulResult = service
             .getChanges(1)
             .blockFirst()
-            ?: emptySet()
+            ?: emptyList()
 
         assertThat(successfulResult).containsExactlyInAnyOrder(*(expectedSuccessfulState.toTypedArray()))
 
         val oneInstanceFailing = service
             .getChanges(1)
             .blockFirst()
-            ?: emptySet()
+            ?: emptyList()
 
         assertThat(oneInstanceFailing).containsExactlyInAnyOrder(*(expectedStateWithOneRequestFailing.toTypedArray()))
     }
