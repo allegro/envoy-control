@@ -130,18 +130,24 @@ class RBACFilterFactory(
     }
 
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        return if (client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
-            sourceIpPrincipals(client, snapshot)
-        } else if (snapshot.mtlsEnabledForCluster(client)) {
-            listOf(Principal.newBuilder().setAuthenticated(
-                    Principal.Authenticated.newBuilder()
-                            .setPrincipalName(StringMatcher.newBuilder()
-                                    .setExact("spiffe://$client").build()
-                            )
-                    ).build()
-            )
-        } else {
-            headerPrincipals(client)
+        val tlsProperties = incomingPermissionsProperties.tlsAuthentication
+        return when {
+            client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices -> {
+                sourceIpPrincipals(client, snapshot)
+            }
+            snapshot.mtlsEnabledForCluster(client) -> {
+                listOf(Principal.newBuilder().setAuthenticated(
+                        Principal.Authenticated.newBuilder()
+                                .setPrincipalName(StringMatcher.newBuilder()
+                                        .setExact("${tlsProperties.sanUriPrefix}$client${tlsProperties.sanUriSuffix}")
+                                        .build()
+                                )
+                ).build()
+                )
+            }
+            else -> {
+                headerPrincipals(client)
+            }
         }
     }
 
