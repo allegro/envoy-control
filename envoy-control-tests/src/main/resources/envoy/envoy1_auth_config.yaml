@@ -24,7 +24,7 @@ node:
     access_log_enabled: false
     add_upstream_external_address_header: true
     has_static_secrets_defined: true
-    trusted_ca_path: ""
+    resources_dir: "/etc/envoy/extra"
     proxy_settings:
       outgoing:
         dependencies:
