@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
 import org.awaitility.Duration
-import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.Network
 import org.testcontainers.junit.jupiter.Testcontainers
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulClientConfig
@@ -10,6 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulServerConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulSetup
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer
 import java.io.File
 import java.lang.Thread.sleep
 import java.util.UUID
@@ -115,12 +115,10 @@ open class BaseEnvoyTest {
             registerDefaultCheck: Boolean = false,
             tags: List<String> = listOf("a")
         ): String {
-            val echoContainerIp =
-                container.getContainerInfo().networkSettings.networks[(network as Network.NetworkImpl).name]!!.ipAddress
             return consulOps.registerService(
                 id = id,
                 name = name,
-                address = echoContainerIp!!,
+                address = container.ipAddress(),
                 port = port,
                 registerDefaultCheck = registerDefaultCheck,
                 tags = tags

@@ -13,10 +13,11 @@ class EnvoyContainer(
     private val localServiceIp: String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
-    private val image: String
-) : SSLGenericContainer<EnvoyContainer>(DockerfileBuilder()
+    image: String,
+    certificate: String = "testcontainers/ssl/fullchain_echo.pem"
+) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
-        .run("apk --no-cache add curl iproute2")
+        .run("apk --no-cache add curl iproute2"), certificate = certificate
 ) {
 
     companion object {
@@ -67,7 +68,10 @@ class EnvoyContainer(
 
     fun egressListenerUrl() = "http://$containerIpAddress:${getMappedPort(EGRESS_LISTENER_CONTAINER_PORT)}/"
 
-    fun ingressListenerUrl() = "http://$containerIpAddress:${getMappedPort(INGRESS_LISTENER_CONTAINER_PORT)}"
+    fun ingressListenerUrl(secured: Boolean = false): String {
+        val schema = if (secured) "https" else "http"
+        return schema + "://$containerIpAddress:${getMappedPort(INGRESS_LISTENER_CONTAINER_PORT)}"
+    }
 
     fun adminUrl() = "http://$containerIpAddress:${getMappedPort(ADMIN_PORT)}"
 

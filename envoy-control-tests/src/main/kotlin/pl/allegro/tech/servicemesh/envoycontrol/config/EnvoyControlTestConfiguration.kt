@@ -6,6 +6,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import org.apache.http.conn.ssl.TrustAllStrategy
+import org.apache.http.ssl.SSLContextBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility.await
@@ -16,8 +18,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import java.security.KeyStore
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 import kotlin.random.Random
 
 sealed class EnvoyConfigFile(val filePath: String)
@@ -37,10 +43,16 @@ object RandomConfigFile :
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {
         private val logger by logger()
-        private val client = OkHttpClient.Builder()
+        private val defaultClient = OkHttpClient.Builder()
             // envoys default timeout is 15 seconds while OkHttp is 10
             .readTimeout(Duration.ofSeconds(20))
             .build()
+
+        private val insecureClient = OkHttpClient.Builder()
+                // envoys default timeout is 15 seconds while OkHttp is 10
+                .sslSocketFactory(getInsecureSSLSocketFactory(), getInsecureTrustManager())
+                .readTimeout(Duration.ofSeconds(20))
+                .build()
 
         lateinit var envoyContainer1: EnvoyContainer
         lateinit var envoyContainer2: EnvoyContainer
@@ -161,6 +173,16 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 .withStartupTimeout(Duration.ofSeconds(10))
         }
 
+        fun createEnvoyContainerWithEcho2San(): EnvoyContainer {
+            return EnvoyContainer(
+                    Envoy1AuthConfig.filePath,
+                    localServiceContainer.ipAddress(),
+                    envoyControl1.grpcPort,
+                    image = defaultEnvoyImage,
+                    certificate = "testcontainers/ssl/fullchain_echo2.pem"
+            ).withNetwork(network)
+        }
+
         fun registerEnvoyControls(
             ec1RegisterPort: Int?,
             ec2RegisterPort: Int?,
@@ -212,11 +234,33 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             pathAndQuery: String = ""
         ): Response = call(service, address, headers, pathAndQuery)
 
+        private fun getInsecureSSLSocketFactory(): SSLSocketFactory {
+            val builder = SSLContextBuilder()
+            builder.loadTrustMaterial(null, TrustAllStrategy())
+            return builder.build().socketFactory
+        }
+
+        private fun getInsecureTrustManager(): X509TrustManager {
+            val trustManagerFactory: TrustManagerFactory = TrustManagerFactory.getInstance(
+                    TrustManagerFactory.getDefaultAlgorithm())
+            trustManagerFactory.init(null as KeyStore?)
+            val trustManagers = trustManagerFactory.trustManagers
+            return trustManagers[0] as X509TrustManager
+        }
+
+        fun callServiceInsecure(
+            service: String,
+            address: String = envoyContainer1.egressListenerUrl(),
+            headers: Map<String, String> = mapOf(),
+            pathAndQuery: String = ""
+        ): Response = call(service, address, headers, pathAndQuery, insecureClient)
+
         private fun call(
             host: String,
             address: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf(),
-            pathAndQuery: String = ""
+            pathAndQuery: String = "",
+            client: OkHttpClient = defaultClient
         ): Response {
             val request = client.newCall(
                 Request.Builder()
@@ -233,7 +277,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
 
         fun callServiceWithOriginalDst(originalDstUrl: String, envoyUrl: String): Response =
-            client.newCall(
+            defaultClient.newCall(
                 Request.Builder()
                     .get()
                     .header("Host", "envoy-original-destination")
@@ -248,7 +292,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             headers: Headers,
             envoyContainer: EnvoyContainer = envoyContainer1
         ): Response =
-            client.newCall(
+            defaultClient.newCall(
                 Request.Builder()
                     .get()
                     .headers(headers)
@@ -263,7 +307,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             body: RequestBody,
             envoyContainer: EnvoyContainer = envoyContainer1
         ): Response =
-            client.newCall(
+            defaultClient.newCall(
                 Request.Builder()
                     .post(body)
                     .headers(headers)
