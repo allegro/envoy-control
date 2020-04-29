@@ -17,6 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
@@ -33,6 +34,7 @@ class RBACFilterFactory(
     }
 
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
+    private val staticIpRanges = createStaticIpRanges()
 
     private fun getRules(serviceName: String, incomingPermissions: Incoming, snapshot: GlobalSnapshot): RBAC {
         val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
@@ -130,11 +132,28 @@ class RBACFilterFactory(
     }
 
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        if (client !in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
-            return headerPrincipals(client)
-        }
+        val staticRangesForClient = staticIpRanges[client]
 
-        return sourceIpPrincipals(client, snapshot)
+        return if (client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
+            sourceIpPrincipals(client, snapshot)
+        } else if (!staticRangesForClient.isNullOrEmpty()) {
+            staticRangesForClient
+        } else {
+            headerPrincipals(client)
+        }
+    }
+
+    private fun createStaticIpRanges(): Map<ClusterName, List<Principal>> {
+        val ranges = incomingPermissionsProperties.sourceIpAuthentication.staticIpRanges
+
+        return ranges.mapValues {
+            it.value.map { ipWithPrefix ->
+                Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                        .setAddressPrefix(ipWithPrefix.ip)
+                        .setPrefixLen(UInt32Value.of(ipWithPrefix.prefixLength)).build())
+                        .build()
+            }
+        }
     }
 
     private fun sourceIpPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
