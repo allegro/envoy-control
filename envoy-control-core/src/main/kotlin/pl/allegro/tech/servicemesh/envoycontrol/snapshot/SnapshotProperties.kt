@@ -62,6 +62,15 @@ class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
+    var tlsAuthentication = TlsAuthenticationProperties()
+}
+
+class TlsAuthenticationProperties {
+    var validationContextConfigName: String = "validation_context"
+    var tlsCertificateConfigName: String = "server_cert"
+    var mtlsEnabledTag: String = "mtls:enabled"
+    var sanUriPrefix: String = "spiffe://"
+    var sanUriSuffix: String = ""
 }
 
 class SourceIpAuthenticationProperties {

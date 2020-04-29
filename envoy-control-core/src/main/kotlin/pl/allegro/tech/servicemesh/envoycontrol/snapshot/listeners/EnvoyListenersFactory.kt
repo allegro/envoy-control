@@ -6,6 +6,9 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.Listener
+import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
+import io.envoyproxy.envoy.api.v2.auth.DownstreamTlsContext
+import io.envoyproxy.envoy.api.v2.auth.SdsSecretConfig
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
 import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
@@ -14,8 +17,10 @@ import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
+import io.envoyproxy.envoy.api.v2.core.TransportSocket
 import io.envoyproxy.envoy.api.v2.listener.Filter
 import io.envoyproxy.envoy.api.v2.listener.FilterChain
+import io.envoyproxy.envoy.api.v2.listener.FilterChainMatch
 import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
 import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
@@ -35,7 +40,7 @@ typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFil
 
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
-    snapshotProperties: SnapshotProperties,
+    private val snapshotProperties: SnapshotProperties,
     envoyHttpFilters: EnvoyHttpFilters
 ) {
     private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters
@@ -96,7 +101,12 @@ class EnvoyListenersFactory(
         listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot
     ): Listener {
-        return Listener.newBuilder()
+        val insecureIngressChain = createIngressFilterChain(group, listenersConfig, globalSnapshot)
+        val securedIngressChain = if (listenersConfig.hasStaticSecretsDefined) {
+            createSecuredIngressFilterChain(group, listenersConfig, globalSnapshot)
+        } else null
+
+        val listener = Listener.newBuilder()
                 .setName("ingress_listener")
                 .setAddress(
                         Address.newBuilder().setSocketAddress(
@@ -105,21 +115,52 @@ class EnvoyListenersFactory(
                                         .setAddress(listenersConfig.ingressHost)
                         )
                 )
-                .addFilterChains(createIngressFilterChain(group, listenersConfig, globalSnapshot))
-                .build()
+
+        listOfNotNull(securedIngressChain, insecureIngressChain).forEach {
+            listener.addFilterChains(it.build())
+        }
+
+        return listener.build()
     }
 
     private fun createIngressFilterChain(
         group: Group,
         listenersConfig: ListenersConfig,
-        globalSnapshot: GlobalSnapshot
-    ): FilterChain {
-
-        val filterChain = FilterChain.newBuilder()
+        globalSnapshot: GlobalSnapshot,
+        transportProtocol: String = "raw_buffer"
+    ): FilterChain.Builder {
+        return FilterChain.newBuilder()
+                .setFilterChainMatch(FilterChainMatch.newBuilder().setTransportProtocol(transportProtocol))
                 .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot))
+    }
+
+    private fun createSecuredIngressFilterChain(
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot
+    ): FilterChain.Builder {
+        val filterChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, "tls")
+        val tlsAuthenticationProperties = snapshotProperties.incomingPermissions.tlsAuthentication
+
+        val downstreamTlsContext = DownstreamTlsContext.newBuilder()
+                .setRequireClientCertificate(BoolValue.of(true)) // if false, will not validate cert
+                .setCommonTlsContext(CommonTlsContext.newBuilder()
+                        .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
+                                .setName(tlsAuthenticationProperties.tlsCertificateConfigName).build()
+                        )
+                        // .addAllAlpnProtocols(listOf("h2,http/1.1"))
+                        .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
+                                .setName(tlsAuthenticationProperties.validationContextConfigName)
+                                .build()
+                        )
+                )
+        filterChain.setTransportSocket(TransportSocket.newBuilder()
+                .setName("envoy.transport_sockets.tls")
+                .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
+                .build()
+        )
 
         return filterChain
-                .build()
     }
 
     private fun createEgressFilterChain(
