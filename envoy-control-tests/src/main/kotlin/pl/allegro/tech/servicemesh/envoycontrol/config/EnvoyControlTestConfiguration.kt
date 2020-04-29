@@ -248,7 +248,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             return trustManagers[0] as X509TrustManager
         }
 
-        fun insecureCallService(
+        fun callServiceInsecure(
             service: String,
             address: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf(),
