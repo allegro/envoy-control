@@ -112,7 +112,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     }
 
     private fun callEcho2ThroughEnvoy2Ingress(): Response {
-        return insecureCallService(address = envoyContainer2.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
+        return callServiceInsecure(address = envoyContainer2.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
     }
 
     private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/ip_endpoint")
