@@ -103,7 +103,7 @@ class ReactorUtilsTest {
     private fun <T> Flux<T>.subscribeRequestingN(n: Int): CountDownLatch {
         val received = CountDownLatch(n)
         subscribe(
-            { i -> received.countDown() },
+            { received.countDown() },
             { e -> fail(e) },
             {},
             { subscription ->
