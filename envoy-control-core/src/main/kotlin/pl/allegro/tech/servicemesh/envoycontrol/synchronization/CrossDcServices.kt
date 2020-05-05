@@ -2,8 +2,10 @@ package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
-import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
@@ -11,8 +13,8 @@ import reactor.core.publisher.Mono
 import java.net.URI
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
-import java.util.stream.Collectors
 
+// TODO(dj): #110 rename to RemoteServices
 class CrossDcServices(
     private val controlPlaneClient: AsyncControlPlaneClient,
     private val meterRegistry: MeterRegistry,
@@ -20,9 +22,9 @@ class CrossDcServices(
     private val remoteDcs: List<String>
 ) {
     private val logger by logger()
-    private val dcServicesCache = ConcurrentHashMap<String, LocalityAwareServicesState>()
+    private val dcServicesCache = ConcurrentHashMap<String, ClusterState>()
 
-    fun getChanges(interval: Long): Flux<List<LocalityAwareServicesState>> {
+    fun getChanges(interval: Long): Flux<MultiClusterState> {
         return Flux
             .interval(Duration.ofSeconds(0), Duration.ofSeconds(interval))
             .checkpoint("cross-dc-services-ticks")
@@ -38,7 +40,8 @@ class CrossDcServices(
                     .map { dc -> dcWithControlPlaneInstances(dc) }
                     .filter { (_, instances) -> instances.isNotEmpty() }
                     .flatMap { (dc, instances) -> servicesStateFromDc(dc, instances) }
-                    .collect(Collectors.toList())
+                    .collectList()
+                    .map { it.toMultiClusterState() }
             }
             .measureBuffer("cross-dc-services-flat-map", meterRegistry)
             .filter {
@@ -64,14 +67,14 @@ class CrossDcServices(
     private fun servicesStateFromDc(
         dc: String,
         instances: List<URI>
-    ): Mono<LocalityAwareServicesState> {
+    ): Mono<ClusterState> {
         val instance = chooseInstance(instances)
         return controlPlaneClient
             .getState(instance)
             .checkpoint("cross-dc-service-update-$dc")
             .name("cross-dc-service-update-$dc").metrics()
             .map {
-                LocalityAwareServicesState(it, Locality.REMOTE, dc)
+                ClusterState(it, Locality.REMOTE, dc)
             }
             .doOnSuccess {
                 dcServicesCache += dc to it
