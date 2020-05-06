@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasur
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 
-class GlobalServiceChanges(
+class GlobalClusterStateChanges(
     private val clusterStateChanges: Array<ClusterStateChanges>,
     private val meterRegistry: MeterRegistry,
     private val properties: SyncProperties

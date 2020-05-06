@@ -43,7 +43,7 @@ You can see a list of settings [here](../configuration.md#cross-dc-synchronizati
 
 If you don't use Envoy Control Runner, you have to fulfil the contract.
 Create an endpoint `GET /state` with your framework of choice that will expose current local state of Envoy Control.
-The state is available in `LocalServiceChanges#latestServiceState`.
+The state is available in `LocalClusterStateChanges#latestServiceState`.
 
 Then build a `CrossDcServices` class providing:
 

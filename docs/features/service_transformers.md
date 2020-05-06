@@ -24,7 +24,7 @@ Exclude services with a given name using defined regex.
 
 To provide custom Transformer implement `ServiceInstancesTransformer` interface. With Envoy Control Runner, every
 transformer available in Spring Context will be picked up and used. With pure Envoy Control, you have to provide
-a list of transformers to `LocalServiceChanges` class.
+a list of transformers to `LocalClusterStateChanges` class.
 
 ## Configuration
 

@@ -6,7 +6,8 @@ import org.springframework.stereotype.Component
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalClusterStateChanges
 
 @Component
-class EnvoyControlHealthIndicator(private val localClusterStateChanges: LocalClusterStateChanges) : AbstractHealthIndicator() {
+class EnvoyControlHealthIndicator(private val localClusterStateChanges: LocalClusterStateChanges)
+    : AbstractHealthIndicator() {
     override fun doHealthCheck(builder: Health.Builder?) {
         if (localClusterStateChanges.isInitialStateLoaded()) {
             builder!!.up()

@@ -32,9 +32,9 @@ Source is a stream of `cluster` and `endpoints` states.
 
 There can be many sources, all they have to do is:
 
-* implement `LocalServiceChanges`
-* be exposed as a bean - if you're using Envoy Control Runner then all of them will be combined in `GlobalServiceChanges`,
-if not - you have to combine them yourself
+* implement `LocalClusterStateChanges`
+* be exposed as a bean - if you're using Envoy Control Runner then all of them will be combined in
+`GlobalClusterStateChanges`, if not - you have to combine them yourself
 
 ### Consul
 Implements a stream of service instance changes coming from Consul discovery service.
