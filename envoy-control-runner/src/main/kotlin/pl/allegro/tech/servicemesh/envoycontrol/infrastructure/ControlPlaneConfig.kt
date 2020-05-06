@@ -19,12 +19,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.DefaultEnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlProperties
 import pl.allegro.tech.servicemesh.envoycontrol.consul.ConsulProperties
-import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalServiceChanges
+import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceMapper
-import pl.allegro.tech.servicemesh.envoycontrol.services.LocalServiceChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.LocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
-import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.EmptyAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMerger
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
@@ -85,7 +85,7 @@ class ControlPlaneConfig {
         consulServiceChanges: ConsulServiceChanges,
         consulProperties: ConsulProperties,
         transformers: List<ServiceInstancesTransformer>
-    ): LocalServiceChanges = ConsulLocalServiceChanges(
+    ): LocalClusterStateChanges = ConsulLocalClusterStateChanges(
         consulServiceChanges,
         Locality.LOCAL,
         localDatacenter(consulProperties),
@@ -121,11 +121,11 @@ class ControlPlaneConfig {
 
     @Bean
     fun globalServiceChanges(
-        serviceChanges: Array<ServiceChanges>,
+        clusterStateChanges: Array<ClusterStateChanges>,
         meterRegistry: MeterRegistry,
         properties: EnvoyControlProperties
     ): GlobalServiceChanges =
-        GlobalServiceChanges(serviceChanges, meterRegistry, properties.sync)
+        GlobalServiceChanges(clusterStateChanges, meterRegistry, properties.sync)
 
     @Bean
     fun envoyHttpFilters(

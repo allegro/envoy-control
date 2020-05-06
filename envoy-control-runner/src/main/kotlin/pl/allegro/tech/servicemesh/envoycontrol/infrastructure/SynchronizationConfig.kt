@@ -15,8 +15,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.consul.synchronization.SimpleCon
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.AsyncControlPlaneClient
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.AsyncRestTemplateControlPlaneClient
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.ControlPlaneInstanceFetcher
-import pl.allegro.tech.servicemesh.envoycontrol.synchronization.CrossDcServiceChanges
-import pl.allegro.tech.servicemesh.envoycontrol.synchronization.CrossDcServices
+import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RemoteClusterStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RemoteServices
 
 @Configuration
 @ConditionalOnProperty(name = ["envoy-control.sync.enabled"], havingValue = "true", matchIfMissing = false)
@@ -37,18 +37,18 @@ class SynchronizationConfig {
         AsyncRestTemplateControlPlaneClient(asyncRestTemplate, meterRegistry)
 
     @Bean
-    fun crossDcServices(
+    fun remoteClusterStateChanges(
         controlPlaneClient: AsyncControlPlaneClient,
         meterRegistry: MeterRegistry,
         controlPlaneInstanceFetcher: ControlPlaneInstanceFetcher,
         consulDatacenterReader: ConsulDatacenterReader,
         properties: EnvoyControlProperties
-    ): CrossDcServiceChanges {
+    ): RemoteClusterStateChanges {
 
-        val remoteDcs = consulDatacenterReader.knownDatacenters() - consulDatacenterReader.localDatacenter()
-        val service = CrossDcServices(controlPlaneClient, meterRegistry, controlPlaneInstanceFetcher, remoteDcs)
+        val remoteClusters = consulDatacenterReader.knownDatacenters() - consulDatacenterReader.localDatacenter()
+        val service = RemoteServices(controlPlaneClient, meterRegistry, controlPlaneInstanceFetcher, remoteClusters)
 
-        return CrossDcServiceChanges(properties, service)
+        return RemoteClusterStateChanges(properties, service)
     }
 
     @Bean

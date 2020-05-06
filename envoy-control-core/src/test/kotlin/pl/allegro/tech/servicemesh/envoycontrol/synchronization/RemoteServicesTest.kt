@@ -14,10 +14,10 @@ import reactor.test.StepVerifier
 import java.net.URI
 import java.time.Duration
 
-class CrossDcServicesTest {
+class RemoteServicesTest {
     @Test
-    fun `should collect responses from all DCs`() {
-        val service = CrossDcServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
+    fun `should collect responses from all clusters`() {
+        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
 
         val result = service
             .getChanges(1)
@@ -29,8 +29,8 @@ class CrossDcServicesTest {
     }
 
     @Test
-    fun `should ignore DC without service instances`() {
-        val service = CrossDcServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2/noinstances"))
+    fun `should ignore cluster without service instances`() {
+        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2/noinstances"))
 
         val result = service
             .getChanges(1)
@@ -43,7 +43,7 @@ class CrossDcServicesTest {
 
     @Test
     fun `should skip failing responses if not cached`() {
-        val service = CrossDcServices(
+        val service = RemoteServices(
             asyncClient(),
             SimpleMeterRegistry(),
             fetcher(),
@@ -60,9 +60,9 @@ class CrossDcServicesTest {
     }
 
     @Test
-    fun `should serve cached responses when a cross dc request fails`() {
+    fun `should serve cached responses when a cross cluster request fails`() {
         // given
-        val service = CrossDcServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1/successful-states", "dc2/second-request-failing"))
+        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1/successful-states", "dc2/second-request-failing"))
 
         val successfulResult = service
             .getChanges(1)
@@ -82,7 +82,7 @@ class CrossDcServicesTest {
     @Test
     fun `should not emit a value when all requests fail`() {
         // given
-        val service = CrossDcServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc2/error"))
+        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc2/error"))
         val duration = 1L
 
         StepVerifier.create(
@@ -100,8 +100,8 @@ class CrossDcServicesTest {
 
     private fun fetcher(): ControlPlaneInstanceFetcher {
         return object : ControlPlaneInstanceFetcher {
-            override fun instances(dc: String): List<URI> {
-                val uri = URI.create("http://$dc")
+            override fun instances(zone: String): List<URI> {
+                val uri = URI.create("http://$zone")
                 if (uri.path == "/noinstances") {
                     return emptyList()
                 }

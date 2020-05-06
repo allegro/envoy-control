@@ -3,7 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.utils.logSuppressedError
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
@@ -11,21 +11,21 @@ import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 
 class GlobalServiceChanges(
-    private val serviceChanges: Array<ServiceChanges>,
+    private val clusterStateChanges: Array<ClusterStateChanges>,
     private val meterRegistry: MeterRegistry,
     private val properties: SyncProperties
 ) {
     private val scheduler = Schedulers.newElastic("global-service-changes-combinator")
 
     fun combined(): Flux<MultiClusterState> {
-        val serviceStatesStreams: List<Flux<MultiClusterState>> = serviceChanges.map { it.stream() }
+        val clusterStatesStreams: List<Flux<MultiClusterState>> = clusterStateChanges.map { it.stream() }
 
         if (properties.combineServiceChangesExperimentalFlow) {
-            return combinedExperimentalFlow(serviceStatesStreams)
+            return combinedExperimentalFlow(clusterStatesStreams)
         }
 
         return Flux.combineLatest(
-            serviceStatesStreams.map {
+            clusterStatesStreams.map {
                 // if a number of items emitted by one source is very high, combineLatest may entirely ignore items
                 // emitted by other sources. publishOn with multithreaded scheduler prevents it.
                 it.publishOn(scheduler, 1)
@@ -45,11 +45,11 @@ class GlobalServiceChanges(
     }
 
     private fun combinedExperimentalFlow(
-        serviceStatesStreams: List<Flux<MultiClusterState>>
+        clusterStatesStreams: List<Flux<MultiClusterState>>
     ): Flux<MultiClusterState> {
 
         return Flux.combineLatest(
-            serviceStatesStreams.map {
+            clusterStatesStreams.map {
                 // if a number of items emitted by one source is very high, combineLatest may entirely ignore items
                 // emitted by other sources. publishOn with multithreaded scheduler prevents it.
                 //
