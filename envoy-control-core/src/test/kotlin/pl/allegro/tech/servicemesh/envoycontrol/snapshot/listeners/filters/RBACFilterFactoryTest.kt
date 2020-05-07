@@ -35,7 +35,7 @@ internal class RBACFilterFactoryTest {
             IncomingPermissionsProperties().also {
                 it.enabled = true
                 it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
-                    ipProperties.enabledForServices = listOf("client1")
+                    ipProperties.exactIpAuthentication.serviceNames = listOf("client1")
                 }
             },
             StatusRouteProperties()
@@ -44,7 +44,7 @@ internal class RBACFilterFactoryTest {
             IncomingPermissionsProperties().also {
                 it.enabled = true
                 it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
-                    ipProperties.staticIpRanges = mutableMapOf(
+                    ipProperties.staticIpAuthentication.ipRangeForServices = mutableMapOf(
                         "client1" to listOf(IpWithPrefix().also { ipWithPrefix ->
                             ipWithPrefix.ip = "192.168.1.0"
                             ipWithPrefix.prefixLength = 24
@@ -61,8 +61,8 @@ internal class RBACFilterFactoryTest {
             IncomingPermissionsProperties().also {
                 it.enabled = true
                 it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
-                    ipProperties.enabledForServices = listOf("client1")
-                    ipProperties.staticIpRanges = mutableMapOf(
+                    ipProperties.exactIpAuthentication.serviceNames = listOf("client1")
+                    ipProperties.staticIpAuthentication.ipRangeForServices = mutableMapOf(
                             "client2" to listOf(IpWithPrefix().also { ipWithPrefix ->
                                 ipWithPrefix.ip = "192.168.1.0"
                                 ipWithPrefix.prefixLength = 24

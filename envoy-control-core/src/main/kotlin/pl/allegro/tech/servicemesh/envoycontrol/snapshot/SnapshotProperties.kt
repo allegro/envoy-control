@@ -67,13 +67,21 @@ class IncomingPermissionsProperties {
 typealias ClusterName = String
 
 class SourceIpAuthenticationProperties {
-    var enabledForServices: List<String> = listOf()
-    var staticIpRanges: MutableMap<ClusterName, List<IpWithPrefix>> = mutableMapOf()
+    var exactIpAuthentication = ExactIpAuthentication()
+    var staticIpAuthentication = StaticIpAuthentication()
+}
+
+class ExactIpAuthentication {
+    var serviceNames: List<String> = listOf()
+}
+
+class StaticIpAuthentication {
+    var ipRangeForServices: MutableMap<ClusterName, List<IpWithPrefix>> = mutableMapOf()
 }
 
 class IpWithPrefix {
-    var ip: String = "0.0.0.0"
-    var prefixLength = 0
+    var ip: String = ""
+    var prefixLength = -1
 }
 
 class LoadBalancingProperties {

@@ -14,14 +14,14 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     companion object {
-
+        private const val prefix = "envoy-control.envoy.snapshot"
         private val properties = mapOf(
-            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.source-ip-authentication.enabled-for-services" to
+            "$prefix.incoming-permissions.enabled" to true,
+            "$prefix.incoming-permissions.source-ip-authentication.exact-ip-authentication.service-names" to
                     listOf("echo"),
-            "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
-            "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
-            "envoy-control.envoy.snapshot.routes.status.enabled" to true
+            "$prefix.routes.status.create-virtual-cluster" to true,
+            "$prefix.routes.status.path-prefix" to "/status/",
+            "$prefix.routes.status.enabled" to true
         )
 
         @JvmStatic

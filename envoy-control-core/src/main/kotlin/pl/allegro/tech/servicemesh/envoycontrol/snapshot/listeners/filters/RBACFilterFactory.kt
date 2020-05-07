@@ -134,9 +134,9 @@ class RBACFilterFactory(
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
         val staticRangesForClient = staticIpRanges[client]
 
-        return if (client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
+        return if (client in incomingPermissionsProperties.sourceIpAuthentication.exactIpAuthentication.serviceNames) {
             sourceIpPrincipals(client, snapshot)
-        } else if (!staticRangesForClient.isNullOrEmpty()) {
+        } else if (staticRangesForClient != null) {
             staticRangesForClient
         } else {
             headerPrincipals(client)
@@ -144,7 +144,7 @@ class RBACFilterFactory(
     }
 
     private fun createStaticIpRanges(): Map<ClusterName, List<Principal>> {
-        val ranges = incomingPermissionsProperties.sourceIpAuthentication.staticIpRanges
+        val ranges = incomingPermissionsProperties.sourceIpAuthentication.staticIpAuthentication.ipRangeForServices
 
         return ranges.mapValues {
             it.value.map { ipWithPrefix ->
