@@ -7,7 +7,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
@@ -58,10 +58,10 @@ class SnapshotUpdater(
         return globalSnapshot
     }
 
-    fun start(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
+    fun start(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return Flux.merge(
                 1, // prefetch 1, instead of default 32, to avoid processing stale items in case of backpressure
-                services(changes).subscribeOn(globalSnapshotScheduler),
+                services(states).subscribeOn(globalSnapshotScheduler),
                 groups().subscribeOn(globalSnapshotScheduler)
         )
                 .measureBuffer("snapshot-updater-merged", meterRegistry, innerSources = 2)
@@ -108,8 +108,8 @@ class SnapshotUpdater(
                 }
     }
 
-    internal fun services(changes: Flux<List<LocalityAwareServicesState>>): Flux<UpdateResult> {
-        return changes
+    internal fun services(states: Flux<MultiClusterState>): Flux<UpdateResult> {
+        return states
                 .sample(properties.stateSampleDuration)
                 .name("snapshot-updater-services-sampled").metrics()
                 .onBackpressureLatestMeasured("snapshot-updater-services-sampled", meterRegistry)
@@ -190,7 +190,7 @@ class SnapshotUpdater(
         })
     }
 
-    private fun Flux<List<LocalityAwareServicesState>>.createClusterConfigurations(): Flux<StatesAndClusters> = this
+    private fun Flux<MultiClusterState>.createClusterConfigurations(): Flux<StatesAndClusters> = this
         .scan(StatesAndClusters.initial) { previous, currentStates -> StatesAndClusters(
             states = currentStates,
             clusters = snapshotFactory.clusterConfigurations(currentStates, previous.clusters)
@@ -198,11 +198,11 @@ class SnapshotUpdater(
         .filter { it !== StatesAndClusters.initial }
 
     private data class StatesAndClusters(
-        val states: List<LocalityAwareServicesState>,
+        val states: MultiClusterState,
         val clusters: Map<String, ClusterConfiguration>
     ) {
         companion object {
-            val initial = StatesAndClusters(emptyList(), emptyMap())
+            val initial = StatesAndClusters(MultiClusterState.empty(), emptyMap())
         }
     }
 }
