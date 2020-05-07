@@ -4,7 +4,8 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
-import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
@@ -21,7 +22,7 @@ class CrossDcServicesTest {
         val result = service
             .getChanges(1)
             .blockFirst()
-            ?: emptyList()
+            ?: MultiClusterState.empty()
 
         assertThat(result).hasSize(2)
         assertThat(result.map { it.zone }.toSet()).isEqualTo(setOf("dc1", "dc2"))
@@ -34,7 +35,7 @@ class CrossDcServicesTest {
         val result = service
             .getChanges(1)
             .blockFirst()
-            ?: emptyList()
+            ?: MultiClusterState.empty()
 
         assertThat(result).hasSize(1)
         assertThat(result.map { it.zone }).contains("dc1")
@@ -52,7 +53,7 @@ class CrossDcServicesTest {
         val result = service
             .getChanges(1)
             .blockFirst()
-            ?: emptyList()
+            ?: MultiClusterState.empty()
 
         assertThat(result).isNotEmpty
         assertThat(result.flatMap { it.servicesState.serviceNames() }.toSet()).isEqualTo(setOf("dc1", "dc3"))
@@ -66,14 +67,14 @@ class CrossDcServicesTest {
         val successfulResult = service
             .getChanges(1)
             .blockFirst()
-            ?: emptyList()
+            ?: MultiClusterState.empty()
 
         assertThat(successfulResult).containsExactlyInAnyOrder(*(expectedSuccessfulState.toTypedArray()))
 
         val oneInstanceFailing = service
             .getChanges(1)
             .blockFirst()
-            ?: emptyList()
+            ?: MultiClusterState.empty()
 
         assertThat(oneInstanceFailing).containsExactlyInAnyOrder(*(expectedStateWithOneRequestFailing.toTypedArray()))
     }
@@ -136,13 +137,13 @@ class CrossDcServicesTest {
     )
 
     private val expectedSuccessfulState = setOf(
-        LocalityAwareServicesState(servicesState1, Locality.REMOTE, "dc1/successful-states"),
-        LocalityAwareServicesState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
+        ClusterState(servicesState1, Locality.REMOTE, "dc1/successful-states"),
+        ClusterState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
     )
 
     private val expectedStateWithOneRequestFailing = setOf(
-        LocalityAwareServicesState(servicesState2, Locality.REMOTE, "dc1/successful-states"),
-        LocalityAwareServicesState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
+        ClusterState(servicesState2, Locality.REMOTE, "dc1/successful-states"),
+        ClusterState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
     )
 
     private val successfulStatesSequence = listOf(

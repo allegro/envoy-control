@@ -20,7 +20,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.ServerProperties
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.CompositeDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
-import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
@@ -42,7 +42,7 @@ class ControlPlane private constructor(
     val snapshotUpdater: SnapshotUpdater,
     val nodeGroup: NodeGroup<Group>,
     val cache: SnapshotCache<Group>,
-    private val changes: Flux<List<LocalityAwareServicesState>>
+    private val changes: Flux<MultiClusterState>
 ) : AutoCloseable {
 
     private var servicesDisposable: Disposable? = null
@@ -83,7 +83,7 @@ class ControlPlane private constructor(
             properties = properties.envoy.snapshot
         )
 
-        fun build(changes: Flux<List<LocalityAwareServicesState>>): ControlPlane {
+        fun build(changes: Flux<MultiClusterState>): ControlPlane {
             if (grpcServerExecutor == null) {
                 grpcServerExecutor = ThreadPoolExecutor(
                     properties.server.serverPoolSize,
