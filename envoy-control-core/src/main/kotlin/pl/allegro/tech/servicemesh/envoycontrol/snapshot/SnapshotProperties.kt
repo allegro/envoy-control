@@ -76,7 +76,7 @@ class ExactIpAuthentication {
 }
 
 class StaticIpAuthentication {
-    var ipRangeForServices: MutableMap<ClusterName, List<IpWithPrefix>> = mutableMapOf()
+    var ipRangeForServices: MutableMap<ClusterName, Set<IpWithPrefix>> = mutableMapOf()
 }
 
 class IpWithPrefix {
