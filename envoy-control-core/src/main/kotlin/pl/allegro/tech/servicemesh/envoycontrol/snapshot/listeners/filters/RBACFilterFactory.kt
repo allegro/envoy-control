@@ -33,6 +33,11 @@ class RBACFilterFactory(
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
 
+    private val incomingServicesSourceAuthentication = incomingPermissionsProperties
+            .sourceIpAuthentication
+            .ipFromServiceDiscovery
+            .enabledForIncomingServices
+
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
     private val staticIpRanges = createStaticIpRanges()
 
@@ -134,7 +139,7 @@ class RBACFilterFactory(
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
         val staticRangesForClient = staticIpRanges[client]
 
-        return if (client in incomingPermissionsProperties.sourceIpAuthentication.exactIpAuthentication.serviceNames) {
+        return if (client in incomingServicesSourceAuthentication) {
             sourceIpPrincipals(client, snapshot)
         } else if (staticRangesForClient != null) {
             staticRangesForClient
@@ -144,13 +149,15 @@ class RBACFilterFactory(
     }
 
     private fun createStaticIpRanges(): Map<ClusterName, List<Principal>> {
-        val ranges = incomingPermissionsProperties.sourceIpAuthentication.staticIpAuthentication.ipRangeForServices
+        val ranges = incomingPermissionsProperties.sourceIpAuthentication.ipFromRange
 
         return ranges.mapValues {
             it.value.map { ipWithPrefix ->
+                val (ip, prefixLength) = ipWithPrefix.split("/")
+
                 Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
-                        .setAddressPrefix(ipWithPrefix.ip)
-                        .setPrefixLen(UInt32Value.of(ipWithPrefix.prefixLength)).build())
+                        .setAddressPrefix(ip)
+                        .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
                         .build()
             }
         }

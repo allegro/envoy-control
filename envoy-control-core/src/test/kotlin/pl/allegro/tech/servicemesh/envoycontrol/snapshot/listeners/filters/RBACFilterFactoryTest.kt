@@ -22,7 +22,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IpWithPrefix
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SourceIpAuthenticationProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
@@ -35,7 +34,7 @@ internal class RBACFilterFactoryTest {
             IncomingPermissionsProperties().also {
                 it.enabled = true
                 it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
-                    ipProperties.exactIpAuthentication.serviceNames = listOf("client1")
+                    ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
                 }
             },
             StatusRouteProperties()
@@ -44,14 +43,8 @@ internal class RBACFilterFactoryTest {
             IncomingPermissionsProperties().also {
                 it.enabled = true
                 it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
-                    ipProperties.staticIpAuthentication.ipRangeForServices = mutableMapOf(
-                        "client1" to setOf(IpWithPrefix().also { ipWithPrefix ->
-                            ipWithPrefix.ip = "192.168.1.0"
-                            ipWithPrefix.prefixLength = 24
-                        }, IpWithPrefix().also { ipWithPrefix ->
-                            ipWithPrefix.ip = "192.168.2.0"
-                            ipWithPrefix.prefixLength = 28
-                        })
+                    ipProperties.ipFromRange = mutableMapOf(
+                        "client1" to setOf("192.168.1.0/24", "192.168.2.0/28")
                     )
                 }
             },
@@ -61,15 +54,9 @@ internal class RBACFilterFactoryTest {
             IncomingPermissionsProperties().also {
                 it.enabled = true
                 it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
-                    ipProperties.exactIpAuthentication.serviceNames = listOf("client1")
-                    ipProperties.staticIpAuthentication.ipRangeForServices = mutableMapOf(
-                            "client2" to setOf(IpWithPrefix().also { ipWithPrefix ->
-                                ipWithPrefix.ip = "192.168.1.0"
-                                ipWithPrefix.prefixLength = 24
-                            }, IpWithPrefix().also { ipWithPrefix ->
-                                ipWithPrefix.ip = "192.168.2.0"
-                                ipWithPrefix.prefixLength = 28
-                            })
+                    ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
+                    ipProperties.ipFromRange = mutableMapOf(
+                            "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
                     )
                 }
             },

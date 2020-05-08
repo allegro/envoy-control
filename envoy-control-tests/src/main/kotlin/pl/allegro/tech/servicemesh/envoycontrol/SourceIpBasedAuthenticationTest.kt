@@ -17,7 +17,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         private const val prefix = "envoy-control.envoy.snapshot"
         private val properties = mapOf(
             "$prefix.incoming-permissions.enabled" to true,
-            "$prefix.incoming-permissions.source-ip-authentication.exact-ip-authentication.service-names" to
+            "$prefix.incoming-permissions.source-ip-authentication.ip-from-service-discovery.enabled-for-incoming-services" to
                     listOf("echo"),
             "$prefix.routes.status.create-virtual-cluster" to true,
             "$prefix.routes.status.path-prefix" to "/status/",
