@@ -28,6 +28,7 @@ import io.envoyproxy.envoy.api.v2.core.UpstreamHttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
+import io.envoyproxy.envoy.type.matcher.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -77,12 +78,22 @@ internal class EnvoyClustersFactory(
         return hasStaticSecretsDefined && mtlsEnabled
     }
 
-    private fun createTlsContextWithSdsSecretConfig(): UpstreamTlsContext? {
-        val tlsAuthenticationProperties = properties.incomingPermissions.tlsAuthentication
+    private fun createTlsContextWithSdsSecretConfig(serviceName: String): UpstreamTlsContext {
+        val tlsProperties = properties.incomingPermissions.tlsAuthentication
+        val sanMatch = "${tlsProperties.sanUriPrefix}${serviceName}${tlsProperties.sanUriSuffix}"
         return UpstreamTlsContext.newBuilder()
                 .setCommonTlsContext(CommonTlsContext.newBuilder()
                         .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
-                                .setName(tlsAuthenticationProperties.tlsCertificateConfigName).build()
+                                .setName(tlsProperties.tlsCertificateSecretName).build())
+                        .setCombinedValidationContext(CommonTlsContext.CombinedCertificateValidationContext.newBuilder()
+                                .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
+                                        .setName(tlsProperties.validationContextConfigName).build())
+                                .setDefaultValidationContext(CertificateValidationContext.newBuilder()
+                                        .addAllMatchSubjectAltNames(listOf(StringMatcher.newBuilder()
+                                                .setExact(sanMatch)
+                                                .build()
+                                        )).build())
+                                .build()
                         )
                         .addAlpnProtocols("h2,http/1.1")
                         .build()
@@ -194,7 +205,7 @@ internal class EnvoyClustersFactory(
             .configureLbSubsets()
 
         if (secured) {
-            val upstreamTlsContext = createTlsContextWithSdsSecretConfig()
+            val upstreamTlsContext = createTlsContextWithSdsSecretConfig(clusterConfiguration.serviceName)
             cluster.setTransportSocket(TransportSocket.newBuilder()
                     .setName("envoy.transport_sockets.tls")
                     .setTypedConfig(Any.pack(upstreamTlsContext)))

@@ -9,6 +9,7 @@ import io.envoyproxy.envoy.api.v2.Listener
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
 import io.envoyproxy.envoy.api.v2.auth.DownstreamTlsContext
 import io.envoyproxy.envoy.api.v2.auth.SdsSecretConfig
+import io.envoyproxy.envoy.api.v2.auth.TlsParameters
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
 import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
@@ -53,6 +54,38 @@ class EnvoyListenersFactory(
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
     private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
     private val ingressRdsInitialFetchTimeout: Duration = durationInSeconds(30)
+
+    private val tlsAuthenticationProperties = snapshotProperties.incomingPermissions.tlsAuthentication
+    private val requireClientCertificate = BoolValue.of(tlsAuthenticationProperties.requireClientCertificate)
+    private val downstreamTlsContext = DownstreamTlsContext.newBuilder()
+            .setRequireClientCertificate(requireClientCertificate)
+            .setCommonTlsContext(CommonTlsContext.newBuilder()
+                    .setTlsParams(TlsParameters.newBuilder()
+                            .setTlsMinimumProtocolVersion(TlsParameters.TlsProtocol.TLSv1_2)
+                            .setTlsMaximumProtocolVersion(TlsParameters.TlsProtocol.TLSv1_2)
+                            .addAllCipherSuites(listOf(
+                                    "ECDHE-ECDSA-AES128-GCM-SHA256",
+                                    "ECDHE-RSA-AES128-GCM-SHA256"))
+                            .build())
+                    .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
+                            .setName(tlsAuthenticationProperties.tlsCertificateSecretName)
+                            .build()
+                    )
+                    .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
+                            .setName(tlsAuthenticationProperties.validationContextConfigName)
+                            .build()
+                    )
+            )
+
+    private val downstreamTlsTransportSocket = TransportSocket.newBuilder()
+            .setName("envoy.transport_sockets.tls")
+            .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
+            .build()
+
+    private enum class TransportProtocol(val value: String) {
+        RAW_BUFFER("raw_buffer"),
+        TLS("tls")
+    }
 
     val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
 
@@ -127,11 +160,12 @@ class EnvoyListenersFactory(
         group: Group,
         listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot,
-        transportProtocol: String = "raw_buffer"
+        transportProtocol: TransportProtocol = TransportProtocol.RAW_BUFFER
     ): FilterChain.Builder {
+        val statPrefix = if (transportProtocol == TransportProtocol.RAW_BUFFER) "ingress_http" else "ingress_https"
         return FilterChain.newBuilder()
-                .setFilterChainMatch(FilterChainMatch.newBuilder().setTransportProtocol(transportProtocol))
-                .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot))
+                .setFilterChainMatch(FilterChainMatch.newBuilder().setTransportProtocol(transportProtocol.value))
+                .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot, statPrefix))
     }
 
     private fun createSecuredIngressFilterChain(
@@ -139,27 +173,8 @@ class EnvoyListenersFactory(
         listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot
     ): FilterChain.Builder {
-        val filterChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, "tls")
-        val tlsAuthenticationProperties = snapshotProperties.incomingPermissions.tlsAuthentication
-
-        val downstreamTlsContext = DownstreamTlsContext.newBuilder()
-                .setRequireClientCertificate(BoolValue.of(true)) // if false, will not validate cert
-                .setCommonTlsContext(CommonTlsContext.newBuilder()
-                        .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
-                                .setName(tlsAuthenticationProperties.tlsCertificateConfigName).build()
-                        )
-                        // .addAllAlpnProtocols(listOf("h2,http/1.1"))
-                        .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
-                                .setName(tlsAuthenticationProperties.validationContextConfigName)
-                                .build()
-                        )
-                )
-        filterChain.setTransportSocket(TransportSocket.newBuilder()
-                .setName("envoy.transport_sockets.tls")
-                .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
-                .build()
-        )
-
+        val filterChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, TransportProtocol.TLS)
+        filterChain.setTransportSocket(downstreamTlsTransportSocket)
         return filterChain
     }
 
@@ -245,13 +260,14 @@ class EnvoyListenersFactory(
     private fun createIngressFilter(
         group: Group,
         listenersConfig: ListenersConfig,
-        globalSnapshot: GlobalSnapshot
+        globalSnapshot: GlobalSnapshot,
+        statPrefix: String
     ): Filter {
         val connectionIdleTimeout = group.proxySettings.incoming.timeoutPolicy.connectionIdleTimeout
             ?: Durations.fromMillis(localServiceProperties.connectionIdleTimeout.toMillis())
         val httpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(connectionIdleTimeout).build()
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
-                .setStatPrefix("ingress_http")
+                .setStatPrefix(statPrefix)
                 .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCommonHttpProtocolOptions(httpProtocolOptions)

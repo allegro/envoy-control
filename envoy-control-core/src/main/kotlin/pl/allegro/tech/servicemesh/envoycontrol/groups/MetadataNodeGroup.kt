@@ -94,7 +94,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 ?: ListenersConfig.defaultResourcesDir
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
-        val addSecondaryFilterChainWithTlsContext = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
+        val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
 
         return ListenersConfig(
@@ -108,7 +108,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 accessLogPath,
                 resourcesDir,
                 addUpstreamExternalAddressHeader,
-                addSecondaryFilterChainWithTlsContext
+                hasStaticSecretsDefined
         )
     }
 

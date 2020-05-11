@@ -63,7 +63,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             val sslHandshakes = envoyContainer1.admin().statValue("cluster.echo2.ssl.handshake")?.toInt()
             assertThat(sslHandshakes).isGreaterThan(0)
 
-            val sslConnections = envoyContainer2.admin().statValue("http.ingress_http.downstream_cx_ssl_total")?.toInt()
+            val sslConnections = envoyContainer2.admin().statValue("http.ingress_https.downstream_cx_ssl_total")?.toInt()
             assertThat(sslConnections).isGreaterThan(0)
 
             assertThat(validResponse).isOk().isFrom(echoContainer2)
@@ -80,7 +80,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             val invalidResponse = callEcho2ThroughEnvoyWithInvalidSan()
 
             // then
-            val sanValidationFailure = envoyContainer2.admin().statValue("http.ingress_http.rbac.denied")?.toInt()
+            val sanValidationFailure = envoyContainer2.admin().statValue("http.ingress_https.rbac.denied")?.toInt()
             assertThat(sanValidationFailure).isGreaterThan(0)
             assertThat(invalidResponse).isForbidden()
         }
