@@ -26,7 +26,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
-import pl.allegro.tech.servicemesh.envoycontrol.services.LocalityAwareServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
@@ -54,7 +54,7 @@ internal class EnvoySnapshotFactory(
     private val meterRegistry: MeterRegistry
 ) {
     fun newSnapshot(
-        servicesStates: List<LocalityAwareServicesState>,
+        servicesStates: MultiClusterState,
         clusterConfigurations: Map<String, ClusterConfiguration>,
         communicationMode: CommunicationMode
     ): GlobalSnapshot {
@@ -85,7 +85,7 @@ internal class EnvoySnapshotFactory(
     }
 
     fun clusterConfigurations(
-        servicesStates: List<LocalityAwareServicesState>,
+        servicesStates: MultiClusterState,
         previousClusters: Map<String, ClusterConfiguration>
     ): Map<String, ClusterConfiguration> {
         val currentClusters = if (properties.egress.http2.enabled) {
@@ -345,7 +345,7 @@ internal class EnvoySnapshotFactory(
 
     private fun createLoadAssignment(
         clusters: Set<String>,
-        localityAwareServicesStates: List<LocalityAwareServicesState>
+        localityAwareServicesStates: MultiClusterState
     ): List<ClusterLoadAssignment> {
 
         return clusters
