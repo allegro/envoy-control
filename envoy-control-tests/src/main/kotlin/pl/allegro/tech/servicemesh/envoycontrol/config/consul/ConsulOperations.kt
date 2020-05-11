@@ -14,7 +14,7 @@ class ConsulOperations(port: Int) {
         address: String = "localhost",
         port: Int = 1234,
         registerDefaultCheck: Boolean = false,
-        tags: List<String> = listOf("envoy")
+        tags: List<String> = listOf("a")
     ): String {
         val service = NewService().also {
             it.id = id

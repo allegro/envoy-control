@@ -20,6 +20,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 
 class RBACFilterFactory(
@@ -136,19 +137,23 @@ class RBACFilterFactory(
                 sourceIpPrincipals(client, snapshot)
             }
             snapshot.mtlsEnabledForCluster(client) -> {
-                listOf(Principal.newBuilder().setAuthenticated(
-                        Principal.Authenticated.newBuilder()
-                                .setPrincipalName(StringMatcher.newBuilder()
-                                        .setExact("${tlsProperties.sanUriPrefix}$client${tlsProperties.sanUriSuffix}")
-                                        .build()
-                                )
-                ).build()
-                )
+                tlsPrincipals(tlsProperties, client)
             }
             else -> {
                 headerPrincipals(client)
             }
         }
+    }
+
+    private fun tlsPrincipals(tlsProperties: TlsAuthenticationProperties, client: String): List<Principal> {
+        return listOf(Principal.newBuilder().setAuthenticated(
+            Principal.Authenticated.newBuilder()
+                .setPrincipalName(StringMatcher.newBuilder()
+                    .setExact("${tlsProperties.sanUriPrefix}$client${tlsProperties.sanUriSuffix}")
+                    .build()
+                )
+            ).build()
+        )
     }
 
     private fun sourceIpPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {

@@ -42,7 +42,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                     name = "echo2",
                     container = envoyContainer2,
                     port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
-                    tags = listOf("mtls:enabled", "envoy")
+                    tags = listOf("mtls:enabled")
             )
         }
     }
