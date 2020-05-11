@@ -68,10 +68,9 @@ internal class EnvoySnapshotFactory(
         )
 
         val snapshot = globalSnapshot(
-            clusterConfigurations = clusterConfigurations,
-            clusters = clusters,
-            endpoints = endpoints,
-            properties = properties.outgoingPermissions
+                clusters = clusters,
+                endpoints = endpoints,
+                properties = properties.outgoingPermissions
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 

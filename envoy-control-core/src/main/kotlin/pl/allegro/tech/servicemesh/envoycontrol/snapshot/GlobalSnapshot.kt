@@ -13,8 +13,7 @@ data class GlobalSnapshot(
 internal fun globalSnapshot(
     clusters: Iterable<Cluster>,
     endpoints: Iterable<ClusterLoadAssignment>,
-    properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties(),
-    clusterConfigurations: Map<String, ClusterConfiguration>
+    properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties()
 ): GlobalSnapshot {
     val clusters = SnapshotResources.create(clusters, "")
     val allServicesGroupsClusters = getClustersForAllServicesGroups(clusters.resources(), properties)

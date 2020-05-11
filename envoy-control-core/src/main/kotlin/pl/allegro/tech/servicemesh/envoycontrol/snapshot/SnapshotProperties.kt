@@ -66,8 +66,9 @@ class IncomingPermissionsProperties {
 }
 
 class TlsAuthenticationProperties {
+    val requireClientCertificate: Boolean = true // if false, will not validate cert
     var validationContextConfigName: String = "validation_context"
-    var tlsCertificateConfigName: String = "server_cert"
+    var tlsCertificateSecretName: String = "server_cert"
 }
 
 class SourceIpAuthenticationProperties {
