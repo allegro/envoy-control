@@ -113,7 +113,7 @@ open class BaseEnvoyTest {
             port: Int = EchoContainer.PORT,
             consulOps: ConsulOperations = consulOperationsInFirstDc,
             registerDefaultCheck: Boolean = false,
-            tags: List<String> = listOf("a")
+            tags: List<String> = listOf("envoy")
         ): String {
             return consulOps.registerService(
                 id = id,

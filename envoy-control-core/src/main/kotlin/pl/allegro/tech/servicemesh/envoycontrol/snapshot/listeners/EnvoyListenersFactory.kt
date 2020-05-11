@@ -75,6 +75,8 @@ class EnvoyListenersFactory(
                             .setName(tlsAuthenticationProperties.validationContextConfigName)
                             .build()
                     )
+//                    .addAlpnProtocols("h2")
+                    .build()
             )
 
     private val downstreamTlsTransportSocket = TransportSocket.newBuilder()

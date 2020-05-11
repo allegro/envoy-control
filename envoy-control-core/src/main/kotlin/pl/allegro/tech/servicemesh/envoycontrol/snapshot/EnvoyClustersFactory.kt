@@ -95,7 +95,7 @@ internal class EnvoyClustersFactory(
                                         )).build())
                                 .build()
                         )
-                        .addAlpnProtocols("h2,http/1.1")
+//                        .addAlpnProtocols("h2")
                         .build()
                 )
                 .build()
