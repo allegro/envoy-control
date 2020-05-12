@@ -28,7 +28,7 @@ node:
     proxy_settings:
       incoming:
         endpoints:
-          - path: "/ip_endpoint"
+          - path: "/secured_endpoint"
             clients: ["echo"]
 
 static_resources:

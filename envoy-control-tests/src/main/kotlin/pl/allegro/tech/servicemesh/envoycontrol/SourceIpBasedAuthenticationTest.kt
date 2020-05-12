@@ -69,5 +69,5 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         return callLocalService("", Headers.of(), envoyContainer2)
     }
 
-    private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/ip_endpoint")
+    private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/secured_endpoint")
 }

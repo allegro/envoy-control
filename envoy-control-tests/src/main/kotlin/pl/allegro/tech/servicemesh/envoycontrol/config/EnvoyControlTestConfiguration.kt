@@ -174,6 +174,15 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 .withStartupTimeout(Duration.ofSeconds(10))
         }
 
+        fun createEnvoyContainerWithEcho1San(): EnvoyContainer {
+            return EnvoyContainer(
+                    Envoy1AuthConfig.filePath,
+                    localServiceContainer.ipAddress(),
+                    envoyControl1.grpcPort,
+                    image = defaultEnvoyImage
+            ).withNetwork(network)
+        }
+
         fun createEnvoyContainerWithEcho3San(): EnvoyContainer {
             return EnvoyContainer(
                     EnvoySanEcho3.filePath,

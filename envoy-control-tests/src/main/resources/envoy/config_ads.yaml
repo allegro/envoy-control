@@ -29,7 +29,7 @@ node:
         endpoints:
           - path: "/endpoint"
             clients: ["authorizedClient"]
-          - path: "/ip_endpoint"
+          - path: "/secured_endpoint"
             clients: ["echo"]
       outgoing:
         dependencies:

@@ -45,6 +45,16 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                     tags = listOf("mtls:enabled")
             )
         }
+
+        private fun registerEcho3WithEnvoyOnIngress() {
+            registerService(
+                    id = "echo3",
+                    name = "echo3",
+                    container = envoyContainerInvalidSan,
+                    port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
+                    tags = listOf("mtls:enabled")
+            )
+        }
     }
 
     @BeforeEach
@@ -71,7 +81,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should not allow traffic that fails SAN validation`() {
+    fun `should not allow traffic that fails client SAN validation`() {
         envoyContainerInvalidSan = createEnvoyContainerWithEcho3San()
         envoyContainerInvalidSan.start()
 
@@ -83,6 +93,25 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             val sanValidationFailure = envoyContainer2.admin().statValue("http.ingress_https.rbac.denied")?.toInt()
             assertThat(sanValidationFailure).isGreaterThan(0)
             assertThat(invalidResponse).isForbidden()
+        }
+
+        envoyContainerInvalidSan.stop()
+    }
+
+    @Test
+    fun `should not allow traffic that fails server SAN validation`() {
+        envoyContainerInvalidSan = createEnvoyContainerWithEcho1San()
+        envoyContainerInvalidSan.start()
+        registerEcho3WithEnvoyOnIngress()
+
+        untilAsserted {
+            // when
+            val invalidResponse = callEcho3ThroughEnvoy1()
+
+            // then
+            val sanValidationFailure = envoyContainer1.admin().statValue("cluster.echo3.ssl.fail_verify_san")?.toInt()
+            assertThat(sanValidationFailure).isGreaterThan(0)
+            assertThat(invalidResponse).isUnreachable()
         }
 
         envoyContainerInvalidSan.stop()
@@ -115,9 +144,11 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         return callServiceInsecure(address = envoyContainer2.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
     }
 
-    private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/ip_endpoint")
+    private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/secured_endpoint")
+
+    private fun callEcho3ThroughEnvoy1() = callService(service = "echo3", pathAndQuery = "/secured_endpoint")
 
     private fun callEcho2ThroughEnvoyWithInvalidSan(): Response {
-        return callService(address = envoyContainerInvalidSan.egressListenerUrl(), service = "echo2", pathAndQuery = "/ip_endpoint")
+        return callService(address = envoyContainerInvalidSan.egressListenerUrl(), service = "echo2", pathAndQuery = "/secured_endpoint")
     }
 }

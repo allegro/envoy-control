@@ -29,6 +29,7 @@ node:
       outgoing:
         dependencies:
           - service: "echo2"
+          - service: "echo3"
 
 static_resources:
   secrets:
