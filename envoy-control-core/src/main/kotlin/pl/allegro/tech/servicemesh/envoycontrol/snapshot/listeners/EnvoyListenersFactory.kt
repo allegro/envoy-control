@@ -82,9 +82,12 @@ class EnvoyListenersFactory(
             .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
             .build()
 
-    private enum class TransportProtocol(val filterChainMatch: FilterChainMatch) {
-        RAW_BUFFER(FilterChainMatch.newBuilder().setTransportProtocol("raw_buffer").build()),
-        TLS(FilterChainMatch.newBuilder().setTransportProtocol("tls").build())
+    private enum class TransportProtocol(
+        value: String,
+        val filterChainMatch: FilterChainMatch = FilterChainMatch.newBuilder().setTransportProtocol(value).build()
+    ) {
+        RAW_BUFFER("raw_buffer"),
+        TLS("tls")
     }
 
     val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
