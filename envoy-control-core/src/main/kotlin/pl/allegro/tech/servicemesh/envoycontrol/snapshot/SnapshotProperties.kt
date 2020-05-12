@@ -64,8 +64,15 @@ class IncomingPermissionsProperties {
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
 }
 
+typealias ClusterName = String
+
 class SourceIpAuthenticationProperties {
-    var enabledForServices: List<String> = listOf()
+    var ipFromServiceDiscovery = IpFromServiceDiscovery()
+    var ipFromRange: MutableMap<ClusterName, Set<String>> = mutableMapOf()
+}
+
+class IpFromServiceDiscovery {
+    var enabledForIncomingServices: List<String> = listOf()
 }
 
 class LoadBalancingProperties {

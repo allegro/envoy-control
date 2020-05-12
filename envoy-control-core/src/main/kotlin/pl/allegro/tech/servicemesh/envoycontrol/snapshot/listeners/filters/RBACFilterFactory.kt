@@ -17,6 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
@@ -32,7 +33,13 @@ class RBACFilterFactory(
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
 
+    private val incomingServicesSourceAuthentication = incomingPermissionsProperties
+            .sourceIpAuthentication
+            .ipFromServiceDiscovery
+            .enabledForIncomingServices
+
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
+    private val staticIpRanges = createStaticIpRanges()
 
     private fun getRules(serviceName: String, incomingPermissions: Incoming, snapshot: GlobalSnapshot): RBAC {
         val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
@@ -130,11 +137,30 @@ class RBACFilterFactory(
     }
 
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        if (client !in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices) {
-            return headerPrincipals(client)
-        }
+        val staticRangesForClient = staticIpRanges[client]
 
-        return sourceIpPrincipals(client, snapshot)
+        return if (client in incomingServicesSourceAuthentication) {
+            sourceIpPrincipals(client, snapshot)
+        } else if (staticRangesForClient != null) {
+            staticRangesForClient
+        } else {
+            headerPrincipals(client)
+        }
+    }
+
+    private fun createStaticIpRanges(): Map<ClusterName, List<Principal>> {
+        val ranges = incomingPermissionsProperties.sourceIpAuthentication.ipFromRange
+
+        return ranges.mapValues {
+            it.value.map { ipWithPrefix ->
+                val (ip, prefixLength) = ipWithPrefix.split("/")
+
+                Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                        .setAddressPrefix(ip)
+                        .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
+                        .build()
+            }
+        }
     }
 
     private fun sourceIpPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
