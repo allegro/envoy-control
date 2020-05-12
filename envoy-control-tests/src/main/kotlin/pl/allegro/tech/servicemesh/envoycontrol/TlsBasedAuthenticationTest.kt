@@ -72,7 +72,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     fun `should not allow traffic that fails SAN validation`() {
-        envoyContainerInvalidSan = createEnvoyContainerWithEcho2San()
+        envoyContainerInvalidSan = createEnvoyContainerWithEcho3San()
         envoyContainerInvalidSan.start()
 
         untilAsserted {

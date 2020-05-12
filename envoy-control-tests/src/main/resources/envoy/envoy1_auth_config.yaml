@@ -35,13 +35,13 @@ static_resources:
     - name: server_cert
       tls_certificate:
         certificate_chain:
-          filename: /app/fullchain.pem
+          filename: /app/fullchain_echo.pem
         private_key:
           filename: /app/privkey.pem
     - name: validation_context
       validation_context:
         trusted_ca:
-          filename: /usr/local/share/ca-certificates/root-ca.crt
+          filename: /app/root-ca.crt
   clusters:
   - connect_timeout: 1s
     hosts:
