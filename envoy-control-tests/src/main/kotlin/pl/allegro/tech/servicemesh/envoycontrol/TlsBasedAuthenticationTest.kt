@@ -50,7 +50,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             registerService(
                     id = "echo3",
                     name = "echo3",
-                    container = envoyContainerInvalidSan,
+                    container = envoyContainer1,
                     port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
                     tags = listOf("mtls:enabled")
             )
@@ -100,8 +100,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     fun `should not allow traffic that fails server SAN validation`() {
-        envoyContainerInvalidSan = createEnvoyContainerWithEcho1San()
-        envoyContainerInvalidSan.start()
         registerEcho3WithEnvoyOnIngress()
 
         untilAsserted {
@@ -115,6 +113,35 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         }
 
         envoyContainerInvalidSan.stop()
+    }
+
+    @Test
+    fun `should not allow traffic from clients not signed by server certificate`() {
+        val envoy1 = EnvoyContainer(
+                Envoy1AuthConfig.filePath,
+                localServiceContainer.ipAddress(),
+                envoyControl1.grpcPort,
+                image = defaultEnvoyImage,
+                trustedCa = "/app/root-ca2.crt",
+                certificateChain = "/app/fullchain_echo_root-ca2.pem"
+        ).withNetwork(network)
+        envoy1.start()
+
+        untilAsserted {
+            // when
+            val invalidResponse = callService(address = envoy1.egressListenerUrl(), service = "echo2", pathAndQuery = "/secured_endpoint")
+
+            // then
+            val tlsErrors = envoyContainer2.admin().statValue("listener.0.0.0.0_5001.ssl.connection_error")?.toInt()
+            assertThat(tlsErrors).isGreaterThan(0)
+
+            // then
+            val sslFailVerifyError = envoy1.admin().statValue("cluster.echo2.ssl.fail_verify_error")?.toInt()
+            assertThat(sslFailVerifyError).isGreaterThan(0)
+            assertThat(invalidResponse).isUnreachable()
+        }
+
+        envoy1.stop()
     }
 
     @Test
