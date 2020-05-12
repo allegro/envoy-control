@@ -4,6 +4,11 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.envoy.api.v2.core.Node
+
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.Op
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.Op.LE
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.Op.EQ
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.Op.GE
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
@@ -64,11 +69,38 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         return ListenersHostPortConfig(ingressHost, ingressPort, egressHost, egressPort)
     }
 
+    private fun metadataToAccessLogFilterHttpCode(metadata: Struct): AccessLogFilterHttpCode? {
+        val httpFilterCode = metadata.fieldsMap["access_log_filter_http_code"]?.stringValue
+        var op: Op? = null
+        var code: String? = null
+
+        if (!httpFilterCode.isNullOrBlank()) {
+            val regex = """(eq|ge|le?)(\d+)""".toRegex()
+            regex.matchEntire(httpFilterCode.toLowerCase()).takeIf { true }?.let { match ->
+                when (match.groupValues.get(1)) {
+                    "le" -> op = LE
+                    "eq" -> op = EQ
+                    "ge" -> op = GE
+                }
+                code = match.groupValues[2]
+            }
+        }
+        if (op != null && code != null && code!!.isNotBlank()) {
+            return AccessLogFilterHttpCode(
+                comparisonOP = op!!,
+                comparisonCode = code!!.toInt()
+            )
+        }
+
+        return null
+    }
+
     private fun createListenersConfig(id: String, metadata: Struct): ListenersConfig? {
         val ingressHostValue = metadata.fieldsMap["ingress_host"]
         val ingressPortValue = metadata.fieldsMap["ingress_port"]
         val egressHostValue = metadata.fieldsMap["egress_host"]
         val egressPortValue = metadata.fieldsMap["egress_port"]
+        val accessLogFilterHttpCode = metadataToAccessLogFilterHttpCode(metadata)
 
         val listenersHostPort = metadataToListenersHostPort(
                 id,
@@ -105,7 +137,8 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 enableLuaScript,
                 accessLogPath,
                 resourcesDir,
-                addUpstreamExternalAddressHeader
+                addUpstreamExternalAddressHeader,
+                accessLogFilterHttpCode
         )
     }
 
@@ -158,6 +191,11 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         private const val MAX_PORT_VALUE = 65535
     }
 }
+
+data class AccessLogFilterHttpCode(
+    val comparisonOP: Op,
+    val comparisonCode: Int
+)
 
 data class ListenersHostPortConfig(
     val ingressHost: String,

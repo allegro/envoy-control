@@ -1,5 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.Struct
+import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.core.Node
 import org.assertj.core.api.Assertions.assertThat
@@ -8,6 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.Op.EQ
 
 class MetadataNodeGroupTest {
     @Test
@@ -216,6 +219,58 @@ class MetadataNodeGroupTest {
         assertThat(group.proxySettings.incoming.healthCheck.path).isEqualTo("/status/ping")
         assertThat(group.proxySettings.incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
         assertThat(group.proxySettings.incoming.healthCheck.hasCustomHealthCheck()).isTrue()
+    }
+
+    @Test
+    fun `should set listeners config access log http code filter according to metadata`() {
+        // given
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
+        val metadata = createMetadataBuilderWithDefaults()
+        metadata!!.putFields("access_log_filter_http_code", Value.newBuilder().setStringValue("EQ400").build())
+
+        // when
+        val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
+
+        // then
+        assertThat(group.listenersConfig!!.accessLogFilterHttpCode!!.comparisonCode).isEqualTo(400)
+        assertThat(group.listenersConfig!!.accessLogFilterHttpCode!!.comparisonOP).isEqualTo(EQ)
+    }
+
+    @Test
+    fun `should not set listeners config access log http code for empty value`() {
+        // given
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
+        val metadata = createMetadataBuilderWithDefaults()
+        metadata!!.putFields("access_log_filter_http_code", Value.newBuilder().setStringValue("").build())
+
+        // when
+        val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
+
+        // then
+        assertThat(group.listenersConfig!!.accessLogFilterHttpCode).isNull()
+    }
+
+    @Test
+    fun `should not set listeners config access log http code for invalid value`() {
+        // given
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
+        val metadata = createMetadataBuilderWithDefaults()
+        metadata!!.putFields("access_log_filter_http_code", Value.newBuilder().setStringValue("greaterThen300").build())
+
+        // when
+        val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
+
+        // then
+        assertThat(group.listenersConfig!!.accessLogFilterHttpCode).isNull()
+    }
+
+    private fun createMetadataBuilderWithDefaults(): Struct.Builder? {
+        val metadata = Node.newBuilder().metadataBuilder
+        metadata.putFields("ingress_host", Value.newBuilder().setStringValue("127.0.0.1").build())
+        metadata.putFields("ingress_port", Value.newBuilder().setStringValue("6001").build())
+        metadata.putFields("egress_host", Value.newBuilder().setStringValue("127.0.0.1").build())
+        metadata.putFields("egress_port", Value.newBuilder().setStringValue("6003").build())
+        return metadata
     }
 
     private fun createSnapshotProperties(
