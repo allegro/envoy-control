@@ -90,7 +90,7 @@ internal class EnvoyClustersFactory(
                                                 .build()
                                         )).build())
                                 .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
-                                        .setName(tlsProperties.validationContextConfigName).build())
+                                        .setName(tlsProperties.validationContextSecretName).build())
                                 .build()
                         )
                         .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
