@@ -72,7 +72,7 @@ class EnvoyListenersFactory(
                             .build()
                     )
                     .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
-                            .setName(tlsAuthenticationProperties.validationContextConfigName)
+                            .setName(tlsAuthenticationProperties.validationContextSecretName)
                             .build()
                     )
             )
@@ -82,9 +82,9 @@ class EnvoyListenersFactory(
             .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
             .build()
 
-    private enum class TransportProtocol(val value: String) {
-        RAW_BUFFER("raw_buffer"),
-        TLS("tls")
+    private enum class TransportProtocol(val filterChainMatch: FilterChainMatch) {
+        RAW_BUFFER(FilterChainMatch.newBuilder().setTransportProtocol("raw_buffer").build()),
+        TLS(FilterChainMatch.newBuilder().setTransportProtocol("tls").build())
     }
 
     val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
@@ -162,9 +162,12 @@ class EnvoyListenersFactory(
         globalSnapshot: GlobalSnapshot,
         transportProtocol: TransportProtocol = TransportProtocol.RAW_BUFFER
     ): FilterChain.Builder {
-        val statPrefix = if (transportProtocol == TransportProtocol.RAW_BUFFER) "ingress_http" else "ingress_https"
+        val statPrefix = when (transportProtocol) {
+            TransportProtocol.RAW_BUFFER -> "ingress_http"
+            TransportProtocol.TLS -> "ingress_https"
+        }
         return FilterChain.newBuilder()
-                .setFilterChainMatch(FilterChainMatch.newBuilder().setTransportProtocol(transportProtocol.value))
+                .setFilterChainMatch(transportProtocol.filterChainMatch)
                 .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot, statPrefix))
     }
 
