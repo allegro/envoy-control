@@ -75,7 +75,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         var code: String? = null
 
         if (!httpFilterCode.isNullOrBlank()) {
-            val regex = """(eq|ge|le?)(\d+)""".toRegex()
+            val regex = """(eq|ge|le?):(\d+)""".toRegex()
             regex.matchEntire(httpFilterCode.toLowerCase()).takeIf { true }?.let { match ->
                 when (match.groupValues.get(1)) {
                     "le" -> op = LE

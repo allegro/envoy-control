@@ -226,7 +226,7 @@ class MetadataNodeGroupTest {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
-        metadata!!.putFields("access_log_filter_http_code", Value.newBuilder().setStringValue("EQ400").build())
+        metadata!!.putFields("access_log_filter_http_code", Value.newBuilder().setStringValue("EQ:400").build())
 
         // when
         val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
