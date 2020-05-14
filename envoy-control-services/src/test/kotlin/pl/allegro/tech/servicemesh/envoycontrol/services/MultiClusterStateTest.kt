@@ -8,16 +8,17 @@ internal class MultiClusterStateTest {
     @Test
     fun `MultiCLusterStates should implement equality`() {
         // given
-        val serviceInstance1 = ServiceInstance("1", address = "0.0.0.0", port = 1, tags = setOf("a"))
-        val serviceInstance2 = ServiceInstance("1", address = "0.0.0.0", port = 1, tags = setOf("a"))
-        val serviceInstances1 = ServiceInstances("a", setOf(serviceInstance1))
-        val serviceInstances2 = ServiceInstances("a", setOf(serviceInstance2))
-        val state1 = listOf(ClusterState(ServicesState(mapOf("a" to serviceInstances1)), Locality.REMOTE, "dc1"))
-        val state2 = listOf(ClusterState(ServicesState(mapOf("a" to serviceInstances2)), Locality.REMOTE, "dc1"))
-        val multiClusterState1 = MultiClusterState(state1)
-        val multiClusterState2 = MultiClusterState(state2)
+        val multiClusterState1 = createMultiClusterState()
+        val multiClusterState2 = createMultiClusterState()
 
         // then
         assertThat(multiClusterState1).isEqualTo(multiClusterState2)
+    }
+
+    private fun createMultiClusterState(): MultiClusterState {
+        val serviceInstance = ServiceInstance("1", address = "0.0.0.0", port = 1, tags = setOf("a"))
+        val serviceInstances = ServiceInstances("a", setOf(serviceInstance))
+        val state = listOf(ClusterState(ServicesState(mapOf("a" to serviceInstances)), Locality.REMOTE, "dc1"))
+        return MultiClusterState(state)
     }
 }
