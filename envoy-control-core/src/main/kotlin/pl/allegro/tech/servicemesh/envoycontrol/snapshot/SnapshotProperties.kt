@@ -66,9 +66,15 @@ class IncomingPermissionsProperties {
 }
 
 class TlsAuthenticationProperties {
-    val requireClientCertificate: Boolean = true // if false, will not validate cert
+    var protocol = TlsProtocolProperties()
+    var requireClientCertificate: Boolean = true // if false, will not validate cert
     var validationContextSecretName: String = "validation_context"
     var tlsCertificateSecretName: String = "server_cert"
+}
+
+class TlsProtocolProperties {
+    var minimumVersion = "TLSv1_2"
+    var maximumVersion = "TLSv1_2"
 }
 
 typealias ClusterName = String
