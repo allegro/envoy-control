@@ -58,17 +58,24 @@ class AllServicesDependenciesProperties {
     var notIncludedByPrefix: MutableSet<String> = mutableSetOf()
 }
 
+typealias Client = String
+typealias MatchValue = String
+typealias Matching = Pair<AdditionalAuthenticationMethod, MatchValue>
+
+enum class AdditionalAuthenticationMethod {
+    HEADER
+}
+
 class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
+    var selectorMatching: MutableMap<Client, Matching> = mutableMapOf()
 }
-
-typealias ClusterName = String
 
 class SourceIpAuthenticationProperties {
     var ipFromServiceDiscovery = IpFromServiceDiscovery()
-    var ipFromRange: MutableMap<ClusterName, Set<String>> = mutableMapOf()
+    var ipFromRange: MutableMap<Client, Set<String>> = mutableMapOf()
 }
 
 class IpFromServiceDiscovery {

@@ -20,6 +20,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AdditionalAuthenticationMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SourceIpAuthenticationProperties
@@ -59,6 +60,22 @@ internal class RBACFilterFactoryTest {
                             "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
                     )
                 }
+            },
+            StatusRouteProperties()
+    )
+    private val rbacFilterFactoryWithSourceIpWithSelectorAuth = RBACFilterFactory(
+            IncomingPermissionsProperties().also {
+                it.enabled = true
+                it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
+                    ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
+                    ipProperties.ipFromRange = mutableMapOf(
+                            "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
+                    )
+                }
+                it.selectorMatching = mutableMapOf(
+                        "client1" to (AdditionalAuthenticationMethod.HEADER to "x-secret-header"),
+                        "client2" to (AdditionalAuthenticationMethod.HEADER to "x-secret-header")
+                )
             },
             StatusRouteProperties()
     )
@@ -412,6 +429,54 @@ internal class RBACFilterFactoryTest {
         assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
+    @Test
+    fun `should generate RBAC rules for incoming permissions with source ip and selector authentication`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSourceIpWithSelectorAuthPermissionsJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET"),
+                        setOf("client2:selector")
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithSourceIpWithSelectorAuth.createHttpFilter(
+                createGroup(incomingPermission),
+                snapshotForSourceIpAuth
+        )
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with source ip from discovery and selector authentication`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSourceIpFromDiscoveryWithSelectorAuthPermissionsJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET"),
+                        setOf("client1:selector")
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithSourceIpWithSelectorAuth.createHttpFilter(
+                createGroup(incomingPermission),
+                snapshotForSourceIpAuth
+        )
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
     private val expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson = """
         {
           "policies": {
@@ -453,6 +518,73 @@ internal class RBACFilterFactoryTest {
                 }
               ], "principals": [
                 ${principalHeader("x-service-name", "client2")}
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedSourceIpFromDiscoveryWithSelectorAuthPermissionsJson = """
+        {
+          "policies": {
+            "client1:selector": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                {
+                  "andIds": {
+                    "ids": [${principalSourceIp("127.0.0.1")}, ${principalHeader("x-secret-header", "selector")}]
+                  }
+                }
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedSourceIpWithSelectorAuthPermissionsJson = """
+        {
+          "policies": {
+            "client2:selector": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                {
+                  "andIds": {
+                    "ids": [${principalSourceIp("192.168.1.0", 24)}, ${principalHeader("x-secret-header", "selector")}]
+                  }
+                },
+                {
+                  "andIds": {
+                    "ids": [${principalSourceIp("192.168.2.0", 28)}, ${principalHeader("x-secret-header", "selector")}]
+                  }
+                }
               ]
             }
           }
@@ -701,11 +833,11 @@ internal class RBACFilterFactoryTest {
         """
     }
 
-    private fun principalHeader(header: String, principal: String): String {
+    private fun principalHeader(name: String, value: String): String {
         return """{
                     "header": {
-                      "name": "$header",
-                      "exact_match": "$principal"
+                      "name": "$name",
+                      "exact_match": "$value"
                     }
                 }"""
     }
