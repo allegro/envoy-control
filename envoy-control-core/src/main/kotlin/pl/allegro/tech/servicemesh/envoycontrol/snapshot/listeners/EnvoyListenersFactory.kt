@@ -57,27 +57,13 @@ class EnvoyListenersFactory(
 
     private val tlsProperties = snapshotProperties.incomingPermissions.tlsAuthentication
     private val requireClientCertificate = BoolValue.of(tlsProperties.requireClientCertificate)
-    private val minimumProtocolVersion = mapToProto(tlsProperties.protocol.minimumVersion)
-    private val maximumProtocolVersion = mapToProto(tlsProperties.protocol.maximumVersion)
-
-    private fun mapToProto(protocolVersion: String): TlsParameters.TlsProtocol {
-        return when (protocolVersion) {
-            "TLSv1_3" -> TlsParameters.TlsProtocol.TLSv1_3
-            "TLSv1_2" -> TlsParameters.TlsProtocol.TLSv1_2
-            "TLSv1_1" -> TlsParameters.TlsProtocol.TLSv1_1
-            "TLSv1_0" -> TlsParameters.TlsProtocol.TLSv1_0
-            "AUTO" -> TlsParameters.TlsProtocol.TLS_AUTO
-            else -> throw IllegalArgumentException("$protocolVersion is not supported value for " +
-                    "TlsParameters.TlsProtocol. Supported values are: TLSv1_3, TLSv1_2, TLSv1_1, TLSv1_0, AUTO.")
-        }
-    }
 
     private val downstreamTlsContext = DownstreamTlsContext.newBuilder()
             .setRequireClientCertificate(requireClientCertificate)
             .setCommonTlsContext(CommonTlsContext.newBuilder()
                     .setTlsParams(TlsParameters.newBuilder()
-                            .setTlsMinimumProtocolVersion(minimumProtocolVersion)
-                            .setTlsMaximumProtocolVersion(maximumProtocolVersion)
+                            .setTlsMinimumProtocolVersion(tlsProperties.protocol.minimumVersion)
+                            .setTlsMaximumProtocolVersion(tlsProperties.protocol.maximumVersion)
                             .addAllCipherSuites(listOf(
                                     "ECDHE-ECDSA-AES128-GCM-SHA256",
                                     "ECDHE-RSA-AES128-GCM-SHA256"))

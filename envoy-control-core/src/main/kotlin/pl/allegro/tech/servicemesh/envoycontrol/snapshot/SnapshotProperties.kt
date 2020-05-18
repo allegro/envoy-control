@@ -3,6 +3,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.envoy.api.v2.Cluster
+import io.envoyproxy.envoy.api.v2.auth.TlsParameters
 import java.time.Duration
 
 class SnapshotProperties {
@@ -73,8 +74,8 @@ class TlsAuthenticationProperties {
 }
 
 class TlsProtocolProperties {
-    var minimumVersion = "TLSv1_2"
-    var maximumVersion = "TLSv1_2"
+    var minimumVersion = TlsParameters.TlsProtocol.TLSv1_2
+    var maximumVersion = TlsParameters.TlsProtocol.TLSv1_2
 }
 
 typealias ClusterName = String
