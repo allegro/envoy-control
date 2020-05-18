@@ -64,9 +64,7 @@ class EnvoyListenersFactory(
                     .setTlsParams(TlsParameters.newBuilder()
                             .setTlsMinimumProtocolVersion(tlsProperties.protocol.minimumVersion)
                             .setTlsMaximumProtocolVersion(tlsProperties.protocol.maximumVersion)
-                            .addAllCipherSuites(listOf(
-                                    "ECDHE-ECDSA-AES128-GCM-SHA256",
-                                    "ECDHE-RSA-AES128-GCM-SHA256"))
+                            .addAllCipherSuites(tlsProperties.protocol.cipherSuites)
                             .build())
                     .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
                             .setName(tlsProperties.tlsCertificateSecretName)
