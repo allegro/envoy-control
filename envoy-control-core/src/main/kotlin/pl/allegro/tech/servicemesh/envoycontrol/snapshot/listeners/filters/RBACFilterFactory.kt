@@ -212,11 +212,12 @@ class RBACFilterFactory(
         val (matchingType, matchingValue) = matching
 
         val additionalAuthenticationPrincipal = when (matchingType) {
-            AdditionalAuthenticationMethod.HEADER -> Principal.newBuilder().setHeader(
-                    HeaderMatcher.newBuilder()
+            AdditionalAuthenticationMethod.HEADER -> Principal.newBuilder()
+                    .setHeader(
+                        HeaderMatcher.newBuilder()
                             .setName(matchingValue)
                             .setExactMatch(selector)
-            )
+                    )
         }
 
         return sourceIpPrincipals.map {

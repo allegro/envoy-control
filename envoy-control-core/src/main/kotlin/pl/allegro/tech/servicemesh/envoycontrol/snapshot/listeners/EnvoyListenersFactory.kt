@@ -6,6 +6,10 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.Listener
+import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
+import io.envoyproxy.envoy.api.v2.auth.DownstreamTlsContext
+import io.envoyproxy.envoy.api.v2.auth.SdsSecretConfig
+import io.envoyproxy.envoy.api.v2.auth.TlsParameters
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
 import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
@@ -14,8 +18,10 @@ import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
+import io.envoyproxy.envoy.api.v2.core.TransportSocket
 import io.envoyproxy.envoy.api.v2.listener.Filter
 import io.envoyproxy.envoy.api.v2.listener.FilterChain
+import io.envoyproxy.envoy.api.v2.listener.FilterChainMatch
 import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
 import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
@@ -35,7 +41,7 @@ typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFil
 
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
-    snapshotProperties: SnapshotProperties,
+    private val snapshotProperties: SnapshotProperties,
     envoyHttpFilters: EnvoyHttpFilters
 ) {
     private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters
@@ -48,6 +54,40 @@ class EnvoyListenersFactory(
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
     private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
     private val ingressRdsInitialFetchTimeout: Duration = durationInSeconds(30)
+
+    private val tlsProperties = snapshotProperties.incomingPermissions.tlsAuthentication
+    private val requireClientCertificate = BoolValue.of(tlsProperties.requireClientCertificate)
+
+    private val downstreamTlsContext = DownstreamTlsContext.newBuilder()
+            .setRequireClientCertificate(requireClientCertificate)
+            .setCommonTlsContext(CommonTlsContext.newBuilder()
+                    .setTlsParams(TlsParameters.newBuilder()
+                            .setTlsMinimumProtocolVersion(tlsProperties.protocol.minimumVersion)
+                            .setTlsMaximumProtocolVersion(tlsProperties.protocol.maximumVersion)
+                            .addAllCipherSuites(tlsProperties.protocol.cipherSuites)
+                            .build())
+                    .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
+                            .setName(tlsProperties.tlsCertificateSecretName)
+                            .build()
+                    )
+                    .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
+                            .setName(tlsProperties.validationContextSecretName)
+                            .build()
+                    )
+            )
+
+    private val downstreamTlsTransportSocket = TransportSocket.newBuilder()
+            .setName("envoy.transport_sockets.tls")
+            .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
+            .build()
+
+    private enum class TransportProtocol(
+        value: String,
+        val filterChainMatch: FilterChainMatch = FilterChainMatch.newBuilder().setTransportProtocol(value).build()
+    ) {
+        RAW_BUFFER("raw_buffer"),
+        TLS("tls")
+    }
 
     val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
 
@@ -96,7 +136,12 @@ class EnvoyListenersFactory(
         listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot
     ): Listener {
-        return Listener.newBuilder()
+        val insecureIngressChain = createIngressFilterChain(group, listenersConfig, globalSnapshot)
+        val securedIngressChain = if (listenersConfig.hasStaticSecretsDefined) {
+            createSecuredIngressFilterChain(group, listenersConfig, globalSnapshot)
+        } else null
+
+        val listener = Listener.newBuilder()
                 .setName("ingress_listener")
                 .setAddress(
                         Address.newBuilder().setSocketAddress(
@@ -105,21 +150,37 @@ class EnvoyListenersFactory(
                                         .setAddress(listenersConfig.ingressHost)
                         )
                 )
-                .addFilterChains(createIngressFilterChain(group, listenersConfig, globalSnapshot))
-                .build()
+
+        listOfNotNull(securedIngressChain, insecureIngressChain).forEach {
+            listener.addFilterChains(it.build())
+        }
+
+        return listener.build()
     }
 
     private fun createIngressFilterChain(
         group: Group,
         listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot,
+        transportProtocol: TransportProtocol = TransportProtocol.RAW_BUFFER
+    ): FilterChain.Builder {
+        val statPrefix = when (transportProtocol) {
+            TransportProtocol.RAW_BUFFER -> "ingress_http"
+            TransportProtocol.TLS -> "ingress_https"
+        }
+        return FilterChain.newBuilder()
+                .setFilterChainMatch(transportProtocol.filterChainMatch)
+                .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot, statPrefix))
+    }
+
+    private fun createSecuredIngressFilterChain(
+        group: Group,
+        listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot
-    ): FilterChain {
-
-        val filterChain = FilterChain.newBuilder()
-                .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot))
-
+    ): FilterChain.Builder {
+        val filterChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, TransportProtocol.TLS)
+        filterChain.setTransportSocket(downstreamTlsTransportSocket)
         return filterChain
-                .build()
     }
 
     private fun createEgressFilterChain(
@@ -204,13 +265,14 @@ class EnvoyListenersFactory(
     private fun createIngressFilter(
         group: Group,
         listenersConfig: ListenersConfig,
-        globalSnapshot: GlobalSnapshot
+        globalSnapshot: GlobalSnapshot,
+        statPrefix: String
     ): Filter {
         val connectionIdleTimeout = group.proxySettings.incoming.timeoutPolicy.connectionIdleTimeout
             ?: Durations.fromMillis(localServiceProperties.connectionIdleTimeout.toMillis())
         val httpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(connectionIdleTimeout).build()
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
-                .setStatPrefix("ingress_http")
+                .setStatPrefix(statPrefix)
                 .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCommonHttpProtocolOptions(httpProtocolOptions)
