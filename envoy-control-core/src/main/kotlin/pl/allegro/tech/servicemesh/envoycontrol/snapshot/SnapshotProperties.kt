@@ -60,12 +60,6 @@ class AllServicesDependenciesProperties {
 }
 
 typealias Client = String
-typealias MatchValue = String
-typealias Matching = Pair<AdditionalAuthenticationMethod, MatchValue>
-
-enum class AdditionalAuthenticationMethod {
-    HEADER
-}
 
 class IncomingPermissionsProperties {
     var enabled = false
@@ -73,6 +67,10 @@ class IncomingPermissionsProperties {
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
     var selectorMatching: MutableMap<Client, Matching> = mutableMapOf()
     var tlsAuthentication = TlsAuthenticationProperties()
+}
+
+class Matching {
+    var header = ""
 }
 
 class TlsAuthenticationProperties {

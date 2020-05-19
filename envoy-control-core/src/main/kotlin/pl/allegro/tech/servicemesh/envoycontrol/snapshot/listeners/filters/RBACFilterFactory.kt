@@ -17,7 +17,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AdditionalAuthenticationMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Matching
@@ -209,16 +208,13 @@ class RBACFilterFactory(
         sourceIpPrincipals: List<Principal.Builder>
     ): List<Principal> {
         val andPrincipal = Principal.newBuilder()
-        val (matchingType, matchingValue) = matching
 
-        val additionalAuthenticationPrincipal = when (matchingType) {
-            AdditionalAuthenticationMethod.HEADER -> Principal.newBuilder()
+        val additionalAuthenticationPrincipal = Principal.newBuilder()
                     .setHeader(
                         HeaderMatcher.newBuilder()
-                            .setName(matchingValue)
+                            .setName(matching.header)
                             .setExactMatch(selector)
                     )
-        }
 
         return sourceIpPrincipals.map {
             val principalSet = Principal.Set.newBuilder()

@@ -20,9 +20,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AdditionalAuthenticationMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Matching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SourceIpAuthenticationProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
@@ -73,8 +73,8 @@ internal class RBACFilterFactoryTest {
                     )
                 }
                 it.selectorMatching = mutableMapOf(
-                        "client1" to (AdditionalAuthenticationMethod.HEADER to "x-secret-header"),
-                        "client2" to (AdditionalAuthenticationMethod.HEADER to "x-secret-header")
+                        "client1" to Matching().also { it.header = "x-secret-header" },
+                        "client2" to Matching().also { it.header = "x-secret-header" }
                 )
             },
             StatusRouteProperties()
