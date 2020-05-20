@@ -3,6 +3,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.envoy.api.v2.Cluster
+import io.envoyproxy.envoy.api.v2.auth.TlsParameters
 import java.time.Duration
 
 class SnapshotProperties {
@@ -68,10 +69,31 @@ class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
+    var tlsAuthentication = TlsAuthenticationProperties()
 }
 
+class TlsAuthenticationProperties {
+    var protocol = TlsProtocolProperties()
+    var requireClientCertificate: Boolean = true // if false, will not validate cert
+    var validationContextSecretName: String = "validation_context"
+    var tlsCertificateSecretName: String = "server_cert"
+}
+
+class TlsProtocolProperties {
+    var cipherSuites: List<String> = listOf("ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-RSA-AES128-GCM-SHA256")
+    var minimumVersion = TlsParameters.TlsProtocol.TLSv1_2
+    var maximumVersion = TlsParameters.TlsProtocol.TLSv1_2
+}
+
+typealias ClusterName = String
+
 class SourceIpAuthenticationProperties {
-    var enabledForServices: List<String> = listOf()
+    var ipFromServiceDiscovery = IpFromServiceDiscovery()
+    var ipFromRange: MutableMap<ClusterName, Set<String>> = mutableMapOf()
+}
+
+class IpFromServiceDiscovery {
+    var enabledForIncomingServices: List<String> = listOf()
 }
 
 class LoadBalancingProperties {
