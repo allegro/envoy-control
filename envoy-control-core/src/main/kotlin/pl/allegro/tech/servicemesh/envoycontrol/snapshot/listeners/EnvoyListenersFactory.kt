@@ -55,27 +55,25 @@ class EnvoyListenersFactory(
     private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
     private val ingressRdsInitialFetchTimeout: Duration = durationInSeconds(30)
 
-    private val tlsAuthenticationProperties = snapshotProperties.incomingPermissions.tlsAuthentication
-    private val requireClientCertificate = BoolValue.of(tlsAuthenticationProperties.requireClientCertificate)
+    private val tlsProperties = snapshotProperties.incomingPermissions.tlsAuthentication
+    private val requireClientCertificate = BoolValue.of(tlsProperties.requireClientCertificate)
+
     private val downstreamTlsContext = DownstreamTlsContext.newBuilder()
             .setRequireClientCertificate(requireClientCertificate)
             .setCommonTlsContext(CommonTlsContext.newBuilder()
                     .setTlsParams(TlsParameters.newBuilder()
-                            .setTlsMinimumProtocolVersion(TlsParameters.TlsProtocol.TLSv1_2)
-                            .setTlsMaximumProtocolVersion(TlsParameters.TlsProtocol.TLSv1_2)
-                            .addAllCipherSuites(listOf(
-                                    "ECDHE-ECDSA-AES128-GCM-SHA256",
-                                    "ECDHE-RSA-AES128-GCM-SHA256"))
+                            .setTlsMinimumProtocolVersion(tlsProperties.protocol.minimumVersion)
+                            .setTlsMaximumProtocolVersion(tlsProperties.protocol.maximumVersion)
+                            .addAllCipherSuites(tlsProperties.protocol.cipherSuites)
                             .build())
                     .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
-                            .setName(tlsAuthenticationProperties.tlsCertificateSecretName)
+                            .setName(tlsProperties.tlsCertificateSecretName)
                             .build()
                     )
                     .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
-                            .setName(tlsAuthenticationProperties.validationContextSecretName)
+                            .setName(tlsProperties.validationContextSecretName)
                             .build()
                     )
-                    .build()
             )
 
     private val downstreamTlsTransportSocket = TransportSocket.newBuilder()
@@ -161,6 +159,21 @@ class EnvoyListenersFactory(
     }
 
     private fun createIngressFilterChain(
+        group: Group,
+        listenersConfig: ListenersConfig,
+        globalSnapshot: GlobalSnapshot,
+        transportProtocol: TransportProtocol = TransportProtocol.RAW_BUFFER
+    ): FilterChain.Builder {
+        val statPrefix = when (transportProtocol) {
+            TransportProtocol.RAW_BUFFER -> "ingress_http"
+            TransportProtocol.TLS -> "ingress_https"
+        }
+        return FilterChain.newBuilder()
+                .setFilterChainMatch(transportProtocol.filterChainMatch)
+                .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot, statPrefix))
+    }
+
+    private fun createSecuredIngressFilterChain(
         group: Group,
         listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot,

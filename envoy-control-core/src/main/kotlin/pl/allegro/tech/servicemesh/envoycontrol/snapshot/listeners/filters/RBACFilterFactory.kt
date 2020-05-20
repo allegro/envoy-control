@@ -17,6 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
@@ -33,7 +34,13 @@ class RBACFilterFactory(
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
 
+    private val incomingServicesSourceAuthentication = incomingPermissionsProperties
+            .sourceIpAuthentication
+            .ipFromServiceDiscovery
+            .enabledForIncomingServices
+
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
+    private val staticIpRanges = createStaticIpRanges()
 
     private fun getRules(serviceName: String, incomingPermissions: Incoming, snapshot: GlobalSnapshot): RBAC {
         val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
@@ -131,29 +138,43 @@ class RBACFilterFactory(
     }
 
     private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        val tlsProperties = incomingPermissionsProperties.tlsAuthentication
-        return when {
-            client in incomingPermissionsProperties.sourceIpAuthentication.enabledForServices -> {
-                sourceIpPrincipals(client, snapshot)
-            }
-            snapshot.mtlsEnabledForCluster(client) -> {
-                tlsPrincipals(tlsProperties, client)
-            }
-            else -> {
-                headerPrincipals(client)
-            }
+        val staticRangesForClient = staticIpRanges[client]
+
+        return if (client in incomingServicesSourceAuthentication) {
+            sourceIpPrincipals(client, snapshot)
+        } else if (staticRangesForClient != null) {
+            staticRangesForClient
+        } else if (snapshot.mtlsEnabledForCluster(client)) {
+            tlsPrincipals(incomingPermissionsProperties.tlsAuthentication, client)
+        } else {
+            headerPrincipals(client)
         }
     }
 
     private fun tlsPrincipals(tlsProperties: TlsAuthenticationProperties, client: String): List<Principal> {
         return listOf(Principal.newBuilder().setAuthenticated(
-            Principal.Authenticated.newBuilder()
-                .setPrincipalName(StringMatcher.newBuilder()
-                    .setExact("${tlsProperties.sanUriPrefix}$client${tlsProperties.sanUriSuffix}")
-                    .build()
-                )
-            ).build()
+                Principal.Authenticated.newBuilder()
+                        .setPrincipalName(StringMatcher.newBuilder()
+                                .setExact("${tlsProperties.sanUriPrefix}$client${tlsProperties.sanUriSuffix}")
+                                .build()
+                        )
+        ).build()
         )
+    }
+
+    private fun createStaticIpRanges(): Map<ClusterName, List<Principal>> {
+        val ranges = incomingPermissionsProperties.sourceIpAuthentication.ipFromRange
+
+        return ranges.mapValues {
+            it.value.map { ipWithPrefix ->
+                val (ip, prefixLength) = ipWithPrefix.split("/")
+
+                Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                        .setAddressPrefix(ip)
+                        .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
+                        .build()
+            }
+        }
     }
 
     private fun sourceIpPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {

@@ -34,11 +34,35 @@ internal class RBACFilterFactoryTest {
             IncomingPermissionsProperties().also {
                 it.enabled = true
                 it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
-                    ipProperties.enabledForServices = listOf("client1")
+                    ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
                 }
             },
             StatusRouteProperties()
     )
+    private val rbacFilterFactoryWithStaticRange = RBACFilterFactory(
+            IncomingPermissionsProperties().also {
+                it.enabled = true
+                it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
+                    ipProperties.ipFromRange = mutableMapOf(
+                        "client1" to setOf("192.168.1.0/24", "192.168.2.0/28")
+                    )
+                }
+            },
+            StatusRouteProperties()
+    )
+    private val rbacFilterFactoryWithStaticRangeAndSourceIpAuth = RBACFilterFactory(
+            IncomingPermissionsProperties().also {
+                it.enabled = true
+                it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
+                    ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
+                    ipProperties.ipFromRange = mutableMapOf(
+                            "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
+                    )
+                }
+            },
+            StatusRouteProperties()
+    )
+
     val snapshot = GlobalSnapshot(
             SnapshotResources.create(listOf(), ""),
             mapOf(),
@@ -347,6 +371,51 @@ internal class RBACFilterFactoryTest {
         assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
+    @Test
+    fun `should generate RBAC rules for incoming permissions with static ip range authentication`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSourceIpAuthWithStaticRangeJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET"),
+                        setOf("client1")
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithStaticRange.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with static ip range authentication and client source ip`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSourceIpAuthWithStaticRangeAndSourceIpJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET"),
+                        setOf("client1", "client2")
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithStaticRangeAndSourceIpAuth.createHttpFilter(
+                createGroup(incomingPermission),
+                snapshotForSourceIpAuth
+        )
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
     private val expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson = """
         {
           "policies": {
@@ -539,6 +608,63 @@ internal class RBACFilterFactoryTest {
 
     private val expectedEmptyEndpointPermissions = """{ "policies": {} }"""
 
+    private val expectedSourceIpAuthWithStaticRangeJson = """
+        {
+          "policies": {
+            "client1": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalSourceIp("192.168.1.0", 24)},
+                ${principalSourceIp("192.168.2.0", 28)}
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedSourceIpAuthWithStaticRangeAndSourceIpJson = """
+        {
+          "policies": {
+            "client1,client2": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalSourceIp("127.0.0.1")},
+                ${principalSourceIp("192.168.1.0", 24)},
+                ${principalSourceIp("192.168.2.0", 28)}
+              ]
+            }
+          }
+        }
+    """
+
     private fun pathHeaderRule(path: String): String {
         return """
             {
@@ -569,11 +695,11 @@ internal class RBACFilterFactoryTest {
         }"""
     }
 
-    private fun principalSourceIp(address: String): String {
+    private fun principalSourceIp(address: String, prefixLen: Int = 32): String {
         return """{
                 "source_ip": {
                   "address_prefix": "$address",
-                  "prefix_len": 32
+                  "prefix_len": $prefixLen
                 }
             }
         """

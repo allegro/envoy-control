@@ -10,7 +10,7 @@ data class ClusterState(
     val zone: String
 )
 
-class MultiClusterState(l: List<ClusterState> = listOf()) : Collection<ClusterState> by l {
+data class MultiClusterState(private val l: List<ClusterState> = listOf()) : Collection<ClusterState> by l {
 
     constructor(state: ClusterState) : this(listOf(state))
 
