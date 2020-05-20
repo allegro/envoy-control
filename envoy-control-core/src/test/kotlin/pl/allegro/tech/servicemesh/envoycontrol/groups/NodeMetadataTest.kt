@@ -2,12 +2,28 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.MethodSource
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFilterProperties
 
 class NodeMetadataTest {
+
+    companion object {
+        @JvmStatic
+        fun validStatusCodeFilterData() = listOf(
+            Arguments.of("Le:123", ComparisonFilter.Op.LE, 123),
+            Arguments.of("EQ:400", ComparisonFilter.Op.EQ, 400),
+            Arguments.of("gE:324", ComparisonFilter.Op.GE, 324),
+            Arguments.of("LE:200", ComparisonFilter.Op.GE, 200)
+        )
+    }
 
     @Test
     fun `should reject endpoint with both path and pathPrefix defined`() {
@@ -317,5 +333,42 @@ class NodeMetadataTest {
 
         // then
         assertThat(duration).isNull()
+    }
+
+    @ParameterizedTest
+    @MethodSource("validStatusCodeFilterData")
+    fun `should set statusCodeFilter for accessLogFilter`(input: String, op: ComparisonFilter.Op, code: Int) {
+        // given
+        val proto = accessLogFilterProto(statusCodeFilter = input)
+
+        // when
+        val incoming = proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
+            AccessLogFilterProperties()
+        )
+
+        // expects
+        assertThat(incoming?.comparisonCode).isEqualTo(code)
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+        "LT:123",
+        "equal:400",
+        "eq:24",
+        "GT:200"
+    )
+    fun `should not set statusCodeFilter for accessLogFilter`(input: String) {
+        // given
+        val proto = accessLogFilterProto(statusCodeFilter = input)
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
+                AccessLogFilterProperties()
+            )
+        }
+        assertThat(exception.status.description)
+            .isEqualTo("Access log filter status code doe not match pattern: ((le)|(eq)|(ge)){1}:(\\d{3})")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 }

@@ -5,7 +5,9 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import io.grpc.Status
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.net.URL
 import java.text.ParseException
@@ -21,6 +23,24 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
     val communicationMode = getCommunicationMode(metadata.fieldsMap["ads"])
 
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
+
+    val accessLogFilter: AccessLogFilter = AccessLogFilter(
+        metadata.fieldsMap["access_log_filter"],
+        properties.accessLogFilterProperties
+    )
+}
+
+data class AccessLogFilter(
+    val statusCodeFilter: StatusCodeFilter?
+) {
+    constructor(proto: Value?, properties: AccessLogFilterProperties) : this(
+        statusCodeFilter = proto?.field("status_code_filter").toStatusCodeFilter(properties)
+    )
+
+    data class StatusCodeFilter(
+        val comparisonOP: ComparisonFilter.Op,
+        val comparisonCode: Int
+    )
 }
 
 data class ProxySettings(
@@ -52,6 +72,33 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
         true -> CommunicationMode.ADS
         else -> CommunicationMode.XDS
     }
+}
+
+fun Value?.toStatusCodeFilter(properties: AccessLogFilterProperties): AccessLogFilter.StatusCodeFilter? {
+    val value = this?.stringValue
+
+    if (value != null) {
+        var op: ComparisonFilter.Op? = null
+        val regex = """((le)|(eq)|(ge)){1}:(\d{3})""".toRegex()
+
+        val matchResult = regex.matchEntire(value.toLowerCase())
+        matchResult?.takeIf { !it.groupValues.isEmpty() }?.apply {
+            when (matchResult.groupValues.get(properties.operatorIndex)) {
+                "le" -> op = ComparisonFilter.Op.LE
+                "eq" -> op = ComparisonFilter.Op.EQ
+                "ge" -> op = ComparisonFilter.Op.GE
+            }
+            return AccessLogFilter.StatusCodeFilter(
+                comparisonOP = op!!,
+                comparisonCode = matchResult.groupValues.get(properties.codeIndex).toInt()
+            )
+        } ?: run {
+            throw NodeMetadataValidationException(
+                "Access log filter status code doe not match pattern: ((le)|(eq)|(ge)){1}:(\\d{3})"
+            )
+        }
+    }
+    return null
 }
 
 private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {

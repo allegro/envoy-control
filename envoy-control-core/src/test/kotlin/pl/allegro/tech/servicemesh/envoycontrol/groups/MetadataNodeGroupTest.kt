@@ -11,6 +11,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
 import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.Op.EQ
+import io.grpc.Status
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 
 class MetadataNodeGroupTest {
     @Test
@@ -222,46 +226,70 @@ class MetadataNodeGroupTest {
     }
 
     @Test
-    fun `should set listeners config access log http code filter according to metadata`() {
+    fun `should set listeners config access log status code filter according to metadata`() {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
-        metadata!!.putFields("access_log_filter_http_code", Value.newBuilder().setStringValue("EQ:400").build())
+
+        metadata!!.putFields("access_log_filter", accessLogFilterProto("EQ:400"))
 
         // when
         val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
 
         // then
-        assertThat(group.listenersConfig!!.accessLogFilterHttpCode!!.comparisonCode).isEqualTo(400)
-        assertThat(group.listenersConfig!!.accessLogFilterHttpCode!!.comparisonOP).isEqualTo(EQ)
+        assertThat(group.listenersConfig!!.accessLogFilter!!.statusCodeFilter!!.comparisonCode).isEqualTo(400)
+        assertThat(group.listenersConfig!!.accessLogFilter!!.statusCodeFilter!!.comparisonOP).isEqualTo(EQ)
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+        "equal:400",
+        "eq:40",
+        "GT:1234"
+    )
+    fun `should throw exception and not set listeners config access log status code filter if invalid config`(config: String) {
+        // given
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
+        val metadata = createMetadataBuilderWithDefaults()
+
+        metadata!!.putFields("access_log_filter", accessLogFilterProto(config))
+
+        // expect
+        val exception = assertThrows<NodeMetadataValidationException> {
+            nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
+        }
+        assertThat(exception.status.description)
+            .isEqualTo("Access log filter status code doe not match pattern: ((le)|(eq)|(ge)){1}:(\\d{3})")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test
-    fun `should not set listeners config access log http code for empty value`() {
+    fun `should not set listeners config access log status code filter if not defined`() {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
-        metadata!!.putFields("access_log_filter_http_code", Value.newBuilder().setStringValue("").build())
 
         // when
-        val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
+        val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata?.build()).build())
 
         // then
-        assertThat(group.listenersConfig!!.accessLogFilterHttpCode).isNull()
+        assertThat(group.listenersConfig!!.accessLogFilter!!.statusCodeFilter).isNull()
     }
 
     @Test
-    fun `should not set listeners config access log http code for invalid value`() {
+    fun `should throw exception for access log filter status code empty value`() {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
-        metadata!!.putFields("access_log_filter_http_code", Value.newBuilder().setStringValue("greaterThen300").build())
+        metadata!!.putFields("access_log_filter", accessLogFilterProto(""))
 
-        // when
-        val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
-
-        // then
-        assertThat(group.listenersConfig!!.accessLogFilterHttpCode).isNull()
+        // expect
+        val exception = assertThrows<NodeMetadataValidationException> {
+            nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
+        }
+        assertThat(exception.status.description)
+            .isEqualTo("Access log filter status code doe not match pattern: ((le)|(eq)|(ge)){1}:(\\d{3})")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     private fun createMetadataBuilderWithDefaults(): Struct.Builder? {

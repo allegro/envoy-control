@@ -23,6 +23,12 @@ class SnapshotProperties {
     var enabledCommunicationModes = EnabledCommunicationModes()
     var shouldSendMissingEndpoints = false
     var metrics: MetricsProperties = MetricsProperties()
+    var accessLogFilterProperties: AccessLogFilterProperties = AccessLogFilterProperties()
+}
+
+class AccessLogFilterProperties {
+    var operatorIndex: Int = 1
+    var codeIndex: Int = 5
 }
 
 class MetricsProperties {

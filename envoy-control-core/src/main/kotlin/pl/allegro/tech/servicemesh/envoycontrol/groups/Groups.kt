@@ -32,7 +32,7 @@ data class ListenersConfig(
     val accessLogPath: String = defaultAccessLogPath,
     val resourcesDir: String = defaultResourcesDir,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
-    val accessLogFilterHttpCode: AccessLogFilterHttpCode? = null
+    val accessLogFilter: AccessLogFilter? = null
 ) {
     companion object {
         const val defaultAccessLogPath = "/dev/stdout"
