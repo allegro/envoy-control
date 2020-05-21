@@ -22,6 +22,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsUtils
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 
 class RBACFilterFactory(
@@ -152,13 +153,14 @@ class RBACFilterFactory(
     }
 
     private fun tlsPrincipals(tlsProperties: TlsAuthenticationProperties, client: String): List<Principal> {
+        val principalName = TlsUtils.resolveSanUri(client, tlsProperties.sanUriFormat)
         return listOf(Principal.newBuilder().setAuthenticated(
                 Principal.Authenticated.newBuilder()
                         .setPrincipalName(StringMatcher.newBuilder()
-                                .setExact("${tlsProperties.sanUriPrefix}$client${tlsProperties.sanUriSuffix}")
+                                .setExact(principalName)
                                 .build()
                         )
-        ).build()
+                ).build()
         )
     }
 

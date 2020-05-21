@@ -80,7 +80,7 @@ internal class EnvoyClustersFactory(
 
     private fun createTlsContextWithSdsSecretConfig(serviceName: String): UpstreamTlsContext {
         val tlsProperties = properties.incomingPermissions.tlsAuthentication
-        val sanMatch = "${tlsProperties.sanUriPrefix}${serviceName}${tlsProperties.sanUriSuffix}"
+        val sanMatch = TlsUtils.resolveSanUri(serviceName, tlsProperties.sanUriFormat)
         return UpstreamTlsContext.newBuilder()
                 .setCommonTlsContext(CommonTlsContext.newBuilder()
                         .setCombinedValidationContext(CommonTlsContext.CombinedCertificateValidationContext.newBuilder()
