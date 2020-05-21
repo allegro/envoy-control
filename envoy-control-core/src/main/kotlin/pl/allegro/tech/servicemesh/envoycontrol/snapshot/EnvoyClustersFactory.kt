@@ -50,10 +50,20 @@ internal class EnvoyClustersFactory(
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,
-        communicationMode: CommunicationMode,
-        secured: Boolean = false
+        communicationMode: CommunicationMode
     ): List<Cluster> {
-        return services.map { edsCluster(it, communicationMode, secured) }
+        return services.map { edsCluster(it, communicationMode) }
+    }
+
+    fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
+        return insecureClusters.map { cluster ->
+            val upstreamTlsContext = createTlsContextWithSdsSecretConfig(cluster.name)
+            val secureCluster = Cluster.newBuilder(cluster)
+            secureCluster.setTransportSocket(TransportSocket.newBuilder()
+                    .setName("envoy.transport_sockets.tls")
+                    .setTypedConfig(Any.pack(upstreamTlsContext)))
+                    .build()
+        }
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
@@ -184,8 +194,7 @@ internal class EnvoyClustersFactory(
 
     private fun edsCluster(
         clusterConfiguration: ClusterConfiguration,
-        communicationMode: CommunicationMode,
-        secured: Boolean
+        communicationMode: CommunicationMode
     ): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
@@ -193,6 +202,7 @@ internal class EnvoyClustersFactory(
             configureOutlierDetection(clusterBuilder)
         }
 
+        // cluster name must be equal to service name because it is used in other places
         val cluster = clusterBuilder.setName(clusterConfiguration.serviceName)
             .setType(Cluster.DiscoveryType.EDS)
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
@@ -214,14 +224,6 @@ internal class EnvoyClustersFactory(
             )
             .setLbPolicy(properties.loadBalancing.policy)
             .configureLbSubsets()
-
-        if (secured) {
-            val upstreamTlsContext = createTlsContextWithSdsSecretConfig(clusterConfiguration.serviceName)
-            cluster.setTransportSocket(TransportSocket.newBuilder()
-                    .setName("envoy.transport_sockets.tls")
-                    .setTypedConfig(Any.pack(upstreamTlsContext)))
-                    .build()
-        }
 
         cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
         cluster.setCircuitBreakers(allThresholds)

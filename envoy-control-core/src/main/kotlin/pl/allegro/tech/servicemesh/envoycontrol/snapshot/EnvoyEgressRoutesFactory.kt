@@ -94,6 +94,7 @@ internal class EnvoyEgressRoutesFactory(
                         HeaderValueOption.newBuilder()
                             .setHeader(
                                 HeaderValue.newBuilder()
+                                    // TODO: remove when service name is passed from certificate
                                     .setKey(properties.incomingPermissions.clientIdentityHeader)
                                     .setValue(serviceName)
                             )

@@ -176,21 +176,6 @@ class EnvoyListenersFactory(
     private fun createSecuredIngressFilterChain(
         group: Group,
         listenersConfig: ListenersConfig,
-        globalSnapshot: GlobalSnapshot,
-        transportProtocol: TransportProtocol = TransportProtocol.RAW_BUFFER
-    ): FilterChain.Builder {
-        val statPrefix = when (transportProtocol) {
-            TransportProtocol.RAW_BUFFER -> "ingress_http"
-            TransportProtocol.TLS -> "ingress_https"
-        }
-        return FilterChain.newBuilder()
-                .setFilterChainMatch(transportProtocol.filterChainMatch)
-                .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot, statPrefix))
-    }
-
-    private fun createSecuredIngressFilterChain(
-        group: Group,
-        listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot
     ): FilterChain.Builder {
         val filterChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, TransportProtocol.TLS)

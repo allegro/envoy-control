@@ -148,7 +148,7 @@ class RBACFilterFactory(
         } else if (snapshot.mtlsEnabledForCluster(client)) {
             tlsPrincipals(incomingPermissionsProperties.tlsAuthentication, client)
         } else {
-            headerPrincipals(client)
+            headerPrincipals(client) // TODO: remove when service name is passed from certificate
         }
     }
 

@@ -153,18 +153,18 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         ): EnvoyContainer {
             return if (envoyControls == 2 && instancesInSameDc) {
                 EnvoyContainer(
-                        envoyConfig.filePath,
-                        localServiceIp,
-                        envoyConnectGrpcPort ?: envoyControl1.grpcPort,
-                        envoyConnectGrpcPort2 ?: envoyControl2.grpcPort,
-                        image = envoyImage
+                    envoyConfig.filePath,
+                    localServiceIp,
+                    envoyConnectGrpcPort ?: envoyControl1.grpcPort,
+                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort,
+                    image = envoyImage
                 ).withNetwork(network)
             } else {
                 EnvoyContainer(
-                        envoyConfig.filePath,
-                        localServiceIp,
-                        envoyConnectGrpcPort ?: envoyControl1.grpcPort,
-                        image = envoyImage
+                    envoyConfig.filePath,
+                    localServiceIp,
+                    envoyConnectGrpcPort ?: envoyControl1.grpcPort,
+                    image = envoyImage
                 ).withNetwork(network)
             }
         }
