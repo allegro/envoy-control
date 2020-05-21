@@ -33,7 +33,7 @@ data class AccessLogFilterSettings(
     )
 
     data class StatusCodeFilter(
-        val comparisonOP: ComparisonFilter.Op,
+        val comparisonOperator: ComparisonFilter.Op,
         val comparisonCode: Int
     )
 }
@@ -85,7 +85,7 @@ fun Value?.toStatusCodeFilter(properties: AccessLogFilterProperties): AccessLogF
         else -> throw NodeMetadataValidationException("Invalid operator. Allowed values: le,eq,ge")
     }
     return AccessLogFilterSettings.StatusCodeFilter(
-        comparisonOP = op,
+        comparisonOperator = op,
         comparisonCode = split[1].toInt()
     )
 }

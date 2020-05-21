@@ -7,7 +7,7 @@ Configuration provided in `metadata.access_log_filter` will be used to set up an
 ## Filter logs by status code
 
 Envoy allows filtering access logs by status code.
-Variable `metadata.access_log_filter.status_code_filter` should contain operator and status code.
+Variable `metadata.access_log_filter.status_code_filter` should contain operator (case insensitive) and status code.
 
 Expected format is: `{operator}`:`{status code}`.
 

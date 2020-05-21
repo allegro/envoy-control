@@ -238,7 +238,7 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilter!!.comparisonCode).isEqualTo(400)
-        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilter!!.comparisonOP).isEqualTo(EQ)
+        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilter!!.comparisonOperator).isEqualTo(EQ)
     }
 
     @ParameterizedTest

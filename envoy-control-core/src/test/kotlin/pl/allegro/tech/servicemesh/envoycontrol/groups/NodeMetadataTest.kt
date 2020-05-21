@@ -348,7 +348,7 @@ class NodeMetadataTest {
 
         // expects
         assertThat(incoming?.comparisonCode).isEqualTo(code)
-        assertThat(incoming?.comparisonOP).isEqualTo(op)
+        assertThat(incoming?.comparisonOperator).isEqualTo(op)
     }
 
     @ParameterizedTest

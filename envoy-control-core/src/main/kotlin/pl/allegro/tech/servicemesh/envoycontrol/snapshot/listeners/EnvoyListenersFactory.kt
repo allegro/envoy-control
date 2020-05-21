@@ -328,7 +328,7 @@ class EnvoyListenersFactory(
 
         accessLogFilterSettings?.let { settings ->
             settings.statusCodeFilter?.let {
-                builder.setFilter(accessLogFilterValue(it.comparisonOP, it.comparisonCode))
+                builder.setFilter(accessLogFilterValue(it.comparisonOperator, it.comparisonCode))
             }
         }
 
