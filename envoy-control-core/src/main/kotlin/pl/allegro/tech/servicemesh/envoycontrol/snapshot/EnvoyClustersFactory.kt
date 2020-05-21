@@ -10,6 +10,7 @@ import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
 import io.envoyproxy.envoy.api.v2.auth.SdsSecretConfig
+import io.envoyproxy.envoy.api.v2.auth.TlsParameters
 import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
 import io.envoyproxy.envoy.api.v2.cluster.CircuitBreakers
 import io.envoyproxy.envoy.api.v2.cluster.OutlierDetection
@@ -45,6 +46,7 @@ internal class EnvoyClustersFactory(
 
     private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
+    private val tlsProperties = properties.incomingPermissions.tlsAuthentication
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,
@@ -78,23 +80,33 @@ internal class EnvoyClustersFactory(
         return hasStaticSecretsDefined && mtlsEnabled
     }
 
+    private val commonTlsParams = TlsParameters.newBuilder()
+            .setTlsMinimumProtocolVersion(tlsProperties.protocol.minimumVersion)
+            .setTlsMaximumProtocolVersion(tlsProperties.protocol.maximumVersion)
+            .addAllCipherSuites(tlsProperties.protocol.cipherSuites)
+            .build()
+
+    private val validationContextSecretConfig = SdsSecretConfig.newBuilder()
+            .setName(tlsProperties.validationContextSecretName).build()
+
+    private val tlsCertificateSecretConfig = SdsSecretConfig.newBuilder()
+            .setName(tlsProperties.tlsCertificateSecretName).build()
+
     private fun createTlsContextWithSdsSecretConfig(serviceName: String): UpstreamTlsContext {
-        val tlsProperties = properties.incomingPermissions.tlsAuthentication
         val sanMatch = TlsUtils.resolveSanUri(serviceName, tlsProperties.sanUriFormat)
         return UpstreamTlsContext.newBuilder()
                 .setCommonTlsContext(CommonTlsContext.newBuilder()
+                        .setTlsParams(commonTlsParams)
                         .setCombinedValidationContext(CommonTlsContext.CombinedCertificateValidationContext.newBuilder()
                                 .setDefaultValidationContext(CertificateValidationContext.newBuilder()
                                         .addAllMatchSubjectAltNames(listOf(StringMatcher.newBuilder()
                                                 .setExact(sanMatch)
                                                 .build()
                                         )).build())
-                                .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
-                                        .setName(tlsProperties.validationContextSecretName).build())
+                                .setValidationContextSdsSecretConfig(validationContextSecretConfig)
                                 .build()
                         )
-                        .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
-                                .setName(tlsProperties.tlsCertificateSecretName).build())
+                        .addTlsCertificateSdsSecretConfigs(tlsCertificateSecretConfig)
                         .build()
                 )
                 .build()
