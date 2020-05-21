@@ -23,14 +23,9 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
     val communicationMode = getCommunicationMode(metadata.fieldsMap["ads"])
 
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
-
-    val accessLogFilter: AccessLogFilter = AccessLogFilter(
-        metadata.fieldsMap["access_log_filter"],
-        properties.accessLogFilterProperties
-    )
 }
 
-data class AccessLogFilter(
+data class AccessLogFilterSettings(
     val statusCodeFilter: StatusCodeFilter?
 ) {
     constructor(proto: Value?, properties: AccessLogFilterProperties) : this(
@@ -74,31 +69,25 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
     }
 }
 
-fun Value?.toStatusCodeFilter(properties: AccessLogFilterProperties): AccessLogFilter.StatusCodeFilter? {
-    val value = this?.stringValue
+fun Value?.toStatusCodeFilter(properties: AccessLogFilterProperties): AccessLogFilterSettings.StatusCodeFilter? {
+    val value = if (this?.stringValue != null) this.stringValue.toLowerCase() else return null
 
-    if (value != null) {
-        var op: ComparisonFilter.Op? = null
-        val regex = """((le)|(eq)|(ge)){1}:(\d{3})""".toRegex()
-
-        val matchResult = regex.matchEntire(value.toLowerCase())
-        matchResult?.takeIf { !it.groupValues.isEmpty() }?.apply {
-            when (matchResult.groupValues.get(properties.operatorIndex)) {
-                "le" -> op = ComparisonFilter.Op.LE
-                "eq" -> op = ComparisonFilter.Op.EQ
-                "ge" -> op = ComparisonFilter.Op.GE
-            }
-            return AccessLogFilter.StatusCodeFilter(
-                comparisonOP = op!!,
-                comparisonCode = matchResult.groupValues.get(properties.codeIndex).toInt()
-            )
-        } ?: run {
-            throw NodeMetadataValidationException(
-                "Access log filter status code doe not match pattern: ((le)|(eq)|(ge)){1}:(\\d{3})"
-            )
-        }
+    if (!properties.statusCodeFilterPattern.matches(value)) {
+        throw NodeMetadataValidationException(
+            "Invalid access log status code filter. Expected OPERATOR:STATUS_CODE"
+        )
     }
-    return null
+    val split = value.split(properties.delimiter)
+    val op = when (split[0]) {
+        "le" -> ComparisonFilter.Op.LE
+        "eq" -> ComparisonFilter.Op.EQ
+        "ge" -> ComparisonFilter.Op.GE
+        else -> throw NodeMetadataValidationException("Invalid operator. Allowed values: le,eq,ge")
+    }
+    return AccessLogFilterSettings.StatusCodeFilter(
+        comparisonOP = op,
+        comparisonCode = split[1].toInt()
+    )
 }
 
 private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {

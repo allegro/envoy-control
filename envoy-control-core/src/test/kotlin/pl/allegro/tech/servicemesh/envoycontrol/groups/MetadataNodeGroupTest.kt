@@ -237,8 +237,8 @@ class MetadataNodeGroupTest {
         val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
 
         // then
-        assertThat(group.listenersConfig!!.accessLogFilter!!.statusCodeFilter!!.comparisonCode).isEqualTo(400)
-        assertThat(group.listenersConfig!!.accessLogFilter!!.statusCodeFilter!!.comparisonOP).isEqualTo(EQ)
+        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilter!!.comparisonCode).isEqualTo(400)
+        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilter!!.comparisonOP).isEqualTo(EQ)
     }
 
     @ParameterizedTest
@@ -259,7 +259,7 @@ class MetadataNodeGroupTest {
             nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
         }
         assertThat(exception.status.description)
-            .isEqualTo("Access log filter status code doe not match pattern: ((le)|(eq)|(ge)){1}:(\\d{3})")
+            .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -273,7 +273,7 @@ class MetadataNodeGroupTest {
         val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata?.build()).build())
 
         // then
-        assertThat(group.listenersConfig!!.accessLogFilter!!.statusCodeFilter).isNull()
+        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilter).isNull()
     }
 
     @Test
@@ -288,7 +288,7 @@ class MetadataNodeGroupTest {
             nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
         }
         assertThat(exception.status.description)
-            .isEqualTo("Access log filter status code doe not match pattern: ((le)|(eq)|(ge)){1}:(\\d{3})")
+            .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 

@@ -32,7 +32,7 @@ data class ListenersConfig(
     val accessLogPath: String = defaultAccessLogPath,
     val resourcesDir: String = defaultResourcesDir,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
-    val accessLogFilter: AccessLogFilter? = null,
+    val accessLogFilterSettings: AccessLogFilterSettings? = null,
     val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined
 ) {
 

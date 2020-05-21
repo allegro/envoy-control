@@ -21,7 +21,7 @@ class NodeMetadataTest {
             Arguments.of("Le:123", ComparisonFilter.Op.LE, 123),
             Arguments.of("EQ:400", ComparisonFilter.Op.EQ, 400),
             Arguments.of("gE:324", ComparisonFilter.Op.GE, 324),
-            Arguments.of("LE:200", ComparisonFilter.Op.GE, 200)
+            Arguments.of("LE:200", ComparisonFilter.Op.LE, 200)
         )
     }
 
@@ -348,6 +348,7 @@ class NodeMetadataTest {
 
         // expects
         assertThat(incoming?.comparisonCode).isEqualTo(code)
+        assertThat(incoming?.comparisonOP).isEqualTo(op)
     }
 
     @ParameterizedTest
@@ -368,7 +369,7 @@ class NodeMetadataTest {
             )
         }
         assertThat(exception.status.description)
-            .isEqualTo("Access log filter status code doe not match pattern: ((le)|(eq)|(ge)){1}:(\\d{3})")
+            .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 }

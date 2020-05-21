@@ -26,9 +26,11 @@ import io.envoyproxy.envoy.api.v2.listener.FilterChainMatch
 import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
 import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
 import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLogFilter
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
+import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
@@ -231,7 +233,7 @@ class EnvoyListenersFactory(
     ): Filter {
         if (listenersConfig.accessLogEnabled) {
             connectionManagerBuilder.addAccessLog(
-                accessLog(listenersConfig.accessLogPath, accessLogType, listenersConfig.accessLogFilter)
+                accessLog(listenersConfig.accessLogPath, accessLogType, listenersConfig.accessLogFilterSettings)
             )
         }
 
@@ -320,29 +322,13 @@ class EnvoyListenersFactory(
     private fun accessLog(
         accessLogPath: String,
         accessLogType: String,
-        accessLogFilterHttpCode: pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilter?
+        accessLogFilterSettings: AccessLogFilterSettings?
     ): AccessLog {
         val builder = AccessLog.newBuilder().setName("envoy.file_access_log")
 
-        accessLogFilterHttpCode?.let {
-            it.statusCodeFilter?.let {
-                builder.setFilter(
-                    AccessLogFilter.newBuilder().setStatusCodeFilter(
-                        io.envoyproxy.envoy.config.filter.accesslog.v2.StatusCodeFilter.newBuilder()
-                            .setComparison(
-                                io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.newBuilder()
-                                    .setOp(it.comparisonOP)
-                                    .setValue(
-                                        RuntimeUInt32.newBuilder()
-                                            .setDefaultValue(it.comparisonCode)
-                                            .setRuntimeKey("access_log_filter_http_code")
-                                            .build()
-                                    )
-                                    .build()
-                            )
-                            .build()
-                    )
-                )
+        accessLogFilterSettings?.let { settings ->
+            settings.statusCodeFilter?.let {
+                builder.setFilter(accessLogFilterValue(it.comparisonOP, it.comparisonCode))
             }
         }
 
@@ -384,4 +370,22 @@ class EnvoyListenersFactory(
     private fun durationInSeconds(value: Long) = Duration.newBuilder().setSeconds(value).build()
 
     private fun stringValue(value: String) = Value.newBuilder().setStringValue(value).build()
+
+    private fun accessLogFilterValue(op: ComparisonFilter.Op, code: Int): AccessLogFilter.Builder? {
+        return AccessLogFilter.newBuilder().setStatusCodeFilter(
+            io.envoyproxy.envoy.config.filter.accesslog.v2.StatusCodeFilter.newBuilder()
+                .setComparison(
+                    io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.newBuilder()
+                        .setOp(op)
+                        .setValue(
+                            RuntimeUInt32.newBuilder()
+                                .setDefaultValue(code)
+                                .setRuntimeKey("access_log_filter_http_code")
+                                .build()
+                        )
+                        .build()
+                )
+                .build()
+        )
+    }
 }

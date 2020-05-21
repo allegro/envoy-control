@@ -2,6 +2,7 @@
 
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
+import com.google.re2j.Pattern
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.auth.TlsParameters
 import java.time.Duration
@@ -28,8 +29,8 @@ class SnapshotProperties {
 }
 
 class AccessLogFilterProperties {
-    var operatorIndex: Int = 1
-    var codeIndex: Int = 5
+    var statusCodeFilterPattern: Pattern = Pattern.compile("""(le|eq|ge):(\d{3})""")
+    var delimiter = ':'
 }
 
 class MetricsProperties {

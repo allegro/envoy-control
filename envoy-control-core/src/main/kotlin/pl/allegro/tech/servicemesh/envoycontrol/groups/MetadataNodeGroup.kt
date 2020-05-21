@@ -70,7 +70,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         val ingressPortValue = metadata.fieldsMap["ingress_port"]
         val egressHostValue = metadata.fieldsMap["egress_host"]
         val egressPortValue = metadata.fieldsMap["egress_port"]
-        val accessLogFilter = AccessLogFilter(
+        val accessLogFilterSettings = AccessLogFilterSettings(
             metadata.fieldsMap["access_log_filter"], properties.accessLogFilterProperties
         )
 
@@ -112,7 +112,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 accessLogPath,
                 resourcesDir,
                 addUpstreamExternalAddressHeader,
-                accessLogFilter,
+                accessLogFilterSettings,
                 hasStaticSecretsDefined
         )
     }
