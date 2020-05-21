@@ -26,6 +26,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Matching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SourceIpAuthenticationProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
+@Suppress("LargeClass") // TODO: https://github.com/allegro/envoy-control/issues/121
 internal class RBACFilterFactoryTest {
     private val rbacFilterFactory = RBACFilterFactory(
             IncomingPermissionsProperties().also { it.enabled = true },
@@ -477,6 +478,31 @@ internal class RBACFilterFactoryTest {
         assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
+    @Test
+    fun `should generate RBAC rules for incoming permissions with source ip and selector authentication for roles`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSourceIpWithStaticRangeAndSelectorAuthPermissionsAndRolesJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET"),
+                        setOf("role1")
+                )),
+                roles = listOf(Role("role1", setOf("client1:selector1", "client2:selector2")))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithSourceIpWithSelectorAuth.createHttpFilter(
+                createGroup(incomingPermission),
+                snapshotForSourceIpAuth
+        )
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
     private val expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson = """
         {
           "policies": {
@@ -546,7 +572,11 @@ internal class RBACFilterFactoryTest {
               ], "principals": [
                 {
                   "andIds": {
-                    "ids": [${principalSourceIp("127.0.0.1")}, ${principalHeader("x-secret-header", "selector")}]
+                    "ids": [{
+                        "orIds": {
+                            "ids": [${principalSourceIp("127.0.0.1")}]
+                        }
+                    }, ${principalHeader("x-secret-header", "selector")}]
                   }
                 }
               ]
@@ -577,12 +607,55 @@ internal class RBACFilterFactoryTest {
               ], "principals": [
                 {
                   "andIds": {
-                    "ids": [${principalSourceIp("192.168.1.0", 24)}, ${principalHeader("x-secret-header", "selector")}]
+                    "ids": [{
+                        "orIds": {
+                            "ids": [${principalSourceIp("192.168.1.0", 24)}, ${principalSourceIp("192.168.2.0", 28)}]
+                        }
+                    }, ${principalHeader("x-secret-header", "selector")}]
+                  }
+                }
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedSourceIpWithStaticRangeAndSelectorAuthPermissionsAndRolesJson = """
+        {
+          "policies": {
+            "client1:selector1,client2:selector2": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                {
+                  "andIds": {
+                    "ids": [{
+                        "orIds": {
+                            "ids": [${principalSourceIp("127.0.0.1")}]
+                        }
+                    }, ${principalHeader("x-secret-header", "selector1")}]
                   }
                 },
                 {
                   "andIds": {
-                    "ids": [${principalSourceIp("192.168.2.0", 28)}, ${principalHeader("x-secret-header", "selector")}]
+                    "ids": [{
+                        "orIds": {
+                            "ids": [${principalSourceIp("192.168.1.0", 24)}, ${principalSourceIp("192.168.2.0", 28)}]
+                        }
+                    }, ${principalHeader("x-secret-header", "selector2")}]
                   }
                 }
               ]

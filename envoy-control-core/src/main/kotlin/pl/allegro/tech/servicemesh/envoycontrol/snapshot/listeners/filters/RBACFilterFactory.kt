@@ -31,16 +31,29 @@ class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,
     statusRouteProperties: StatusRouteProperties
 ) {
+    private val incomingServicesSourceAuthentication = incomingPermissionsProperties
+            .sourceIpAuthentication
+            .ipFromServiceDiscovery
+            .enabledForIncomingServices
+
+    private val incomingServicesIpRangeAuthentication = incomingPermissionsProperties
+            .sourceIpAuthentication
+            .ipFromRange
+            .keys
+
+    init {
+        incomingPermissionsProperties.selectorMatching.forEach {
+            if (it.key !in incomingServicesIpRangeAuthentication && it.key !in incomingServicesSourceAuthentication) {
+                throw IllegalArgumentException("${it.key} is not defined in ip range or ip from discovery section.")
+            }
+        }
+    }
+
     companion object {
         private val logger by logger()
         private const val ANY_PRINCIPAL_NAME = "_ANY_"
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
-
-    private val incomingServicesSourceAuthentication = incomingPermissionsProperties
-            .sourceIpAuthentication
-            .ipFromServiceDiscovery
-            .enabledForIncomingServices
 
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
     private val staticIpRanges = createStaticIpRanges()
@@ -159,9 +172,9 @@ class RBACFilterFactory(
     private fun staticIpRange(client: Client, selector: Selector?, matching: Matching?): List<Principal>? {
         val range = staticIpRanges[client]
         return if (selector != null && matching != null && range != null) {
-            addAdditionalMatching(selector, matching, range.map { it.toBuilder() })
+            addAdditionalMatching(selector, matching, range)
         } else {
-            staticIpRanges[client]
+            range
         }
     }
 
@@ -198,11 +211,12 @@ class RBACFilterFactory(
                     .setSourceIp(CidrRange.newBuilder()
                     .setAddressPrefix(address.socketAddress.address)
                     .setPrefixLen(EXACT_IP_MASK).build())
+                    .build()
 
             if (selector != null && matching != null) {
                 addAdditionalMatching(selector, matching, listOf(sourceIpPrincipal))
             } else {
-                listOf(sourceIpPrincipal.build())
+                listOf(sourceIpPrincipal)
             }
         }
     }
@@ -210,23 +224,22 @@ class RBACFilterFactory(
     private fun addAdditionalMatching(
         selector: Selector,
         matching: Matching,
-        sourceIpPrincipals: List<Principal.Builder>
+        sourceIpPrincipals: List<Principal>
     ): List<Principal> {
-        val andPrincipal = Principal.newBuilder()
-
-        val additionalMatchingPrincipal = Principal.newBuilder()
-                    .setHeader(
-                        HeaderMatcher.newBuilder()
-                            .setName(matching.header)
-                            .setExactMatch(selector)
-                    )
-
-        return sourceIpPrincipals.map {
-            val principalSet = Principal.Set.newBuilder()
-                    .addAllIds(listOf(it.build(), additionalMatchingPrincipal.build()))
+        return if (matching.header.isNotEmpty()) {
+            val orPrincipal = Principal.newBuilder()
+                    .setOrIds(Principal.Set.newBuilder().addAllIds(sourceIpPrincipals))
                     .build()
 
-            andPrincipal.setAndIds(principalSet).build()
+            val additionalMatchingPrincipal = Principal.newBuilder()
+                    .setHeader(HeaderMatcher.newBuilder().setName(matching.header).setExactMatch(selector))
+                    .build()
+
+            listOf(Principal.newBuilder().setAndIds(Principal.Set.newBuilder().addAllIds(
+                    listOf(orPrincipal, additionalMatchingPrincipal)
+            )).build())
+        } else {
+            sourceIpPrincipals
         }
     }
 
@@ -238,7 +251,7 @@ class RBACFilterFactory(
             val decomposedClient = parts[0]
             val matching = incomingPermissionsProperties.selectorMatching[decomposedClient]
             if (matching == null) {
-                logger.info("No selector matching found for client $decomposedClient in EC properties. " +
+                logger.warn("No selector matching found for client $decomposedClient in EC properties. " +
                         "Source IP based authentication will not contain additional matching.")
                 return Triple(clientComposite, null, null)
             }
