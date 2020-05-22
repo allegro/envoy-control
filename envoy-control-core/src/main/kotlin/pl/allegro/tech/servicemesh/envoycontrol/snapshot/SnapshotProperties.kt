@@ -2,10 +2,8 @@
 
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import com.google.re2j.Pattern
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.auth.TlsParameters
-import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import java.time.Duration
 
 class SnapshotProperties {
@@ -26,13 +24,6 @@ class SnapshotProperties {
     var enabledCommunicationModes = EnabledCommunicationModes()
     var shouldSendMissingEndpoints = false
     var metrics: MetricsProperties = MetricsProperties()
-    var accessLogFilterProperties: AccessLogFilterProperties = AccessLogFilterProperties()
-}
-
-class AccessLogFilterProperties {
-    val operators = arrayOf(ComparisonFilter.Op.LE, ComparisonFilter.Op.GE, ComparisonFilter.Op.EQ)
-    var delimiter = ':'
-    var statusCodeFilterPattern: Pattern = Pattern.compile("""(${operators.joinToString("|")}):(\d{3})""")
 }
 
 class MetricsProperties {

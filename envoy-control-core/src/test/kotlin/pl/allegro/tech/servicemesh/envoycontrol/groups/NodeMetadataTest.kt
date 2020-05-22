@@ -11,7 +11,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.MethodSource
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFilterProperties
 
 class NodeMetadataTest {
 
@@ -343,7 +342,7 @@ class NodeMetadataTest {
 
         // when
         val incoming = proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
-            AccessLogFilterProperties()
+            AccessLogStatusCodeFilterFactory()
         )
 
         // expects
@@ -365,7 +364,7 @@ class NodeMetadataTest {
         // expects
         val exception = assertThrows<NodeMetadataValidationException> {
             proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
-                AccessLogFilterProperties()
+                AccessLogStatusCodeFilterFactory()
             )
         }
         assertThat(exception.status.description)

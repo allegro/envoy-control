@@ -11,6 +11,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
     private val logger by logger()
 
+    private val accessLogStatusCodeFilterFactory = AccessLogStatusCodeFilterFactory()
+
     override fun hash(node: Node): Group = createGroup(node)
 
     @SuppressWarnings("ReturnCount")
@@ -71,7 +73,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         val egressHostValue = metadata.fieldsMap["egress_host"]
         val egressPortValue = metadata.fieldsMap["egress_port"]
         val accessLogFilterSettings = AccessLogFilterSettings(
-            metadata.fieldsMap["access_log_filter"], properties.accessLogFilterProperties
+            metadata.fieldsMap["access_log_filter"], accessLogStatusCodeFilterFactory
         )
 
         val listenersHostPort = metadataToListenersHostPort(

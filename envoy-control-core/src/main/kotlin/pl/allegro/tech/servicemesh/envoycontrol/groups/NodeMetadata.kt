@@ -7,7 +7,6 @@ import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import io.grpc.Status
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.net.URL
 import java.text.ParseException
@@ -28,8 +27,8 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
 data class AccessLogFilterSettings(
     val statusCodeFilter: StatusCodeFilter?
 ) {
-    constructor(proto: Value?, properties: AccessLogFilterProperties) : this(
-        statusCodeFilter = proto?.field("status_code_filter").toStatusCodeFilter(properties)
+    constructor(proto: Value?, accessLogFilterConfig: AccessLogStatusCodeFilterFactory) : this(
+        statusCodeFilter = proto?.field("status_code_filter").toStatusCodeFilter(accessLogFilterConfig)
     )
 
     data class StatusCodeFilter(
@@ -69,19 +68,11 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
     }
 }
 
-fun Value?.toStatusCodeFilter(properties: AccessLogFilterProperties): AccessLogFilterSettings.StatusCodeFilter? {
+fun Value?.toStatusCodeFilter(
+    accessLogFilterConfig: AccessLogStatusCodeFilterFactory
+): AccessLogFilterSettings.StatusCodeFilter? {
     val value = if (this?.stringValue != null) this.stringValue.toUpperCase() else return null
-
-    if (!properties.statusCodeFilterPattern.matches(value)) {
-        throw NodeMetadataValidationException(
-            "Invalid access log status code filter. Expected OPERATOR:STATUS_CODE"
-        )
-    }
-    val split = value.split(properties.delimiter)
-    return AccessLogFilterSettings.StatusCodeFilter(
-        comparisonOperator = ComparisonFilter.Op.valueOf(split[0]),
-        comparisonCode = split[1].toInt()
-    )
+    return accessLogFilterConfig.build(value)
 }
 
 private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
