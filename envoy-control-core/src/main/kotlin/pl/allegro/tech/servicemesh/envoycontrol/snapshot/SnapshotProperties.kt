@@ -65,11 +65,11 @@ class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
-    var selectorMatching: MutableMap<Client, Matching> = mutableMapOf()
+    var selectorSelectorMatching: MutableMap<Client, SelectorMatching> = mutableMapOf()
     var tlsAuthentication = TlsAuthenticationProperties()
 }
 
-class Matching {
+class SelectorMatching {
     var header = ""
 }
 

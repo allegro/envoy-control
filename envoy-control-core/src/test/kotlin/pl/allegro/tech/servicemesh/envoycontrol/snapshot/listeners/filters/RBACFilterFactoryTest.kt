@@ -22,7 +22,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Matching
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SourceIpAuthenticationProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
@@ -73,9 +73,9 @@ internal class RBACFilterFactoryTest {
                             "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
                     )
                 }
-                it.selectorMatching = mutableMapOf(
-                        "client1" to Matching().also { it.header = "x-secret-header" },
-                        "client2" to Matching().also { it.header = "x-secret-header" }
+                it.selectorSelectorMatching = mutableMapOf(
+                        "client1" to SelectorMatching().also { it.header = "x-secret-header" },
+                        "client2" to SelectorMatching().also { it.header = "x-secret-header" }
                 )
             },
             StatusRouteProperties()

@@ -20,7 +20,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Matching
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 
@@ -42,7 +42,7 @@ class RBACFilterFactory(
             .keys
 
     init {
-        incomingPermissionsProperties.selectorMatching.forEach {
+        incomingPermissionsProperties.selectorSelectorMatching.forEach {
             if (it.key !in incomingServicesIpRangeAuthentication && it.key !in incomingServicesSourceAuthentication) {
                 throw IllegalArgumentException("${it.key} is not defined in ip range or ip from discovery section.")
             }
@@ -169,10 +169,10 @@ class RBACFilterFactory(
         }
     }
 
-    private fun staticIpRange(client: Client, selector: Selector?, matching: Matching?): List<Principal>? {
+    private fun staticIpRange(client: Client, selector: Selector?, selectorMatching: SelectorMatching?): List<Principal>? {
         val range = staticIpRanges[client]
-        return if (selector != null && matching != null && range != null) {
-            addAdditionalMatching(selector, matching, range)
+        return if (selector != null && selectorMatching != null && range != null) {
+            addAdditionalMatching(selector, selectorMatching, range)
         } else {
             range
         }
@@ -194,10 +194,10 @@ class RBACFilterFactory(
     }
 
     private fun ipFromDiscoveryPrincipals(
-        client: Client,
-        selector: Selector?,
-        matching: Matching?,
-        snapshot: GlobalSnapshot
+            client: Client,
+            selector: Selector?,
+            selectorMatching: SelectorMatching?,
+            snapshot: GlobalSnapshot
     ): List<Principal> {
         val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
         return clientEndpoints.flatMap { clusterLoadAssignment ->
@@ -213,8 +213,8 @@ class RBACFilterFactory(
                     .setPrefixLen(EXACT_IP_MASK).build())
                     .build()
 
-            if (selector != null && matching != null) {
-                addAdditionalMatching(selector, matching, listOf(sourceIpPrincipal))
+            if (selector != null && selectorMatching != null) {
+                addAdditionalMatching(selector, selectorMatching, listOf(sourceIpPrincipal))
             } else {
                 listOf(sourceIpPrincipal)
             }
@@ -222,17 +222,17 @@ class RBACFilterFactory(
     }
 
     private fun addAdditionalMatching(
-        selector: Selector,
-        matching: Matching,
-        sourceIpPrincipals: List<Principal>
+            selector: Selector,
+            selectorMatching: SelectorMatching,
+            sourceIpPrincipals: List<Principal>
     ): List<Principal> {
-        return if (matching.header.isNotEmpty()) {
+        return if (selectorMatching.header.isNotEmpty()) {
             val orPrincipal = Principal.newBuilder()
                     .setOrIds(Principal.Set.newBuilder().addAllIds(sourceIpPrincipals))
                     .build()
 
             val additionalMatchingPrincipal = Principal.newBuilder()
-                    .setHeader(HeaderMatcher.newBuilder().setName(matching.header).setExactMatch(selector))
+                    .setHeader(HeaderMatcher.newBuilder().setName(selectorMatching.header).setExactMatch(selector))
                     .build()
 
             listOf(Principal.newBuilder().setAndIds(Principal.Set.newBuilder().addAllIds(
@@ -243,13 +243,13 @@ class RBACFilterFactory(
         }
     }
 
-    private fun decompose(clientComposite: ClientComposite): Triple<Client, Selector?, Matching?> {
+    private fun decompose(clientComposite: ClientComposite): Triple<Client, Selector?, SelectorMatching?> {
         val parts = clientComposite.split(":", ignoreCase = false, limit = 2)
         return if (isNotCompositeClient(parts)) {
             Triple(clientComposite, null, null)
         } else {
             val decomposedClient = parts[0]
-            val matching = incomingPermissionsProperties.selectorMatching[decomposedClient]
+            val matching = incomingPermissionsProperties.selectorSelectorMatching[decomposedClient]
             if (matching == null) {
                 logger.warn("No selector matching found for client $decomposedClient in EC properties. " +
                         "Source IP based authentication will not contain additional matching.")
