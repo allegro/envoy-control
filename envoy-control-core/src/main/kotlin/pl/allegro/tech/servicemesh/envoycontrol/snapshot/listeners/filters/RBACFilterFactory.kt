@@ -148,7 +148,8 @@ class RBACFilterFactory(
         } else if (snapshot.mtlsEnabledForCluster(client)) {
             tlsPrincipals(incomingPermissionsProperties.tlsAuthentication, client)
         } else {
-            headerPrincipals(client) // TODO: remove when service name is passed from certificate
+            headerPrincipals(client) // TODO(https://github.com/allegro/envoy-control/issues/122)
+            // remove when service name is passed from certificate
         }
     }
 
