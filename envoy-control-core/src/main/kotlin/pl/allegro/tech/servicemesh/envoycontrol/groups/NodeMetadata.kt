@@ -70,7 +70,7 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
 }
 
 fun Value?.toStatusCodeFilter(properties: AccessLogFilterProperties): AccessLogFilterSettings.StatusCodeFilter? {
-    val value = if (this?.stringValue != null) this.stringValue.toLowerCase() else return null
+    val value = if (this?.stringValue != null) this.stringValue.toUpperCase() else return null
 
     if (!properties.statusCodeFilterPattern.matches(value)) {
         throw NodeMetadataValidationException(
@@ -78,14 +78,8 @@ fun Value?.toStatusCodeFilter(properties: AccessLogFilterProperties): AccessLogF
         )
     }
     val split = value.split(properties.delimiter)
-    val op = when (split[0]) {
-        "le" -> ComparisonFilter.Op.LE
-        "eq" -> ComparisonFilter.Op.EQ
-        "ge" -> ComparisonFilter.Op.GE
-        else -> throw NodeMetadataValidationException("Invalid operator. Allowed values: le,eq,ge")
-    }
     return AccessLogFilterSettings.StatusCodeFilter(
-        comparisonOperator = op,
+        comparisonOperator = ComparisonFilter.Op.valueOf(split[0]),
         comparisonCode = split[1].toInt()
     )
 }
