@@ -118,55 +118,79 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should not allow traffic beetween peers with different root certificate`() {
-        val envoy1 = createEnvoyWithDifferentCaRootCertificate()
+    fun `client should reject server certificate signed by not trusted CA`() {
+        val envoyDifferentCa = createEnvoyNotTrustingDefaultCA()
 
         untilAsserted {
             // when
-            val invalidResponse = callService(address = envoy1.egressListenerUrl(), service = "echo2", pathAndQuery = "/secured_endpoint")
+            val invalidResponse = callEcho2(from = envoyDifferentCa)
 
             // then
             val serverTlsErrors = echo2Envoy.admin().statValue("listener.0.0.0.0_5001.ssl.connection_error")?.toInt()
             assertThat(serverTlsErrors).isGreaterThan(0)
 
             // then
-            val clientTlsErrors = envoy1.admin().statValue("cluster.echo2.ssl.fail_verify_error")?.toInt()
+            val clientVerificationErrors = envoyDifferentCa.admin().statValue("cluster.echo2.ssl.fail_verify_error")?.toInt()
+            assertThat(clientVerificationErrors).isGreaterThan(0)
+            assertThat(invalidResponse).isUnreachable()
+        }
+
+        envoyDifferentCa.stop()
+    }
+
+    @Test
+    fun `server should reject client certificate signed by not trusted CA`() {
+        val envoyDifferentCa = createEnvoyNotSignedByDefaultCA()
+
+        untilAsserted {
+            // when
+            val invalidResponse = callEcho2(from = envoyDifferentCa)
+
+            // then
+            val serverVerificationErrors = echo2Envoy.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_error")?.toInt()
+            assertThat(serverVerificationErrors).isGreaterThan(0)
+
+            // then
+            val clientTlsErrors = envoyDifferentCa.admin().statValue("cluster.echo2.ssl.connection_error")?.toInt()
             assertThat(clientTlsErrors).isGreaterThan(0)
             assertThat(invalidResponse).isUnreachable()
         }
 
-        envoy1.stop()
+        envoyDifferentCa.stop()
     }
 
     @Test
     @SuppressWarnings("SwallowedException")
-    fun `should not allow unencrypted traffic between selected services`() {
+    fun `should reject client without a certificate`() {
         untilAsserted {
             var invalidResponse: Response? = null
             try {
                 // when
-                invalidResponse = callEcho2ThroughEcho2EnvoyIngress()
+                invalidResponse = callEcho2IngressUsingClientWithoutCertificate()
 
                 // then
                 assertThat(invalidResponse).isUnreachable()
             } catch (_: SSLPeerUnverifiedException) {
-                assertEcho2EnvoyReportedSslError()
+                assertEcho2EnvoyReportedNoPeerCertificateError()
             } catch (_: SSLHandshakeException) {
-                assertEcho2EnvoyReportedSslError()
+                assertEcho2EnvoyReportedNoPeerCertificateError()
             }
         }
     }
 
-    private fun assertEcho2EnvoyReportedSslError() {
+    private fun assertEcho2EnvoyReportedNoPeerCertificateError() {
         val sslHandshakeErrors = echo2Envoy.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_no_cert")?.toInt()
         assertThat(sslHandshakeErrors).isGreaterThan(0)
     }
 
-    private fun callEcho2ThroughEcho2EnvoyIngress(): Response {
+    private fun callEcho2IngressUsingClientWithoutCertificate(): Response {
         return callServiceInsecure(address = echo2Envoy.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
     }
 
     private fun callEcho2FromEcho1() = callService(service = "echo2", pathAndQuery = "/secured_endpoint")
+
+    private fun callEcho2(from: EnvoyContainer) = callService(
+        service = "echo2", pathAndQuery = "/secured_endpoint", address = from.egressListenerUrl())
 
     private fun callEcho3FromEcho1() = callService(service = "echo3", pathAndQuery = "/secured_endpoint")
 
@@ -174,14 +198,26 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         return callService(address = echo3Envoy.egressListenerUrl(), service = "echo2", pathAndQuery = "/secured_endpoint")
     }
 
-    private fun createEnvoyWithDifferentCaRootCertificate(): EnvoyContainer {
+    private fun createEnvoyNotTrustingDefaultCA(): EnvoyContainer {
         val envoy = EnvoyContainer(
             Echo1EnvoyAuthConfig.filePath,
             localServiceContainer.ipAddress(),
             envoyControl1.grpcPort,
             image = defaultEnvoyImage,
-            // echo2 envoy uses different CA
-            trustedCa = "/app/root-ca2.crt",
+            // do not trust default CA used by other Envoys
+            trustedCa = "/app/root-ca2.crt"
+        ).withNetwork(network)
+        envoy.start()
+        return envoy
+    }
+
+    private fun createEnvoyNotSignedByDefaultCA(): EnvoyContainer {
+        val envoy = EnvoyContainer(
+            Echo1EnvoyAuthConfig.filePath,
+            localServiceContainer.ipAddress(),
+            envoyControl1.grpcPort,
+            image = defaultEnvoyImage,
+            // certificate not signed by default CA
             certificateChain = "/app/fullchain_echo_root-ca2.pem"
         ).withNetwork(network)
         envoy.start()
