@@ -5,52 +5,54 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy1AuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy2AuthConfig
+import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
+import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLPeerUnverifiedException
 
-@SuppressWarnings("SwallowedException")
 internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     companion object {
 
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.tlsAuthentication.enabledForServices" to listOf("echo", "echo2"),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
             "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
         )
 
-        private lateinit var envoyContainerInvalidSan: EnvoyContainer
+        private lateinit var echo1Envoy: EnvoyContainer
+        private lateinit var echo2Envoy: EnvoyContainer
+        private lateinit var echo3Envoy: EnvoyContainer
 
         @JvmStatic
         @BeforeAll
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoyConfig = Envoy1AuthConfig, secondEnvoyConfig = Envoy2AuthConfig, envoys = 2)
+            }, envoyConfig = Echo1EnvoyAuthConfig, secondEnvoyConfig = Echo2EnvoyAuthConfig, envoys = 2)
+            echo1Envoy = envoyContainer1
+            echo2Envoy = envoyContainer2
         }
 
         private fun registerEcho2WithEnvoyOnIngress() {
             registerService(
                     id = "echo2",
                     name = "echo2",
-                    container = envoyContainer2,
+                    container = echo2Envoy,
                     port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
                     tags = listOf("mtls:enabled")
             )
         }
 
-        private fun registerEcho3WithEnvoyOnIngress() {
+        private fun registerEcho2EnvoyAsEcho3() {
             registerService(
                     id = "echo3",
                     name = "echo3",
-                    container = envoyContainer1,
+                    container = echo2Envoy,
                     port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
                     tags = listOf("mtls:enabled")
             )
@@ -67,13 +69,13 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     fun `should encrypt traffic between selected services`() {
         untilAsserted {
             // when
-            val validResponse = callEcho2ThroughEnvoy1()
+            val validResponse = callEcho2FromEcho1()
 
             // then
-            val sslHandshakes = envoyContainer1.admin().statValue("cluster.echo2.ssl.handshake")?.toInt()
+            val sslHandshakes = echo1Envoy.admin().statValue("cluster.echo2.ssl.handshake")?.toInt()
             assertThat(sslHandshakes).isGreaterThan(0)
 
-            val sslConnections = envoyContainer2.admin().statValue("http.ingress_https.downstream_cx_ssl_total")?.toInt()
+            val sslConnections = echo2Envoy.admin().statValue("http.ingress_https.downstream_cx_ssl_total")?.toInt()
             assertThat(sslConnections).isGreaterThan(0)
 
             assertThat(validResponse).isOk().isFrom(echoContainer2)
@@ -82,62 +84,54 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     fun `should not allow traffic that fails client SAN validation`() {
-        envoyContainerInvalidSan = createEnvoyContainerWithEcho3San()
-        envoyContainerInvalidSan.start()
+        echo3Envoy = createEnvoyContainerWithEcho3San()
+        echo3Envoy.start()
 
         untilAsserted {
             // when
-            val invalidResponse = callEcho2ThroughEnvoyWithInvalidSan()
+            // echo2 doesn't allow requests from echo3
+            val invalidResponse = callEcho2FromEcho3()
 
             // then
-            val sanValidationFailure = envoyContainer2.admin().statValue("http.ingress_https.rbac.denied")?.toInt()
+            val sanValidationFailure = echo2Envoy.admin().statValue("http.ingress_https.rbac.denied")?.toInt()
             assertThat(sanValidationFailure).isGreaterThan(0)
             assertThat(invalidResponse).isForbidden()
         }
 
-        envoyContainerInvalidSan.stop()
+        echo3Envoy.stop()
     }
 
     @Test
     fun `should not allow traffic that fails server SAN validation`() {
-        registerEcho3WithEnvoyOnIngress()
+        // echo2 tries to impersonate as echo3
+        registerEcho2EnvoyAsEcho3()
 
         untilAsserted {
             // when
-            val invalidResponse = callEcho3ThroughEnvoy1()
+            val invalidResponse = callEcho3FromEcho1()
 
             // then
-            val sanValidationFailure = envoyContainer1.admin().statValue("cluster.echo3.ssl.fail_verify_san")?.toInt()
+            val sanValidationFailure = echo1Envoy.admin().statValue("cluster.echo3.ssl.fail_verify_san")?.toInt()
             assertThat(sanValidationFailure).isGreaterThan(0)
             assertThat(invalidResponse).isUnreachable()
         }
-
-        envoyContainerInvalidSan.stop()
     }
 
     @Test
-    fun `should not allow traffic from clients not signed by server certificate`() {
-        val envoy1 = EnvoyContainer(
-                Envoy1AuthConfig.filePath,
-                localServiceContainer.ipAddress(),
-                envoyControl1.grpcPort,
-                image = defaultEnvoyImage,
-                trustedCa = "/app/root-ca2.crt",
-                certificateChain = "/app/fullchain_echo_root-ca2.pem"
-        ).withNetwork(network)
-        envoy1.start()
+    fun `should not allow traffic beetween peers with different root certificate`() {
+        val envoy1 = createEnvoyWithDifferentCaRootCertificate()
 
         untilAsserted {
             // when
             val invalidResponse = callService(address = envoy1.egressListenerUrl(), service = "echo2", pathAndQuery = "/secured_endpoint")
 
             // then
-            val tlsErrors = envoyContainer2.admin().statValue("listener.0.0.0.0_5001.ssl.connection_error")?.toInt()
-            assertThat(tlsErrors).isGreaterThan(0)
+            val serverTlsErrors = echo2Envoy.admin().statValue("listener.0.0.0.0_5001.ssl.connection_error")?.toInt()
+            assertThat(serverTlsErrors).isGreaterThan(0)
 
             // then
-            val sslFailVerifyError = envoy1.admin().statValue("cluster.echo2.ssl.fail_verify_error")?.toInt()
-            assertThat(sslFailVerifyError).isGreaterThan(0)
+            val clientTlsErrors = envoy1.admin().statValue("cluster.echo2.ssl.fail_verify_error")?.toInt()
+            assertThat(clientTlsErrors).isGreaterThan(0)
             assertThat(invalidResponse).isUnreachable()
         }
 
@@ -145,37 +139,52 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
+    @SuppressWarnings("SwallowedException")
     fun `should not allow unencrypted traffic between selected services`() {
         untilAsserted {
             var invalidResponse: Response? = null
             try {
                 // when
-                invalidResponse = callEcho2ThroughEnvoy2Ingress()
+                invalidResponse = callEcho2ThroughEcho2EnvoyIngress()
 
                 // then
                 assertThat(invalidResponse).isUnreachable()
             } catch (_: SSLPeerUnverifiedException) {
-                assertEnvoyReportedSslError()
+                assertEcho2EnvoyReportedSslError()
             } catch (_: SSLHandshakeException) {
-                assertEnvoyReportedSslError()
+                assertEcho2EnvoyReportedSslError()
             }
         }
     }
 
-    private fun assertEnvoyReportedSslError() {
-        val sslHandshakeErrors = envoyContainer2.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_no_cert")?.toInt()
+    private fun assertEcho2EnvoyReportedSslError() {
+        val sslHandshakeErrors = echo2Envoy.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_no_cert")?.toInt()
         assertThat(sslHandshakeErrors).isGreaterThan(0)
     }
 
-    private fun callEcho2ThroughEnvoy2Ingress(): Response {
-        return callServiceInsecure(address = envoyContainer2.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
+    private fun callEcho2ThroughEcho2EnvoyIngress(): Response {
+        return callServiceInsecure(address = echo2Envoy.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
     }
 
-    private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/secured_endpoint")
+    private fun callEcho2FromEcho1() = callService(service = "echo2", pathAndQuery = "/secured_endpoint")
 
-    private fun callEcho3ThroughEnvoy1() = callService(service = "echo3", pathAndQuery = "/secured_endpoint")
+    private fun callEcho3FromEcho1() = callService(service = "echo3", pathAndQuery = "/secured_endpoint")
 
-    private fun callEcho2ThroughEnvoyWithInvalidSan(): Response {
-        return callService(address = envoyContainerInvalidSan.egressListenerUrl(), service = "echo2", pathAndQuery = "/secured_endpoint")
+    private fun callEcho2FromEcho3(): Response {
+        return callService(address = echo3Envoy.egressListenerUrl(), service = "echo2", pathAndQuery = "/secured_endpoint")
+    }
+
+    private fun createEnvoyWithDifferentCaRootCertificate(): EnvoyContainer {
+        val envoy = EnvoyContainer(
+            Echo1EnvoyAuthConfig.filePath,
+            localServiceContainer.ipAddress(),
+            envoyControl1.grpcPort,
+            image = defaultEnvoyImage,
+            // echo2 envoy uses different CA
+            trustedCa = "/app/root-ca2.crt",
+            certificateChain = "/app/fullchain_echo_root-ca2.pem"
+        ).withNetwork(network)
+        envoy.start()
+        return envoy
     }
 }

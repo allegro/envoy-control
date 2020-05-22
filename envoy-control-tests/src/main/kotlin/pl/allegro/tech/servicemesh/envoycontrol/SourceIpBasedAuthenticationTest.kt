@@ -5,8 +5,8 @@ import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy1AuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.Envoy2AuthConfig
+import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
+import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
@@ -29,7 +29,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoyConfig = Envoy1AuthConfig, secondEnvoyConfig = Envoy2AuthConfig, envoys = 2)
+            }, envoyConfig = Echo1EnvoyAuthConfig, secondEnvoyConfig = Echo2EnvoyAuthConfig, envoys = 2)
         }
     }
 
