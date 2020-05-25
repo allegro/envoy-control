@@ -46,7 +46,7 @@ internal class ConsulRpcLimitReachedTest : ReliabilityTest() {
 
     private fun assertEchoReachableThroughProxy() {
         untilAsserted(wait = defaultDuration.multiply(2L)) {
-            callService("echo").use {
+            callService("echo1").use {
                 assertThat(it).isOk().isFrom(echoContainer)
             }
         }
@@ -55,7 +55,7 @@ internal class ConsulRpcLimitReachedTest : ReliabilityTest() {
     private fun registerEchoInOtherAgentAfter(time: Duration) {
         Thread {
             Thread.sleep(time.valueInMS)
-            registerService(name = "echo")
+            registerService(name = "echo1")
         }.start()
     }
 

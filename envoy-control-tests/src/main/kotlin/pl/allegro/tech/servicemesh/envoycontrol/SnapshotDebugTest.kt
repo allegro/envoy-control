@@ -18,14 +18,14 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
     @Test
     open fun `should return snapshot debug info containing snapshot versions`() {
         // given
-        registerService(name = "echo")
+        registerService(name = "echo1")
         val nodeMetadata = envoyContainer1.admin().nodeInfo()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         untilAsserted {
             // when
             val snapshot = envoyControl1.getSnapshot(nodeMetadata)
-            val edsVersion = envoyContainer1.admin().statValue("cluster.echo.version")
+            val edsVersion = envoyContainer1.admin().statValue("cluster.echo1.version")
             val cdsVersion = envoyContainer1.admin().statValue("cluster_manager.cds.version")
             val rdsVersion = envoyContainer1.admin().statValue("http.egress_http.rds.default_routes.version")
             val ldsVersion = envoyContainer1.admin().statValue("listener_manager.lds.version")
@@ -41,7 +41,7 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
     @Test
     open fun `should return snapshot debug info containing snapshot contents`() {
         // given
-        registerService(name = "echo")
+        registerService(name = "echo1")
         val nodeMetadata = envoyContainer1.admin().nodeInfo()
 
         untilAsserted {

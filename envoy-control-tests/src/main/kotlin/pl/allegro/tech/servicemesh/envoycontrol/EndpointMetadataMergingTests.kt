@@ -25,10 +25,10 @@ open class EndpointMetadataMergingTests : EnvoyControlTestConfiguration() {
     @Test
     fun `should merge all service tags of endpoints with the same ip and port`() {
         // given
-        registerService(name = "echo", container = echoContainer, tags = listOf("ipsum"))
-        registerService(name = "echo", container = echoContainer, tags = listOf("lorem", "dolom"))
+        registerService(name = "echo1", container = echoContainer, tags = listOf("ipsum"))
+        registerService(name = "echo1", container = echoContainer, tags = listOf("lorem", "dolom"))
 
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val ipsumStats = callEchoServiceRepeatedly(repeat = 1, tag = "ipsum")
@@ -48,7 +48,7 @@ open class EndpointMetadataMergingTests : EnvoyControlTestConfiguration() {
     ): CallStats {
         val stats = CallStats(listOf(echoContainer))
         callServiceRepeatedly(
-            service = "echo",
+            service = "echo1",
             stats = stats,
             minRepeat = repeat,
             maxRepeat = repeat,

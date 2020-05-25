@@ -61,7 +61,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @BeforeEach
     fun setup() {
-        registerService(name = "echo", tags = listOf("mtls:enabled"))
+        registerService(name = "echo1", tags = listOf("mtls:enabled"))
         registerEcho2WithEnvoyOnIngress()
     }
 
@@ -205,7 +205,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             envoyControl1.grpcPort,
             image = defaultEnvoyImage,
             // do not trust default CA used by other Envoys
-            trustedCa = "/app/root-ca2.crt"
+            trustedCa = "/app/root-ca-2.crt"
         ).withNetwork(network)
         envoy.start()
         return envoy
@@ -218,7 +218,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             envoyControl1.grpcPort,
             image = defaultEnvoyImage,
             // certificate not signed by default CA
-            certificateChain = "/app/fullchain_echo_root-ca2.pem"
+            certificateChain = "/app/fullchain-echo-2-intermediate-1.crt"
         ).withNetwork(network)
         envoy.start()
         return envoy

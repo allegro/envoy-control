@@ -29,20 +29,20 @@ node:
       incoming:
         endpoints:
           - path: "/secured_endpoint"
-            clients: ["echo"]
+            clients: ["echo1"]
 
 static_resources:
   secrets:
     - name: server_cert
       tls_certificate:
         certificate_chain:
-          filename: /app/fullchain_echo2.pem
+          filename: /app/fullchain-echo-2-intermediate-1.crt
         private_key:
-          filename: /app/privkey_echo2.pem
+          filename: /app/privkey-echo-2.key
     - name: validation_context
       validation_context:
         trusted_ca:
-          filename: /app/root-ca.crt
+          filename: /app/root-ca-1.crt
   clusters:
   - connect_timeout: 1s
     hosts:

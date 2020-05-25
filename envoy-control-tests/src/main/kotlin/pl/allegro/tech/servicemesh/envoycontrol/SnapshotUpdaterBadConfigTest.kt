@@ -26,7 +26,7 @@ internal class SnapshotUpdaterBadConfigTest : EnvoyControlTestConfiguration() {
         // given
         val envoyWithFaultyConfig = createEnvoyContainerWithFaultyConfig()
 
-        val id = registerService(name = "echo")
+        val id = registerService(name = "echo1")
         untilAsserted {
             // when
             val response = callEcho()

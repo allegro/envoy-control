@@ -35,14 +35,14 @@ class ParallelSnapshotForGroupsTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should update multiple envoy's configs in PARALLEL mode`() {
         // when
-        registerService(name = "echo")
+        registerService(name = "echo1")
 
         // then
         untilAsserted {
-            callService(service = "echo", address = envoyContainer1.egressListenerUrl()).also {
+            callService(service = "echo1", address = envoyContainer1.egressListenerUrl()).also {
                 assertThat(it).isOk().isFrom(echoContainer)
             }
-            callService(service = "echo", address = envoyContainer2.egressListenerUrl()).also {
+            callService(service = "echo1", address = envoyContainer2.egressListenerUrl()).also {
                 assertThat(it).isOk().isFrom(echoContainer)
             }
         }

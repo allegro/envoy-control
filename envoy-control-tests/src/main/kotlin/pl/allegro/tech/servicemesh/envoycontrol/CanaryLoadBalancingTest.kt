@@ -33,11 +33,11 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should balance load according to weights`() {
         // given
-        registerService(name = "echo", container = canaryContainer, tags = listOf("canary", "weight:1"))
-        registerService(name = "echo", container = regularContainer, tags = listOf("weight:20"))
+        registerService(name = "echo1", container = canaryContainer, tags = listOf("canary", "weight:1"))
+        registerService(name = "echo1", container = regularContainer, tags = listOf("weight:20"))
 
         untilAsserted {
-            callService("echo").also {
+            callService("echo1").also {
                 assertThat(it).isOk()
             }
         }
@@ -77,11 +77,11 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should route request to canary instance only`() {
         // given
-        registerService(name = "echo", container = canaryContainer, tags = listOf("canary", "weight:1"))
-        registerService(name = "echo", container = regularContainer, tags = listOf("weight:20"))
+        registerService(name = "echo1", container = canaryContainer, tags = listOf("canary", "weight:1"))
+        registerService(name = "echo1", container = regularContainer, tags = listOf("weight:20"))
 
         untilAsserted {
-            callService("echo").also {
+            callService("echo1").also {
                 assertThat(it).isOk()
             }
         }
@@ -101,11 +101,11 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
 
     @Test
     open fun `should route to both canary and regular instances when canary weight is 0`() {
-        registerService(name = "echo", container = canaryContainer, tags = listOf("canary", "weight:0"))
-        registerService(name = "echo", container = regularContainer, tags = listOf("weight:20"))
+        registerService(name = "echo1", container = canaryContainer, tags = listOf("canary", "weight:0"))
+        registerService(name = "echo1", container = regularContainer, tags = listOf("weight:20"))
 
         untilAsserted {
-            callService("echo").also {
+            callService("echo1").also {
                 assertThat(it).isOk()
             }
         }
@@ -133,7 +133,7 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
     ): CallStats {
         val stats = callStats()
         callServiceRepeatedly(
-            service = "echo",
+            service = "echo1",
             stats = stats,
             minRepeat = minRepeat,
             maxRepeat = maxRepeat,

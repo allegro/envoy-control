@@ -53,16 +53,16 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     }
 
     protected fun registerServices() {
-        registerService(name = "echo", container = regularContainer, tags = listOf())
-        registerService(name = "echo", container = loremContainer, tags = listOf("lorem", "blacklisted"))
-        registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
+        registerService(name = "echo1", container = regularContainer, tags = listOf())
+        registerService(name = "echo1", container = loremContainer, tags = listOf("lorem", "blacklisted"))
+        registerService(name = "echo1", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
     }
 
     @Test
     open fun `should route requests to instance with tag ipsum`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum")
@@ -78,7 +78,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     open fun `should route requests to instances with tag lorem`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 20, tag = "lorem")
@@ -95,7 +95,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     open fun `should route requests to all instances`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 20)
@@ -112,7 +112,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     open fun `should return 503 if instance with requested tag is not found`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "dolom", assertNoErrors = false)
@@ -129,7 +129,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
     open fun `should return 503 if requested tag is blacklisted`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "blacklisted", assertNoErrors = false)
@@ -296,7 +296,7 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
 
     protected fun callEchoServiceRepeatedly(repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
         return callServiceRepeatedly(
-            service = "echo",
+            service = "echo1",
             repeat = repeat,
             tag = tag,
             assertNoErrors = assertNoErrors

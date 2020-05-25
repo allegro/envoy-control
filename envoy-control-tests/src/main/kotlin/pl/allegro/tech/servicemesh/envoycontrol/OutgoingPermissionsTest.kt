@@ -46,7 +46,7 @@ abstract class OutgoingPermissionsTest : EnvoyControlTestConfiguration() {
     fun `should only allow access to resources from node_metadata_dependencies`() {
         // given
         registerService(name = "not-accessible", container = echoContainer)
-        registerService(name = "echo")
+        registerService(name = "echo1")
 
         untilAsserted {
             // when

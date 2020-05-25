@@ -18,7 +18,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         private val properties = mapOf(
             "$prefix.incoming-permissions.enabled" to true,
             "$prefix.incoming-permissions.source-ip-authentication.ip-from-service-discovery.enabled-for-incoming-services" to
-                    listOf("echo"),
+                    listOf("echo1"),
             "$prefix.routes.status.create-virtual-cluster" to true,
             "$prefix.routes.status.path-prefix" to "/status/",
             "$prefix.routes.status.enabled" to true
@@ -51,8 +51,8 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
 
     private fun registerEcho1WithEnvoy1OnIngress() {
         registerService(
-                id = "echo",
-                name = "echo", address = envoyContainer1.ipAddress(),
+                id = "echo1",
+                name = "echo1", address = envoyContainer1.ipAddress(),
                 port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
         )
     }

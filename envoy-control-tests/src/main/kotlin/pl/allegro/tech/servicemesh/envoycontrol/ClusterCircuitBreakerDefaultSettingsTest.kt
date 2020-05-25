@@ -35,15 +35,15 @@ internal class ClusterCircuitBreakerDefaultSettingsTest : EnvoyControlTestConfig
     @Test
     fun `should enable setting circuit breaker threstholds setting`() {
         // given
-        registerService(name = "echo")
+        registerService(name = "echo1")
         untilAsserted {
             val response = callEcho()
             assertThat(response).isOk().isFrom(echoContainer)
         }
 
         // when
-        val maxRequestsSetting = envoyContainer1.admin().circuitBreakerSetting("echo", "max_requests", "default_priority")
-        val maxRetriesSetting = envoyContainer1.admin().circuitBreakerSetting("echo", "max_retries", "high_priority")
+        val maxRequestsSetting = envoyContainer1.admin().circuitBreakerSetting("echo1", "max_requests", "default_priority")
+        val maxRetriesSetting = envoyContainer1.admin().circuitBreakerSetting("echo1", "max_retries", "high_priority")
 
         // then
         assertThat(maxRequestsSetting).isEqualTo(3)

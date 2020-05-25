@@ -29,7 +29,7 @@ internal class XdsConnectionsMeterTest : EnvoyControlTestConfiguration() {
     fun `should meter the gRPC connections`() {
         // given
         val meterRegistry: MeterRegistry = bean()
-        registerService(name = "echo")
+        registerService(name = "echo1")
 
         untilAsserted {
             // expect
@@ -64,7 +64,7 @@ internal class AdsConnectionsMeterTest : EnvoyControlTestConfiguration() {
     fun `should meter the gRPC connections`() {
         // given
         val meterRegistry: MeterRegistry = bean()
-        registerService(name = "echo")
+        registerService(name = "echo1")
 
         untilAsserted {
             // expect

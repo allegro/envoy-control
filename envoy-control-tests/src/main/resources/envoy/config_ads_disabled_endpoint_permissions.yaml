@@ -27,7 +27,7 @@ node:
       outgoing:
         dependencies:
           - service: "consul"
-          - service: "echo"
+          - service: "echo1"
 
 static_resources:
   clusters:

@@ -39,16 +39,16 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
     }
 
     protected fun registerServices() {
-        registerService(name = "echo", container = loremRegularContainer, tags = listOf("lorem"))
-        registerService(name = "echo", container = loremCanaryContainer, tags = listOf("lorem", "canary"))
-        registerService(name = "echo", container = ipsumRegularContainer, tags = listOf("ipsum"))
+        registerService(name = "echo1", container = loremRegularContainer, tags = listOf("lorem"))
+        registerService(name = "echo1", container = loremCanaryContainer, tags = listOf("lorem", "canary"))
+        registerService(name = "echo1", container = ipsumRegularContainer, tags = listOf("ipsum"))
     }
 
     @Test
     fun `should route requests to canary instance with tag lorem`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "lorem", canary = true)
@@ -64,7 +64,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
     fun `should fallback to regular instance with tag ipsum if canary instance doesn't exist`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum", canary = true)
@@ -80,7 +80,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
     fun `should route requests to canary instance`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, canary = true)
@@ -96,7 +96,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
     fun `should return 503 if no instance with requested tag is found`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        waitForReadyServices("echo1")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "not-found", canary = true, assertNoErrors = false)
@@ -122,7 +122,7 @@ open class ServiceTagsAndCanaryTest : EnvoyControlTestConfiguration() {
         val canaryHeader = if (canary) mapOf("x-canary" to "1") else emptyMap()
 
         callServiceRepeatedly(
-            service = "echo",
+            service = "echo1",
             stats = stats,
             minRepeat = repeat,
             maxRepeat = repeat,

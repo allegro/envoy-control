@@ -18,7 +18,7 @@ node:
     proxy_settings:
       outgoing:
         dependencies:
-          - service: "echo"
+          - service: "echo1"
 
 static_resources:
   clusters:

@@ -32,22 +32,22 @@ internal class LocalConsulAgentDownTest : ReliabilityTest() {
     @Test
     fun `is resilient to transient unavailability of target service's local Consul agent`() {
         // given
-        registerService(name = "echo", container = echoContainer, consulOps = consulAgentInDc1.consulOperations, registerDefaultCheck = true)
+        registerService(name = "echo1", container = echoContainer, consulOps = consulAgentInDc1.consulOperations, registerDefaultCheck = true)
         // then
-        assertReachableThroughEnvoy("echo")
+        assertReachableThroughEnvoy("echo1")
 
         // when
         makeServiceConsulAgentUnavailable()
         // then
         holdAssertionsTrue {
-            assertUnreachableThroughEnvoy("echo")
+            assertUnreachableThroughEnvoy("echo1")
         }
 
         // when
         makeServiceConsulAgentAvailable()
 
         // then
-        assertReachableThroughEnvoy("echo")
+        assertReachableThroughEnvoy("echo1")
     }
 
     private fun makeServiceConsulAgentAvailable() {

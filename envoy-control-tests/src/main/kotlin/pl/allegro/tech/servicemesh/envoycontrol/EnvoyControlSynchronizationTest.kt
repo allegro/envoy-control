@@ -46,8 +46,8 @@ abstract class EnvoyControlSynchronizationTest : EnvoyControlTestConfiguration()
     @Test
     fun `should prefer services from local dc and fallback to remote dc when needed`() {
         // given: local and remote instances
-        registerServiceInRemoteDc("echo", echoContainer2)
-        val localId = registerServiceInLocalDc("echo")
+        registerServiceInRemoteDc("echo1", echoContainer2)
+        val localId = registerServiceInLocalDc("echo1")
 
         // then: local called
         waitUntilEchoCalledThroughEnvoyResponds(echoContainer)
@@ -59,7 +59,7 @@ abstract class EnvoyControlSynchronizationTest : EnvoyControlTestConfiguration()
         waitUntilEchoCalledThroughEnvoyResponds(echoContainer2)
 
         // when: local instances again
-        registerServiceInLocalDc("echo")
+        registerServiceInLocalDc("echo1")
 
         // then: local called
         waitUntilEchoCalledThroughEnvoyResponds(echoContainer)

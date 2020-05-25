@@ -47,7 +47,7 @@ abstract class EnvoyControlHttp2Test : EnvoyControlTestConfiguration() {
     @Test
     fun `should establish http1 connection between envoy and a service by default`() {
         // given
-        registerService(name = "echo")
+        registerService(name = "echo1")
 
         untilAsserted {
             // when
@@ -71,7 +71,7 @@ abstract class EnvoyControlHttp2Test : EnvoyControlTestConfiguration() {
     }
 
     private fun assertDidNotUseHttp2(container: EnvoyContainer) {
-        val http2Connections = container.admin().statValue("cluster.echo.upstream_cx_http2_total")?.toInt()
+        val http2Connections = container.admin().statValue("cluster.echo1.upstream_cx_http2_total")?.toInt()
         assertThat(http2Connections).isEqualTo(0)
     }
 
@@ -81,7 +81,7 @@ abstract class EnvoyControlHttp2Test : EnvoyControlTestConfiguration() {
     }
 
     private fun assertUsedHttp1(container: EnvoyContainer) {
-        val http1Connections = container.admin().statValue("cluster.echo.upstream_cx_http1_total")?.toInt()
+        val http1Connections = container.admin().statValue("cluster.echo1.upstream_cx_http1_total")?.toInt()
         assertThat(http1Connections).isGreaterThan(0)
     }
 }

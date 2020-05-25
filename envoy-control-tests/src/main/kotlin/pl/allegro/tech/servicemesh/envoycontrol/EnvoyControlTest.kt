@@ -46,7 +46,7 @@ internal abstract class EnvoyControlTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should allow proxy-ing request using envoy`() {
         // given
-        registerService(name = "echo")
+        registerService(name = "echo1")
 
         untilAsserted {
             // when
@@ -60,7 +60,7 @@ internal abstract class EnvoyControlTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should route traffic to the second instance when first is deregistered`() {
         // given
-        val id = registerService(name = "echo")
+        val id = registerService(name = "echo1")
 
         untilAsserted {
             // when
@@ -76,11 +76,11 @@ internal abstract class EnvoyControlTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should assign endpoints to correct zones`() {
         // given
-        registerService(name = "echo")
+        registerService(name = "echo1")
 
         untilAsserted {
             // when
-            val adminInstance = envoyContainer1.admin().zone(cluster = "echo", ip = echoContainer.ipAddress())
+            val adminInstance = envoyContainer1.admin().zone(cluster = "echo1", ip = echoContainer.ipAddress())
 
             // then
             assertThat(adminInstance).isNotNull

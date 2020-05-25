@@ -39,7 +39,7 @@ node:
           - service: "service-3"
           - service: "service-4"
           - service: "service-5"
-          - service: "echo"
+          - service: "echo1"
             timeoutPolicy:
               requestTimeout: "15s"
           - service: "consul"

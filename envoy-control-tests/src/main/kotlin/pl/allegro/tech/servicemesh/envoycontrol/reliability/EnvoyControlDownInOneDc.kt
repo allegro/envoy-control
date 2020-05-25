@@ -43,7 +43,7 @@ internal class EnvoyControlDownInOneDc : ReliabilityTest() {
     @Test
     fun `should be resilient to transient unavailability of EC in one DC`() {
         // given
-        val id = registerServiceInRemoteDc("echo", echoContainer)
+        val id = registerServiceInRemoteDc("echo1", echoContainer)
 
         // then
         waitUntilEchoCalledThroughEnvoyResponds(echoContainer)
@@ -54,7 +54,7 @@ internal class EnvoyControlDownInOneDc : ReliabilityTest() {
 
         // then
         holdAssertionsTrue {
-            assertReachableThroughEnvoy("echo")
+            assertReachableThroughEnvoy("echo1")
         }
 
         // when
@@ -69,7 +69,7 @@ internal class EnvoyControlDownInOneDc : ReliabilityTest() {
             // if failureDuration is Duration(1, SECONDS).divide(2) then Duration(0, SECONDS)
             Thread.sleep(failureDuration.divide(2L).valueInMS)
             deregisterServiceInRemoteDc(id)
-            registerServiceInRemoteDc("echo", echoContainer2)
+            registerServiceInRemoteDc("echo1", echoContainer2)
         }.start()
     }
 }

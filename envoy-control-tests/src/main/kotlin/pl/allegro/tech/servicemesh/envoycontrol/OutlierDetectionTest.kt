@@ -34,8 +34,8 @@ internal class OutlierDetectionTest : EnvoyControlTestConfiguration() {
     fun `should not send requests to instance when outlier check failed`() {
         // given
         val unhealthyIp = echoContainer2.ipAddress()
-        registerService(name = "echo")
-        registerService(name = "echo", container = echoContainer2)
+        registerService(name = "echo1")
+        registerService(name = "echo1", container = echoContainer2)
         echoContainer2.stop()
 
         untilAsserted {
@@ -43,7 +43,7 @@ internal class OutlierDetectionTest : EnvoyControlTestConfiguration() {
             callEcho()
 
             // then
-            assertThat(hasOutlierCheckFailed(cluster = "echo", unhealthyIp = unhealthyIp)).isTrue()
+            assertThat(hasOutlierCheckFailed(cluster = "echo1", unhealthyIp = unhealthyIp)).isTrue()
         }
 
         // when

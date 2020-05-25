@@ -222,7 +222,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             call("", address)
 
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
-            call("echo", address)
+            call("echo1", address)
 
         fun callDomain(domain: String, address: String = envoyContainer1.egressListenerUrl()): Response =
             call(domain, address)
@@ -378,14 +378,14 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
     private fun waitForEchoServices(instances: Int) {
         untilAsserted {
-            assertThat(envoyContainer1.admin().numOfEndpoints(clusterName = "echo")).isEqualTo(instances)
+            assertThat(envoyContainer1.admin().numOfEndpoints(clusterName = "echo1")).isEqualTo(instances)
         }
     }
 
     fun checkTrafficRoutedToSecondInstance(id: String) {
         // given
         // we first register a new instance and then remove other to maintain cluster presence in Envoy
-        registerService(name = "echo", container = echoContainer2)
+        registerService(name = "echo1", container = echoContainer2)
         waitForEchoServices(instances = 2)
 
         deregisterService(id)
