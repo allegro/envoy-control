@@ -342,7 +342,7 @@ class NodeMetadataTest {
 
         // when
         val incoming = proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
-            AccessLogStatusCodeFilterFactory()
+            AccessLogFilterFactory()
         )
 
         // expects
@@ -364,7 +364,7 @@ class NodeMetadataTest {
         // expects
         val exception = assertThrows<NodeMetadataValidationException> {
             proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
-                AccessLogStatusCodeFilterFactory()
+                AccessLogFilterFactory()
             )
         }
         assertThat(exception.status.description)

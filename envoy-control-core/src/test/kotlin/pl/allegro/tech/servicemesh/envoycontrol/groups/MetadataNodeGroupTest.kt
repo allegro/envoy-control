@@ -237,8 +237,8 @@ class MetadataNodeGroupTest {
         val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
 
         // then
-        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilter!!.comparisonCode).isEqualTo(400)
-        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilter!!.comparisonOperator).isEqualTo(EQ)
+        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilterSettings!!.comparisonCode).isEqualTo(400)
+        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilterSettings!!.comparisonOperator).isEqualTo(EQ)
     }
 
     @ParameterizedTest
@@ -273,7 +273,7 @@ class MetadataNodeGroupTest {
         val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata?.build()).build())
 
         // then
-        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilter).isNull()
+        assertThat(group.listenersConfig!!.accessLogFilterSettings!!.statusCodeFilterSettings).isNull()
     }
 
     @Test

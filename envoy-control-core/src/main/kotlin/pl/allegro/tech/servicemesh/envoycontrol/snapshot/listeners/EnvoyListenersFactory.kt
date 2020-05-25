@@ -18,19 +18,17 @@ import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
-import io.envoyproxy.envoy.api.v2.core.RuntimeUInt32
 import io.envoyproxy.envoy.api.v2.core.TransportSocket
 import io.envoyproxy.envoy.api.v2.listener.Filter
 import io.envoyproxy.envoy.api.v2.listener.FilterChain
 import io.envoyproxy.envoy.api.v2.listener.FilterChainMatch
 import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
 import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
-import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLogFilter
-import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
+import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
@@ -79,6 +77,8 @@ class EnvoyListenersFactory(
                             .build()
                     )
             )
+
+    private val accessLogFilterFactory = AccessLogFilterFactory()
 
     private val downstreamTlsTransportSocket = TransportSocket.newBuilder()
             .setName("envoy.transport_sockets.tls")
@@ -327,8 +327,8 @@ class EnvoyListenersFactory(
         val builder = AccessLog.newBuilder().setName("envoy.file_access_log")
 
         accessLogFilterSettings?.let { settings ->
-            settings.statusCodeFilter?.let {
-                builder.setFilter(accessLogFilterValue(it.comparisonOperator, it.comparisonCode))
+            settings.statusCodeFilterSettings?.let {
+                accessLogFilterFactory.buildAccessLogStatusCodeFilter(builder, it)
             }
         }
 
@@ -370,22 +370,4 @@ class EnvoyListenersFactory(
     private fun durationInSeconds(value: Long) = Duration.newBuilder().setSeconds(value).build()
 
     private fun stringValue(value: String) = Value.newBuilder().setStringValue(value).build()
-
-    private fun accessLogFilterValue(op: ComparisonFilter.Op, code: Int): AccessLogFilter.Builder? {
-        return AccessLogFilter.newBuilder().setStatusCodeFilter(
-            io.envoyproxy.envoy.config.filter.accesslog.v2.StatusCodeFilter.newBuilder()
-                .setComparison(
-                    io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.newBuilder()
-                        .setOp(op)
-                        .setValue(
-                            RuntimeUInt32.newBuilder()
-                                .setDefaultValue(code)
-                                .setRuntimeKey("access_log_filter_http_code")
-                                .build()
-                        )
-                        .build()
-                )
-                .build()
-        )
-    }
 }

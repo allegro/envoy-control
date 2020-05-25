@@ -25,13 +25,13 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
 }
 
 data class AccessLogFilterSettings(
-    val statusCodeFilter: StatusCodeFilter?
+    val statusCodeFilterSettings: StatusCodeFilterSettings?
 ) {
-    constructor(proto: Value?, accessLogFilterConfig: AccessLogStatusCodeFilterFactory) : this(
-        statusCodeFilter = proto?.field("status_code_filter").toStatusCodeFilter(accessLogFilterConfig)
+    constructor(proto: Value?, accessLogFilterFactory: AccessLogFilterFactory) : this(
+        statusCodeFilterSettings = proto?.field("status_code_filter").toStatusCodeFilter(accessLogFilterFactory)
     )
 
-    data class StatusCodeFilter(
+    data class StatusCodeFilterSettings(
         val comparisonOperator: ComparisonFilter.Op,
         val comparisonCode: Int
     )
@@ -69,10 +69,10 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
 }
 
 fun Value?.toStatusCodeFilter(
-    accessLogFilterConfig: AccessLogStatusCodeFilterFactory
-): AccessLogFilterSettings.StatusCodeFilter? {
+    accessLogFilterFactory: AccessLogFilterFactory
+): AccessLogFilterSettings.StatusCodeFilterSettings? {
     val value = if (this?.stringValue != null) this.stringValue.toUpperCase() else return null
-    return accessLogFilterConfig.build(value)
+    return accessLogFilterFactory.parseStatusCodeFilter(value)
 }
 
 private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
