@@ -49,6 +49,16 @@ jobs:
       - run:
           name: unit and integration tests
           command: ./gradlew check
+      - run:
+          name: Save test results
+          command: |
+            mkdir -p ~/test-results/junit/
+            find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/test-results/junit/ \;
+          when: always
+      - store_test_results:
+          path: ~/test-results
+      - store_artifacts:
+          path: ~/test-results/junit
 
   resilience_test:
     executor: my-executor
@@ -63,6 +73,16 @@ jobs:
           name: reliability tests
           command: ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20
           no_output_timeout: 20m
+      - run:
+          name: Save reliability test results
+          command: |
+            mkdir -p ~/reliability-test-results/junit/
+            find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/reliability-test-results/junit/ \;
+          when: always
+      - store_test_results:
+          path: ~/reliability-test-results
+      - store_artifacts:
+          path: ~/reliability-test-results/junit
 
 workflows:
   version: 2
