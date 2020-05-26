@@ -13,7 +13,7 @@ class AccessLogFilterFactory {
     )
     private val delimiter: Char = ':'
     private val statusCodeFilterPattern: Pattern = Pattern.compile(
-        """(${operators.joinToString("|")})$delimiter(\d{3})"""
+        """^(${operators.joinToString("|")})$delimiter(\d{3})$"""
     )
 
     fun parseStatusCodeFilter(value: String): AccessLogFilterSettings.StatusCodeFilterSettings {

@@ -355,9 +355,10 @@ class NodeMetadataTest {
         "LT:123",
         "equal:400",
         "eq:24",
-        "GT:200"
+        "GT:200",
+        "testeq:400test"
     )
-    fun `should not set statusCodeFilter for accessLogFilter`(input: String) {
+    fun `should not set statusCodeFilter for accessLogFilter for invalid status code filter data`(input: String) {
         // given
         val proto = accessLogFilterProto(statusCodeFilter = input)
 
