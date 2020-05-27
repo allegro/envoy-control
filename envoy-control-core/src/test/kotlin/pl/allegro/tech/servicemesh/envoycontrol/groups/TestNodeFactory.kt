@@ -51,7 +51,7 @@ fun node(
 val addedProxySettings = ProxySettings(Incoming(
     endpoints = listOf(IncomingEndpoint(
         path = "/endpoint",
-        clients = setOf("client1")
+        clients = setOf(ClientMatching("client1"))
     )),
     permissionsEnabled = true
 ))

@@ -13,6 +13,7 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientMatching
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
@@ -73,13 +74,11 @@ internal class RBACFilterFactoryTest {
                             "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
                     )
                 }
-                it.selectorSelectorMatching = mutableMapOf(
-                        "client1" to SelectorMatching().also { it.header = "x-secret-header" },
-                        "client2" to SelectorMatching().also { it.header = "x-secret-header" }
-                )
             },
             StatusRouteProperties()
     )
+
+    private val xSecretHeaderSelectorMatching = SelectorMatching().also { it.header = "x-secret-header" }
 
     val snapshot = GlobalSnapshot(
             SnapshotResources.create(listOf(), ""),
@@ -186,8 +185,8 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("role-1")
-                )), roles = listOf(Role("role-1", setOf("client1", "client2")))
+                        setOf(ClientMatching("role-1"))
+                )), roles = listOf(Role("role-1", setOf(ClientMatching("client1"), ClientMatching("client2"))))
         )
 
         // when
@@ -198,17 +197,18 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
-    fun `should generate RBAC rules for incoming permissions with duplicated clients in roles`() {
+    fun `should generate RBAC rules with unique clients for incoming permissions with duplicated clients in roles`() {
         // given
-        val expectedRbacBuilder = getRBACFilter(expectedDuplicatedRole)
+        val expectedRbacBuilder = getRBACFilter(expectedUniqueClientsWhenDuplicatedByRole)
         val incomingPermission = Incoming(
                 permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client1", "role-1")
-                )), roles = listOf(Role("role-1", setOf("client1", "client2")))
+                        setOf(ClientMatching("client1-duplicated"), ClientMatching("role-1"))
+                )),
+                roles = listOf(Role("role-1", setOf(ClientMatching("client1-duplicated"), ClientMatching("client2"))))
         )
 
         // when
@@ -228,12 +228,12 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf("client1")
+                        setOf(ClientMatching("client1"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("POST"),
-                        setOf("client2")
+                        setOf(ClientMatching("client2"))
                 ))
         )
 
@@ -254,13 +254,13 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("role-1")
+                        setOf(ClientMatching("role-1"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client2", "client1")
-                )), roles = listOf(Role("role-1", setOf("client1", "client2")))
+                        setOf(ClientMatching("client2"), ClientMatching("client1"))
+                )), roles = listOf(Role("role-1", setOf(ClientMatching("client1"), ClientMatching("client2"))))
         )
 
         // when
@@ -280,13 +280,17 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client2", "role-1")
+                        setOf(ClientMatching("client2"), ClientMatching("role-1"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("role-2", "client1")
-                )), roles = listOf(Role("role-1", setOf("client1")), Role("role-2", setOf("client2")))
+                        setOf(ClientMatching("role-2"), ClientMatching("client1"))
+                )),
+                roles = listOf(
+                        Role("role-1", setOf(ClientMatching("client1"))),
+                        Role("role-2", setOf(ClientMatching("client2")))
+                )
         )
 
         // when
@@ -306,12 +310,12 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client1", "client2")
+                        setOf(ClientMatching("client1"), ClientMatching("client2"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client1", "client2")
+                        setOf(ClientMatching("client1"), ClientMatching("client2"))
                 ))
         )
 
@@ -332,7 +336,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client1", "client2")
+                        setOf(ClientMatching("client1"), ClientMatching("client2"))
                 ))
         )
 
@@ -353,7 +357,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client1", "client2")
+                        setOf(ClientMatching("client1"), ClientMatching("client2"))
                 ))
         )
 
@@ -374,7 +378,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf(),
-                        setOf("client1", "client2")
+                        setOf(ClientMatching("client1"), ClientMatching("client2"))
                 ))
         )
 
@@ -416,7 +420,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf("client1")
+                        setOf(ClientMatching("client1"))
                 ))
         )
 
@@ -437,7 +441,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf("client1", "client2")
+                        setOf(ClientMatching("client1"), ClientMatching("client2"))
                 ))
         )
 
@@ -461,7 +465,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf("client2:selector")
+                        setOf(ClientMatching("client2", "selector", xSecretHeaderSelectorMatching))
                 ))
         )
 
@@ -485,7 +489,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf("client1:selector")
+                        setOf(ClientMatching("client1", "selector", xSecretHeaderSelectorMatching))
                 ))
         )
 
@@ -509,9 +513,14 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf("role1")
+                        setOf(ClientMatching("role1"))
                 )),
-                roles = listOf(Role("role1", setOf("client1:selector1", "client2:selector2")))
+                roles = listOf(
+                        Role("role1", setOf(
+                                ClientMatching("client1", "selector1", xSecretHeaderSelectorMatching),
+                                ClientMatching("client2", "selector2", xSecretHeaderSelectorMatching)
+                        ))
+                )
         )
 
         // when
@@ -743,10 +752,10 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private val expectedDuplicatedRole = """
+    private val expectedUniqueClientsWhenDuplicatedByRole = """
         {
           "policies": {
-            "client1,client2": {
+            "client1-duplicated,client2": {""" /* notice that duplicated client occurs only once */ + """
               "permissions": [
                 {
                   "and_rules": {
@@ -764,7 +773,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client1")},
+                ${principalHeader("x-service-name", "client1-duplicated")},
                 ${principalHeader("x-service-name", "client2")}
               ]
             }

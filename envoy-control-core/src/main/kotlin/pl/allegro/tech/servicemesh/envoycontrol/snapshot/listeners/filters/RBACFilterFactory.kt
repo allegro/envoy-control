@@ -11,21 +11,20 @@ import io.envoyproxy.envoy.config.rbac.v2.Principal
 import io.envoyproxy.envoy.config.rbac.v2.RBAC
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Client
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientMatching
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Selector
 import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
-
-typealias Selector = String
-typealias ClientComposite = String // client with possible selector in format client:selector
 
 class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,
@@ -42,7 +41,7 @@ class RBACFilterFactory(
             .keys
 
     init {
-        incomingPermissionsProperties.selectorSelectorMatching.forEach {
+        incomingPermissionsProperties.selectorMatching.forEach {
             if (it.key !in incomingServicesIpRangeAuthentication && it.key !in incomingServicesSourceAuthentication) {
                 throw IllegalArgumentException("${it.key} is not defined in ip range or ip from discovery section.")
             }
@@ -72,10 +71,10 @@ class RBACFilterFactory(
                 return@forEach
             }
 
-            val clientComposites = resolveClientComposites(incomingEndpoint, incomingPermissions.roles)
-            val principals = clientComposites.flatMap { mapClientCompositeToPrincipals(it, snapshot) }
+            val clientMatchingList = resolveClients(incomingEndpoint, incomingPermissions.roles)
+            val principals = clientMatchingList.flatMap { mapClientMatchingToPrincipals(it, snapshot) }
             if (principals.isNotEmpty()) {
-                val policyName = clientComposites.joinToString(",")
+                val policyName = clientMatchingList.joinToString(",") { it.compositeName() }
                 val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(policyName) {
                     Policy.newBuilder().addAllPrincipals(principals)
                 }
@@ -141,15 +140,15 @@ class RBACFilterFactory(
         return methodPermissions
     }
 
-    private fun resolveClientComposites(
-            incomingEndpoint: IncomingEndpoint,
-            roles: List<Role>
-    ): Collection<ClientComposite> {
-        val clientComposites = incomingEndpoint.clients.flatMap { clientOrRole ->
-            roles.find { it.name == clientOrRole }?.clients ?: setOf(clientOrRole)
+    private fun resolveClients(
+        incomingEndpoint: IncomingEndpoint,
+        roles: List<Role>
+    ): Collection<ClientMatching> {
+        val clients = incomingEndpoint.clients.flatMap { clientOrRole ->
+            roles.find { it.name == clientOrRole.name }?.clients?.map { it } ?: setOf(clientOrRole)
         }
         // sorted order ensures that we do not duplicate rules
-        return clientComposites.toSortedSet()
+        return clients.toSortedSet(Comparator.comparing<ClientMatching, String> { it.name })
     }
 
     private fun mapMethodToHeaderMatcher(method: String): Permission {
@@ -157,26 +156,25 @@ class RBACFilterFactory(
         return Permission.newBuilder().setHeader(methodMatch).build()
     }
 
-    private fun mapClientCompositeToPrincipals(
-        clientComposite: ClientComposite,
+    private fun mapClientMatchingToPrincipals(
+        clientMatching: ClientMatching,
         snapshot: GlobalSnapshot
     ): List<Principal> {
-        val (client, selector, matching) = decompose(clientComposite)
-        val staticRangesForClient = staticIpRange(client, selector, matching)
+        val staticRangesForClient = staticIpRange(clientMatching)
 
-        return if (client in incomingServicesSourceAuthentication) {
-            ipFromDiscoveryPrincipals(client, selector, matching, snapshot)
+        return if (clientMatching.name in incomingServicesSourceAuthentication) {
+            ipFromDiscoveryPrincipals(clientMatching, snapshot)
         } else if (staticRangesForClient != null) {
             staticRangesForClient
         } else {
-            headerPrincipals(clientComposite)
+            headerPrincipals(clientMatching.name)
         }
     }
 
-    private fun staticIpRange(client: Client, selector: Selector?, selectorMatching: SelectorMatching?): List<Principal>? {
-        val range = staticIpRanges[client]
-        return if (selector != null && selectorMatching != null && range != null) {
-            addAdditionalMatching(selector, selectorMatching, range)
+    private fun staticIpRange(clientMatching: ClientMatching): List<Principal>? {
+        val range = staticIpRanges[clientMatching.name]
+        return if (clientMatching.selector != null && clientMatching.selectorMatching != null && range != null) {
+            addAdditionalMatching(clientMatching.selector, clientMatching.selectorMatching, range)
         } else {
             range
         }
@@ -198,12 +196,10 @@ class RBACFilterFactory(
     }
 
     private fun ipFromDiscoveryPrincipals(
-            client: Client,
-            selector: Selector?,
-            selectorMatching: SelectorMatching?,
-            snapshot: GlobalSnapshot
+        clientMatching: ClientMatching,
+        snapshot: GlobalSnapshot
     ): List<Principal> {
-        val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
+        val clientEndpoints = snapshot.endpoints.resources().filterKeys { clientMatching.name == it }.values
         return clientEndpoints.flatMap { clusterLoadAssignment ->
             clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
                 lbEndpoints.lbEndpointsList.map { lbEndpoint ->
@@ -217,8 +213,12 @@ class RBACFilterFactory(
                     .setPrefixLen(EXACT_IP_MASK).build())
                     .build()
 
-            if (selector != null && selectorMatching != null) {
-                addAdditionalMatching(selector, selectorMatching, listOf(sourceIpPrincipal))
+            if (clientMatching.selector != null && clientMatching.selectorMatching != null) {
+                addAdditionalMatching(
+                        clientMatching.selector,
+                        clientMatching.selectorMatching,
+                        listOf(sourceIpPrincipal)
+                )
             } else {
                 listOf(sourceIpPrincipal)
             }
@@ -226,9 +226,9 @@ class RBACFilterFactory(
     }
 
     private fun addAdditionalMatching(
-            selector: Selector,
-            selectorMatching: SelectorMatching,
-            sourceIpPrincipals: List<Principal>
+        selector: Selector,
+        selectorMatching: SelectorMatching,
+        sourceIpPrincipals: List<Principal>
     ): List<Principal> {
         return if (selectorMatching.header.isNotEmpty()) {
             val orPrincipal = Principal.newBuilder()
@@ -246,27 +246,6 @@ class RBACFilterFactory(
             sourceIpPrincipals
         }
     }
-
-    private fun decompose(clientComposite: ClientComposite): Triple<Client, Selector?, SelectorMatching?> {
-        val parts = clientComposite.split(":", ignoreCase = false, limit = 2)
-        return if (isNotCompositeClient(parts)) {
-            Triple(clientComposite, null, null)
-        } else {
-            val decomposedClient = parts[0]
-            val matching = incomingPermissionsProperties.selectorSelectorMatching[decomposedClient]
-            if (matching == null) {
-                logger.warn("No selector matching found for client $decomposedClient in EC properties. " +
-                        "Source IP based authentication will not contain additional matching.")
-                return Triple(clientComposite, null, null)
-            }
-
-            val selector: Selector = parts[1]
-
-            Triple(decomposedClient, selector, matching)
-        }
-    }
-
-    private fun isNotCompositeClient(parts: List<String>) = parts.size != 2
 
     private fun headerPrincipals(client: Client): List<Principal> {
         val clientMatch = HeaderMatcher.newBuilder()

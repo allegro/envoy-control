@@ -10,6 +10,7 @@ import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientMatching
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
@@ -145,14 +146,14 @@ internal class SnapshotsVersionsTest {
                                 path = endpointPath,
                                 pathMatchingType = PathMatchingType.PATH,
                                 methods = setOf("GET", "PUT"),
-                                clients = setOf("client1", "role1")
+                                clients = setOf(ClientMatching("client1"), ClientMatching("role1"))
                             )
                         ),
                         permissionsEnabled = true,
                         roles = listOf(
                             Role(
                                 name = "role1",
-                                clients = setOf("client2", "client3")
+                                clients = setOf(ClientMatching("client2"), ClientMatching("client3"))
                             )
                         )
                     ),
