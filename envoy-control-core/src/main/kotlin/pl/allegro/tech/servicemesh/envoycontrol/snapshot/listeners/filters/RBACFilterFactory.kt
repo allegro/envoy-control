@@ -141,11 +141,15 @@ class RBACFilterFactory(
         return methodPermissions
     }
 
-    private fun resolveClientComposites(incomingEndpoint: IncomingEndpoint, roles: List<Role>): List<ClientComposite> {
+    private fun resolveClientComposites(
+            incomingEndpoint: IncomingEndpoint,
+            roles: List<Role>
+    ): Collection<ClientComposite> {
         val clientComposites = incomingEndpoint.clients.flatMap { clientOrRole ->
             roles.find { it.name == clientOrRole }?.clients ?: setOf(clientOrRole)
         }
-        return clientComposites.sorted()
+        // sorted order ensures that we do not duplicate rules
+        return clientComposites.toSortedSet()
     }
 
     private fun mapMethodToHeaderMatcher(method: String): Permission {

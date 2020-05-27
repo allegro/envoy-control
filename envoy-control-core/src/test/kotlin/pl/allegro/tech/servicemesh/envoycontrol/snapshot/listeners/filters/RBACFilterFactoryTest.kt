@@ -198,6 +198,27 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
+    fun `should generate RBAC rules for incoming permissions with duplicated clients in roles`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedDuplicatedRole)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf("client1", "role-1")
+                )), roles = listOf(Role("role-1", setOf("client1", "client2")))
+        )
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
     fun `should generate RBAC with different rules for incoming permissions`() {
         // given
         val expectedRbacBuilder = getRBACFilter(expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson)
@@ -694,6 +715,35 @@ internal class RBACFilterFactoryTest {
     """
 
     private val expectedSimpleEndpointPermissionsJson = """
+        {
+          "policies": {
+            "client1,client2": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")},
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalHeader("x-service-name", "client1")},
+                ${principalHeader("x-service-name", "client2")}
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedDuplicatedRole = """
         {
           "policies": {
             "client1,client2": {
