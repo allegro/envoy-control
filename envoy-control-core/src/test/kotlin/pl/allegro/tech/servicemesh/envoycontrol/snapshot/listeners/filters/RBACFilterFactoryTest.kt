@@ -197,7 +197,7 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
-    fun `should generate RBAC rules for incoming permissions with duplicated clients in roles`() {
+    fun `should generate RBAC rules for incoming permissions with duplicated clients`() {
         // given
         val expectedRbacBuilder = getRBACFilter(expectedDuplicatedRole)
         val incomingPermission = Incoming(
@@ -206,8 +206,19 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf(ClientWithSelector("client1"), ClientWithSelector("role-1"))
-                )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
+                        setOf(
+                                ClientWithSelector("client1"),
+                                ClientWithSelector("client1"),
+                                ClientWithSelector("client1", "selector"),
+                                ClientWithSelector("client1-duplicated", "selector"),
+                                ClientWithSelector("client1-duplicated"),
+                                ClientWithSelector("role-1")
+                        )
+                )), roles = listOf(Role("role-1", setOf(
+                        ClientWithSelector("client1-duplicated"),
+                        ClientWithSelector("client1-duplicated"),
+                        ClientWithSelector("client2"))
+                ))
         )
 
         // when
@@ -748,7 +759,8 @@ internal class RBACFilterFactoryTest {
     private val expectedDuplicatedRole = """
         {
           "policies": {
-            "client1,client2": {
+           """ /* notice that duplicated clients occurs only once here */ + """
+            "client1,client1-duplicated,client1-duplicated:selector,client1:selector,client2": {
               "permissions": [
                 {
                   "and_rules": {
@@ -767,6 +779,7 @@ internal class RBACFilterFactoryTest {
                 }
               ], "principals": [
                 ${principalHeader("x-service-name", ("client1"))},
+                ${principalHeader("x-service-name", ("client1-duplicated"))},
                 ${principalHeader("x-service-name", ("client2"))}
               ]
             }

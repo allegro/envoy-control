@@ -268,13 +268,17 @@ typealias ClientComposite = String
 data class ClientWithSelector(
     val name: String,
     val selector: String? = null
-) {
+) : Comparable<ClientWithSelector> {
     fun compositeName(): ClientComposite {
         return if (selector != null) {
             "$name:$selector"
         } else {
             name
         }
+    }
+
+    override fun compareTo(other: ClientWithSelector): Int {
+        return this.compositeName().compareTo(other.compositeName())
     }
 }
 

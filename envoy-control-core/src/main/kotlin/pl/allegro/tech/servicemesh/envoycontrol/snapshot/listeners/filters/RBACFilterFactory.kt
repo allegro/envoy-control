@@ -71,7 +71,8 @@ class RBACFilterFactory(
             }
 
             val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, incomingPermissions.roles)
-            val principals = clientsWithSelectors.flatMap { mapClientWithSelectorToPrincipals(it, snapshot) }
+            val principals = clientsWithSelectors.flatMap { mapClientWithSelectorToPrincipals(it, snapshot) }.toSet()
+
             if (principals.isNotEmpty()) {
                 val policyName = clientsWithSelectors.joinToString(",") { it.compositeName() }
                 val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(policyName) {
@@ -145,9 +146,9 @@ class RBACFilterFactory(
     ): Collection<ClientWithSelector> {
         val clients = incomingEndpoint.clients.flatMap { clientOrRole ->
             roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
-        }
+        }.toSortedSet()
         // sorted order ensures that we do not duplicate rules
-        return clients.toSortedSet(Comparator.comparing<ClientWithSelector, String> { it.compositeName() })
+        return clients
     }
 
     private fun mapMethodToHeaderMatcher(method: String): Permission {
