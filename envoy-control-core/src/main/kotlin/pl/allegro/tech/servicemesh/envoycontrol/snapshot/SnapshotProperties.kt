@@ -4,7 +4,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.auth.TlsParameters
-import pl.allegro.tech.servicemesh.envoycontrol.groups.Client
 import java.time.Duration
 
 class SnapshotProperties {
@@ -59,6 +58,8 @@ class AllServicesDependenciesProperties {
     var identifier = "*"
     var notIncludedByPrefix: MutableSet<String> = mutableSetOf()
 }
+
+typealias Client = String
 
 class IncomingPermissionsProperties {
     var enabled = false

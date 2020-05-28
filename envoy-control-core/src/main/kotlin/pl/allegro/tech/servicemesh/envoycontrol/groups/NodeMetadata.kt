@@ -6,8 +6,6 @@ import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
-import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.net.URL
 import java.text.ParseException
@@ -16,10 +14,6 @@ open class NodeMetadataValidationException(message: String) :
     RequestException(Status.INVALID_ARGUMENT.withDescription(message))
 
 class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
-    companion object {
-        val logger by logger()
-    }
-
     val serviceName: String? = metadata
         .fieldsMap["service_name"]
         ?.stringValue
@@ -34,7 +28,7 @@ data class ProxySettings(
     val outgoing: Outgoing = Outgoing()
 ) {
     constructor(proto: Value?, properties: SnapshotProperties) : this(
-        incoming = proto?.field("incoming").toIncoming(properties.incomingPermissions.selectorMatching),
+        incoming = proto?.field("incoming").toIncoming(),
         outgoing = proto?.field("outgoing").toOutgoing(properties)
     )
 
@@ -94,14 +88,14 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
     }
 }
 
-fun Value?.toIncoming(selectorMatching: Map<Client, SelectorMatching> = mapOf()): Incoming {
+fun Value?.toIncoming(): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     return Incoming(
-        endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint(selectorMatching) },
+        endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
         healthCheck = this?.field("healthCheck").toHealthCheck(),
-        roles = this?.field("roles")?.list().orEmpty().map { Role(it, selectorMatching) },
+        roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
         timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy()
     )
 }
@@ -116,7 +110,7 @@ fun Value?.toHealthCheck(): HealthCheck {
     }
 }
 
-fun Value.toIncomingEndpoint(selectorSelectorMatching: Map<Client, SelectorMatching> = mapOf()): IncomingEndpoint {
+fun Value.toIncomingEndpoint(): IncomingEndpoint {
     val pathPrefix = this.field("pathPrefix")?.stringValue
     val path = this.field("path")?.stringValue
 
@@ -125,8 +119,7 @@ fun Value.toIncomingEndpoint(selectorSelectorMatching: Map<Client, SelectorMatch
     }
 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
-    val clients = this.field("clients")?.list().orEmpty()
-            .map { decompose(it.stringValue, selectorSelectorMatching) }.toSet()
+    val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients)
@@ -135,47 +128,14 @@ fun Value.toIncomingEndpoint(selectorSelectorMatching: Map<Client, SelectorMatch
     }
 }
 
-typealias Client = String
-typealias Selector = String
-typealias ClientComposite = String // client with possible selector in format client:selector
-
-data class ClientMatching(
-    val name: Client,
-    val selector: Selector? = null,
-    val selectorMatching: SelectorMatching? = null
-) {
-    fun compositeName(): ClientComposite {
-        return if (selector != null) {
-            "$name:$selector"
-        } else {
-            name
-        }
-    }
-}
-
-private fun decompose(
-    clientComposite: ClientComposite,
-    selectorMatching: Map<Client, SelectorMatching>
-): ClientMatching {
-    val parts = clientComposite.split(":", ignoreCase = false, limit = 2)
-    return if (isNotCompositeClient(parts)) {
-        ClientMatching(clientComposite, null, null)
+private fun decomposeClient(client: ClientComposite): ClientWithSelector {
+    val parts = client.split(":", ignoreCase = false, limit = 2)
+    return if (parts.size == 2) {
+        ClientWithSelector(parts[0], parts[1])
     } else {
-        val decomposedClient = parts[0]
-        val matching = selectorMatching[decomposedClient]
-        if (matching == null) {
-            NodeMetadata.logger.warn("No selector matching found for client $decomposedClient in EC properties. " +
-                    "Source IP based authentication will not contain additional matching.")
-            return ClientMatching(clientComposite, null, null)
-        }
-
-        val selector: Selector = parts[1]
-
-        ClientMatching(decomposedClient, selector, matching)
+        ClientWithSelector(client, null)
     }
 }
-
-private fun isNotCompositeClient(parts: List<String>) = parts.size != 2
 
 private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
     val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
@@ -288,11 +248,11 @@ data class DependencySettings(
 
 data class Role(
     val name: String?,
-    val clients: Set<ClientMatching>
+    val clients: Set<ClientWithSelector>
 ) {
-    constructor(proto: Value, selectorMatching: Map<Client, SelectorMatching> = mapOf()) : this(
+    constructor(proto: Value) : this(
         name = proto.field("name")?.stringValue,
-        clients = proto.field("clients")?.list().orEmpty().map { decompose(it.stringValue, selectorMatching) }.toSet()
+        clients = proto.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
     )
 }
 
@@ -303,11 +263,26 @@ data class HealthCheck(
     fun hasCustomHealthCheck() = !path.isBlank()
 }
 
+typealias ClientComposite = String
+
+data class ClientWithSelector(
+    val name: String,
+    val selector: String? = null
+) {
+    fun compositeName(): ClientComposite {
+        return if (selector != null) {
+            "$name:$selector"
+        } else {
+            name
+        }
+    }
+}
+
 data class IncomingEndpoint(
     override val path: String = "",
     override val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
     override val methods: Set<String> = emptySet(),
-    val clients: Set<ClientMatching> = emptySet()
+    val clients: Set<ClientWithSelector> = emptySet()
 ) : EndpointBase
 
 enum class PathMatchingType {
