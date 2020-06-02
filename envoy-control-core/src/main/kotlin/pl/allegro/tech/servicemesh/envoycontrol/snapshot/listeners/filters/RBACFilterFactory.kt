@@ -164,7 +164,7 @@ class RBACFilterFactory(
         val staticRangesForClient = staticIpRange(clientWithSelector, selectorMatching)
 
         return if (clientWithSelector.name in incomingServicesSourceAuthentication) {
-            ipFromDiscoveryPrincipals(clientWithSelector.name, clientWithSelector.selector, selectorMatching, snapshot)
+            ipFromDiscoveryPrincipals(clientWithSelector, selectorMatching, snapshot)
         } else if (staticRangesForClient != null) {
             staticRangesForClient
         } else {
@@ -187,11 +187,11 @@ class RBACFilterFactory(
     }
 
     private fun staticIpRange(client: ClientWithSelector, selectorMatching: SelectorMatching?): List<Principal>? {
-        val range = staticIpRanges[client.name]
-        return if (client.selector != null && selectorMatching != null && range != null) {
-            addAdditionalMatching(client.selector, selectorMatching, range)
+        val ranges = staticIpRanges[client.name]
+        return if (client.selector != null && selectorMatching != null && ranges != null) {
+            addAdditionalMatching(client.selector, selectorMatching, ranges)
         } else {
-            range
+            ranges
         }
     }
 
@@ -211,27 +211,24 @@ class RBACFilterFactory(
     }
 
     private fun ipFromDiscoveryPrincipals(
-        client: Client,
-        selector: String?,
+        client: ClientWithSelector,
         selectorMatching: SelectorMatching?,
         snapshot: GlobalSnapshot
     ): List<Principal> {
-        val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
-        return clientEndpoints.flatMap { clusterLoadAssignment ->
-            clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
-                lbEndpoints.lbEndpointsList.map { lbEndpoint ->
-                    lbEndpoint.endpoint.address
-                }
+        val clusterLoadAssignment = snapshot.endpoints.resources()[client.name]
+        return clusterLoadAssignment?.endpointsList?.flatMap { lbEndpoints ->
+            lbEndpoints.lbEndpointsList.map { lbEndpoint ->
+                lbEndpoint.endpoint.address
             }
-        }.flatMap { address ->
+        }.orEmpty().flatMap { address ->
             val sourceIpPrincipal = Principal.newBuilder()
                     .setSourceIp(CidrRange.newBuilder()
                     .setAddressPrefix(address.socketAddress.address)
                     .setPrefixLen(EXACT_IP_MASK).build())
                     .build()
 
-            if (selector != null && selectorMatching != null) {
-                addAdditionalMatching(selector, selectorMatching, listOf(sourceIpPrincipal))
+            if (client.selector != null && selectorMatching != null) {
+                addAdditionalMatching(client.selector, selectorMatching, listOf(sourceIpPrincipal))
             } else {
                 listOf(sourceIpPrincipal)
             }
