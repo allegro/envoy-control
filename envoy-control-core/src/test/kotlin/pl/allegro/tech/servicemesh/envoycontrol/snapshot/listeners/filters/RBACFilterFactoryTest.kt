@@ -719,7 +719,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalSourceIp("127.0.0.1")},
+                { "orIds": { "ids": [${principalSourceIp("127.0.0.1")}] } },
                 ${principalHeader("x-service-name", ("client2"))}
               ]
             }
@@ -894,8 +894,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalSourceIp("192.168.1.0", 24)},
-                ${principalSourceIp("192.168.2.0", 28)}
+                { "orIds": { "ids": [${principalSourceIp("192.168.1.0", 24)}, ${principalSourceIp("192.168.2.0", 28)}] } }
               ]
             }
           }
@@ -922,9 +921,17 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalSourceIp("127.0.0.1")},
-                ${principalSourceIp("192.168.1.0", 24)},
-                ${principalSourceIp("192.168.2.0", 28)}
+                { "orIds": { 
+                  "ids": [
+                      ${principalSourceIp("127.0.0.1")}
+                   ]}
+                 }, { "orIds": { 
+                  "ids": [
+                      ${principalSourceIp("192.168.1.0", 24)},
+                      ${principalSourceIp("192.168.2.0", 28)}
+                    ]
+                  } 
+                }
               ]
             }
           }

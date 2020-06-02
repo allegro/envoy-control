@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
 
 import com.google.protobuf.Any
 import com.google.protobuf.UInt32Value
+import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.core.CidrRange
 import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
@@ -166,7 +167,7 @@ class RBACFilterFactory(
         return if (clientWithSelector.name in incomingServicesSourceAuthentication) {
             ipFromDiscoveryPrincipals(clientWithSelector, selectorMatching, snapshot)
         } else if (staticRangesForClient != null) {
-            staticRangesForClient
+            listOf(staticRangesForClient)
         } else {
             headerPrincipals(clientWithSelector.name)
         }
@@ -186,7 +187,7 @@ class RBACFilterFactory(
         return matching
     }
 
-    private fun staticIpRange(client: ClientWithSelector, selectorMatching: SelectorMatching?): List<Principal>? {
+    private fun staticIpRange(client: ClientWithSelector, selectorMatching: SelectorMatching?): Principal? {
         val ranges = staticIpRanges[client.name]
         return if (client.selector != null && selectorMatching != null && ranges != null) {
             addAdditionalMatching(client.selector, selectorMatching, ranges)
@@ -195,11 +196,11 @@ class RBACFilterFactory(
         }
     }
 
-    private fun createStaticIpRanges(): Map<Client, List<Principal>> {
+    private fun createStaticIpRanges(): Map<Client, Principal> {
         val ranges = incomingPermissionsProperties.sourceIpAuthentication.ipFromRange
 
         return ranges.mapValues {
-            it.value.map { ipWithPrefix ->
+            val principals = it.value.map { ipWithPrefix ->
                 val (ip, prefixLength) = ipWithPrefix.split("/")
 
                 Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
@@ -207,6 +208,8 @@ class RBACFilterFactory(
                         .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
                         .build()
             }
+
+            Principal.newBuilder().setOrIds(Principal.Set.newBuilder().addAllIds(principals).build()).build()
         }
     }
 
@@ -216,44 +219,52 @@ class RBACFilterFactory(
         snapshot: GlobalSnapshot
     ): List<Principal> {
         val clusterLoadAssignment = snapshot.endpoints.resources()[client.name]
-        return clusterLoadAssignment?.endpointsList?.flatMap { lbEndpoints ->
+        val sourceIpPrincipal = mapEndpointsToExactPrincipals(clusterLoadAssignment)
+
+        return if (sourceIpPrincipal == null) {
+            listOf()
+        } else if (client.selector != null && selectorMatching != null) {
+            listOf(addAdditionalMatching(client.selector, selectorMatching, sourceIpPrincipal))
+        } else {
+            listOf(sourceIpPrincipal)
+        }
+    }
+
+    private fun mapEndpointsToExactPrincipals(clusterLoadAssignment: ClusterLoadAssignment?): Principal? {
+        val principals = clusterLoadAssignment?.endpointsList?.flatMap { lbEndpoints ->
             lbEndpoints.lbEndpointsList.map { lbEndpoint ->
                 lbEndpoint.endpoint.address
             }
-        }.orEmpty().flatMap { address ->
-            val sourceIpPrincipal = Principal.newBuilder()
+        }.orEmpty().map { address ->
+            Principal.newBuilder()
                     .setSourceIp(CidrRange.newBuilder()
-                    .setAddressPrefix(address.socketAddress.address)
-                    .setPrefixLen(EXACT_IP_MASK).build())
+                            .setAddressPrefix(address.socketAddress.address)
+                            .setPrefixLen(EXACT_IP_MASK).build())
                     .build()
+        }
 
-            if (client.selector != null && selectorMatching != null) {
-                addAdditionalMatching(client.selector, selectorMatching, listOf(sourceIpPrincipal))
-            } else {
-                listOf(sourceIpPrincipal)
-            }
+        return if (principals.isNotEmpty()) {
+            Principal.newBuilder().setOrIds(Principal.Set.newBuilder().addAllIds(principals).build()).build()
+        } else {
+            null
         }
     }
 
     private fun addAdditionalMatching(
         selector: String,
         selectorMatching: SelectorMatching,
-        sourceIpPrincipals: List<Principal>
-    ): List<Principal> {
+        sourceIpPrincipal: Principal
+    ): Principal {
         return if (selectorMatching.header.isNotEmpty()) {
-            val orPrincipal = Principal.newBuilder()
-                    .setOrIds(Principal.Set.newBuilder().addAllIds(sourceIpPrincipals))
-                    .build()
-
             val additionalMatchingPrincipal = Principal.newBuilder()
                     .setHeader(HeaderMatcher.newBuilder().setName(selectorMatching.header).setExactMatch(selector))
                     .build()
 
-            listOf(Principal.newBuilder().setAndIds(Principal.Set.newBuilder().addAllIds(
-                    listOf(orPrincipal, additionalMatchingPrincipal)
-            )).build())
+            Principal.newBuilder().setAndIds(Principal.Set.newBuilder().addAllIds(
+                    listOf(sourceIpPrincipal, additionalMatchingPrincipal)
+            ).build()).build()
         } else {
-            sourceIpPrincipals
+            sourceIpPrincipal
         }
     }
 
