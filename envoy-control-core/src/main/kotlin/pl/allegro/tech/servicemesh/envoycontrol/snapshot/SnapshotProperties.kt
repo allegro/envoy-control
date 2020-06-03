@@ -59,11 +59,18 @@ class AllServicesDependenciesProperties {
     var notIncludedByPrefix: MutableSet<String> = mutableSetOf()
 }
 
+typealias Client = String
+
 class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
+    var selectorMatching: MutableMap<Client, SelectorMatching> = mutableMapOf()
     var tlsAuthentication = TlsAuthenticationProperties()
+}
+
+class SelectorMatching {
+    var header = ""
 }
 
 class TlsAuthenticationProperties {
@@ -79,11 +86,9 @@ class TlsProtocolProperties {
     var maximumVersion = TlsParameters.TlsProtocol.TLSv1_2
 }
 
-typealias ClusterName = String
-
 class SourceIpAuthenticationProperties {
     var ipFromServiceDiscovery = IpFromServiceDiscovery()
-    var ipFromRange: MutableMap<ClusterName, Set<String>> = mutableMapOf()
+    var ipFromRange: MutableMap<Client, Set<String>> = mutableMapOf()
 }
 
 class IpFromServiceDiscovery {
