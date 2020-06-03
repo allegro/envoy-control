@@ -10,6 +10,7 @@ import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
 import io.envoyproxy.envoy.api.v2.auth.DownstreamTlsContext
 import io.envoyproxy.envoy.api.v2.auth.SdsSecretConfig
 import io.envoyproxy.envoy.api.v2.auth.TlsParameters
+import io.envoyproxy.envoy.api.v2.core.RuntimeUInt32
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
 import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
@@ -24,11 +25,13 @@ import io.envoyproxy.envoy.api.v2.listener.FilterChain
 import io.envoyproxy.envoy.api.v2.listener.FilterChainMatch
 import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
 import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
+import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLogFilter
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
+import io.envoyproxy.envoy.config.filter.accesslog.v2.StatusCodeFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
-import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
@@ -77,8 +80,6 @@ class EnvoyListenersFactory(
                             .build()
                     )
             )
-
-    private val accessLogFilterFactory = AccessLogFilterFactory()
 
     private val downstreamTlsTransportSocket = TransportSocket.newBuilder()
             .setName("envoy.transport_sockets.tls")
@@ -319,6 +320,26 @@ class EnvoyListenersFactory(
                 .build()
     }
 
+    fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings.StatusCodeFilterSettings) {
+        this.setFilter(
+                AccessLogFilter.newBuilder().setStatusCodeFilter(
+                        StatusCodeFilter.newBuilder()
+                                .setComparison(
+                                        ComparisonFilter.newBuilder()
+                                                .setOp(settings.comparisonOperator)
+                                                .setValue(
+                                                        RuntimeUInt32.newBuilder()
+                                                                .setDefaultValue(settings.comparisonCode)
+                                                                .setRuntimeKey("access_log_filter_http_code")
+                                                                .build()
+                                                )
+                                                .build()
+                                )
+                                .build()
+                )
+        )
+    }
+
     private fun accessLog(
         accessLogPath: String,
         accessLogType: String,
@@ -328,7 +349,7 @@ class EnvoyListenersFactory(
 
         accessLogFilterSettings?.let { settings ->
             settings.statusCodeFilterSettings?.let {
-                accessLogFilterFactory.buildAccessLogStatusCodeFilter(builder, it)
+                builder.buildFromSettings(it)
             }
         }
 

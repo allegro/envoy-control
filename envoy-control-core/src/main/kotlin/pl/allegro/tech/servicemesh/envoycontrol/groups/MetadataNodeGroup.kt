@@ -7,11 +7,13 @@ import io.envoyproxy.envoy.api.v2.core.Node
 
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
 
-class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
+class MetadataNodeGroup(
+    val properties: SnapshotProperties,
+    val accessLogFilterFactory: AccessLogFilterFactory
+) : NodeGroup<Group> {
     private val logger by logger()
-
-    private val accessLogFilterFactory = AccessLogFilterFactory()
 
     override fun hash(node: Node): Group = createGroup(node)
 

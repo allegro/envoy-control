@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
-import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.MethodSource
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
 
 class NodeMetadataTest {
 
@@ -21,6 +21,16 @@ class NodeMetadataTest {
             Arguments.of("EQ:400", ComparisonFilter.Op.EQ, 400),
             Arguments.of("gE:324", ComparisonFilter.Op.GE, 324),
             Arguments.of("LE:200", ComparisonFilter.Op.LE, 200)
+        )
+
+        @JvmStatic
+        fun invalidStatusCodeFilterData() = listOf(
+                Arguments.of("LT:123"),
+                Arguments.of("equal:400"),
+                Arguments.of("eq:24"),
+                Arguments.of("GT:200"),
+                Arguments.of("testeq:400test"),
+                Arguments.of("")
         )
     }
 
@@ -341,24 +351,18 @@ class NodeMetadataTest {
         val proto = accessLogFilterProto(statusCodeFilter = input)
 
         // when
-        val incoming = proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
-            AccessLogFilterFactory()
+        val statusCodeFilterSettings = proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
+                AccessLogFilterFactory()
         )
 
         // expects
-        assertThat(incoming?.comparisonCode).isEqualTo(code)
-        assertThat(incoming?.comparisonOperator).isEqualTo(op)
+        assertThat(statusCodeFilterSettings?.comparisonCode).isEqualTo(code)
+        assertThat(statusCodeFilterSettings?.comparisonOperator).isEqualTo(op)
     }
 
     @ParameterizedTest
-    @CsvSource(
-        "LT:123",
-        "equal:400",
-        "eq:24",
-        "GT:200",
-        "testeq:400test"
-    )
-    fun `should not set statusCodeFilter for accessLogFilter for invalid status code filter data`(input: String) {
+    @MethodSource("invalidStatusCodeFilterData")
+    fun `should throw exception for invalid status code filter data`(input: String) {
         // given
         val proto = accessLogFilterProto(statusCodeFilter = input)
 

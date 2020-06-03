@@ -8,6 +8,7 @@ import io.envoyproxy.controlplane.server.exception.RequestException
 import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
 import java.net.URL
 import java.text.ParseException
 
@@ -71,8 +72,10 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
 fun Value?.toStatusCodeFilter(
     accessLogFilterFactory: AccessLogFilterFactory
 ): AccessLogFilterSettings.StatusCodeFilterSettings? {
-    val value = if (this?.stringValue != null) this.stringValue.toUpperCase() else return null
-    return accessLogFilterFactory.parseStatusCodeFilter(value)
+    return when (this?.stringValue) {
+        null -> null
+        else -> accessLogFilterFactory.parseStatusCodeFilter(stringValue.toUpperCase())
+    }
 }
 
 private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
