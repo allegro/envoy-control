@@ -119,12 +119,21 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     }
 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
-    val clients = this.field("clients")?.list().orEmpty().map { it.stringValue }.toSet()
+    val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients)
         pathPrefix != null -> IncomingEndpoint(pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients)
         else -> throw NodeMetadataValidationException("One of 'path' or 'pathPrefix' field is required")
+    }
+}
+
+private fun decomposeClient(client: ClientComposite): ClientWithSelector {
+    val parts = client.split(":", ignoreCase = false, limit = 2)
+    return if (parts.size == 2) {
+        ClientWithSelector(parts[0], parts[1])
+    } else {
+        ClientWithSelector(client, null)
     }
 }
 
@@ -239,11 +248,11 @@ data class DependencySettings(
 
 data class Role(
     val name: String?,
-    val clients: Set<String>
+    val clients: Set<ClientWithSelector>
 ) {
     constructor(proto: Value) : this(
         name = proto.field("name")?.stringValue,
-        clients = proto.field("clients")?.list().orEmpty().map { it.stringValue }.toSet()
+        clients = proto.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
     )
 }
 
@@ -254,11 +263,30 @@ data class HealthCheck(
     fun hasCustomHealthCheck() = !path.isBlank()
 }
 
+typealias ClientComposite = String
+
+data class ClientWithSelector(
+    val name: String,
+    val selector: String? = null
+) : Comparable<ClientWithSelector> {
+    fun compositeName(): ClientComposite {
+        return if (selector != null) {
+            "$name:$selector"
+        } else {
+            name
+        }
+    }
+
+    override fun compareTo(other: ClientWithSelector): Int {
+        return this.compositeName().compareTo(other.compositeName())
+    }
+}
+
 data class IncomingEndpoint(
     override val path: String = "",
     override val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
     override val methods: Set<String> = emptySet(),
-    val clients: Set<String> = emptySet()
+    val clients: Set<ClientWithSelector> = emptySet()
 ) : EndpointBase
 
 enum class PathMatchingType {
