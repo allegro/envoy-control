@@ -78,6 +78,8 @@ class TlsAuthenticationProperties {
     var requireClientCertificate: Boolean = true // if false, will not validate cert
     var validationContextSecretName: String = "validation_context"
     var tlsCertificateSecretName: String = "server_cert"
+    var mtlsEnabledTag: String = "mtls:enabled"
+    var sanUriFormat: String = "spiffe://{service-name}"
 }
 
 class TlsProtocolProperties {

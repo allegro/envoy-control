@@ -24,6 +24,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsUtils
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 
 class RBACFilterFactory(
@@ -168,8 +170,11 @@ class RBACFilterFactory(
             ipFromDiscoveryPrincipals(clientWithSelector, selectorMatching, snapshot)
         } else if (staticRangesForClient != null) {
             listOf(staticRangesForClient)
+        } else if (snapshot.mtlsEnabledForCluster(clientWithSelector.name)) {
+            tlsPrincipals(incomingPermissionsProperties.tlsAuthentication, clientWithSelector.name)
         } else {
-            headerPrincipals(clientWithSelector.name)
+            headerPrincipals(clientWithSelector.name) // TODO(https://github.com/allegro/envoy-control/issues/122)
+            // remove when service name is passed from certificate
         }
     }
 
@@ -194,6 +199,18 @@ class RBACFilterFactory(
         } else {
             ranges
         }
+    }
+
+    private fun tlsPrincipals(tlsProperties: TlsAuthenticationProperties, client: String): List<Principal> {
+        val principalName = TlsUtils.resolveSanUri(client, tlsProperties.sanUriFormat)
+        return listOf(Principal.newBuilder().setAuthenticated(
+                Principal.Authenticated.newBuilder()
+                        .setPrincipalName(StringMatcher.newBuilder()
+                                .setExact(principalName)
+                                .build()
+                        )
+                ).build()
+        )
     }
 
     private fun createStaticIpRanges(): Map<Client, Principal> {

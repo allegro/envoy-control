@@ -83,6 +83,8 @@ internal class RBACFilterFactoryTest {
     val snapshot = GlobalSnapshot(
             SnapshotResources.create(listOf(), ""),
             mapOf(),
+            SnapshotResources.create(listOf(), ""),
+            mapOf(),
             SnapshotResources.create(listOf(), "")
     )
 
@@ -103,7 +105,9 @@ internal class RBACFilterFactoryTest {
     val snapshotForSourceIpAuth = GlobalSnapshot(
             SnapshotResources.create(listOf(), ""),
             mapOf(),
-            SnapshotResources.create(listOf(clusterLoadAssignment), "")
+            SnapshotResources.create(listOf(clusterLoadAssignment), ""),
+            mapOf(),
+            SnapshotResources.create(listOf(), "")
     )
 
     @Test
