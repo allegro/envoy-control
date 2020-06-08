@@ -13,6 +13,7 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
@@ -22,9 +23,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SourceIpAuthenticationProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
+@Suppress("LargeClass") // TODO: https://github.com/allegro/envoy-control/issues/121
 internal class RBACFilterFactoryTest {
     private val rbacFilterFactory = RBACFilterFactory(
             IncomingPermissionsProperties().also { it.enabled = true },
@@ -55,15 +58,31 @@ internal class RBACFilterFactoryTest {
                 it.enabled = true
                 it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
                     ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
+                    ipProperties.ipFromRange = mutableMapOf("client2" to setOf("192.168.1.0/24", "192.168.2.0/28"))
+                }
+            },
+            StatusRouteProperties()
+    )
+    private val rbacFilterFactoryWithSourceIpWithSelectorAuth = RBACFilterFactory(
+            IncomingPermissionsProperties().also {
+                it.enabled = true
+                it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
+                    ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
                     ipProperties.ipFromRange = mutableMapOf(
-                            "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
+                        "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
                     )
                 }
+                it.selectorMatching = mutableMapOf(
+                        "client1" to SelectorMatching().also { it.header = "x-secret-header" },
+                        "client2" to SelectorMatching().also { it.header = "x-secret-header" }
+                )
             },
             StatusRouteProperties()
     )
 
     val snapshot = GlobalSnapshot(
+            SnapshotResources.create(listOf(), ""),
+            mapOf(),
             SnapshotResources.create(listOf(), ""),
             mapOf(),
             SnapshotResources.create(listOf(), "")
@@ -86,7 +105,9 @@ internal class RBACFilterFactoryTest {
     val snapshotForSourceIpAuth = GlobalSnapshot(
             SnapshotResources.create(listOf(), ""),
             mapOf(),
-            SnapshotResources.create(listOf(clusterLoadAssignment), "")
+            SnapshotResources.create(listOf(clusterLoadAssignment), ""),
+            mapOf(),
+            SnapshotResources.create(listOf(), "")
     )
 
     @Test
@@ -168,8 +189,40 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("role-1")
-                )), roles = listOf(Role("role-1", setOf("client1", "client2")))
+                        setOf(ClientWithSelector("role-1"))
+                )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
+        )
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with duplicated clients`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedDuplicatedRole)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf(
+                                ClientWithSelector("client1"),
+                                ClientWithSelector("client1"),
+                                ClientWithSelector("client1", "selector"),
+                                ClientWithSelector("client1-duplicated", "selector"),
+                                ClientWithSelector("client1-duplicated"),
+                                ClientWithSelector("role-1")
+                        )
+                )), roles = listOf(Role("role-1", setOf(
+                        ClientWithSelector("client1-duplicated"),
+                        ClientWithSelector("client1-duplicated"),
+                        ClientWithSelector("client2"))
+                ))
         )
 
         // when
@@ -189,12 +242,12 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf("client1")
+                        setOf(ClientWithSelector("client1"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("POST"),
-                        setOf("client2")
+                        setOf(ClientWithSelector("client2"))
                 ))
         )
 
@@ -215,13 +268,13 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("role-1")
+                        setOf(ClientWithSelector("role-1"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client2", "client1")
-                )), roles = listOf(Role("role-1", setOf("client1", "client2")))
+                        setOf(ClientWithSelector("client2"), ClientWithSelector("client1"))
+                )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
         )
 
         // when
@@ -241,13 +294,13 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client2", "role-1")
+                        setOf(ClientWithSelector("client2"), ClientWithSelector("role-1"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("role-2", "client1")
-                )), roles = listOf(Role("role-1", setOf("client1")), Role("role-2", setOf("client2")))
+                        setOf(ClientWithSelector("role-2"), ClientWithSelector("client1"))
+                )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"))), Role("role-2", setOf(ClientWithSelector("client2"))))
         )
 
         // when
@@ -267,12 +320,12 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client1", "client2")
+                        setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client1", "client2")
+                        setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))
                 ))
         )
 
@@ -293,7 +346,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client1", "client2")
+                        setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))
                 ))
         )
 
@@ -314,7 +367,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf("client1", "client2")
+                        setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))
                 ))
         )
 
@@ -335,7 +388,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf(),
-                        setOf("client1", "client2")
+                        setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))
                 ))
         )
 
@@ -377,7 +430,7 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf("client1")
+                        setOf(ClientWithSelector("client1"))
                 ))
         )
 
@@ -398,12 +451,88 @@ internal class RBACFilterFactoryTest {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf("client1", "client2")
+                        setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))
                 ))
         )
 
         // when
         val generated = rbacFilterFactoryWithStaticRangeAndSourceIpAuth.createHttpFilter(
+                createGroup(incomingPermission),
+                snapshotForSourceIpAuth
+        )
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with source ip and selector authentication`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSourceIpWithSelectorAuthPermissionsJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET"),
+                        setOf(ClientWithSelector("client2", "selector"))
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithSourceIpWithSelectorAuth.createHttpFilter(
+                createGroup(incomingPermission),
+                snapshotForSourceIpAuth
+        )
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with source ip from discovery and selector authentication`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSourceIpFromDiscoveryWithSelectorAuthPermissionsJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET"),
+                        setOf(ClientWithSelector("client1", "selector"))
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithSourceIpWithSelectorAuth.createHttpFilter(
+                createGroup(incomingPermission),
+                snapshotForSourceIpAuth
+        )
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with source ip and selector authentication for roles`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSourceIpWithStaticRangeAndSelectorAuthPermissionsAndRolesJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example",
+                        PathMatchingType.PATH,
+                        setOf("GET"),
+                        setOf(ClientWithSelector("role1"))
+                )),
+                roles = listOf(Role("role1", setOf(
+                        ClientWithSelector("client1", "selector1"),
+                        ClientWithSelector("client2", "selector2"))
+                ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithSourceIpWithSelectorAuth.createHttpFilter(
                 createGroup(incomingPermission),
                 snapshotForSourceIpAuth
         )
@@ -459,6 +588,120 @@ internal class RBACFilterFactoryTest {
         }
     """
 
+    private val expectedSourceIpFromDiscoveryWithSelectorAuthPermissionsJson = """
+        {
+          "policies": {
+            "client1:selector": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                {
+                  "andIds": {
+                    "ids": [{
+                        "orIds": {
+                            "ids": [${principalSourceIp("127.0.0.1")}]
+                        }
+                    }, ${principalHeader("x-secret-header", "selector")}]
+                  }
+                }
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedSourceIpWithSelectorAuthPermissionsJson = """
+        {
+          "policies": {
+            "client2:selector": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                {
+                  "andIds": {
+                    "ids": [{
+                        "orIds": {
+                            "ids": [${principalSourceIp("192.168.1.0", 24)}, ${principalSourceIp("192.168.2.0", 28)}]
+                        }
+                    }, ${principalHeader("x-secret-header", "selector")}]
+                  }
+                }
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedSourceIpWithStaticRangeAndSelectorAuthPermissionsAndRolesJson = """
+        {
+          "policies": {
+            "client1:selector1,client2:selector2": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                {
+                  "andIds": {
+                    "ids": [{
+                        "orIds": {
+                            "ids": [${principalSourceIp("127.0.0.1")}]
+                        }
+                    }, ${principalHeader("x-secret-header", "selector1")}]
+                  }
+                },
+                {
+                  "andIds": {
+                    "ids": [{
+                        "orIds": {
+                            "ids": [${principalSourceIp("192.168.1.0", 24)}, ${principalSourceIp("192.168.2.0", 28)}]
+                        }
+                    }, ${principalHeader("x-secret-header", "selector2")}]
+                  }
+                }
+              ]
+            }
+          }
+        }
+    """
+
     private val expectedSourceIpAuthPermissionsJson = """
         {
           "policies": {
@@ -480,8 +723,8 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalSourceIp("127.0.0.1")},
-                ${principalHeader("x-service-name", "client2")}
+                { "orIds": { "ids": [${principalSourceIp("127.0.0.1")}] } },
+                ${principalHeader("x-service-name", ("client2"))}
               ]
             }
           }
@@ -509,8 +752,39 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client1")},
-                ${principalHeader("x-service-name", "client2")}
+                ${principalHeader("x-service-name", ("client1"))},
+                ${principalHeader("x-service-name", ("client2"))}
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedDuplicatedRole = """
+        {
+          "policies": {
+           """ /* notice that duplicated clients occurs only once here */ + """
+            "client1,client1-duplicated,client1-duplicated:selector,client1:selector,client2": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")},
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalHeader("x-service-name", ("client1"))},
+                ${principalHeader("x-service-name", ("client1-duplicated"))},
+                ${principalHeader("x-service-name", ("client2"))}
               ]
             }
           }
@@ -553,8 +827,8 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client1")},
-                ${principalHeader("x-service-name", "client2")}
+                ${principalHeader("x-service-name", ("client1"))},
+                ${principalHeader("x-service-name", ("client2"))}
               ]
             }
           }
@@ -574,8 +848,8 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client1")},
-                ${principalHeader("x-service-name", "client2")}
+                ${principalHeader("x-service-name", ("client1"))},
+                ${principalHeader("x-service-name", ("client2"))}
               ]
             }
           }
@@ -624,8 +898,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalSourceIp("192.168.1.0", 24)},
-                ${principalSourceIp("192.168.2.0", 28)}
+                { "orIds": { "ids": [${principalSourceIp("192.168.1.0", 24)}, ${principalSourceIp("192.168.2.0", 28)}] } }
               ]
             }
           }
@@ -652,9 +925,17 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalSourceIp("127.0.0.1")},
-                ${principalSourceIp("192.168.1.0", 24)},
-                ${principalSourceIp("192.168.2.0", 28)}
+                { "orIds": { 
+                  "ids": [
+                      ${principalSourceIp("127.0.0.1")}
+                   ]}
+                 }, { "orIds": { 
+                  "ids": [
+                      ${principalSourceIp("192.168.1.0", 24)},
+                      ${principalSourceIp("192.168.2.0", 28)}
+                    ]
+                  } 
+                }
               ]
             }
           }
@@ -701,11 +982,11 @@ internal class RBACFilterFactoryTest {
         """
     }
 
-    private fun principalHeader(header: String, principal: String): String {
+    private fun principalHeader(name: String, value: String): String {
         return """{
                     "header": {
-                      "name": "$header",
-                      "exact_match": "$principal"
+                      "name": "$name",
+                      "exact_match": "$value"
                     }
                 }"""
     }

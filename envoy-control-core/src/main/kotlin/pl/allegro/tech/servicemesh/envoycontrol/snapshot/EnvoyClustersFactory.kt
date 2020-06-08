@@ -9,6 +9,8 @@ import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.auth.CertificateValidationContext
 import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
+import io.envoyproxy.envoy.api.v2.auth.SdsSecretConfig
+import io.envoyproxy.envoy.api.v2.auth.TlsParameters
 import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
 import io.envoyproxy.envoy.api.v2.cluster.CircuitBreakers
 import io.envoyproxy.envoy.api.v2.cluster.OutlierDetection
@@ -27,6 +29,7 @@ import io.envoyproxy.envoy.api.v2.core.UpstreamHttpProtocolOptions
 import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
 import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
+import io.envoyproxy.envoy.type.matcher.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -43,6 +46,7 @@ internal class EnvoyClustersFactory(
 
     private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
+    private val tlsProperties = properties.incomingPermissions.tlsAuthentication
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,
@@ -51,15 +55,71 @@ internal class EnvoyClustersFactory(
         return services.map { edsCluster(it, communicationMode) }
     }
 
+    fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
+        return insecureClusters.map { cluster ->
+            val upstreamTlsContext = createTlsContextWithSdsSecretConfig(cluster.name)
+            val secureCluster = Cluster.newBuilder(cluster)
+            secureCluster.setTransportSocket(TransportSocket.newBuilder()
+                    .setName("envoy.transport_sockets.tls")
+                    .setTypedConfig(Any.pack(upstreamTlsContext)))
+                    .build()
+        }
+    }
+
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
         getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group)
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies()
-                .mapNotNull { globalSnapshot.clusters.resources().get(it.service) }
+                .mapNotNull {
+                    if (enableTlsForCluster(group, globalSnapshot, it.service)) {
+                        globalSnapshot.securedClusters.resources().get(it.service)
+                    } else {
+                        globalSnapshot.clusters.resources().get(it.service)
+                    }
+                }
             is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map { it.value }
         }
+    }
+
+    private fun enableTlsForCluster(group: Group, globalSnapshot: GlobalSnapshot, clusterName: String): Boolean {
+        val hasStaticSecretsDefined = group.listenersConfig?.hasStaticSecretsDefined ?: false
+        val mtlsEnabled = globalSnapshot.mtlsEnabledForCluster(clusterName)
+
+        return hasStaticSecretsDefined && mtlsEnabled
+    }
+
+    private val commonTlsParams = TlsParameters.newBuilder()
+            .setTlsMinimumProtocolVersion(tlsProperties.protocol.minimumVersion)
+            .setTlsMaximumProtocolVersion(tlsProperties.protocol.maximumVersion)
+            .addAllCipherSuites(tlsProperties.protocol.cipherSuites)
+            .build()
+
+    private val validationContextSecretConfig = SdsSecretConfig.newBuilder()
+            .setName(tlsProperties.validationContextSecretName).build()
+
+    private val tlsCertificateSecretConfig = SdsSecretConfig.newBuilder()
+            .setName(tlsProperties.tlsCertificateSecretName).build()
+
+    private fun createTlsContextWithSdsSecretConfig(serviceName: String): UpstreamTlsContext {
+        val sanMatch = TlsUtils.resolveSanUri(serviceName, tlsProperties.sanUriFormat)
+        return UpstreamTlsContext.newBuilder()
+                .setCommonTlsContext(CommonTlsContext.newBuilder()
+                        .setTlsParams(commonTlsParams)
+                        .setCombinedValidationContext(CommonTlsContext.CombinedCertificateValidationContext.newBuilder()
+                                .setDefaultValidationContext(CertificateValidationContext.newBuilder()
+                                        .addAllMatchSubjectAltNames(listOf(StringMatcher.newBuilder()
+                                                .setExact(sanMatch)
+                                                .build()
+                                        )).build())
+                                .setValidationContextSdsSecretConfig(validationContextSecretConfig)
+                                .build()
+                        )
+                        .addTlsCertificateSdsSecretConfigs(tlsCertificateSecretConfig)
+                        .build()
+                )
+                .build()
     }
 
     private fun getStrictDnsClustersForGroup(group: Group): List<Cluster> {
@@ -142,6 +202,7 @@ internal class EnvoyClustersFactory(
             configureOutlierDetection(clusterBuilder)
         }
 
+        // cluster name must be equal to service name because it is used in other places
         val cluster = clusterBuilder.setName(clusterConfiguration.serviceName)
             .setType(Cluster.DiscoveryType.EDS)
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))

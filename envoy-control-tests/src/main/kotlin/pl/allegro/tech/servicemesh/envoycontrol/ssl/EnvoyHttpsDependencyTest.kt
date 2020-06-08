@@ -41,7 +41,7 @@ abstract class EnvoyHttpsDependencyTest : EnvoyControlTestConfiguration() {
     companion object {
         @JvmStatic
         protected val properties = mapOf(
-            "envoy-control.envoy.snapshot.trustedCaFile" to "/usr/local/share/ca-certificates/root-ca.crt"
+            "envoy-control.envoy.snapshot.trustedCaFile" to "/app/root-ca.crt"
         )
         val httpsEchoContainer = HttpsEchoContainer()
 

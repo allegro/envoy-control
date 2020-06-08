@@ -31,8 +31,9 @@ object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.y
 object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_check.yaml")
 object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
 object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
-object Envoy1AuthConfig : EnvoyConfigFile("envoy/envoy1_auth_config.yaml")
-object Envoy2AuthConfig : EnvoyConfigFile("envoy/envoy2_auth_config.yaml")
+object Echo1EnvoyAuthConfig : EnvoyConfigFile("envoy/echo1_envoy_auth_config.yaml")
+object Echo2EnvoyAuthConfig : EnvoyConfigFile("envoy/echo2_envoy_auth_config.yaml")
+object Echo3EnvoyAuthConfig : EnvoyConfigFile("envoy/echo3_envoy_auth_config.yaml")
 object AdsWithDisabledEndpointPermissions : EnvoyConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
 object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
 object AdsWithNoDependencies : EnvoyConfigFile("envoy/config_ads_no_dependencies.yaml")
@@ -63,7 +64,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         var envoys: Int = 1
 
         // We use envoy version from master. This is 1.14.0-dev.
-        const val defaultEnvoyImage = "envoyproxy/envoy-alpine-dev:6c2137468c25d167dbbe4719b0ecaf343bfb4233"
+        const val defaultEnvoyImage = "envoyproxy/envoy-alpine-dev:5b1723ff54b1a51e104c514ee6363234aaa44366"
 
         @JvmStatic
         fun setup(
@@ -173,13 +174,12 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 .withStartupTimeout(Duration.ofSeconds(10))
         }
 
-        fun createEnvoyContainerWithEcho2San(): EnvoyContainer {
+        fun createEnvoyContainerWithEcho3San(): EnvoyContainer {
             return EnvoyContainer(
-                    Envoy1AuthConfig.filePath,
+                    Echo3EnvoyAuthConfig.filePath,
                     localServiceContainer.ipAddress(),
                     envoyControl1.grpcPort,
-                    image = defaultEnvoyImage,
-                    certificate = "testcontainers/ssl/fullchain_echo2.pem"
+                    image = defaultEnvoyImage
             ).withNetwork(network)
         }
 

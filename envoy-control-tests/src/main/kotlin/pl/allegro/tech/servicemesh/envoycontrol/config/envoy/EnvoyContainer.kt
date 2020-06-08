@@ -13,11 +13,13 @@ class EnvoyContainer(
     private val localServiceIp: String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
-    image: String,
-    certificate: String = "testcontainers/ssl/fullchain_echo.pem"
+    private val trustedCa: String = "/app/root-ca.crt",
+    private val certificateChain: String = "/app/fullchain_echo.pem",
+    private val privateKey: String = "/app/privkey.pem",
+    image: String
 ) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
-        .run("apk --no-cache add curl iproute2"), certificate = certificate
+        .run("apk --no-cache add curl iproute2")
 ) {
 
     companion object {
@@ -57,6 +59,9 @@ class EnvoyContainer(
             Integer.toString(envoyControl2XdsPort),
             CONFIG_DEST,
             localServiceIp,
+            trustedCa,
+            certificateChain,
+            privateKey,
             "-l", "debug"
         )
     }

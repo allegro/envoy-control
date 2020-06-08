@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
 
 import com.google.protobuf.Any
 import com.google.protobuf.UInt32Value
+import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.core.CidrRange
 import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
@@ -11,32 +12,49 @@ import io.envoyproxy.envoy.config.rbac.v2.Principal
 import io.envoyproxy.envoy.config.rbac.v2.RBAC
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterName
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsUtils
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 
 class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,
     statusRouteProperties: StatusRouteProperties
 ) {
+    private val incomingServicesSourceAuthentication = incomingPermissionsProperties
+            .sourceIpAuthentication
+            .ipFromServiceDiscovery
+            .enabledForIncomingServices
+
+    private val incomingServicesIpRangeAuthentication = incomingPermissionsProperties
+            .sourceIpAuthentication
+            .ipFromRange
+            .keys
+
+    init {
+        incomingPermissionsProperties.selectorMatching.forEach {
+            if (it.key !in incomingServicesIpRangeAuthentication && it.key !in incomingServicesSourceAuthentication) {
+                throw IllegalArgumentException("${it.key} is not defined in ip range or ip from discovery section.")
+            }
+        }
+    }
+
     companion object {
         private val logger by logger()
         private const val ANY_PRINCIPAL_NAME = "_ANY_"
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
-
-    private val incomingServicesSourceAuthentication = incomingPermissionsProperties
-            .sourceIpAuthentication
-            .ipFromServiceDiscovery
-            .enabledForIncomingServices
 
     private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
     private val staticIpRanges = createStaticIpRanges()
@@ -55,10 +73,11 @@ class RBACFilterFactory(
                 return@forEach
             }
 
-            val clients = resolveClients(incomingEndpoint, incomingPermissions.roles)
-            val principals = clients.flatMap { mapClientToPrincipals(it, snapshot) }
+            val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, incomingPermissions.roles)
+            val principals = clientsWithSelectors.flatMap { mapClientWithSelectorToPrincipals(it, snapshot) }.toSet()
+
             if (principals.isNotEmpty()) {
-                val policyName = clients.joinToString(",")
+                val policyName = clientsWithSelectors.joinToString(",") { it.compositeName() }
                 val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(policyName) {
                     Policy.newBuilder().addAllPrincipals(principals)
                 }
@@ -124,11 +143,15 @@ class RBACFilterFactory(
         return methodPermissions
     }
 
-    private fun resolveClients(incomingEndpoint: IncomingEndpoint, roles: List<Role>): List<String> {
+    private fun resolveClientsWithSelectors(
+        incomingEndpoint: IncomingEndpoint,
+        roles: List<Role>
+    ): Collection<ClientWithSelector> {
         val clients = incomingEndpoint.clients.flatMap { clientOrRole ->
-            roles.find { it.name == clientOrRole }?.clients ?: setOf(clientOrRole)
-        }
-        return clients.sorted()
+            roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
+        }.toSortedSet()
+        // sorted order ensures that we do not duplicate rules
+        return clients
     }
 
     private fun mapMethodToHeaderMatcher(method: String): Permission {
@@ -136,23 +159,65 @@ class RBACFilterFactory(
         return Permission.newBuilder().setHeader(methodMatch).build()
     }
 
-    private fun mapClientToPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        val staticRangesForClient = staticIpRanges[client]
+    private fun mapClientWithSelectorToPrincipals(
+        clientWithSelector: ClientWithSelector,
+        snapshot: GlobalSnapshot
+    ): List<Principal> {
+        val selectorMatching = getSelectorMatching(clientWithSelector, incomingPermissionsProperties)
+        val staticRangesForClient = staticIpRange(clientWithSelector, selectorMatching)
 
-        return if (client in incomingServicesSourceAuthentication) {
-            sourceIpPrincipals(client, snapshot)
+        return if (clientWithSelector.name in incomingServicesSourceAuthentication) {
+            ipFromDiscoveryPrincipals(clientWithSelector, selectorMatching, snapshot)
         } else if (staticRangesForClient != null) {
-            staticRangesForClient
+            listOf(staticRangesForClient)
+        } else if (snapshot.mtlsEnabledForCluster(clientWithSelector.name)) {
+            tlsPrincipals(incomingPermissionsProperties.tlsAuthentication, clientWithSelector.name)
         } else {
-            headerPrincipals(client)
+            headerPrincipals(clientWithSelector.name) // TODO(https://github.com/allegro/envoy-control/issues/122)
+            // remove when service name is passed from certificate
         }
     }
 
-    private fun createStaticIpRanges(): Map<ClusterName, List<Principal>> {
+    private fun getSelectorMatching(
+        client: ClientWithSelector,
+        incomingPermissionsProperties: IncomingPermissionsProperties
+    ): SelectorMatching? {
+        val matching = incomingPermissionsProperties.selectorMatching[client.name]
+        if (matching == null) {
+            logger.warn("No selector matching found for client ${client.name} in EC properties. " +
+                    "Source IP based authentication will not contain additional matching.")
+            return null
+        }
+
+        return matching
+    }
+
+    private fun staticIpRange(client: ClientWithSelector, selectorMatching: SelectorMatching?): Principal? {
+        val ranges = staticIpRanges[client.name]
+        return if (client.selector != null && selectorMatching != null && ranges != null) {
+            addAdditionalMatching(client.selector, selectorMatching, ranges)
+        } else {
+            ranges
+        }
+    }
+
+    private fun tlsPrincipals(tlsProperties: TlsAuthenticationProperties, client: String): List<Principal> {
+        val principalName = TlsUtils.resolveSanUri(client, tlsProperties.sanUriFormat)
+        return listOf(Principal.newBuilder().setAuthenticated(
+                Principal.Authenticated.newBuilder()
+                        .setPrincipalName(StringMatcher.newBuilder()
+                                .setExact(principalName)
+                                .build()
+                        )
+                ).build()
+        )
+    }
+
+    private fun createStaticIpRanges(): Map<Client, Principal> {
         val ranges = incomingPermissionsProperties.sourceIpAuthentication.ipFromRange
 
         return ranges.mapValues {
-            it.value.map { ipWithPrefix ->
+            val principals = it.value.map { ipWithPrefix ->
                 val (ip, prefixLength) = ipWithPrefix.split("/")
 
                 Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
@@ -160,26 +225,67 @@ class RBACFilterFactory(
                         .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
                         .build()
             }
+
+            Principal.newBuilder().setOrIds(Principal.Set.newBuilder().addAllIds(principals).build()).build()
         }
     }
 
-    private fun sourceIpPrincipals(client: String, snapshot: GlobalSnapshot): List<Principal> {
-        val clientEndpoints = snapshot.endpoints.resources().filterKeys { client == it }.values
-        return clientEndpoints.flatMap { clusterLoadAssignment ->
-            clusterLoadAssignment.endpointsList.flatMap { lbEndpoints ->
-                lbEndpoints.lbEndpointsList.map { lbEndpoint ->
-                    lbEndpoint.endpoint.address
-                }
+    private fun ipFromDiscoveryPrincipals(
+        client: ClientWithSelector,
+        selectorMatching: SelectorMatching?,
+        snapshot: GlobalSnapshot
+    ): List<Principal> {
+        val clusterLoadAssignment = snapshot.endpoints.resources()[client.name]
+        val sourceIpPrincipal = mapEndpointsToExactPrincipals(clusterLoadAssignment)
+
+        return if (sourceIpPrincipal == null) {
+            listOf()
+        } else if (client.selector != null && selectorMatching != null) {
+            listOf(addAdditionalMatching(client.selector, selectorMatching, sourceIpPrincipal))
+        } else {
+            listOf(sourceIpPrincipal)
+        }
+    }
+
+    private fun mapEndpointsToExactPrincipals(clusterLoadAssignment: ClusterLoadAssignment?): Principal? {
+        val principals = clusterLoadAssignment?.endpointsList?.flatMap { lbEndpoints ->
+            lbEndpoints.lbEndpointsList.map { lbEndpoint ->
+                lbEndpoint.endpoint.address
             }
-        }.map { address ->
-            Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
-                    .setAddressPrefix(address.socketAddress.address)
-                    .setPrefixLen(EXACT_IP_MASK).build())
+        }.orEmpty().map { address ->
+            Principal.newBuilder()
+                    .setSourceIp(CidrRange.newBuilder()
+                            .setAddressPrefix(address.socketAddress.address)
+                            .setPrefixLen(EXACT_IP_MASK).build())
                     .build()
         }
+
+        return if (principals.isNotEmpty()) {
+            Principal.newBuilder().setOrIds(Principal.Set.newBuilder().addAllIds(principals).build()).build()
+        } else {
+            null
+        }
     }
 
-    private fun headerPrincipals(client: String): List<Principal> {
+    private fun addAdditionalMatching(
+        selector: String,
+        selectorMatching: SelectorMatching,
+        sourceIpPrincipal: Principal
+    ): Principal {
+        return if (selectorMatching.header.isNotEmpty()) {
+            val additionalMatchingPrincipal = Principal.newBuilder()
+                    .setHeader(HeaderMatcher.newBuilder().setName(selectorMatching.header).setExactMatch(selector))
+                    .build()
+
+            Principal.newBuilder().setAndIds(Principal.Set.newBuilder().addAllIds(
+                    listOf(sourceIpPrincipal, additionalMatchingPrincipal)
+            ).build()).build()
+        } else {
+            sourceIpPrincipal
+        }
+    }
+
+    private fun headerPrincipals(client: Client): List<Principal> {
         val clientMatch = HeaderMatcher.newBuilder()
                 .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
 
