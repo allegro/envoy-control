@@ -69,13 +69,9 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
     }
 }
 
-fun Value?.toStatusCodeFilter(
-    accessLogFilterFactory: AccessLogFilterFactory
-): AccessLogFilterSettings.StatusCodeFilterSettings? {
-    return when (this?.stringValue) {
-        null -> null
-        else -> accessLogFilterFactory.parseStatusCodeFilter(stringValue.toUpperCase())
-    }
+fun Value?.toStatusCodeFilter(accessLogFilterFactory: AccessLogFilterFactory):
+        AccessLogFilterSettings.StatusCodeFilterSettings? = this?.stringValue?.let {
+    accessLogFilterFactory.parseStatusCodeFilter(it.toUpperCase())
 }
 
 private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {

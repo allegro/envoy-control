@@ -12,6 +12,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
 
+@Suppress("LargeClass")
 class NodeMetadataTest {
 
     companion object {
@@ -374,6 +375,22 @@ class NodeMetadataTest {
         }
         assertThat(exception.status.description)
             .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should throw exception for null value status code filter data`() {
+        // given
+        val proto = accessLogFilterProto(statusCodeFilter = null)
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
+                AccessLogFilterFactory()
+            )
+        }
+        assertThat(exception.status.description)
+                .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 }
