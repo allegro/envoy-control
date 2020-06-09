@@ -183,9 +183,9 @@ class RBACFilterFactory(
         incomingPermissionsProperties: IncomingPermissionsProperties
     ): SelectorMatching? {
         val matching = incomingPermissionsProperties.selectorMatching[client.name]
-        if (matching == null) {
-            logger.warn("No selector matching found for client ${client.name} in EC properties. " +
-                    "Source IP based authentication will not contain additional matching.")
+        if (matching == null && client.selector != null) {
+            logger.warn("No selector matching found for client '${client.name}' with selector '${client.selector}' " +
+                    "in EC properties. Source IP based authentication will not contain additional matching.")
             return null
         }
 
