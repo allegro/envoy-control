@@ -16,7 +16,7 @@ import java.util.function.Consumer
 /**
  * This class is needed to force snapshot creation in SnapshotUpdater when new group is added.
  * Otherwise when Envoy with new group is connected it won't receive the snapshot immediately.
- * In this situation, when there are no changes from ClusterStateChanges we won't send anything to Envoy.
+ * In this situation, when there are no changes from ZoneStateChanges we won't send anything to Envoy.
  * When Envoy doesn't receive any snapshot from Envoy Control, it is stuck in PRE_INITIALIZING state.
  */
 internal class GroupChangeWatcher(

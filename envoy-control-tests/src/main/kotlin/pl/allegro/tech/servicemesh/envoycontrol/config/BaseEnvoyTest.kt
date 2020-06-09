@@ -125,7 +125,7 @@ open class BaseEnvoyTest {
             )
         }
 
-        fun registerServiceInRemoteDc(name: String, target: EchoContainer = echoContainer): String {
+        fun registerServiceInRemoteZone(name: String, target: EchoContainer = echoContainer): String {
             return registerService(
                 id = UUID.randomUUID().toString(),
                 name = name,

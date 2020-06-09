@@ -1,18 +1,18 @@
 package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlProperties
-import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiZoneState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ZoneStateChanges
 import reactor.core.publisher.Flux
 
-class RemoteClusterStateChanges(
+class RemoteZoneStateChanges(
     val properties: EnvoyControlProperties,
     private val remoteServices: RemoteServices
-) : ClusterStateChanges {
-    override fun stream(): Flux<MultiClusterState> =
+) : ZoneStateChanges {
+    override fun stream(): Flux<MultiZoneState> =
         remoteServices
             .getChanges(properties.sync.pollingInterval)
-            .startWith(MultiClusterState.empty())
+            .startWith(MultiZoneState.empty())
             .distinctUntilChanged()
             .name("cross-dc-changes-distinct").metrics()
 }

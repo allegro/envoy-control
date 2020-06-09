@@ -19,19 +19,19 @@ import pl.allegro.tech.servicemesh.envoycontrol.DefaultEnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlProperties
 import pl.allegro.tech.servicemesh.envoycontrol.consul.ConsulProperties
-import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalClusterStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalZoneStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceMapper
-import pl.allegro.tech.servicemesh.envoycontrol.services.LocalClusterStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.LocalZoneStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
-import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.ZoneStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.EmptyAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMerger
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServiceInstancesFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
-import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalClusterStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalStateChanges
 import reactor.core.scheduler.Schedulers
 import java.net.URI
 
@@ -54,14 +54,14 @@ class ControlPlaneConfig {
     fun controlPlane(
         properties: EnvoyControlProperties,
         meterRegistry: MeterRegistry,
-        globalClusterStateChanges: GlobalClusterStateChanges,
+        globalStateChanges: GlobalStateChanges,
         metrics: EnvoyControlMetrics,
         envoyHttpFilters: EnvoyHttpFilters
     ): ControlPlane =
         ControlPlane.builder(properties, meterRegistry)
             .withMetrics(metrics)
             .withEnvoyHttpFilters(envoyHttpFilters)
-            .build(globalClusterStateChanges.combined())
+            .build(globalStateChanges.combined())
 
     @Bean
     @ConditionalOnMissingBean(ConsulServiceMapper::class)
@@ -81,11 +81,11 @@ class ControlPlaneConfig {
     ) = ConsulServiceChanges(watcher, serviceMapper, metrics, objectMapper, consulProperties.subscriptionDelay)
 
     @Bean
-    fun localClusterStateChanges(
+    fun localZoneStateChanges(
         consulServiceChanges: ConsulServiceChanges,
         consulProperties: ConsulProperties,
         transformers: List<ServiceInstancesTransformer>
-    ): LocalClusterStateChanges = ConsulLocalClusterStateChanges(
+    ): LocalZoneStateChanges = ConsulLocalZoneStateChanges(
         consulServiceChanges,
         Locality.LOCAL,
         localDatacenter(consulProperties),
@@ -120,12 +120,12 @@ class ControlPlaneConfig {
         RegexServiceInstancesFilter(properties.serviceFilters.excludedNamesPatterns)
 
     @Bean
-    fun globalClusterStateChanges(
-        clusterStateChanges: Array<ClusterStateChanges>,
+    fun globalStateChanges(
+        zoneStateChanges: Array<ZoneStateChanges>,
         meterRegistry: MeterRegistry,
         properties: EnvoyControlProperties
-    ): GlobalClusterStateChanges =
-        GlobalClusterStateChanges(clusterStateChanges, meterRegistry, properties.sync)
+    ): GlobalStateChanges =
+        GlobalStateChanges(zoneStateChanges, meterRegistry, properties.sync)
 
     @Bean
     fun envoyHttpFilters(

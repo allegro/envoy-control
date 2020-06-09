@@ -15,7 +15,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.consul.synchronization.SimpleCon
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.AsyncControlPlaneClient
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.AsyncRestTemplateControlPlaneClient
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.ControlPlaneInstanceFetcher
-import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RemoteClusterStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RemoteZoneStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RemoteServices
 
 @Configuration
@@ -37,18 +37,18 @@ class SynchronizationConfig {
         AsyncRestTemplateControlPlaneClient(asyncRestTemplate, meterRegistry)
 
     @Bean
-    fun remoteClusterStateChanges(
+    fun remoteZoneStateChanges(
         controlPlaneClient: AsyncControlPlaneClient,
         meterRegistry: MeterRegistry,
         controlPlaneInstanceFetcher: ControlPlaneInstanceFetcher,
         consulDatacenterReader: ConsulDatacenterReader,
         properties: EnvoyControlProperties
-    ): RemoteClusterStateChanges {
+    ): RemoteZoneStateChanges {
 
-        val remoteClusters = consulDatacenterReader.knownDatacenters() - consulDatacenterReader.localDatacenter()
-        val service = RemoteServices(controlPlaneClient, meterRegistry, controlPlaneInstanceFetcher, remoteClusters)
+        val remoteZones = consulDatacenterReader.knownDatacenters() - consulDatacenterReader.localDatacenter()
+        val service = RemoteServices(controlPlaneClient, meterRegistry, controlPlaneInstanceFetcher, remoteZones)
 
-        return RemoteClusterStateChanges(properties, service)
+        return RemoteZoneStateChanges(properties, service)
     }
 
     @Bean

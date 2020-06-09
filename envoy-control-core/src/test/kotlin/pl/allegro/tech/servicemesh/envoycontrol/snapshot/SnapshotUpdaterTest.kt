@@ -26,9 +26,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
-import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ZoneState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiZoneState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiZoneState.Companion.toMultiZoneState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
@@ -65,7 +65,7 @@ class SnapshotUpdaterTest {
 
     val simpleMeterRegistry = SimpleMeterRegistry()
 
-    val clusterWithEnvoyInstances = ClusterState(
+    val zoneWithEnvoyInstances = ZoneState(
         ServicesState(
             serviceNameToInstances = mapOf(
                 "service" to ServiceInstances("service", setOf(ServiceInstance(
@@ -77,7 +77,7 @@ class SnapshotUpdaterTest {
             )
         ),
         Locality.LOCAL, "zone"
-    ).toMultiClusterState()
+    ).toMultiZoneState()
 
     @Test
     fun `should generate group snapshots`() {
@@ -157,7 +157,7 @@ class SnapshotUpdaterTest {
 
         // when
         updater.start(
-            Flux.just(MultiClusterState.empty())
+            Flux.just(MultiZoneState.empty())
         ).blockFirst()
 
         // should not generate snapshot
@@ -176,7 +176,7 @@ class SnapshotUpdaterTest {
 
         // when
         updater.start(
-            Flux.just(MultiClusterState.empty())
+            Flux.just(MultiZoneState.empty())
         ).blockFirst()
 
         // then version is set to empty
@@ -206,7 +206,7 @@ class SnapshotUpdaterTest {
 
         // when
         updater.start(
-                Flux.just(MultiClusterState.empty())
+                Flux.just(MultiZoneState.empty())
         ).blockFirst()
 
         // then
@@ -227,20 +227,20 @@ class SnapshotUpdaterTest {
             }
         )
 
-        val clusterWithNoInstances = ClusterState(
+        val clusterWithNoInstances = ZoneState(
             ServicesState(
                 serviceNameToInstances = mapOf(
                     "service" to ServiceInstances("service", setOf())
                 )
             ),
             Locality.LOCAL, "zone"
-        ).toMultiClusterState()
+        ).toMultiZoneState()
 
         // when
         val results = updater
             .services(Flux
                 .just(
-                    clusterWithEnvoyInstances,
+                    zoneWithEnvoyInstances,
                     clusterWithNoInstances)
                 .delayElements(Duration.ofMillis(10))
             )
@@ -265,16 +265,16 @@ class SnapshotUpdaterTest {
             }
         )
 
-        val stateWithNoServices = ClusterState(
+        val stateWithNoServices = ZoneState(
             ServicesState(serviceNameToInstances = mapOf()),
             Locality.LOCAL, "zone"
-        ).toMultiClusterState()
+        ).toMultiZoneState()
 
         // when
         val results = updater
             .services(Flux
                 .just(
-                    clusterWithEnvoyInstances,
+                    zoneWithEnvoyInstances,
                     stateWithNoServices
                 ).delayElements(Duration.ofMillis(10))
             )
@@ -374,13 +374,13 @@ class SnapshotUpdaterTest {
     }
 
     private fun fluxOfServices(vararg services: String) = Flux.just(
-        ClusterState(
+        ZoneState(
             ServicesState(
                 serviceNameToInstances = services.map { it to ServiceInstances(it, emptySet()) }.toMap()
 
             ),
             Locality.LOCAL, "zone"
-        ).toMultiClusterState()
+        ).toMultiZoneState()
     )
 
     class FailingMockCache : MockCache() {

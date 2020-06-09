@@ -7,7 +7,7 @@ how to connect to a cluster.
 
 ## Scalability
 
-Envoy Control is a stateless application, which means that there can be as many instances running in the same cluster as needed.
+Envoy Control is a stateless application, which means that there can be as many instances running in the same zone as needed.
 
 ## Envoy Configuration
 

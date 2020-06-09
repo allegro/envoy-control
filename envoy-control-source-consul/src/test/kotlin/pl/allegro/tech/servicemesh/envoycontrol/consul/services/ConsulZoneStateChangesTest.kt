@@ -15,7 +15,7 @@ import java.net.URI
 import java.util.UUID
 import java.util.concurrent.Executors
 
-class ConsulClusterStateChangesTest {
+class ConsulZoneStateChangesTest {
 
     companion object {
         private val consulHttpPort = Ports.nextAvailable()
