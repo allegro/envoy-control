@@ -22,6 +22,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
@@ -79,8 +80,11 @@ class ControlPlane private constructor(
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 
+        val accessLogFilterFactory = AccessLogFilterFactory()
+
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
-            properties = properties.envoy.snapshot
+            properties = properties.envoy.snapshot,
+            accessLogFilterFactory = accessLogFilterFactory
         )
 
         fun build(changes: Flux<MultiClusterState>): ControlPlane {

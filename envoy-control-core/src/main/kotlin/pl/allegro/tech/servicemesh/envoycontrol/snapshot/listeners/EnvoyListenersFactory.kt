@@ -10,6 +10,7 @@ import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
 import io.envoyproxy.envoy.api.v2.auth.DownstreamTlsContext
 import io.envoyproxy.envoy.api.v2.auth.SdsSecretConfig
 import io.envoyproxy.envoy.api.v2.auth.TlsParameters
+import io.envoyproxy.envoy.api.v2.core.RuntimeUInt32
 import io.envoyproxy.envoy.api.v2.core.Address
 import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
 import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
@@ -24,17 +25,21 @@ import io.envoyproxy.envoy.api.v2.listener.FilterChain
 import io.envoyproxy.envoy.api.v2.listener.FilterChainMatch
 import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
 import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
+import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLogFilter
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
+import io.envoyproxy.envoy.config.filter.accesslog.v2.StatusCodeFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
+import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import com.google.protobuf.Any as ProtobufAny
 
 typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFilter?
@@ -228,7 +233,9 @@ class EnvoyListenersFactory(
         listenersConfig: ListenersConfig
     ): Filter {
         if (listenersConfig.accessLogEnabled) {
-            connectionManagerBuilder.addAccessLog(accessLog(listenersConfig.accessLogPath, accessLogType))
+            connectionManagerBuilder.addAccessLog(
+                accessLog(listenersConfig.accessLogPath, accessLogType, listenersConfig.accessLogFilterSettings)
+            )
         }
 
         return Filter.newBuilder()
@@ -313,10 +320,40 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    private fun accessLog(accessLogPath: String, accessLogType: String): AccessLog {
-        return AccessLog.newBuilder()
-                .setName("envoy.file_access_log")
-                .setTypedConfig(
+    fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings.StatusCodeFilterSettings) {
+        this.setFilter(
+                AccessLogFilter.newBuilder().setStatusCodeFilter(
+                        StatusCodeFilter.newBuilder()
+                                .setComparison(
+                                        ComparisonFilter.newBuilder()
+                                                .setOp(settings.comparisonOperator)
+                                                .setValue(
+                                                        RuntimeUInt32.newBuilder()
+                                                                .setDefaultValue(settings.comparisonCode)
+                                                                .setRuntimeKey("access_log_filter_http_code")
+                                                                .build()
+                                                )
+                                                .build()
+                                )
+                                .build()
+                )
+        )
+    }
+
+    private fun accessLog(
+        accessLogPath: String,
+        accessLogType: String,
+        accessLogFilterSettings: AccessLogFilterSettings?
+    ): AccessLog {
+        val builder = AccessLog.newBuilder().setName("envoy.file_access_log")
+
+        accessLogFilterSettings?.let { settings ->
+            settings.statusCodeFilterSettings?.let {
+                builder.buildFromSettings(it)
+            }
+        }
+
+        return builder.setTypedConfig(
                         ProtobufAny.pack(
                                 FileAccessLog.newBuilder()
                                         .setPath(accessLogPath)

@@ -4,10 +4,15 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.envoy.api.v2.core.Node
+
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
 
-class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
+class MetadataNodeGroup(
+    val properties: SnapshotProperties,
+    val accessLogFilterFactory: AccessLogFilterFactory
+) : NodeGroup<Group> {
     private val logger by logger()
 
     override fun hash(node: Node): Group = createGroup(node)
@@ -69,6 +74,9 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
         val ingressPortValue = metadata.fieldsMap["ingress_port"]
         val egressHostValue = metadata.fieldsMap["egress_host"]
         val egressPortValue = metadata.fieldsMap["egress_port"]
+        val accessLogFilterSettings = AccessLogFilterSettings(
+            metadata.fieldsMap["access_log_filter"], accessLogFilterFactory
+        )
 
         val listenersHostPort = metadataToListenersHostPort(
                 id,
@@ -108,6 +116,7 @@ class MetadataNodeGroup(val properties: SnapshotProperties) : NodeGroup<Group> {
                 accessLogPath,
                 resourcesDir,
                 addUpstreamExternalAddressHeader,
+                accessLogFilterSettings,
                 hasStaticSecretsDefined
         )
     }

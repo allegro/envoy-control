@@ -62,6 +62,13 @@ fun ProxySettings.with(serviceDependencies: Set<ServiceDependency> = emptySet(),
     )
 )
 
+fun accessLogFilterProto(statusCodeFilter: String? = null): Value = struct {
+    when {
+        statusCodeFilter != null -> putFields("status_code_filter", string(statusCodeFilter))
+        else -> putFields("status_code_filter", nullValue)
+    }
+}
+
 fun proxySettingsProto(
     incomingSettings: Boolean,
     path: String? = null,

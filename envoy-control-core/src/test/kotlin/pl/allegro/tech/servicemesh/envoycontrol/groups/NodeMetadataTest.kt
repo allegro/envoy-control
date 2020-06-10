@@ -2,12 +2,38 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
+import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
 
+@Suppress("LargeClass")
 class NodeMetadataTest {
+
+    companion object {
+        @JvmStatic
+        fun validStatusCodeFilterData() = listOf(
+            Arguments.of("Le:123", ComparisonFilter.Op.LE, 123),
+            Arguments.of("EQ:400", ComparisonFilter.Op.EQ, 400),
+            Arguments.of("gE:324", ComparisonFilter.Op.GE, 324),
+            Arguments.of("LE:200", ComparisonFilter.Op.LE, 200)
+        )
+
+        @JvmStatic
+        fun invalidStatusCodeFilterData() = listOf(
+                Arguments.of("LT:123"),
+                Arguments.of("equal:400"),
+                Arguments.of("eq:24"),
+                Arguments.of("GT:200"),
+                Arguments.of("testeq:400test"),
+                Arguments.of("")
+        )
+    }
 
     @Test
     fun `should reject endpoint with both path and pathPrefix defined`() {
@@ -317,5 +343,54 @@ class NodeMetadataTest {
 
         // then
         assertThat(duration).isNull()
+    }
+
+    @ParameterizedTest
+    @MethodSource("validStatusCodeFilterData")
+    fun `should set statusCodeFilter for accessLogFilter`(input: String, op: ComparisonFilter.Op, code: Int) {
+        // given
+        val proto = accessLogFilterProto(statusCodeFilter = input)
+
+        // when
+        val statusCodeFilterSettings = proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
+                AccessLogFilterFactory()
+        )
+
+        // expects
+        assertThat(statusCodeFilterSettings?.comparisonCode).isEqualTo(code)
+        assertThat(statusCodeFilterSettings?.comparisonOperator).isEqualTo(op)
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidStatusCodeFilterData")
+    fun `should throw exception for invalid status code filter data`(input: String) {
+        // given
+        val proto = accessLogFilterProto(statusCodeFilter = input)
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
+                AccessLogFilterFactory()
+            )
+        }
+        assertThat(exception.status.description)
+            .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should throw exception for null value status code filter data`() {
+        // given
+        val proto = accessLogFilterProto(statusCodeFilter = null)
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
+                AccessLogFilterFactory()
+            )
+        }
+        assertThat(exception.status.description)
+                .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 }
