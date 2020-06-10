@@ -67,6 +67,12 @@ class IncomingPermissionsProperties {
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
     var selectorMatching: MutableMap<Client, SelectorMatching> = mutableMapOf()
     var tlsAuthentication = TlsAuthenticationProperties()
+    var aliases = listOf<IncomingPermissionsAlias>()
+}
+
+class IncomingPermissionsAlias {
+    var name = ""
+    var aliases = setOf<String>()
 }
 
 class SelectorMatching {

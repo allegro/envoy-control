@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsAlias
 
 internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
 
@@ -13,6 +14,10 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
 
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.incoming-permissions.aliases" to listOf(IncomingPermissionsAlias().also {
+                it.name = "authorizedClient"
+                it.aliases = setOf("authorizedClientAlias")
+            }),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
             "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
@@ -48,6 +53,21 @@ internal class IncomingPermissionsTest : EnvoyControlTestConfiguration() {
             // when
             val response = callLocalService(endpoint = "/endpoint?a=b",
                 headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
+
+            // then
+            assertThat(response).isOk().isFrom(localServiceContainer)
+        }
+    }
+
+    @Test
+    fun `should allow aliasing client names client`() {
+        // given
+        // alias defined in properties and used in node metadata
+
+        untilAsserted {
+            // when
+            val response = callLocalService(endpoint = "/endpoint-aliased?a=b",
+                    headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
 
             // then
             assertThat(response).isOk().isFrom(localServiceContainer)

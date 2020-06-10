@@ -7,6 +7,7 @@ import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import io.grpc.Status
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsAlias
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
 import java.net.URL
@@ -43,7 +44,7 @@ data class ProxySettings(
     val outgoing: Outgoing = Outgoing()
 ) {
     constructor(proto: Value?, properties: SnapshotProperties) : this(
-        incoming = proto?.field("incoming").toIncoming(),
+        incoming = proto?.field("incoming").toIncoming(properties.incomingPermissions.aliases),
         outgoing = proto?.field("outgoing").toOutgoing(properties)
     )
 
@@ -108,10 +109,10 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
     }
 }
 
-fun Value?.toIncoming(): Incoming {
+fun Value?.toIncoming(aliases: List<IncomingPermissionsAlias> = listOf()): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     return Incoming(
-        endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
+        endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint(aliases) },
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
         healthCheck = this?.field("healthCheck").toHealthCheck(),
@@ -130,7 +131,7 @@ fun Value?.toHealthCheck(): HealthCheck {
     }
 }
 
-fun Value.toIncomingEndpoint(): IncomingEndpoint {
+fun Value.toIncomingEndpoint(aliases: List<IncomingPermissionsAlias> = listOf()): IncomingEndpoint {
     val pathPrefix = this.field("pathPrefix")?.stringValue
     val path = this.field("path")?.stringValue
 
@@ -139,7 +140,11 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     }
 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
-    val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
+    val clients = this.field("clients")?.list().orEmpty().map {
+        val clientWithSelector = decomposeClient(it.stringValue)
+        val aliasedName = aliases.find { it.aliases.contains(clientWithSelector.name) }?.name ?: clientWithSelector.name
+        ClientWithSelector(aliasedName, clientWithSelector.selector)
+    }.toSet()
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients)

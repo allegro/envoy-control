@@ -29,6 +29,8 @@ node:
         endpoints:
           - path: "/endpoint"
             clients: ["authorizedClient"]
+          - path: "/endpoint-aliased"
+            clients: ["authorizedClientAlias"]
           - path: "/secured_endpoint"
             clients: ["echo"]
       outgoing:

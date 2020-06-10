@@ -139,7 +139,8 @@ fun outgoingTimeoutPolicy(idleTimeout: String? = null, requestTimeout: String? =
 fun incomingEndpointProto(
     path: String? = null,
     pathPrefix: String? = null,
-    includeNullFields: Boolean = false
+    includeNullFields: Boolean = false,
+    client: String = "client1"
 ): Value = struct {
     when {
         path != null -> string(path)
@@ -157,7 +158,7 @@ fun incomingEndpointProto(
         putFields("pathPrefix", it)
     }
 
-    putFields("clients", list { addValues(string("client1")) })
+    putFields("clients", list { addValues(string(client)) })
 }
 
 fun struct(fields: Struct.Builder.() -> Unit): Value {

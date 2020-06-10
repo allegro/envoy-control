@@ -10,6 +10,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsAlias
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
 
 @Suppress("LargeClass")
@@ -392,5 +393,19 @@ class NodeMetadataTest {
         assertThat(exception.status.description)
                 .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should allow aliasing incoming permissions clients`() {
+        // given
+        val proto = incomingEndpointProto(path = "/path", client = "client1Alias")
+
+        val result = proto.toIncomingEndpoint(listOf(IncomingPermissionsAlias().also {
+            it.name = "client1"
+            it.aliases = setOf("client1Alias")
+        }))
+
+        // expects
+        assertThat(result.clients).isEqualTo(setOf(ClientWithSelector("client1")))
     }
 }
