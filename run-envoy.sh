@@ -19,6 +19,6 @@ echo "Launching Envoy-control with $START_ARGUMENTS"
 ls /var/tmp/ &
 ls /var/tmp/envoy-control-runner &
 ls /var/tmp/envoy-control-runner/bin/ &
-/var/tmp/envoy-control-runner/bin/envoy-control-runner $START_ARGUMENTS &
+/bin/envoy-control/envoy-control-runner/bin/envoy-control-runner $START_ARGUMENTS &
 
 consul agent -server -ui -ui-content-path "/consul/ui" -dev -client 0.0.0.0
