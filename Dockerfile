@@ -89,5 +89,4 @@ RUN mv /tmp/envoy-control-runner*/* /var/tmp/envoy-control-runner
 # XDS_PORT: 50000
 
 COPY run-envoy.sh /run-envoy.sh
-ENTRYPOINT ["sh"]
-CMD ["/run-envoy.sh"]
+CMD ["sh", "/run-envoy.sh"]
