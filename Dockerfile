@@ -88,7 +88,5 @@ COPY --from=build /home/gradle/src/envoy-control-runner/build/distributions/envo
 RUN mkdir /var/tmp/envoy-control-runner
 RUN tar -xvf /var/tmp/envoy-control-runner*.tar -C /tmp/
 RUN mv /tmp/envoy-control-runner*/* /var/tmp/envoy-control-runner
-RUN mkdir /var/tmp/config
-VOLUME /var/tmp/config
 # APP_PORT: 8080
 # XDS_PORT: 50000
