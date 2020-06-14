@@ -81,8 +81,9 @@ COPY envoy-front-proxy.yaml /etc/envoy-front-proxy.yaml
 COPY --from=consul /bin/consul /bin/consul
 
 RUN apk --no-cache add openjdk11 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
-RUN mkdir /tmp/envoy-control-dist /tmp/envoy-control /bin/envoy-control
+RUN mkdir /tmp/envoy-control-dist /tmp/envoy-control /bin/envoy-control /etc/envoy-control
 COPY --from=build /home/gradle/src/envoy-control-runner/build/distributions/ /tmp/envoy-control-dist
+COPY ./envoy-control-runner/src/main/resources/application.yaml /etc/envoy-control/
 RUN tar -xvf /tmp/envoy-control-dist/envoy-control-runner*.tar -C /tmp/envoy-control
 RUN mv /tmp/envoy-control/envoy-control-runner*/ /bin/envoy-control/envoy-control-runner
 # APP_PORT: 8080

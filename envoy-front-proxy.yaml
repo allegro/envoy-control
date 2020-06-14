@@ -30,6 +30,18 @@ static_resources:
                 socket_address:
                   address: 127.0.0.1
                   port_value: 10010
+    - name: ec1
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: ec1
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 8080
     - name: consul1
       type: STATIC
       connect_timeout: 1s
@@ -62,6 +74,10 @@ static_resources:
             - name: local_service
               domains: ["*"]
               routes:
+              - match: { prefix: "/ec1/"}
+                route:
+                  cluster: ec1
+                  prefix_rewrite: "/"
               - match: { prefix: "/envoy1/"}
                 route:
                   cluster: envoy1

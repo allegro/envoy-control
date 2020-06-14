@@ -8,7 +8,7 @@ sed -i "s/{{.IngressListenerPort}}/${PORT:-10000}/g" /etc/envoy-front-proxy.yaml
 
 # start EC
 START_ARGUMENTS=""
-CONFIG_FILE=/var/tmp/config/application.yaml
+CONFIG_FILE=/etc/envoy-control/application.yaml
 if [ -f "$CONFIG_FILE" ]; then
     START_ARGUMENTS="--spring.config.location=file:$CONFIG_FILE "
 fi
