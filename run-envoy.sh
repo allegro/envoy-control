@@ -21,4 +21,17 @@ ls /var/tmp/envoy-control-runner &
 ls /var/tmp/envoy-control-runner/bin/ &
 /bin/envoy-control/envoy-control-runner/bin/envoy-control-runner $START_ARGUMENTS &
 
+sh -c 'sleep 10; curl -X PUT --data "{
+  "ID": "echo1",
+  "Name": "echo1",
+  "Tags": [ "primary" ],
+  "Address": "127.0.0.1",
+  "Port": 10010,
+  "Check": {
+    "DeregisterCriticalServiceAfter": "90m",
+    "http": "http://127.0.0.1:10010",
+    "Interval": "10s"
+  }
+}" -s localhost:8500/v1/agent/service/register' &
+
 consul agent -server -ui -ui-content-path "/consul/ui" -dev -client 0.0.0.0

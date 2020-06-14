@@ -30,6 +30,7 @@ node:
       outgoing:
         dependencies:
           - service: "consul"
+          - service: "echo1"
 static_resources:
   listeners:
   - name: ingress_direct_response
