@@ -84,6 +84,7 @@ RUN apk --no-cache add openjdk11 curl --repository=http://dl-cdn.alpinelinux.org
 RUN mkdir /tmp/envoy-control-dist /tmp/envoy-control /bin/envoy-control /etc/envoy-control
 COPY --from=build /home/gradle/src/envoy-control-runner/build/distributions/ /tmp/envoy-control-dist
 COPY ./envoy-control-runner/src/main/resources/application.yaml /etc/envoy-control/
+COPY ./register-echo1.json /etc/envoy-control/
 RUN tar -xvf /tmp/envoy-control-dist/envoy-control-runner*.tar -C /tmp/envoy-control
 RUN mv /tmp/envoy-control/envoy-control-runner*/ /bin/envoy-control/envoy-control-runner
 # APP_PORT: 8080
