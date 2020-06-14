@@ -90,11 +90,11 @@ static_resources:
                 route:
                   cluster: ec1
                   prefix_rewrite: "/"
-              - match: { prefix: "/envoy1/ingress"}
+              - match: { prefix: "/envoy1/ingress/"}
                 route:
                   cluster: envoy1
                   prefix_rewrite: "/"
-              - match: { prefix: "/envoy1/direct"}
+              - match: { prefix: "/envoy1/direct/"}
                 route:
                   cluster: envoy1-direct
                   prefix_rewrite: "/"

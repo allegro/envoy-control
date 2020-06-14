@@ -51,6 +51,10 @@ static_resources:
             - name: local_service
               domains: ["*"]
               routes:
+              - match: { prefix: "/status/envoy/"}
+                route:
+                  cluster: this_admin
+                  prefix_rewrite: "/"
               - match: { path: "/" }
                 direct_response:
                   status: 200
