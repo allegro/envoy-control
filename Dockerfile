@@ -6,11 +6,6 @@ ENV CONSUL_VERSION=1.7.4
 # This is the location of the releases.
 ENV HASHICORP_RELEASES=https://releases.hashicorp.com
 
-# Create a consul user and group first so the IDs get set the same way, even as
-# the rest of this may change over time.
-RUN addgroup consul && \
-    adduser -S -G consul consul
-
 # Set up certificates, base tools, and Consul.
 # libc6-compat is needed to symlink the shared libraries for ARM builds
 RUN set -eux && \
@@ -71,11 +66,15 @@ EXPOSE 8500 8600 8600/udp
 # process to reap any zombie processes created by Consul sub-processes.
 
 FROM gradle:5.6.2-jdk11 AS build
-COPY --chown=gradle:gradle . /home/gradle/src
+COPY --chown=gradle:gradle settings.gradle build.gradle /home/gradle/src/
+COPY --chown=gradle:gradle envoy-control-core/ /home/gradle/src/envoy-control-core/
+COPY --chown=gradle:gradle envoy-control-runner/ /home/gradle/src/envoy-control-runner/
+COPY --chown=gradle:gradle envoy-control-services/ /home/gradle/src/envoy-control-services/
+COPY --chown=gradle:gradle envoy-control-source-consul/ /home/gradle/src/envoy-control-source-consul/
 WORKDIR /home/gradle/src
-RUN gradle :envoy-control-runner:assemble --no-daemon
+RUN gradle :envoy-control-runner:assemble --parallel --no-daemon
 
-FROM envoyproxy/envoy-alpine-dev:6c2137468c25d167dbbe4719b0ecaf343bfb4233
+FROM envoyproxy/envoy-alpine-dev:6c2137468c25d167dbbe4719b0ecaf343bfb4233 as envoy
 COPY envoy.yaml /etc/envoy.yaml
 COPY envoy-front-proxy.yaml /etc/envoy-front-proxy.yaml
 COPY --from=consul /bin/consul /bin/consul
@@ -85,7 +84,7 @@ RUN mkdir /tmp/envoy-control-dist /tmp/envoy-control /bin/envoy-control /etc/env
 COPY --from=build /home/gradle/src/envoy-control-runner/build/distributions/ /tmp/envoy-control-dist
 COPY ./envoy-control-runner/src/main/resources/application.yaml /etc/envoy-control/
 COPY ./register-echo1.json /etc/envoy-control/
-RUN tar -xvf /tmp/envoy-control-dist/envoy-control-runner*.tar -C /tmp/envoy-control
+RUN tar -xf /tmp/envoy-control-dist/envoy-control-runner*.tar -C /tmp/envoy-control
 RUN mv /tmp/envoy-control/envoy-control-runner*/ /bin/envoy-control/envoy-control-runner
 # APP_PORT: 8080
 # XDS_PORT: 50000
