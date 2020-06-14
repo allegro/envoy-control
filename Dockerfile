@@ -75,19 +75,19 @@ WORKDIR /home/gradle/src
 RUN gradle :envoy-control-runner:assemble --parallel --no-daemon
 
 FROM envoyproxy/envoy-alpine-dev:6c2137468c25d167dbbe4719b0ecaf343bfb4233 as envoy
-COPY envoy.yaml /etc/envoy.yaml
-COPY envoy-front-proxy.yaml /etc/envoy-front-proxy.yaml
+COPY heroku/envoy.yaml /etc/envoy.yaml
+COPY heroku/envoy-front-proxy.yaml /etc/envoy-front-proxy.yaml
 COPY --from=consul /bin/consul /bin/consul
 
 RUN apk --no-cache add openjdk11 curl --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 RUN mkdir /tmp/envoy-control-dist /tmp/envoy-control /bin/envoy-control /etc/envoy-control
 COPY --from=build /home/gradle/src/envoy-control-runner/build/distributions/ /tmp/envoy-control-dist
 COPY ./envoy-control-runner/src/main/resources/application.yaml /etc/envoy-control/
-COPY ./register-echo1.json /etc/envoy-control/
+COPY heroku/register-echo1.json /etc/envoy-control/
 RUN tar -xf /tmp/envoy-control-dist/envoy-control-runner*.tar -C /tmp/envoy-control
 RUN mv /tmp/envoy-control/envoy-control-runner*/ /bin/envoy-control/envoy-control-runner
 # APP_PORT: 8080
 # XDS_PORT: 50000
 
-COPY run-envoy.sh /run-envoy.sh
+COPY heroku/run-envoy.sh /run-envoy.sh
 CMD ["sh", "/run-envoy.sh"]
