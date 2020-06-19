@@ -1,0 +1,7 @@
+setup:
+  addons:
+    - plan: 'papertrail:choklad'
+      as: PAPERTRAIL
+build:
+  docker:
+    web: Dockerfile

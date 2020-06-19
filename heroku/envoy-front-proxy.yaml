@@ -1,0 +1,135 @@
+admin:
+  access_log_path: /dev/stdout
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 10001
+static_resources:
+  clusters:
+    - name: this_admin
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: this_admin
+        endpoints:
+        - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: 127.0.0.1
+                  port_value: 10001
+    - name: envoy1
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: envoy1
+        endpoints:
+        - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: 127.0.0.1
+                  port_value: 10010
+    - name: envoy1-egress
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: envoy1-egress
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 10011
+    - name: envoy1-direct
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: envoy1-direct
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 10013
+    - name: ec1
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: ec1
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 8080
+    - name: consul1
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: consul1
+        endpoints:
+        - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: 127.0.0.1
+                  port_value: 8500
+  listeners:
+  - name: ingress
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: {{.IngressListenerPort}}
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
+          use_remote_address: true
+          stat_prefix: ingress_http
+          codec_type: AUTO
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: local_service
+              domains: ["*"]
+              routes:
+              - match: { prefix: "/ec1/"}
+                route:
+                  cluster: ec1
+                  prefix_rewrite: "/"
+              - match: { prefix: "/envoy1/ingress/"}
+                route:
+                  cluster: envoy1
+                  prefix_rewrite: "/"
+              - match: { prefix: "/envoy1/egress/"}
+                route:
+                  cluster: envoy1-egress
+                  prefix_rewrite: "/"
+              - match: { prefix: "/envoy1/direct/"}
+                route:
+                  cluster: envoy1-direct
+                  prefix_rewrite: "/"
+              - match: { prefix: "/consul/ui"}
+                route:
+                  cluster: consul1
+                  prefix_rewrite: "/consul/ui"
+              - match: { prefix: "/v1/"}
+                route:
+                  cluster: consul1
+                  prefix_rewrite: "/v1/"
+              - match: { prefix: "/status/envoy/"}
+                route:
+                  cluster: this_admin
+                  prefix_rewrite: "/"
+              - match: { path: "/" }
+                direct_response:
+                  status: 200
+                  body:
+                    inline_string: '<html><body><h1>Welcome to mesh on heroku</h1>\n<h2>this is front proxy view, see apps</h2><div><a href="envoy1/">envoy1</a></div></body></html>'
+          http_filters:
+          - name: envoy.filters.http.router
