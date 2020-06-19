@@ -198,7 +198,7 @@ data class Incoming(
     val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(
         idleTimeout = null, responseTimeout = null, connectionIdleTimeout = null
     ),
-    val unlistedEndpointsPolicy: UnlistedEndpointsPolicy? = null
+    val unlistedEndpointsPolicy: UnlistedEndpointsPolicy = UnlistedEndpointsPolicy.LOG
 ) {
 
     data class TimeoutPolicy(

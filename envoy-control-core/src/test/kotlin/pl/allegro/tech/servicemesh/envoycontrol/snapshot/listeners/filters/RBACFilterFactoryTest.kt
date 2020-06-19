@@ -127,22 +127,22 @@ internal class RBACFilterFactoryTest {
         assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
-//    @Test
-//    fun `should create shadow RBAC filter with status route permissions when no incoming permissions are defined`() {
-//        // given
-//        val rbacFilterFactoryWithStatusRoute = RBACFilterFactory(
-//                IncomingPermissionsProperties().also { it.enabled = true },
-//                StatusRouteProperties().also { it.enabled = true }
-//        )
-//        val incomingPermission = Incoming(permissionsEnabled = true, unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG)
-//        val expectedRbacBuilder = getRBACFilter(expectedStatusRoutePermissionsJson)
-//
-//        // when
-//        val generated = rbacFilterFactoryWithStatusRoute.createHttpFilter(createGroup(incomingPermission), snapshot)
-//
-//        // then
-//        assertThat(generated).isEqualTo(expectedRbacBuilder)
-//    }
+    @Test
+    fun `should create shadow RBAC filter with status route permissions when no incoming permissions are defined`() {
+        // given
+        val rbacFilterFactoryWithStatusRoute = RBACFilterFactory(
+                IncomingPermissionsProperties().also { it.enabled = true },
+                StatusRouteProperties().also { it.enabled = true }
+        )
+        val incomingPermission = Incoming(permissionsEnabled = true)
+        val expectedRbacBuilder = getRBACFilter(expectedStatusRoutePermissionsJson)
+
+        // when
+        val generated = rbacFilterFactoryWithStatusRoute.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
 
     @Test
     fun `should not create RBAC filter when no incoming permissions are defined`() {
@@ -208,6 +208,33 @@ internal class RBACFilterFactoryTest {
                         setOf("GET", "POST"),
                         setOf(ClientWithSelector("role-1"))
                 )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
+        )
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with shadow rules`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson)
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(IncomingEndpoint(
+                        "/example1",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf(ClientWithSelector("role-1"))
+                ),IncomingEndpoint(
+                        "/example2",
+                        PathMatchingType.PATH,
+                        setOf("GET", "POST"),
+                        setOf(ClientWithSelector("role-1")),
+                        IncomingEndpoint.UnlistedClientsPolicy.BLOCK
+                ) ), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
         )
 
         // when
