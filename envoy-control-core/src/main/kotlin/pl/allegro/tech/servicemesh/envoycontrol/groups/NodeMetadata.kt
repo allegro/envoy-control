@@ -197,7 +197,8 @@ data class Incoming(
     val roles: List<Role> = emptyList(),
     val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(
         idleTimeout = null, responseTimeout = null, connectionIdleTimeout = null
-    )
+    ),
+    val unlistedEndpointsPolicy: UnlistedEndpointsPolicy? = null
 ) {
 
     data class TimeoutPolicy(
@@ -205,6 +206,10 @@ data class Incoming(
         val responseTimeout: Duration?,
         val connectionIdleTimeout: Duration?
     )
+
+    enum class UnlistedEndpointsPolicy {
+        LOG, BLOCK
+    }
 }
 
 data class Outgoing(
@@ -306,8 +311,14 @@ data class IncomingEndpoint(
     override val path: String = "",
     override val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
     override val methods: Set<String> = emptySet(),
-    val clients: Set<ClientWithSelector> = emptySet()
-) : EndpointBase
+    val clients: Set<ClientWithSelector> = emptySet(),
+    val unlistedClientsPolicy: UnlistedClientsPolicy? = null
+) : EndpointBase {
+
+    enum class UnlistedClientsPolicy {
+        LOG, BLOCK
+    }
+}
 
 enum class PathMatchingType {
     PATH, PATH_PREFIX

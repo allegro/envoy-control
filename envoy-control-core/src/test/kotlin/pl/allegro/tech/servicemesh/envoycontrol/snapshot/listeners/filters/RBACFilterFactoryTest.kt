@@ -127,6 +127,23 @@ internal class RBACFilterFactoryTest {
         assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
+//    @Test
+//    fun `should create shadow RBAC filter with status route permissions when no incoming permissions are defined`() {
+//        // given
+//        val rbacFilterFactoryWithStatusRoute = RBACFilterFactory(
+//                IncomingPermissionsProperties().also { it.enabled = true },
+//                StatusRouteProperties().also { it.enabled = true }
+//        )
+//        val incomingPermission = Incoming(permissionsEnabled = true, unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG)
+//        val expectedRbacBuilder = getRBACFilter(expectedStatusRoutePermissionsJson)
+//
+//        // when
+//        val generated = rbacFilterFactoryWithStatusRoute.createHttpFilter(createGroup(incomingPermission), snapshot)
+//
+//        // then
+//        assertThat(generated).isEqualTo(expectedRbacBuilder)
+//    }
+
     @Test
     fun `should not create RBAC filter when no incoming permissions are defined`() {
         // given

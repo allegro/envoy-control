@@ -28,6 +28,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProper
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsUtils
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 
+@Suppress("LargeClass") // TODO: https://github.com/allegro/envoy-control/issues/121
 class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,
     statusRouteProperties: StatusRouteProperties
@@ -92,6 +93,50 @@ class RBACFilterFactory(
                 .setAction(RBAC.Action.ALLOW)
                 .putAllPolicies(clientToPolicy)
                 .build()
+    }
+
+    private fun getShadowRules(serviceName: String, incomingPermissions: Incoming, snapshot: GlobalSnapshot): RBAC {
+        var counter = 0
+        val builder = RBAC.newBuilder()
+
+        incomingPermissions.endpoints
+                .forEach { incomingEndpoint ->
+                    val shouldAllow =
+                        (incomingPermissions.unlistedEndpointsPolicy != null && incomingPermissions.unlistedEndpointsPolicy.equals(Incoming.UnlistedEndpointsPolicy.LOG) ||
+                                incomingEndpoint.unlistedClientsPolicy != null && incomingEndpoint.unlistedClientsPolicy.equals(IncomingEndpoint.UnlistedClientsPolicy.LOG))
+
+                    val shouldBlock =
+                        (incomingPermissions.unlistedEndpointsPolicy != null && incomingPermissions.unlistedEndpointsPolicy.equals(Incoming.UnlistedEndpointsPolicy.BLOCK)) ||
+                                incomingEndpoint.unlistedClientsPolicy != null && incomingEndpoint.unlistedClientsPolicy.equals(IncomingEndpoint.UnlistedClientsPolicy.BLOCK)
+
+                    val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
+                    if (shouldAllow) {
+                        clientToPolicyBuilder.computeIfAbsent(String.format("_ANY%d_", counter++)) {
+                            Policy.newBuilder().addPermissions(createCombinedPermissions(incomingEndpoint))
+                                    .addAllPrincipals(listOf(Principal.newBuilder().setAny(true).build()))
+                        }
+
+                        val clientToPolicy = clientToPolicyBuilder.mapValues { it.value.build() }
+                        val allow = RBAC.newBuilder()
+                                .setAction(RBAC.Action.ALLOW)
+                                .putAllPolicies(clientToPolicy)
+                        builder.mergeFrom(allow.build())
+                    } else if (shouldBlock) {
+
+                        clientToPolicyBuilder.computeIfAbsent(String.format("_ANY%d_", counter++)) {
+                            Policy.newBuilder().addPermissions(createCombinedPermissions(incomingEndpoint))
+                                    .addAllPrincipals(listOf(Principal.newBuilder().setAny(true).build()))
+                        }
+
+                        val clientToPolicy = clientToPolicyBuilder.mapValues { it.value.build() }
+                        val block = RBAC.newBuilder()
+                                .setAction(RBAC.Action.DENY)
+                                .putAllPolicies(clientToPolicy)
+                        builder.mergeFrom(block.build())
+                    }
+                }
+
+        return builder.build()
     }
 
     private fun createStatusRoutePrincipal(statusRouteProperties: StatusRouteProperties): Policy.Builder? {
@@ -317,8 +362,15 @@ class RBACFilterFactory(
     fun createHttpFilter(group: Group, snapshot: GlobalSnapshot): HttpFilter? {
         return if (incomingPermissionsProperties.enabled && group.proxySettings.incoming.permissionsEnabled) {
             val rules = getRules(group.serviceName, group.proxySettings.incoming, snapshot)
-            val rbacFilter = RBACFilter.newBuilder().setRules(rules).build()
-            HttpFilter.newBuilder().setName("envoy.filters.http.rbac").setTypedConfig(Any.pack(rbacFilter)).build()
+            val rbacFilter = RBACFilter.newBuilder().setRules(rules)
+
+            group.proxySettings.incoming.unlistedEndpointsPolicy?.let {
+                rbacFilter.setShadowRules(
+                    getShadowRules(group.serviceName, group.proxySettings.incoming, snapshot)
+                )
+            }
+            HttpFilter.newBuilder().setName("envoy.filters.http.rbac")
+                    .setTypedConfig(Any.pack(rbacFilter.build())).build()
         } else {
             null
         }
