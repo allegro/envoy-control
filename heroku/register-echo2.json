@@ -1,0 +1,15 @@
+{
+   "ID":"echo2",
+   "Name":"echo2",
+   "Tags":[
+      "primary"
+   ],
+   "Address":"127.0.0.1",
+   "Port":10020,
+   "Check":{
+      "DeregisterCriticalServiceAfter":"90m",
+      "http":"http://127.0.0.1:10020",
+      "Interval":"10s"
+   }
+}
+

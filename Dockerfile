@@ -75,7 +75,8 @@ WORKDIR /home/gradle/src
 RUN gradle :envoy-control-runner:assemble --parallel --no-daemon
 
 FROM envoyproxy/envoy-alpine-dev:6c2137468c25d167dbbe4719b0ecaf343bfb4233 as envoy
-COPY heroku/envoy.yaml /etc/envoy.yaml
+COPY heroku/envoy1.yaml /etc/envoy1.yaml
+COPY heroku/envoy2.yaml /etc/envoy2.yaml
 COPY heroku/envoy-front-proxy.yaml /etc/envoy-front-proxy.yaml
 COPY --from=consul /bin/consul /bin/consul
 
@@ -84,6 +85,7 @@ RUN mkdir /tmp/envoy-control-dist /tmp/envoy-control /bin/envoy-control /etc/env
 COPY --from=build /home/gradle/src/envoy-control-runner/build/distributions/ /tmp/envoy-control-dist
 COPY ./envoy-control-runner/src/main/resources/application.yaml /etc/envoy-control/
 COPY heroku/register-echo1.json /etc/envoy-control/
+COPY heroku/register-echo2.json /etc/envoy-control/
 RUN tar -xf /tmp/envoy-control-dist/envoy-control-runner*.tar -C /tmp/envoy-control
 RUN mv /tmp/envoy-control/envoy-control-runner*/ /bin/envoy-control/envoy-control-runner
 # APP_PORT: 8080
