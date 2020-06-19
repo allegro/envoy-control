@@ -75,7 +75,8 @@ WORKDIR /home/gradle/src
 RUN gradle :envoy-control-runner:assemble --parallel --no-daemon
 
 FROM envoyproxy/envoy-alpine-dev:6c2137468c25d167dbbe4719b0ecaf343bfb4233 as envoy
-COPY heroku/envoy.yaml /etc/envoy.yaml
+COPY heroku/envoy1.yaml /etc/envoy1.yaml
+COPY heroku/envoy2.yaml /etc/envoy2.yaml
 COPY heroku/envoy-front-proxy.yaml /etc/envoy-front-proxy.yaml
 COPY --from=consul /bin/consul /bin/consul
 

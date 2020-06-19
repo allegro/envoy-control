@@ -27,10 +27,15 @@ node:
     add_upstream_external_address_header: true
     resources_dir: "/etc/envoy/extra"
     proxy_settings:
+      incoming:
+        endpoints:
+          - pathPrefix: "/"
+            clients: ["echo2"]
       outgoing:
         dependencies:
           - service: "consul"
           - service: "echo1"
+          - service: "echo2"
 static_resources:
   listeners:
   - name: ingress_direct_response
@@ -60,7 +65,7 @@ static_resources:
                 direct_response:
                   status: 200
                   body:
-                    inline_string: "Hello"
+                    inline_string: "Hello from echo1"
           http_filters:
           - name: envoy.filters.http.router
   clusters:

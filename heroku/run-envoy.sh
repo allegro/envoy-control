@@ -15,9 +15,11 @@ echo "Launching Envoy-control with $START_ARGUMENTS"
 
 # start envoys
 sed -i "s/{{.IngressListenerPort}}/${PORT:-10000}/g" /etc/envoy-front-proxy.yaml
-sh -c 'sleep 20; /usr/local/bin/envoy --base-id 1 -c /etc/envoy.yaml' &
+sh -c 'sleep 20; /usr/local/bin/envoy --base-id 1 -c /etc/envoy1.yaml' &
+sh -c 'sleep 20; /usr/local/bin/envoy --base-id 2 -c /etc/envoy2.yaml' &
 /usr/local/bin/envoy -c /etc/envoy-front-proxy.yaml &
 
 sh -c 'sleep 25; curl -X PUT -s localhost:8500/v1/agent/service/register -T /etc/envoy-control/register-echo1.json' &
+sh -c 'sleep 25; curl -X PUT -s localhost:8500/v1/agent/service/register -T /etc/envoy-control/register-echo2.json' &
 
 consul agent -server -ui -ui-content-path "/consul/ui" -dev -client 0.0.0.0
