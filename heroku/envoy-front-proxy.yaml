@@ -54,6 +54,44 @@ static_resources:
                     socket_address:
                       address: 127.0.0.1
                       port_value: 10013
+
+    - name: envoy2
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: envoy2
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 10020
+    - name: envoy2-egress
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: envoy2-egress
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 10021
+    - name: envoy2-direct
+      type: STATIC
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: envoy2-direct
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 10023
+
     - name: ec1
       type: STATIC
       connect_timeout: 1s
