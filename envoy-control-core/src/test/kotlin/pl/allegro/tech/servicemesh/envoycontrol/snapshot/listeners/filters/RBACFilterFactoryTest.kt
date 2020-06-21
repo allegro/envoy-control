@@ -197,6 +197,27 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
+    fun `should generate RBAC rules for incoming permissions with empty actual rules`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson)
+        val incomingPermission = Incoming(
+            permissionsEnabled = true,
+            endpoints = listOf(IncomingEndpoint(
+                "/example",
+                PathMatchingType.PATH,
+                setOf("GET", "POST"),
+                setOf(ClientWithSelector("client1"))
+            ))
+        )
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
     fun `should generate RBAC rules for incoming permissions with roles`() {
         // given
         val expectedRbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson)

@@ -142,6 +142,16 @@ class RBACFilterFactory(
     }
 
     private fun notRule(rules: RBAC.Builder): RBAC.Builder {
+        // if rules are empty then there is no way to create a not rule so we simply allow everyone
+        if (rules.policiesCount == 0) {
+            return RBAC.newBuilder()
+                .setAction(RBAC.Action.ALLOW)
+                .putPolicies("ALLOW_ANY", Policy.newBuilder()
+                    .addPrincipals(Principal.newBuilder().setAny(true).build())
+                    .addPermissions(Permission.newBuilder().setAny(true).build()).build()
+                )
+        }
+
         val notRule = RBAC.newBuilder()
 
         val policyMap = rules.policiesMap.mapValues { policy ->
@@ -164,50 +174,6 @@ class RBACFilterFactory(
         return notRule
                 .setAction(RBAC.Action.ALLOW)
                 .putAllPolicies(policyMap)
-    }
-
-    private fun getShadowRules(serviceName: String, incomingPermissions: Incoming, snapshot: GlobalSnapshot): RBAC {
-        var counter = 0
-        val builder = RBAC.newBuilder()
-
-        incomingPermissions.endpoints
-                .forEach { incomingEndpoint ->
-                    val shouldAllow =
-                        (incomingPermissions.unlistedEndpointsPolicy != null && incomingPermissions.unlistedEndpointsPolicy.equals(Incoming.UnlistedEndpointsPolicy.LOG) ||
-                                incomingEndpoint.unlistedClientsPolicy != null && incomingEndpoint.unlistedClientsPolicy.equals(IncomingEndpoint.UnlistedClientsPolicy.LOG))
-
-                    val shouldBlock =
-                        (incomingPermissions.unlistedEndpointsPolicy != null && incomingPermissions.unlistedEndpointsPolicy.equals(Incoming.UnlistedEndpointsPolicy.BLOCK)) ||
-                                incomingEndpoint.unlistedClientsPolicy != null && incomingEndpoint.unlistedClientsPolicy.equals(IncomingEndpoint.UnlistedClientsPolicy.BLOCK)
-
-                    val clientToPolicyBuilder = mutableMapOf<String, Policy.Builder>()
-                    if (shouldAllow) {
-                        clientToPolicyBuilder.computeIfAbsent(String.format("_ANY%d_", counter++)) {
-                            Policy.newBuilder().addPermissions(createCombinedPermissions(incomingEndpoint))
-                                    .addAllPrincipals(listOf(Principal.newBuilder().setAny(true).build()))
-                        }
-
-                        val clientToPolicy = clientToPolicyBuilder.mapValues { it.value.build() }
-                        val allow = RBAC.newBuilder()
-                                .setAction(RBAC.Action.ALLOW)
-                                .putAllPolicies(clientToPolicy)
-                        builder.mergeFrom(allow.build())
-                    } else if (shouldBlock) {
-
-                        clientToPolicyBuilder.computeIfAbsent(String.format("_ANY%d_", counter++)) {
-                            Policy.newBuilder().addPermissions(createCombinedPermissions(incomingEndpoint))
-                                    .addAllPrincipals(listOf(Principal.newBuilder().setAny(true).build()))
-                        }
-
-                        val clientToPolicy = clientToPolicyBuilder.mapValues { it.value.build() }
-                        val block = RBAC.newBuilder()
-                                .setAction(RBAC.Action.DENY)
-                                .putAllPolicies(clientToPolicy)
-                        builder.mergeFrom(block.build())
-                    }
-                }
-
-        return builder.build()
     }
 
     private fun createStatusRoutePrincipal(statusRouteProperties: StatusRouteProperties): Policy.Builder? {

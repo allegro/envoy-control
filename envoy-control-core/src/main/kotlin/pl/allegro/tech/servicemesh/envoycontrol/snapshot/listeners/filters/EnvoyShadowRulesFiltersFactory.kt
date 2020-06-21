@@ -9,12 +9,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 
 class EnvoyShadowRulesFiltersFactory {
     companion object {
-        private val luaScriptTemplate = this::class.java.classLoader
+        private val luaScriptContents = this::class.java.classLoader
             .getResource("filters/handler.lua")!!.readText()
-
-        fun getLuaScriptContents(resourcesDir: String): String {
-            return luaScriptTemplate.replace("%RESOURCES_DIR%", resourcesDir)
-        }
 
         fun luaFilter(group: Group): HttpFilter? {
             val addFilterRBACmessage: Boolean = group.proxySettings.incoming.unlistedEndpointsPolicy?.equals(Incoming.UnlistedEndpointsPolicy.LOG) ?: false ||
@@ -28,7 +24,7 @@ class EnvoyShadowRulesFiltersFactory {
                         .setTypedConfig(
                                 Any.pack(
                                         Lua.newBuilder()
-                                                .setInlineCode(getLuaScriptContents(group.listenersConfig!!.resourcesDir))
+                                                .setInlineCode(luaScriptContents)
                                                 .build()
                                 )
                         )

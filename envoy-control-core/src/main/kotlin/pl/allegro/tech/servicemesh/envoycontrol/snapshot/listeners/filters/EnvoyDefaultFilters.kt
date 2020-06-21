@@ -34,7 +34,7 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     }
 
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
-    val defaultIngressFilters = listOf(defaultRbacFilter, defaultEnvoyRouterHttpFilter, luaFilter)
+    val defaultIngressFilters = listOf(luaFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter)
 
     private fun headerToMetadataConfig(
         rules: List<Config.Rule>,

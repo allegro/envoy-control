@@ -1,6 +1,5 @@
-local M = {}
-
-function M:envoy_on_request(handle)
+function envoy_on_request(handle)
+    handle:logInfo("running envoy_on_request")
     local path = handle:headers():get(":path")
     local method = handle:headers():get(":method")
     local service_name = handle:headers():get("x-service-name")
@@ -11,7 +10,8 @@ function M:envoy_on_request(handle)
     handle:streamInfo():dynamicMetadata():set("envoy.filters.http.lua", "request.info.xff_header", xff_header)
 end
 
-function M:envoy_on_response(handle)
+function envoy_on_response(handle)
+    handle:logInfo("running envoy_on_response")
     local path = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua")["request.info.path"]
     local method = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua")["request.info.method"]
     local service_name = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua")["request.info.service_name"]
@@ -32,5 +32,3 @@ function M:envoy_on_response(handle)
         end
     end
 end
-
-return M
