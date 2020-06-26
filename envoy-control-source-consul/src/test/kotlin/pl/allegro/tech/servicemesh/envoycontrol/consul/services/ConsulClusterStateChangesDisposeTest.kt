@@ -8,7 +8,7 @@ import org.mockito.Mockito.verify
 import pl.allegro.tech.discovery.consul.recipes.watch.Canceller
 import pl.allegro.tech.discovery.consul.recipes.watch.ConsulWatcher
 
-class ConsulZoneStateChangesDisposeTest {
+class ConsulClusterStateChangesDisposeTest {
 
     @Test
     fun `should start watching and stop watching after dispose`() {

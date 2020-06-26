@@ -50,9 +50,9 @@ internal class EnvoyControlDownInAllDcs : ReliabilityTest() {
     }
 
     @Test
-    fun `should allow to communicate between already known zones when all ECs are down`() {
+    fun `should allow to communicate between already known clusters when all ECs are down`() {
         // given
-        registerServiceInRemoteZone(name = "service-1")
+        registerServiceInRemoteCluster(name = "service-1")
         assertReachableThroughEnvoy("service-1")
 
         // when

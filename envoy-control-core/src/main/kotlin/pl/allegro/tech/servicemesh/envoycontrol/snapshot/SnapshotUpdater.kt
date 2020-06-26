@@ -7,7 +7,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.services.MultiZoneState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
@@ -58,7 +58,7 @@ class SnapshotUpdater(
         return globalSnapshot
     }
 
-    fun start(states: Flux<MultiZoneState>): Flux<UpdateResult> {
+    fun start(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return Flux.merge(
                 1, // prefetch 1, instead of default 32, to avoid processing stale items in case of backpressure
                 services(states).subscribeOn(globalSnapshotScheduler),
@@ -108,7 +108,7 @@ class SnapshotUpdater(
                 }
     }
 
-    internal fun services(states: Flux<MultiZoneState>): Flux<UpdateResult> {
+    internal fun services(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return states
                 .sample(properties.stateSampleDuration)
                 .name("snapshot-updater-services-sampled").metrics()
@@ -190,7 +190,7 @@ class SnapshotUpdater(
         })
     }
 
-    private fun Flux<MultiZoneState>.createClusterConfigurations(): Flux<StatesAndClusters> = this
+    private fun Flux<MultiClusterState>.createClusterConfigurations(): Flux<StatesAndClusters> = this
         .scan(StatesAndClusters.initial) { previous, currentStates -> StatesAndClusters(
             states = currentStates,
             clusters = snapshotFactory.clusterConfigurations(currentStates, previous.clusters)
@@ -198,11 +198,11 @@ class SnapshotUpdater(
         .filter { it !== StatesAndClusters.initial }
 
     private data class StatesAndClusters(
-        val states: MultiZoneState,
+        val states: MultiClusterState,
         val clusters: Map<String, ClusterConfiguration>
     ) {
         companion object {
-            val initial = StatesAndClusters(MultiZoneState.empty(), emptyMap())
+            val initial = StatesAndClusters(MultiClusterState.empty(), emptyMap())
         }
     }
 }

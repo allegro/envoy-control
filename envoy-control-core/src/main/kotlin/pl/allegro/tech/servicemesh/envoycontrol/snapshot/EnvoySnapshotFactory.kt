@@ -26,7 +26,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
-import pl.allegro.tech.servicemesh.envoycontrol.services.MultiZoneState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
@@ -54,7 +54,7 @@ internal class EnvoySnapshotFactory(
     private val meterRegistry: MeterRegistry
 ) {
     fun newSnapshot(
-        servicesStates: MultiZoneState,
+        servicesStates: MultiClusterState,
         clusterConfigurations: Map<String, ClusterConfiguration>,
         communicationMode: CommunicationMode
     ): GlobalSnapshot {
@@ -65,7 +65,7 @@ internal class EnvoySnapshotFactory(
 
         val endpoints: List<ClusterLoadAssignment> = createLoadAssignment(
             clusters = clusterConfigurations.keys,
-            multiZoneState = servicesStates
+            multiClusterState = servicesStates
         )
 
         val snapshot = globalSnapshot(
@@ -81,7 +81,7 @@ internal class EnvoySnapshotFactory(
     }
 
     fun clusterConfigurations(
-        servicesStates: MultiZoneState,
+        servicesStates: MultiClusterState,
         previousClusters: Map<String, ClusterConfiguration>
     ): Map<String, ClusterConfiguration> {
         val currentClusters = if (properties.egress.http2.enabled) {
@@ -341,18 +341,18 @@ internal class EnvoySnapshotFactory(
 
     private fun createLoadAssignment(
         clusters: Set<String>,
-        multiZoneState: MultiZoneState
+        multiClusterState: MultiClusterState
     ): List<ClusterLoadAssignment> {
 
         return clusters
             .map { serviceName ->
-                val localityLbEndpoints = multiZoneState
+                val localityLbEndpoints = multiClusterState
                     .mapNotNull {
                         val locality = it.locality
-                        val zone = it.zone
+                        val cluster = it.cluster
 
                         it.servicesState.get(serviceName)?.let {
-                            createEndpointsGroup(it, zone, toEnvoyPriority(locality))
+                            createEndpointsGroup(it, cluster, toEnvoyPriority(locality))
                         }
                     }
 

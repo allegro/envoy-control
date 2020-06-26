@@ -4,8 +4,8 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
-import pl.allegro.tech.servicemesh.envoycontrol.services.ZoneState
-import pl.allegro.tech.servicemesh.envoycontrol.services.MultiZoneState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
@@ -16,29 +16,29 @@ import java.time.Duration
 
 class RemoteServicesTest {
     @Test
-    fun `should collect responses from all zones`() {
+    fun `should collect responses from all clusters`() {
         val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
 
         val result = service
             .getChanges(1)
             .blockFirst()
-            ?: MultiZoneState.empty()
+            ?: MultiClusterState.empty()
 
         assertThat(result).hasSize(2)
-        assertThat(result.map { it.zone }.toSet()).isEqualTo(setOf("dc1", "dc2"))
+        assertThat(result.map { it.cluster }.toSet()).isEqualTo(setOf("dc1", "dc2"))
     }
 
     @Test
-    fun `should ignore zone without service instances`() {
+    fun `should ignore cluster without service instances`() {
         val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2/noinstances"))
 
         val result = service
             .getChanges(1)
             .blockFirst()
-            ?: MultiZoneState.empty()
+            ?: MultiClusterState.empty()
 
         assertThat(result).hasSize(1)
-        assertThat(result.map { it.zone }).contains("dc1")
+        assertThat(result.map { it.cluster }).contains("dc1")
     }
 
     @Test
@@ -53,28 +53,28 @@ class RemoteServicesTest {
         val result = service
             .getChanges(1)
             .blockFirst()
-            ?: MultiZoneState.empty()
+            ?: MultiClusterState.empty()
 
         assertThat(result).isNotEmpty
         assertThat(result.flatMap { it.servicesState.serviceNames() }.toSet()).isEqualTo(setOf("dc1", "dc3"))
     }
 
     @Test
-    fun `should serve cached responses when a cross zone request fails`() {
+    fun `should serve cached responses when a cross cluster request fails`() {
         // given
         val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1/successful-states", "dc2/second-request-failing"))
 
         val successfulResult = service
             .getChanges(1)
             .blockFirst()
-            ?: MultiZoneState.empty()
+            ?: MultiClusterState.empty()
 
         assertThat(successfulResult).containsExactlyInAnyOrder(*(expectedSuccessfulState.toTypedArray()))
 
         val oneInstanceFailing = service
             .getChanges(1)
             .blockFirst()
-            ?: MultiZoneState.empty()
+            ?: MultiClusterState.empty()
 
         assertThat(oneInstanceFailing).containsExactlyInAnyOrder(*(expectedStateWithOneRequestFailing.toTypedArray()))
     }
@@ -100,8 +100,8 @@ class RemoteServicesTest {
 
     private fun fetcher(): ControlPlaneInstanceFetcher {
         return object : ControlPlaneInstanceFetcher {
-            override fun instances(zone: String): List<URI> {
-                val uri = URI.create("http://$zone")
+            override fun instances(cluster: String): List<URI> {
+                val uri = URI.create("http://$cluster")
                 if (uri.path == "/noinstances") {
                     return emptyList()
                 }
@@ -137,13 +137,13 @@ class RemoteServicesTest {
     )
 
     private val expectedSuccessfulState = setOf(
-        ZoneState(servicesState1, Locality.REMOTE, "dc1/successful-states"),
-        ZoneState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
+        ClusterState(servicesState1, Locality.REMOTE, "dc1/successful-states"),
+        ClusterState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
     )
 
     private val expectedStateWithOneRequestFailing = setOf(
-        ZoneState(servicesState2, Locality.REMOTE, "dc1/successful-states"),
-        ZoneState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
+        ClusterState(servicesState2, Locality.REMOTE, "dc1/successful-states"),
+        ClusterState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
     )
 
     private val successfulStatesSequence = listOf(

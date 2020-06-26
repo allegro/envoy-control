@@ -19,12 +19,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.DefaultEnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlProperties
 import pl.allegro.tech.servicemesh.envoycontrol.consul.ConsulProperties
-import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalZoneStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceMapper
-import pl.allegro.tech.servicemesh.envoycontrol.services.LocalZoneStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.LocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
-import pl.allegro.tech.servicemesh.envoycontrol.services.ZoneStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.EmptyAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMerger
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
@@ -81,11 +81,11 @@ class ControlPlaneConfig {
     ) = ConsulServiceChanges(watcher, serviceMapper, metrics, objectMapper, consulProperties.subscriptionDelay)
 
     @Bean
-    fun localZoneStateChanges(
+    fun localClusterStateChanges(
         consulServiceChanges: ConsulServiceChanges,
         consulProperties: ConsulProperties,
         transformers: List<ServiceInstancesTransformer>
-    ): LocalZoneStateChanges = ConsulLocalZoneStateChanges(
+    ): LocalClusterStateChanges = ConsulLocalClusterStateChanges(
         consulServiceChanges,
         Locality.LOCAL,
         localDatacenter(consulProperties),
@@ -121,11 +121,11 @@ class ControlPlaneConfig {
 
     @Bean
     fun globalStateChanges(
-        zoneStateChanges: Array<ZoneStateChanges>,
+        clusterStateChanges: Array<ClusterStateChanges>,
         meterRegistry: MeterRegistry,
         properties: EnvoyControlProperties
     ): GlobalStateChanges =
-        GlobalStateChanges(zoneStateChanges, meterRegistry, properties.sync)
+        GlobalStateChanges(clusterStateChanges, meterRegistry, properties.sync)
 
     @Bean
     fun envoyHttpFilters(

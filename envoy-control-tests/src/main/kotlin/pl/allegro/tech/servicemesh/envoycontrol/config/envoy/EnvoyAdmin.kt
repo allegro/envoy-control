@@ -90,12 +90,12 @@ class EnvoyAdmin(
             ?.let { regex.find(it)!!.groupValues[1].toInt() }!!
     }
 
-    fun zone(cluster: String, ip: String): AdminInstance? {
+    fun cluster(cluster: String, ip: String): AdminInstance? {
         val regex = "$cluster::$ip:${EchoContainer.PORT}::zone::(.+)".toRegex()
         val response = get("clusters")
         return response.body()?.use { it.string().lines() }
             ?.find { it.matches(regex) }
-            ?.let { AdminInstance(ip, zone = regex.find(it)!!.groupValues[1]) }
+            ?.let { AdminInstance(ip, cluster = regex.find(it)!!.groupValues[1]) }
     }
 
     private val client = OkHttpClient.Builder()
@@ -118,7 +118,7 @@ class EnvoyAdmin(
                 .build()
         ).execute()
 
-    data class AdminInstance(val ip: String, val zone: String)
+    data class AdminInstance(val ip: String, val cluster: String)
 }
 
 data class ClusterStatuses(
