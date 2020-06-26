@@ -26,20 +26,30 @@ import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 import kotlin.random.Random
 
-sealed class EnvoyConfigFile(val filePath: String)
-object AdsAllDependencies : EnvoyConfigFile("envoy/config_ads_all_dependencies.yaml")
-object AdsCustomHealthCheck : EnvoyConfigFile("envoy/config_ads_custom_health_check.yaml")
-object FaultyConfig : EnvoyConfigFile("envoy/bad_config.yaml")
-object Ads : EnvoyConfigFile("envoy/config_ads.yaml")
-object Echo1EnvoyAuthConfig : EnvoyConfigFile("envoy/echo1_envoy_auth_config.yaml")
-object Echo2EnvoyAuthConfig : EnvoyConfigFile("envoy/echo2_envoy_auth_config.yaml")
-object Echo3EnvoyAuthConfig : EnvoyConfigFile("envoy/echo3_envoy_auth_config.yaml")
-object AdsWithDisabledEndpointPermissions : EnvoyConfigFile("envoy/config_ads_disabled_endpoint_permissions.yaml")
-object AdsWithStaticListeners : EnvoyConfigFile("envoy/config_ads_static_listeners.yaml")
-object AdsWithNoDependencies : EnvoyConfigFile("envoy/config_ads_no_dependencies.yaml")
-object Xds : EnvoyConfigFile("envoy/config_xds.yaml")
-object RandomConfigFile :
-    EnvoyConfigFile(filePath = if (Random.nextBoolean()) Ads.filePath else Xds.filePath)
+data class EnvoyConfig(
+    val filePath: String,
+    val serviceName: String = "echo",
+    val configOverride: String = "",
+    val trustedCa: String = "/app/root-ca.crt",
+    val certificateChain: String = "/app/fullchain_echo.pem",
+    val privateKey: String = "/app/privkey.pem"
+)
+val AdsAllDependencies = EnvoyConfig("envoy/config_ads_all_dependencies.yaml")
+val AdsCustomHealthCheck = EnvoyConfig("envoy/config_ads_custom_health_check.yaml")
+val FaultyConfig = EnvoyConfig("envoy/bad_config.yaml")
+val Ads = EnvoyConfig("envoy/config_ads.yaml")
+val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml")
+val Echo2EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
+    serviceName = "echo2",
+    certificateChain = "/app/fullchain_echo2.pem",
+    privateKey = "/app/privkey_echo2.pem"
+)
+val AdsWithDisabledEndpointPermissions = EnvoyConfig("envoy/config_ads_disabled_endpoint_permissions.yaml")
+val AdsWithStaticListeners = EnvoyConfig("envoy/config_ads_static_listeners.yaml")
+val AdsWithNoDependencies = EnvoyConfig("envoy/config_ads_no_dependencies.yaml")
+val Xds = EnvoyConfig("envoy/config_xds.yaml")
+val RandomConfigFile =
+    EnvoyConfig(filePath = if (Random.nextBoolean()) Ads.filePath else Xds.filePath)
 
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {
@@ -68,8 +78,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         @JvmStatic
         fun setup(
-            envoyConfig: EnvoyConfigFile = RandomConfigFile,
-            secondEnvoyConfig: EnvoyConfigFile = envoyConfig,
+            envoyConfig: EnvoyConfig = RandomConfigFile,
+            secondEnvoyConfig: EnvoyConfig = envoyConfig,
             envoyImage: String = defaultEnvoyImage,
             appFactoryForEc1: (Int) -> EnvoyControlTestApp = defaultAppFactory(),
             appFactoryForEc2: (Int) -> EnvoyControlTestApp = appFactoryForEc1,
@@ -145,7 +155,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         private fun createEnvoyContainer(
             instancesInSameDc: Boolean,
-            envoyConfig: EnvoyConfigFile,
+            envoyConfig: EnvoyConfig,
             envoyConnectGrpcPort: Int?,
             envoyConnectGrpcPort2: Int?,
             localServiceIp: String = localServiceContainer.ipAddress(),
@@ -153,7 +163,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         ): EnvoyContainer {
             return if (envoyControls == 2 && instancesInSameDc) {
                 EnvoyContainer(
-                    envoyConfig.filePath,
+                    envoyConfig,
                     localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort,
                     envoyConnectGrpcPort2 ?: envoyControl2.grpcPort,
@@ -161,7 +171,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 ).withNetwork(network)
             } else {
                 EnvoyContainer(
-                    envoyConfig.filePath,
+                    envoyConfig,
                     localServiceIp,
                     envoyConnectGrpcPort ?: envoyControl1.grpcPort,
                     image = envoyImage
@@ -172,15 +182,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         fun createEnvoyContainerWithFaultyConfig(): EnvoyContainer {
             return createEnvoyContainer(true, FaultyConfig, null, null)
                 .withStartupTimeout(Duration.ofSeconds(10))
-        }
-
-        fun createEnvoyContainerWithEcho3San(): EnvoyContainer {
-            return EnvoyContainer(
-                    Echo3EnvoyAuthConfig.filePath,
-                    localServiceContainer.ipAddress(),
-                    envoyControl1.grpcPort,
-                    image = defaultEnvoyImage
-            ).withNetwork(network)
         }
 
         fun registerEnvoyControls(

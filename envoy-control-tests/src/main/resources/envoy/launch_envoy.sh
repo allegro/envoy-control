@@ -14,6 +14,7 @@ LOCAL_SERVICE_IP="$4"
 TRUSTED_CA="$5"
 CERTIFICATE_CHAIN="$6"
 PRIVATE_KEY="$7"
+SERVICE_NAME="$8"
 
 echo "debug: " "$@"
 
@@ -25,10 +26,11 @@ echo "${CONFIG}" | sed \
  -e "s;TRUSTED_CA;${TRUSTED_CA};g" \
  -e "s;CERTIFICATE_CHAIN;${CERTIFICATE_CHAIN};g" \
  -e "s;PRIVATE_KEY;${PRIVATE_KEY};g" \
+ -e "s;SERVICE_NAME;${SERVICE_NAME};g" \
  > "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 
-shift 7
+shift 8
 /usr/local/bin/envoy --drain-time-s 1 -c "${CONFIG_FILE}" "$@"
 
 rm -rf "${CONFIG_DIR}"

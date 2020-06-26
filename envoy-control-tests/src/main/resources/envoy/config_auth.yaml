@@ -14,7 +14,7 @@ node:
   cluster: test-cluster
   id: test-id
   metadata:
-    service_name: "echo2"
+    service_name: "SERVICE_NAME"
     ads: true
     ingress_host: "0.0.0.0"
     ingress_port: 5001
@@ -26,23 +26,23 @@ node:
     has_static_secrets_defined: true
     resources_dir: "/etc/envoy/extra"
     proxy_settings:
-      incoming:
-        endpoints:
-          - path: "/secured_endpoint"
-            clients: ["echo"]
+      outgoing:
+        dependencies:
+          - service: "echo2"
+          - service: "echo3"
 
 static_resources:
   secrets:
     - name: server_cert
       tls_certificate:
         certificate_chain:
-          filename: /app/fullchain_echo2.pem
+          filename: CERTIFICATE_CHAIN
         private_key:
-          filename: /app/privkey_echo2.pem
+          filename: PRIVATE_KEY
     - name: validation_context
       validation_context:
         trusted_ca:
-          filename: /app/root-ca.crt
+          filename: TRUSTED_CA
   clusters:
   - connect_timeout: 1s
     hosts:

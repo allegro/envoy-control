@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol
+package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
 import okhttp3.Headers
 import okhttp3.Response
@@ -24,12 +24,22 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
             "$prefix.routes.status.enabled" to true
         )
 
+        private val echo2EnvoyConfig = Echo2EnvoyAuthConfig.copy(configOverride = """
+            node:
+              metadata:
+                proxy_settings:
+                  incoming:
+                    endpoints:
+                      - path: "/secured_endpoint"
+                        clients: ["echo"]
+        """.trimIndent())
+
         @JvmStatic
         @BeforeAll
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoyConfig = Echo1EnvoyAuthConfig, secondEnvoyConfig = Echo2EnvoyAuthConfig, envoys = 2)
+            }, envoyConfig = Echo1EnvoyAuthConfig, secondEnvoyConfig = echo2EnvoyConfig, envoys = 2)
         }
     }
 

@@ -5,17 +5,15 @@ import org.springframework.core.io.ClassPathResource
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder
+import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger as loggerDelegate
 
 class EnvoyContainer(
-    private val configPath: String,
+    private val config: EnvoyConfig,
     private val localServiceIp: String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
-    private val trustedCa: String = "/app/root-ca.crt",
-    private val certificateChain: String = "/app/fullchain_echo.pem",
-    private val privateKey: String = "/app/privkey.pem",
     image: String
 ) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
@@ -44,7 +42,7 @@ class EnvoyContainer(
             LAUNCH_ENVOY_SCRIPT_DEST,
             BindMode.READ_ONLY
         )
-        withClasspathResourceMapping(configPath, CONFIG_DEST, BindMode.READ_ONLY)
+        withClasspathResourceMapping(config.filePath, CONFIG_DEST, BindMode.READ_ONLY)
 
         if (ClassPathResource(EXTRA_DIR).exists()) {
             withClasspathResourceMapping(EXTRA_DIR, EXTRA_DIR_DEST, BindMode.READ_ONLY)
@@ -59,9 +57,11 @@ class EnvoyContainer(
             Integer.toString(envoyControl2XdsPort),
             CONFIG_DEST,
             localServiceIp,
-            trustedCa,
-            certificateChain,
-            privateKey,
+            config.trustedCa,
+            config.certificateChain,
+            config.privateKey,
+            config.serviceName,
+            "--config-yaml", config.configOverride,
             "-l", "debug"
         )
     }

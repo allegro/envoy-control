@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol
+package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
@@ -28,12 +28,31 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         private lateinit var echo2Envoy: EnvoyContainer
         private lateinit var echo3Envoy: EnvoyContainer
 
+        private val echo1EnvoyConfig = Echo1EnvoyAuthConfig.copy(configOverride = """
+            node:
+              metadata:
+                proxy_settings:
+                  outgoing:
+                    dependencies:
+                      - service: "echo2"
+                      - service: "echo3"
+        """.trimIndent())
+        private val echo2EnvoyConfig = Echo2EnvoyAuthConfig.copy(configOverride = """
+            node:
+              metadata:
+                proxy_settings:
+                  incoming:
+                    endpoints:
+                      - path: "/secured_endpoint"
+                        clients: ["echo"]
+        """.trimIndent())
+
         @JvmStatic
         @BeforeAll
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoyConfig = Echo1EnvoyAuthConfig, secondEnvoyConfig = Echo2EnvoyAuthConfig, envoys = 2)
+            }, envoyConfig = echo1EnvoyConfig, secondEnvoyConfig = echo2EnvoyConfig, envoys = 2)
             echo1Envoy = envoyContainer1
             echo2Envoy = envoyContainer2
         }
@@ -200,12 +219,13 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     private fun createEnvoyNotTrustingDefaultCA(): EnvoyContainer {
         val envoy = EnvoyContainer(
-            Echo1EnvoyAuthConfig.filePath,
+            Echo1EnvoyAuthConfig.copy(
+                // do not trust default CA used by other Envoys
+                trustedCa = "/app/root-ca2.crt"
+            ),
             localServiceContainer.ipAddress(),
             envoyControl1.grpcPort,
-            image = defaultEnvoyImage,
-            // do not trust default CA used by other Envoys
-            trustedCa = "/app/root-ca2.crt"
+            image = defaultEnvoyImage
         ).withNetwork(network)
         envoy.start()
         return envoy
@@ -213,14 +233,40 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     private fun createEnvoyNotSignedByDefaultCA(): EnvoyContainer {
         val envoy = EnvoyContainer(
-            Echo1EnvoyAuthConfig.filePath,
+            Echo1EnvoyAuthConfig.copy(
+                // certificate not signed by default CA
+                certificateChain = "/app/fullchain_echo_root-ca2.pem"
+            ),
             localServiceContainer.ipAddress(),
             envoyControl1.grpcPort,
-            image = defaultEnvoyImage,
-            // certificate not signed by default CA
-            certificateChain = "/app/fullchain_echo_root-ca2.pem"
+            image = defaultEnvoyImage
         ).withNetwork(network)
         envoy.start()
         return envoy
+    }
+
+    private fun createEnvoyContainerWithEcho3San(): EnvoyContainer {
+        val configOverride = """
+            node:
+              metadata:
+                proxy_settings:
+                  outgoing:
+                    dependencies:
+                      - service: "echo2"
+        """.trimIndent()
+
+        val echo3EnvoyConfig = Echo1EnvoyAuthConfig.copy(
+            serviceName = "echo3",
+            configOverride = configOverride,
+            certificateChain = "/app/fullchain_echo3.pem",
+            privateKey = "/app/privkey_echo3.pem"
+        )
+
+        return EnvoyContainer(
+            echo3EnvoyConfig,
+            localServiceContainer.ipAddress(),
+            envoyControl1.grpcPort,
+            image = defaultEnvoyImage
+        ).withNetwork(network)
     }
 }
