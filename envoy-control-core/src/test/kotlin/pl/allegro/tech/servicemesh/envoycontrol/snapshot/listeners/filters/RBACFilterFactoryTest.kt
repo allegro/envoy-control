@@ -29,9 +29,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 
 @Suppress("LargeClass") // TODO: https://github.com/allegro/envoy-control/issues/121
 internal class RBACFilterFactoryTest {
+    private val rRBACFilterPermissions = RBACFilterPermissions()
+
     private val rbacFilterFactory = RBACFilterFactory(
             IncomingPermissionsProperties().also { it.enabled = true },
-            StatusRouteProperties()
+            StatusRouteProperties(),
+            rRBACFilterPermissions
     )
     private val rbacFilterFactoryWithSourceIpAuth = RBACFilterFactory(
             IncomingPermissionsProperties().also {
@@ -40,7 +43,8 @@ internal class RBACFilterFactoryTest {
                     ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
                 }
             },
-            StatusRouteProperties()
+            StatusRouteProperties(),
+            rRBACFilterPermissions
     )
     private val rbacFilterFactoryWithStaticRange = RBACFilterFactory(
             IncomingPermissionsProperties().also {
@@ -51,7 +55,8 @@ internal class RBACFilterFactoryTest {
                     )
                 }
             },
-            StatusRouteProperties()
+            StatusRouteProperties(),
+            rRBACFilterPermissions
     )
     private val rbacFilterFactoryWithStaticRangeAndSourceIpAuth = RBACFilterFactory(
             IncomingPermissionsProperties().also {
@@ -61,7 +66,8 @@ internal class RBACFilterFactoryTest {
                     ipProperties.ipFromRange = mutableMapOf("client2" to setOf("192.168.1.0/24", "192.168.2.0/28"))
                 }
             },
-            StatusRouteProperties()
+            StatusRouteProperties(),
+            rRBACFilterPermissions
     )
     private val rbacFilterFactoryWithSourceIpWithSelectorAuth = RBACFilterFactory(
             IncomingPermissionsProperties().also {
@@ -77,7 +83,8 @@ internal class RBACFilterFactoryTest {
                         "client2" to SelectorMatching().also { it.header = "x-secret-header" }
                 )
             },
-            StatusRouteProperties()
+            StatusRouteProperties(),
+            rRBACFilterPermissions
     )
 
     val snapshot = GlobalSnapshot(
@@ -115,7 +122,8 @@ internal class RBACFilterFactoryTest {
         // given
         val rbacFilterFactoryWithStatusRoute = RBACFilterFactory(
                 IncomingPermissionsProperties().also { it.enabled = true },
-                StatusRouteProperties().also { it.enabled = true }
+                StatusRouteProperties().also { it.enabled = true },
+                rRBACFilterPermissions
         )
         val incomingPermission = Incoming(permissionsEnabled = true)
         val expectedRbacBuilder = getRBACFilter(expectedStatusRoutePermissionsJson)
@@ -132,7 +140,8 @@ internal class RBACFilterFactoryTest {
         // given
         val rbacFilterFactoryWithStatusRoute = RBACFilterFactory(
                 IncomingPermissionsProperties().also { it.enabled = true },
-                StatusRouteProperties().also { it.enabled = true }
+                StatusRouteProperties().also { it.enabled = true },
+                rRBACFilterPermissions
         )
         val incomingPermission = Incoming(permissionsEnabled = true)
         val expectedRbacBuilder = getRBACFilter(expectedStatusRoutePermissionsJson)
@@ -197,17 +206,53 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
-    fun `should generate RBAC rules for incoming permissions with empty actual rules`() {
+    fun `should generate RBAC rules for incoming permissions with client and log and block unlisted endpoints and clients policy `() {
         // given
-        val expectedRbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson)
+
+        val expectedShadowRules = """
+        {
+          "policies": {
+            "client1": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")},
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalHeader("x-service-name", "client1")}
+              ]
+            }
+          }
+        }
+        """
+
+        val expectedRbacBuilder = getRBACFilterWithShadowRules(
+            expectedAnyPermissionJson,
+            expectedShadowRules
+        )
         val incomingPermission = Incoming(
             permissionsEnabled = true,
-            endpoints = listOf(IncomingEndpoint(
+            endpoints = listOf(
+                IncomingEndpoint(
                 "/example",
-                PathMatchingType.PATH,
-                setOf("GET", "POST"),
-                setOf(ClientWithSelector("client1"))
-            ))
+                    PathMatchingType.PATH,
+                    setOf("GET", "POST"),
+                    setOf(ClientWithSelector("client1")),
+                    IncomingEndpoint.UnlistedClientsPolicy.LOG
+                )
+            ),
+            unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG
         )
 
         // when
@@ -223,12 +268,22 @@ internal class RBACFilterFactoryTest {
         val expectedRbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson)
         val incomingPermission = Incoming(
                 permissionsEnabled = true,
-                endpoints = listOf(IncomingEndpoint(
-                        "/example",
-                        PathMatchingType.PATH,
-                        setOf("GET", "POST"),
-                        setOf(ClientWithSelector("role-1"))
-                )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
+                endpoints = listOf(
+                        IncomingEndpoint(
+                            "/example",
+                            PathMatchingType.PATH,
+                            setOf("GET", "POST"),
+                            setOf(ClientWithSelector("role-1"))
+                        )
+                ),
+                roles = listOf(
+                            Role(
+                                "role-1",
+                                setOf(
+                                    ClientWithSelector("client1"),
+                                    ClientWithSelector("client2"))
+                        )
+                )
         )
 
         // when
@@ -245,17 +300,13 @@ internal class RBACFilterFactoryTest {
         val incomingPermission = Incoming(
                 permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
-                        "/example1",
+                        "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
                         setOf(ClientWithSelector("role-1"))
-                ),IncomingEndpoint(
-                        "/example2",
-                        PathMatchingType.PATH,
-                        setOf("GET", "POST"),
-                        setOf(ClientWithSelector("role-1")),
-                        IncomingEndpoint.UnlistedClientsPolicy.BLOCK
-                ) ), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
+                )
+                ),
+                roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
         )
 
         // when
@@ -329,17 +380,20 @@ internal class RBACFilterFactoryTest {
         val expectedRbacBuilder = getRBACFilter(expectedTwoClientsSimpleEndpointPermissionsJson)
         val incomingPermission = Incoming(
                 permissionsEnabled = true,
-                endpoints = listOf(IncomingEndpoint(
+                endpoints = listOf(
+                    IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
                         setOf(ClientWithSelector("role-1"))
-                ), IncomingEndpoint(
+                    ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
                         setOf(ClientWithSelector("client2"), ClientWithSelector("client1"))
-                )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
+                    )
+                ),
+                roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
         )
 
         // when
@@ -921,7 +975,7 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private val anyPrincipal = """
+    private val anyTrue = """
         {
             "any": "true"
         }
@@ -934,7 +988,22 @@ internal class RBACFilterFactoryTest {
               "permissions": [
                 ${pathHeaderRule("/status/")}
               ], "principals": [
-                $anyPrincipal
+                $anyTrue
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedAnyPermissionJson = """
+        {
+          "policies": {
+            "ALLOW_ANY": {
+              "permissions": [
+                $anyTrue
+              ],
+              "principals": [
+                $anyTrue
               ]
             }
           }
@@ -1064,9 +1133,26 @@ internal class RBACFilterFactoryTest {
         """
     }
 
+    private fun wrapInFilterShadow(shadowRulesJson: String): String {
+        return """
+            {
+                "shadow_rules": $shadowRulesJson
+            }
+        """
+    }
+
     private fun getRBACFilter(json: String): HttpFilter {
+        return getRBACFilterWithShadowRules(json, json)
+    }
+
+    private fun getRBACFilterWithShadowRules(rules: String, shadowRules: String): HttpFilter {
         val rbacFilter = RBACFilter.newBuilder()
-        JsonFormat.parser().merge(wrapInFilter(json), rbacFilter)
+        JsonFormat.parser().merge(wrapInFilter(rules), rbacFilter)
+        JsonFormat.parser().merge(wrapInFilterShadow(shadowRules), rbacFilter)
+
+        HttpFilter.newBuilder().setName("envoy.filters.http.rbac")
+                .setTypedConfig(Any.pack(rbacFilter.build())).build()
+
         return HttpFilter.newBuilder()
                 .setName("envoy.filters.http.rbac")
                 .setTypedConfig(Any.pack(rbacFilter.build()))

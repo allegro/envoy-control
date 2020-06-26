@@ -13,24 +13,20 @@ class EnvoyShadowRulesFiltersFactory {
             .getResource("filters/handler.lua")!!.readText()
 
         fun luaFilter(group: Group): HttpFilter? {
-            val addFilterRBACmessage: Boolean = group.proxySettings.incoming.unlistedEndpointsPolicy?.equals(Incoming.UnlistedEndpointsPolicy.LOG) ?: false ||
-                    group.proxySettings.incoming.endpoints.stream().anyMatch {
-                it.unlistedClientsPolicy?.equals(IncomingEndpoint.UnlistedClientsPolicy.LOG) ?: false
-            }
-
-            if (addFilterRBACmessage) {
+            if (addFilterRBACLuaFilter(group.proxySettings.incoming)) {
                 return HttpFilter.newBuilder()
                         .setName("envoy.lua")
-                        .setTypedConfig(
-                                Any.pack(
-                                        Lua.newBuilder()
-                                                .setInlineCode(luaScriptContents)
-                                                .build()
-                                )
-                        )
+                        .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(luaScriptContents).build()))
                         .build()
             }
             return null
+        }
+
+        private fun addFilterRBACLuaFilter(incoming: Incoming): Boolean {
+            return incoming.unlistedEndpointsPolicy == Incoming.UnlistedEndpointsPolicy.LOG ||
+                    incoming.endpoints.stream().anyMatch {
+                        it.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.LOG
+                    }
         }
     }
 }

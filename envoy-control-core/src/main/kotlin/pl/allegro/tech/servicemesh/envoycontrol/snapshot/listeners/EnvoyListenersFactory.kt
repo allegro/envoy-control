@@ -57,7 +57,9 @@ class EnvoyListenersFactory(
     private val localServiceProperties = snapshotProperties.localService
     private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
     private val accessLogMessageFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormat)
-    private val accessLogMessageFormatRBAC = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormatRBAC)
+    private val accessLogMessageFormatRBAC = stringValue(
+            listenersFactoryProperties.httpFilters.accessLog.messageFormatRBAC
+    )
     private val accessLogLevel = stringValue(listenersFactoryProperties.httpFilters.accessLog.level)
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
     private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
@@ -234,11 +236,16 @@ class EnvoyListenersFactory(
         connectionManagerBuilder: HttpConnectionManager.Builder,
         accessLogType: String,
         listenersConfig: ListenersConfig,
-        addFilterRBACmessage: Boolean
+        useRBACMessageFormat: Boolean
     ): Filter {
         if (listenersConfig.accessLogEnabled) {
             connectionManagerBuilder.addAccessLog(
-                accessLog(listenersConfig.accessLogPath, accessLogType, listenersConfig.accessLogFilterSettings, addFilterRBACmessage)
+                accessLog(
+                    listenersConfig.accessLogPath,
+                    accessLogType,
+                    listenersConfig.accessLogFilterSettings,
+                    useRBACMessageFormat
+                )
             )
         }
 
@@ -299,13 +306,16 @@ class EnvoyListenersFactory(
 
         addHttpFilters(connectionManagerBuilder, ingressFilters, group, globalSnapshot)
 
-        val addFilterRBACmessage: Boolean =
-                group.proxySettings.incoming.unlistedEndpointsPolicy?.equals(Incoming.UnlistedEndpointsPolicy.LOG) ?: false ||
-                group.proxySettings.incoming.endpoints.stream().anyMatch {
-            it.unlistedClientsPolicy?.equals(IncomingEndpoint.UnlistedClientsPolicy.LOG) ?: false
-        }
+        val addFilterRBACMessage: Boolean = addFilterRBACLuaFilter(group.proxySettings.incoming)
 
-        return createFilter(connectionManagerBuilder, "ingress", listenersConfig, addFilterRBACmessage)
+        return createFilter(connectionManagerBuilder, "ingress", listenersConfig, addFilterRBACMessage)
+    }
+
+    private fun addFilterRBACLuaFilter(incoming: Incoming): Boolean {
+        return incoming.unlistedEndpointsPolicy == Incoming.UnlistedEndpointsPolicy.LOG ||
+                incoming.endpoints.stream().anyMatch {
+                    it.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.LOG
+                }
     }
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
@@ -354,7 +364,7 @@ class EnvoyListenersFactory(
         accessLogPath: String,
         accessLogType: String,
         accessLogFilterSettings: AccessLogFilterSettings?,
-        addFilterRBACmessage: Boolean
+        useRBACMessageFormat: Boolean
     ): AccessLog {
         val builder = AccessLog.newBuilder().setName("envoy.file_access_log")
 
@@ -364,7 +374,7 @@ class EnvoyListenersFactory(
             }
         }
 
-        val message = if (addFilterRBACmessage) accessLogMessageFormatRBAC else accessLogMessageFormat
+        val message = if (useRBACMessageFormat) accessLogMessageFormatRBAC else accessLogMessageFormat
 
         return builder.setTypedConfig(
                         ProtobufAny.pack(

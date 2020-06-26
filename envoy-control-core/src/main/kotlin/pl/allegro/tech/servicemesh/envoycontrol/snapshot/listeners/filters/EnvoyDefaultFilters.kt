@@ -11,7 +11,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagFilte
 class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     private val rbacFilterFactory = RBACFilterFactory(
             snapshotProperties.incomingPermissions,
-            snapshotProperties.routes.status
+            snapshotProperties.routes.status,
+            RBACFilterPermissions()
     )
 
     private val luaFactory = EnvoyShadowRulesFiltersFactory()
