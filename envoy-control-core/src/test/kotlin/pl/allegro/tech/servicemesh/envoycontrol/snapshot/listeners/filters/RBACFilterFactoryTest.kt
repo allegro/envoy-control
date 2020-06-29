@@ -309,7 +309,7 @@ internal class RBACFilterFactoryTest {
                                 IncomingEndpoint.UnlistedClientsPolicy.LOG
                         )
                 ),
-                unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCK
+                unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG
         )
 
         // when
@@ -363,7 +363,7 @@ internal class RBACFilterFactoryTest {
                                 PathMatchingType.PATH,
                                 setOf("GET", "POST"),
                                 setOf(ClientWithSelector("client1")),
-                                IncomingEndpoint.UnlistedClientsPolicy.BLOCK
+                                IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
                         )
                 ),
                 unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG

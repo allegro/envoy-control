@@ -111,11 +111,11 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
 fun Value?.toIncoming(): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
 
-    var unlistedEndpointsPolicy: Incoming.UnlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCK
+    var unlistedEndpointsPolicy: Incoming.UnlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG
 
     val unlistedEndpointsPolicyValue = this?.field("unlistedEndpointsPolicy")?.stringValue
     if (unlistedEndpointsPolicyValue != null && unlistedEndpointsPolicyValue.isNotEmpty()) {
-        unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.valueOf(unlistedEndpointsPolicyValue)
+        unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.valueOf(unlistedEndpointsPolicyValue.toUpperCase())
     }
 
     return Incoming(
@@ -150,11 +150,11 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
     val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
 
-    var unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.BLOCK
+    var unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
 
     val unlistedClientsPolicyValue = this.field("unlistedClientsPolicy")?.stringValue
     if (unlistedClientsPolicyValue != null && unlistedClientsPolicyValue.isNotEmpty()) {
-        unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.valueOf(unlistedClientsPolicyValue)
+        unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.valueOf(unlistedClientsPolicyValue.toUpperCase())
     }
 
     return when {
@@ -216,7 +216,7 @@ data class Incoming(
     val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(
         idleTimeout = null, responseTimeout = null, connectionIdleTimeout = null
     ),
-    val unlistedEndpointsPolicy: UnlistedEndpointsPolicy = UnlistedEndpointsPolicy.BLOCK
+    val unlistedEndpointsPolicy: UnlistedEndpointsPolicy = UnlistedEndpointsPolicy.BLOCKANDLOG
 ) {
 
     data class TimeoutPolicy(
@@ -226,7 +226,7 @@ data class Incoming(
     )
 
     enum class UnlistedEndpointsPolicy {
-        LOG, BLOCK
+        LOG, BLOCKANDLOG
     }
 }
 
@@ -330,11 +330,11 @@ data class IncomingEndpoint(
     override val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
     override val methods: Set<String> = emptySet(),
     val clients: Set<ClientWithSelector> = emptySet(),
-    val unlistedClientsPolicy: UnlistedClientsPolicy = UnlistedClientsPolicy.BLOCK
+    val unlistedClientsPolicy: UnlistedClientsPolicy = UnlistedClientsPolicy.BLOCKANDLOG
 ) : EndpointBase {
 
     enum class UnlistedClientsPolicy {
-        LOG, BLOCK
+        LOG, BLOCKANDLOG
     }
 }
 

@@ -100,7 +100,7 @@ class RBACFilterFactory(
         ).mapValues { it.value.build() }
 
         val blockIncomingEndpointsPolicies = incomingEndpointsPolicies.filter {
-            return@filter it.key.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.BLOCK
+            return@filter it.key.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
         }
 
         val blockRulesClientToPolicy: Map<String, Policy> = mapIncomingEndpointsPoliciesToClientsPolicies(
