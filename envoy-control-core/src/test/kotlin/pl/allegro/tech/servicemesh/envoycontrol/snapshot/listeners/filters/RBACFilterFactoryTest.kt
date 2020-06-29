@@ -206,7 +206,7 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
-    fun `should generate RBAC rules for incoming permissions with client and log and block unlisted endpoints and clients policy `() {
+    fun `should generate RBAC rules for incoming permissions with log unlisted clients and endpoints`() {
         // given
 
         val expectedShadowRules = """
@@ -253,6 +253,63 @@ internal class RBACFilterFactoryTest {
                 )
             ),
             unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG
+        )
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with log unlisted endpoints and block clients`() {
+        // given
+
+        val expectedShadowRules = """
+        {
+          "policies": {
+            "client1": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")},
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalHeader("x-service-name", "client1")}
+              ]
+            }
+          }
+        }
+        """
+
+        val expectedRbacBuilder = getRBACFilterWithShadowRules(
+                expectedEmptyEndpointPermissions,
+                expectedShadowRules
+        )
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(
+                        IncomingEndpoint(
+                                "/example",
+                                PathMatchingType.PATH,
+                                setOf("GET", "POST"),
+                                setOf(ClientWithSelector("client1")),
+                                IncomingEndpoint.UnlistedClientsPolicy.LOG
+                        )
+                ),
+                unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCK
         )
 
         // when
