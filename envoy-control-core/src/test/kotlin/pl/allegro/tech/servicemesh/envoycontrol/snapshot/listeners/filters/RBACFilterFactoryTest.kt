@@ -320,6 +320,63 @@ internal class RBACFilterFactoryTest {
     }
 
     @Test
+    fun `should generate RBAC rules for incoming permissions with block unlisted endpoints and log clients`() {
+        // given
+
+        val expectedShadowRules = """
+        {
+          "policies": {
+            "client1": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")},
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalHeader("x-service-name", "client1")}
+              ]
+            }
+          }
+        }
+        """
+
+        val expectedRbacBuilder = getRBACFilterWithShadowRules(
+                expectedEndpointPermissionsLogUnlistedEndpointsAndBlockUnlistedClients,
+                expectedShadowRules
+        )
+        val incomingPermission = Incoming(
+                permissionsEnabled = true,
+                endpoints = listOf(
+                        IncomingEndpoint(
+                                "/example",
+                                PathMatchingType.PATH,
+                                setOf("GET", "POST"),
+                                setOf(ClientWithSelector("client1")),
+                                IncomingEndpoint.UnlistedClientsPolicy.BLOCK
+                        )
+                ),
+                unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG
+        )
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
     fun `should generate RBAC rules for incoming permissions with roles`() {
         // given
         val expectedRbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson)
@@ -1127,6 +1184,57 @@ internal class RBACFilterFactoryTest {
                     ]
                   } 
                 }
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedEndpointPermissionsLogUnlistedEndpointsAndBlockUnlistedClients = """
+        {
+          "policies": {
+            "client1_not": {
+              "permissions": [
+                {
+                  "not_rule": {
+                    "and_rules": {
+                        "rules": [
+                          ${pathRule("/example")},
+                          {
+                            "or_rules": {
+                              "rules": [
+                                ${methodRule("GET")},
+                                ${methodRule("POST")}
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                  }
+                }
+              ], "principals": [
+                $anyTrue
+              ]
+            },
+            "client1": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")},
+                            ${methodRule("POST")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${principalHeader("x-service-name", "client1")}
               ]
             }
           }
