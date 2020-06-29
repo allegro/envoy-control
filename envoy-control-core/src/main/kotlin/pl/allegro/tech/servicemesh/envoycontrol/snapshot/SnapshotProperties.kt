@@ -44,6 +44,10 @@ class AccessLogProperties {
     var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
     var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
         "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
+
+    var messageFormatRBAC = "ACCESS_LOG: \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" +
+                "%RESPONSE_CODE% flags: %RESPONSE_FLAGS% ALL_RBAC_METADATA: %DYNAMIC_METADATA(envoy.filters.http.rbac)%"
+
     var level = "TRACE"
     var logger = "envoy.AccessLog"
 }

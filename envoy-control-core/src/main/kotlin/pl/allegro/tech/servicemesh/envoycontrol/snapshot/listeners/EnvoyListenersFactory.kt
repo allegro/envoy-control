@@ -36,6 +36,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -55,6 +57,9 @@ class EnvoyListenersFactory(
     private val localServiceProperties = snapshotProperties.localService
     private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
     private val accessLogMessageFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormat)
+    private val accessLogMessageFormatRBAC = stringValue(
+            listenersFactoryProperties.httpFilters.accessLog.messageFormatRBAC
+    )
     private val accessLogLevel = stringValue(listenersFactoryProperties.httpFilters.accessLog.level)
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
     private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
@@ -210,7 +215,7 @@ class EnvoyListenersFactory(
 
         addHttpFilters(connectionManagerBuilder, egressFilters, group, globalSnapshot)
 
-        return createFilter(connectionManagerBuilder, "egress", listenersConfig)
+        return createFilter(connectionManagerBuilder, "egress", listenersConfig, false)
     }
 
     private fun addHttpFilters(
@@ -230,11 +235,17 @@ class EnvoyListenersFactory(
     private fun createFilter(
         connectionManagerBuilder: HttpConnectionManager.Builder,
         accessLogType: String,
-        listenersConfig: ListenersConfig
+        listenersConfig: ListenersConfig,
+        useRBACMessageFormat: Boolean
     ): Filter {
         if (listenersConfig.accessLogEnabled) {
             connectionManagerBuilder.addAccessLog(
-                accessLog(listenersConfig.accessLogPath, accessLogType, listenersConfig.accessLogFilterSettings)
+                accessLog(
+                    listenersConfig.accessLogPath,
+                    accessLogType,
+                    listenersConfig.accessLogFilterSettings,
+                    useRBACMessageFormat
+                )
             )
         }
 
@@ -295,7 +306,16 @@ class EnvoyListenersFactory(
 
         addHttpFilters(connectionManagerBuilder, ingressFilters, group, globalSnapshot)
 
-        return createFilter(connectionManagerBuilder, "ingress", listenersConfig)
+        val addFilterRBACMessage: Boolean = addFilterRBACLuaFilter(group.proxySettings.incoming)
+
+        return createFilter(connectionManagerBuilder, "ingress", listenersConfig, addFilterRBACMessage)
+    }
+
+    private fun addFilterRBACLuaFilter(incoming: Incoming): Boolean {
+        return incoming.unlistedEndpointsPolicy == Incoming.UnlistedEndpointsPolicy.LOG ||
+                incoming.endpoints.stream().anyMatch {
+                    it.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.LOG
+                }
     }
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
@@ -343,7 +363,8 @@ class EnvoyListenersFactory(
     private fun accessLog(
         accessLogPath: String,
         accessLogType: String,
-        accessLogFilterSettings: AccessLogFilterSettings?
+        accessLogFilterSettings: AccessLogFilterSettings?,
+        useRBACMessageFormat: Boolean
     ): AccessLog {
         val builder = AccessLog.newBuilder().setName("envoy.file_access_log")
 
@@ -353,6 +374,8 @@ class EnvoyListenersFactory(
             }
         }
 
+        val message = if (useRBACMessageFormat) accessLogMessageFormatRBAC else accessLogMessageFormat
+
         return builder.setTypedConfig(
                         ProtobufAny.pack(
                                 FileAccessLog.newBuilder()
@@ -360,7 +383,7 @@ class EnvoyListenersFactory(
                                         .setJsonFormat(
                                                 Struct.newBuilder()
                                                         .putFields("time", accessLogTimeFormat)
-                                                        .putFields("message", accessLogMessageFormat)
+                                                        .putFields("message", message)
                                                         .putFields("level", accessLogLevel)
                                                         .putFields("logger", accessLogLogger)
                                                         .putFields("access_log_type", stringValue(accessLogType))
