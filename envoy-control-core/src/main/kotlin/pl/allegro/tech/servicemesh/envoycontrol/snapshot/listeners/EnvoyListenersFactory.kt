@@ -312,6 +312,7 @@ class EnvoyListenersFactory(
     }
 
     private fun addFilterRBACLuaFilter(incoming: Incoming): Boolean {
+        // TODO(mfalkowski): logowanie powinno być włączone zawsze, także w trybie blockAndLog
         return incoming.unlistedEndpointsPolicy == Incoming.UnlistedEndpointsPolicy.LOG ||
                 incoming.endpoints.stream().anyMatch {
                     it.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.LOG

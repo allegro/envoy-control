@@ -32,7 +32,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             "$prefix.incoming-permissions.source-ip-authentication.ip-from-range.source-ip-client" to
                 "$sourceClientIp/32",
             "$prefix.routes.status.create-virtual-cluster" to true,
-            "$prefix.routes.status.path-prefix" to "/status/", // TODO: testy na status: powinno być dostępne po http
+            "$prefix.routes.status.path-prefix" to "/status/",
             "$prefix.routes.status.enabled" to true
         ) }
 
