@@ -110,13 +110,22 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
 
 fun Value?.toIncoming(): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
+
+    var unlistedEndpointsPolicy: Incoming.UnlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCK
+
+    val unlistedEndpointsPolicyValue = this?.field("unlistedEndpointsPolicy")?.stringValue
+    if (unlistedEndpointsPolicyValue != null && unlistedEndpointsPolicyValue.isNotEmpty()) {
+        unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.valueOf(unlistedEndpointsPolicyValue)
+    }
+
     return Incoming(
         endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
         healthCheck = this?.field("healthCheck").toHealthCheck(),
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
-        timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy()
+        timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy(),
+        unlistedEndpointsPolicy = unlistedEndpointsPolicy
     )
 }
 
@@ -141,9 +150,18 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
     val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
 
+    var unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.BLOCK
+
+    val unlistedClientsPolicyValue = this.field("unlistedClientsPolicy")?.stringValue
+    if (unlistedClientsPolicyValue != null && unlistedClientsPolicyValue.isNotEmpty()) {
+        unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.valueOf(unlistedClientsPolicyValue)
+    }
+
     return when {
-        path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients)
-        pathPrefix != null -> IncomingEndpoint(pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients)
+        path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy)
+        pathPrefix != null -> IncomingEndpoint(
+                pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy
+        )
         else -> throw NodeMetadataValidationException("One of 'path' or 'pathPrefix' field is required")
     }
 }
