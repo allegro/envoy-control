@@ -7,7 +7,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest.Companion.c
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest.Companion.network
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer.Companion.internalToxiproxyPort
-import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer.Companion.allInterfaces
+import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer.Companion.allInterfaces
 
 @Testcontainers
 internal class Toxiproxy {

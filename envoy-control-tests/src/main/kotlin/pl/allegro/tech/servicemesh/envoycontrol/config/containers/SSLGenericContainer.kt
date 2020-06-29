@@ -2,7 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.containers
 
 import org.testcontainers.containers.BindMode
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder
-import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 
 open class SSLGenericContainer<SELF : SSLGenericContainer<SELF>>(
     dockerfileBuilder: DockerfileBuilder,

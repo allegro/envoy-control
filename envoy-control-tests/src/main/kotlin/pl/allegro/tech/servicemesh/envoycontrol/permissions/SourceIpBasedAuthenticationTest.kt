@@ -83,8 +83,8 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         val ipsumToEcho2Proxy = ipsumContainer.createProxyToEnvoyIngress(envoy = envoyContainer2)
 
         // when
-        val requestFromLoremResponse = callEcho2(through = loremToEcho2Proxy)
-        val requestFromIpsumResponse = callEcho2(through = ipsumToEcho2Proxy)
+        val requestFromLoremResponse = callEcho2(from = loremToEcho2Proxy)
+        val requestFromIpsumResponse = callEcho2(from = ipsumToEcho2Proxy)
 
         val plainHttpAccessDenials = envoyContainer2.admin().statValue("http.ingress_http.rbac.denied")?.toInt()
         val sslHandshakes = envoyContainer2.admin().statValue("listener.0.0.0.0_5001.ssl.handshake")?.toInt()
@@ -113,7 +113,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         )
     }
 
-    private fun callEcho2(through: String): Response = call(address = through, pathAndQuery = "/secured_endpoint")
+    private fun callEcho2(from: String): Response = call(address = from, pathAndQuery = "/secured_endpoint")
 
     private fun callEcho2ThroughEnvoy2Ingress(): Response =
         callLocalService("/secured_endpoint", Headers.of(), envoyContainer2)

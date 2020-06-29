@@ -2,7 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.containers
 
 import eu.rekawek.toxiproxy.ToxiproxyClient
 import org.testcontainers.containers.wait.strategy.Wait
-import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.util.LinkedList
 
 class ToxiproxyContainer(exposedPortsCount: Int = 0) :

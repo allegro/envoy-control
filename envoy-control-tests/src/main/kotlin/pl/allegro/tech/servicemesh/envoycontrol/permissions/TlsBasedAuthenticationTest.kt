@@ -79,7 +79,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @BeforeEach
     fun setup() {
-        registerService(name = "echo", tags = listOf("mtls:enabled"))
         registerEcho2WithEnvoyOnIngress()
     }
 
@@ -177,6 +176,10 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         envoyDifferentCa.stop()
     }
 
+    /**
+     * TODO: should reject client with deprecated authentication method
+     */
+
     @Test
     @SuppressWarnings("SwallowedException")
     fun `should reject client without a certificate`() {
@@ -205,12 +208,11 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         return callServiceInsecure(address = echo2Envoy.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
     }
 
-    private fun callEcho2FromEcho1() = callService(service = "echo2", pathAndQuery = "/secured_endpoint")
+    private fun callEcho2FromEcho1() = call(service = "echo2", path = "/secured_endpoint", from = echo1Envoy)
 
-    private fun callEcho2(from: EnvoyContainer) = callService(
-        service = "echo2", pathAndQuery = "/secured_endpoint", address = from.egressListenerUrl())
+    private fun callEcho2(from: EnvoyContainer) = call(service = "echo2", path = "/secured_endpoint", from = from)
 
-    private fun callEcho3FromEcho1() = callService(service = "echo3", pathAndQuery = "/secured_endpoint")
+    private fun callEcho3FromEcho1() = call(service = "echo3", path = "/secured_endpoint", from = echo1Envoy)
 
     private fun createEnvoyNotTrustingDefaultCA(): EnvoyContainer {
         val envoy = EnvoyContainer(

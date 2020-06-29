@@ -3,7 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.consul
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.images.builder.ImageFromDockerfile
-import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 
 class ConsulContainer(
     private val dc: String,

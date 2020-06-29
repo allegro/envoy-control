@@ -230,8 +230,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
-        fun callEnvoyIngress(path: String): Response =
-            call(address = envoyContainer1.ingressListenerUrl(), pathAndQuery = path)
+        fun callEnvoyIngress(envoy: EnvoyContainer = envoyContainer1, path: String, useSsl: Boolean = false): Response =
+            call(address = envoy.ingressListenerUrl(secured = useSsl), pathAndQuery = path)
 
         fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
             call(address = address)
@@ -271,15 +271,28 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         ): Response = call(service, address, headers, pathAndQuery, insecureClient)
 
         fun call(
+            service: String,
+            from: EnvoyContainer,
+            path: String,
+            method: String = "GET",
+            body: RequestBody? = null
+        ) = call(
+            host = service, address = from.egressListenerUrl(), pathAndQuery = path,
+            method = method, body = body, headers = mapOf()
+        )
+
+        fun call(
             host: String? = null,
             address: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = "",
-            client: OkHttpClient = defaultClient
+            client: OkHttpClient = defaultClient,
+            method: String = "GET",
+            body: RequestBody? = null
         ): Response {
             val request = client.newCall(
                 Request.Builder()
-                    .get()
+                    .method(method, body)
                     .apply { if (host != null) header("Host", host) }
                     .apply {
                         headers.forEach { name, value -> header(name, value) }
@@ -330,6 +343,10 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     .build()
             )
                 .execute()
+
+        fun ToxiproxyContainer.createProxyToEnvoyIngress(envoy: EnvoyContainer) = this.createProxy(
+            targetIp = envoy.ipAddress(), targetPort = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
+        )
 
         private fun waitForConsulSync() {
             await().atMost(defaultDuration).until { !callEcho().use { it.isSuccessful } }
@@ -508,12 +525,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         return this
     }
 
-    fun ToxiproxyContainer.createProxyToEnvoyIngress(envoy: EnvoyContainer) = this.createProxy(
-        targetIp = envoyContainer2.ipAddress(), targetPort = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
-    )
-
     @AfterEach
-    fun cleanupTest() {
+    open fun cleanupTest() {
         deregisterAllServices()
         envoyContainer1.admin().resetCounters()
         if (envoys == 2) {

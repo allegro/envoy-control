@@ -14,6 +14,7 @@ class EnvoyContainer(
     private val localServiceIp: String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
+    private val logLevel: String = "info",
     image: String
 ) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
@@ -62,7 +63,7 @@ class EnvoyContainer(
             config.privateKey,
             config.serviceName,
             "--config-yaml", config.configOverride,
-            "-l", "debug"
+            "-l", logLevel
         )
     }
 

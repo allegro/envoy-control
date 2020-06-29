@@ -1,5 +1,6 @@
-package pl.allegro.tech.servicemesh.envoycontrol.testcontainers
+package pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers
 
+import com.github.dockerjava.api.command.InspectContainerResponse
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.Network
 import org.testcontainers.images.builder.ImageFromDockerfile
@@ -16,6 +17,8 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
                 }
             }
     )
+
+    val logRecorder: LogRecorder = LogRecorder()
 
     private val HOST_IP_SCRIPT = "testcontainers/host_ip.sh"
     private val HOST_IP_SCRIPT_DEST = "/usr/local/bin/host_ip.sh"
@@ -39,6 +42,10 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
         } else {
             this.self()
         }
+    }
+
+    override fun containerIsStarting(containerInfo: InspectContainerResponse?) {
+        followOutput(logRecorder)
     }
 
     fun addHost(host: String, ip: String) {
