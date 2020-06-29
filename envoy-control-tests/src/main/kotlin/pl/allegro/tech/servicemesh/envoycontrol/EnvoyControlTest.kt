@@ -74,17 +74,17 @@ internal abstract class EnvoyControlTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should assign endpoints to correct zones`() {
+    fun `should assign endpoints to correct clusters`() {
         // given
         registerService(name = "echo")
 
         untilAsserted {
             // when
-            val adminInstance = envoyContainer1.admin().zone(cluster = "echo", ip = echoContainer.ipAddress())
+            val adminInstance = envoyContainer1.admin().cluster(cluster = "echo", ip = echoContainer.ipAddress())
 
             // then
             assertThat(adminInstance).isNotNull
-            assertThat(adminInstance!!.zone).isEqualTo("dc1")
+            assertThat(adminInstance!!.cluster).isEqualTo("dc1")
         }
     }
 }

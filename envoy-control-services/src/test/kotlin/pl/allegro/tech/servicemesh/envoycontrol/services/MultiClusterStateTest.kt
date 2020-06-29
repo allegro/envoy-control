@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 internal class MultiClusterStateTest {
 
     @Test
-    fun `MultiCLusterStates should implement equality`() {
+    fun `MultiClusterStates should implement equality`() {
         // given
         val multiClusterState1 = createMultiClusterState()
         val multiClusterState2 = createMultiClusterState()

@@ -76,7 +76,7 @@ class SnapshotUpdaterTest {
                 )))
             )
         ),
-        Locality.LOCAL, "zone"
+        Locality.LOCAL, "cluster"
     ).toMultiClusterState()
 
     @Test
@@ -233,7 +233,7 @@ class SnapshotUpdaterTest {
                     "service" to ServiceInstances("service", setOf())
                 )
             ),
-            Locality.LOCAL, "zone"
+            Locality.LOCAL, "cluster"
         ).toMultiClusterState()
 
         // when
@@ -267,7 +267,7 @@ class SnapshotUpdaterTest {
 
         val stateWithNoServices = ClusterState(
             ServicesState(serviceNameToInstances = mapOf()),
-            Locality.LOCAL, "zone"
+            Locality.LOCAL, "cluster"
         ).toMultiClusterState()
 
         // when
@@ -379,7 +379,7 @@ class SnapshotUpdaterTest {
                 serviceNameToInstances = services.map { it to ServiceInstances(it, emptySet()) }.toMap()
 
             ),
-            Locality.LOCAL, "zone"
+            Locality.LOCAL, "cluster"
         ).toMultiClusterState()
     )
 

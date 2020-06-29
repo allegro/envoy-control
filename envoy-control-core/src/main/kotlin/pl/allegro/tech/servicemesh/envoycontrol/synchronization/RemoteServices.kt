@@ -14,32 +14,32 @@ import java.net.URI
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
-// TODO(dj): #110 rename to RemoteServices
-class CrossDcServices(
+class RemoteServices(
     private val controlPlaneClient: AsyncControlPlaneClient,
     private val meterRegistry: MeterRegistry,
     private val controlPlaneInstanceFetcher: ControlPlaneInstanceFetcher,
-    private val remoteDcs: List<String>
+    private val remoteClusters: List<String>
 ) {
     private val logger by logger()
-    private val dcServicesCache = ConcurrentHashMap<String, ClusterState>()
+    private val clusterStateCache = ConcurrentHashMap<String, ClusterState>()
 
     fun getChanges(interval: Long): Flux<MultiClusterState> {
         return Flux
             .interval(Duration.ofSeconds(0), Duration.ofSeconds(interval))
             .checkpoint("cross-dc-services-ticks")
             .name("cross-dc-services-ticks").metrics()
-            // Cross DC sync is not a backpressure compatible stream. If running cross dc sync is slower than interval
-            // we have to drop interval events and run another cross dc on another interval tick.
+            // Cross cluster sync is not a backpressure compatible stream.
+            // If running cross cluster sync is slower than interval we have to drop interval events
+            // and run another cross cluster on another interval tick.
             .onBackpressureDrop()
             .measureDiscardedItems("cross-dc-services-ticks", meterRegistry)
             .checkpoint("cross-dc-services-update-requested")
             .name("cross-dc-services-update-requested").metrics()
             .flatMap {
-                Flux.fromIterable(remoteDcs)
-                    .map { dc -> dcWithControlPlaneInstances(dc) }
+                Flux.fromIterable(remoteClusters)
+                    .map { cluster -> clusterWithControlPlaneInstances(cluster) }
                     .filter { (_, instances) -> instances.isNotEmpty() }
-                    .flatMap { (dc, instances) -> servicesStateFromDc(dc, instances) }
+                    .flatMap { (cluster, instances) -> servicesStateFromCluster(cluster, instances) }
                     .collectList()
                     .map { it.toMultiClusterState() }
             }
@@ -53,36 +53,38 @@ class CrossDcServices(
             }
     }
 
-    private fun dcWithControlPlaneInstances(dc: String): Pair<String, List<URI>> {
+    private fun clusterWithControlPlaneInstances(cluster: String): Pair<String, List<URI>> {
         return try {
-            val instances = controlPlaneInstanceFetcher.instances(dc)
-            dc to instances
+            val instances = controlPlaneInstanceFetcher.instances(cluster)
+            cluster to instances
         } catch (e: Exception) {
-            meterRegistry.counter("cross-dc-synchronization.$dc.instance-fetcher.errors").increment()
-            logger.warn("Failed fetching instances from $dc", e)
-            dc to emptyList()
+            meterRegistry.counter("cross-dc-synchronization.$cluster.instance-fetcher.errors").increment()
+            logger.warn("Failed fetching instances from $cluster", e)
+            cluster to emptyList()
         }
     }
 
-    private fun servicesStateFromDc(
-        dc: String,
+    private fun servicesStateFromCluster(
+        cluster: String,
         instances: List<URI>
     ): Mono<ClusterState> {
         val instance = chooseInstance(instances)
         return controlPlaneClient
             .getState(instance)
-            .checkpoint("cross-dc-service-update-$dc")
-            .name("cross-dc-service-update-$dc").metrics()
+            .checkpoint("cross-dc-service-update-$cluster")
+            .name("cross-dc-service-update-$cluster").metrics()
             .map {
-                ClusterState(it, Locality.REMOTE, dc)
+                ClusterState(it, Locality.REMOTE, cluster)
             }
             .doOnSuccess {
-                dcServicesCache += dc to it
+                clusterStateCache += cluster to it
             }
             .onErrorResume { exception ->
-                meterRegistry.counter("cross-dc-synchronization.$dc.state-fetcher.errors").increment()
+                // TODO(dj): #110 cross-dc- naming stays for now to avoid breaking existing monitoring,
+                //  but at a bigger release we could tackle it
+                meterRegistry.counter("cross-dc-synchronization.$cluster.state-fetcher.errors").increment()
                 logger.warn("Error synchronizing instances ${exception.message}", exception)
-                Mono.justOrEmpty(dcServicesCache[dc])
+                Mono.justOrEmpty(clusterStateCache[cluster])
             }
     }
 

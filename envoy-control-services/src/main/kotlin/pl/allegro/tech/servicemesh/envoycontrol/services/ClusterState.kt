@@ -7,7 +7,7 @@ enum class Locality {
 data class ClusterState(
     val servicesState: ServicesState,
     val locality: Locality,
-    val zone: String
+    val cluster: String
 )
 
 data class MultiClusterState(private val l: List<ClusterState> = listOf()) : Collection<ClusterState> by l {
