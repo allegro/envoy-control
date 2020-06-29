@@ -176,10 +176,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         envoyDifferentCa.stop()
     }
 
-    /**
-     * TODO: should reject client with deprecated authentication method
-     */
-
     @Test
     @SuppressWarnings("SwallowedException")
     fun `should reject client without a certificate`() {
