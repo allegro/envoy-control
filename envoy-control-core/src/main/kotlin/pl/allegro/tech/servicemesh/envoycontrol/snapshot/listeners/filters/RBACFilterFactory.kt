@@ -88,7 +88,7 @@ class RBACFilterFactory(
         return clientToPolicyBuilder
     }
 
-    private fun getAllRules2(
+    private fun getRules(
         serviceName: String,
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
@@ -142,9 +142,8 @@ class RBACFilterFactory(
                 if (rulesClientToPolicy.containsKey(clients)) {
                     val newPolicy = Policy.newBuilder()
                     newPolicy.addAllPrincipals(rulesClientToPolicy[clients]!!.principalsList)
-                    newPolicy.addAllPermissions(
-                            rulesClientToPolicy[clients]!!.permissionsList + entry.value.permissionsList
-                    )
+                    newPolicy.addAllPermissions(rulesClientToPolicy[clients]!!.permissionsList)
+                    newPolicy.addAllPermissions(entry.value.permissionsList)
                     rulesClientToPolicy[clients] = newPolicy.build()
                 } else {
                     rulesClientToPolicy.put(clients, entry.value)
@@ -351,15 +350,15 @@ class RBACFilterFactory(
 
     fun createHttpFilter(group: Group, snapshot: GlobalSnapshot): HttpFilter? {
         return if (incomingPermissionsProperties.enabled && group.proxySettings.incoming.permissionsEnabled) {
-            val (actualRules2, shadowRules2) = getAllRules2(
-                    group.serviceName,
-                    group.proxySettings.incoming,
-                    snapshot,
-                    group.proxySettings.incoming.roles
+            val (actualRules, shadowRules) = getRules(
+                group.serviceName,
+                group.proxySettings.incoming,
+                snapshot,
+                group.proxySettings.incoming.roles
             )
 
-            val rbacFilter = RBACFilter.newBuilder().setRules(actualRules2)
-                    .setShadowRules(shadowRules2)
+            val rbacFilter = RBACFilter.newBuilder().setRules(actualRules)
+                    .setShadowRules(shadowRules)
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac")
                     .setTypedConfig(Any.pack(rbacFilter.build())).build()
         } else {
