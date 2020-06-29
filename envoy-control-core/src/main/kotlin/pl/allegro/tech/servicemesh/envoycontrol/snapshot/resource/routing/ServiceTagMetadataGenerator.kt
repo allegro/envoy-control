@@ -1,8 +1,11 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routing
 
 import com.google.re2j.Pattern
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsProperties
 
+/**
+ * Used for cluster endpoints to provide subset routing
+ */
 class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTagsProperties()) {
 
     private val tagsBlacklist: Pattern = properties.routingExcludedTags

@@ -21,6 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.EnvoyIngressRoutesFactory
 import java.time.Duration
 
 internal class EnvoyIngressRoutesFactoryTest {

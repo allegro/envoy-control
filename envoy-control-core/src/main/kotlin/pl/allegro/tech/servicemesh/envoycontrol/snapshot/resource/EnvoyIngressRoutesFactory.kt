@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource
 
 import com.google.protobuf.Duration
 import com.google.protobuf.UInt32Value
@@ -12,8 +12,11 @@ import io.envoyproxy.envoy.api.v2.route.RouteMatch
 import io.envoyproxy.envoy.api.v2.route.VirtualCluster
 import io.envoyproxy.envoy.api.v2.route.VirtualHost
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
+import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
-internal class EnvoyIngressRoutesFactory(
+class EnvoyIngressRoutesFactory(
     private val properties: SnapshotProperties
 ) {
     private fun clusterRouteAction(

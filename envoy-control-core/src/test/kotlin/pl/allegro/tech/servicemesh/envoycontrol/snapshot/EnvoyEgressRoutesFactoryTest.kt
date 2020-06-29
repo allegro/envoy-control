@@ -11,6 +11,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasAutoHostRewriteHeader
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRequestHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.EnvoyEgressRoutesFactory
 
 internal class EnvoyEgressRoutesFactoryTest {
 

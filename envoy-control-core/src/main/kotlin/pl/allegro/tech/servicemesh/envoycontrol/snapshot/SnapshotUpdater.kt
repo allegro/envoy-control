@@ -8,9 +8,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.EnvoyListenersFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routing.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
@@ -23,6 +22,7 @@ import reactor.core.scheduler.Scheduler
 class SnapshotUpdater(
     private val cache: SnapshotCache<Group>,
     private val properties: SnapshotProperties,
+    private val snapshotFactory: EnvoySnapshotFactory,
     private val globalSnapshotScheduler: Scheduler,
     private val groupSnapshotScheduler: ParallelizableScheduler,
     private val onGroupAdded: Flux<out List<Group>>,
@@ -36,22 +36,6 @@ class SnapshotUpdater(
 
     private val versions = SnapshotsVersions()
 
-    // TODO(dj): #110 consider plugging the factories externally
-    private val snapshotFactory = EnvoySnapshotFactory(
-        ingressRoutesFactory = EnvoyIngressRoutesFactory(properties),
-        egressRoutesFactory = EnvoyEgressRoutesFactory(properties),
-        clustersFactory = EnvoyClustersFactory(properties),
-        listenersFactory = EnvoyListenersFactory(
-                properties,
-                envoyHttpFilters
-        ),
-        // Remember when LDS change we have to send RDS again
-        snapshotsVersions = versions,
-        properties = properties,
-        meterRegistry = meterRegistry,
-        serviceTagFilter = serviceTagFilter
-    )
-
     private var globalSnapshot: UpdateResult? = null
 
     fun getGlobalSnapshot(): UpdateResult? {
@@ -61,12 +45,16 @@ class SnapshotUpdater(
     fun start(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return Flux.merge(
                 1, // prefetch 1, instead of default 32, to avoid processing stale items in case of backpressure
+                // step 1: creates cluster configuration for global snapshot
                 services(states).subscribeOn(globalSnapshotScheduler),
+                // step 2: only watches groups. if groups change we use the last services state and update those groups
                 groups().subscribeOn(globalSnapshotScheduler)
         )
                 .measureBuffer("snapshot-updater-merged", meterRegistry, innerSources = 2)
                 .checkpoint("snapshot-updater-merged")
                 .name("snapshot-updater-merged").metrics()
+                // step 3: group updates don't provide a snapshot,
+                // so we piggyback the last updated snapshot state for use
                 .scan { previous: UpdateResult, newUpdate: UpdateResult ->
                     UpdateResult(
                             action = newUpdate.action,
@@ -83,7 +71,11 @@ class SnapshotUpdater(
                         result.groups
                     }
 
+                    // step 4: update the snapshot for either all groups (if services changed)
+                    //         or specific groups (groups changed).
+                    // TODO(dj): on what occasion can this be false?
                     if (result.adsSnapshot != null || result.xdsSnapshot != null) {
+                        // Stateful operation! This is the meat of this processing.
                         updateSnapshotForGroups(groups, result)
                     } else {
                         Mono.empty()
