@@ -904,7 +904,7 @@ internal class RBACFilterFactoryTest {
           }
         }
     """
-
+    // language=json
     private val expectedSourceIpAuthWithStaticRangeAndSourceIpJson = """
         {
           "policies": {

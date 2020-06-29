@@ -24,10 +24,10 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
         )
 
-        private lateinit var echo1Envoy: EnvoyContainer
-        private lateinit var echo2Envoy: EnvoyContainer
-        private lateinit var echo3Envoy: EnvoyContainer
+        val echo1Envoy by lazy { envoyContainer1 }
+        val echo2Envoy by lazy { envoyContainer2 }
 
+        // language=yaml
         private val echo1EnvoyConfig = Echo1EnvoyAuthConfig.copy(configOverride = """
             node:
               metadata:
@@ -37,6 +37,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                       - service: "echo2"
                       - service: "echo3"
         """.trimIndent())
+        // language=yaml
         private val echo2EnvoyConfig = Echo2EnvoyAuthConfig.copy(configOverride = """
             node:
               metadata:
@@ -53,8 +54,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
             }, envoyConfig = echo1EnvoyConfig, secondEnvoyConfig = echo2EnvoyConfig, envoys = 2)
-            echo1Envoy = envoyContainer1
-            echo2Envoy = envoyContainer2
         }
 
         private fun registerEcho2WithEnvoyOnIngress() {
@@ -103,13 +102,13 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     fun `should not allow traffic that fails client SAN validation`() {
-        echo3Envoy = createEnvoyContainerWithEcho3San()
+        val echo3Envoy = createEnvoyContainerWithEcho3San()
         echo3Envoy.start()
 
         untilAsserted {
             // when
             // echo2 doesn't allow requests from echo3
-            val invalidResponse = callEcho2FromEcho3()
+            val invalidResponse = callEcho2(from = echo3Envoy)
 
             // then
             val sanValidationFailure = echo2Envoy.admin().statValue("http.ingress_https.rbac.denied")?.toInt()
@@ -213,10 +212,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     private fun callEcho3FromEcho1() = callService(service = "echo3", pathAndQuery = "/secured_endpoint")
 
-    private fun callEcho2FromEcho3(): Response {
-        return callService(address = echo3Envoy.egressListenerUrl(), service = "echo2", pathAndQuery = "/secured_endpoint")
-    }
-
     private fun createEnvoyNotTrustingDefaultCA(): EnvoyContainer {
         val envoy = EnvoyContainer(
             Echo1EnvoyAuthConfig.copy(
@@ -246,6 +241,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
     }
 
     private fun createEnvoyContainerWithEcho3San(): EnvoyContainer {
+        // language=yaml
         val configOverride = """
             node:
               metadata:
@@ -255,18 +251,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                       - service: "echo2"
         """.trimIndent()
 
-        val echo3EnvoyConfig = Echo1EnvoyAuthConfig.copy(
-            serviceName = "echo3",
-            configOverride = configOverride,
-            certificateChain = "/app/fullchain_echo3.pem",
-            privateKey = "/app/privkey_echo3.pem"
-        )
-
-        return EnvoyContainer(
-            echo3EnvoyConfig,
-            localServiceContainer.ipAddress(),
-            envoyControl1.grpcPort,
-            image = defaultEnvoyImage
-        ).withNetwork(network)
+        return createEnvoyContainerWithEcho3Certificate(configOverride = configOverride)
     }
 }

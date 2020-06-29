@@ -15,6 +15,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
@@ -43,6 +44,11 @@ val Echo2EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
     serviceName = "echo2",
     certificateChain = "/app/fullchain_echo2.pem",
     privateKey = "/app/privkey_echo2.pem"
+)
+val Echo3EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
+    serviceName = "echo3",
+    certificateChain = "/app/fullchain_echo3.pem",
+    privateKey = "/app/privkey_echo3.pem"
 )
 val AdsWithDisabledEndpointPermissions = EnvoyConfig("envoy/config_ads_disabled_endpoint_permissions.yaml")
 val AdsWithStaticListeners = EnvoyConfig("envoy/config_ads_static_listeners.yaml")
@@ -105,10 +111,10 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
 
             envoyContainer1 = createEnvoyContainer(
-                instancesInSameDc,
-                envoyConfig,
-                envoyConnectGrpcPort,
-                envoyConnectGrpcPort2,
+                envoyConfig = envoyConfig,
+                instancesInSameDc = instancesInSameDc,
+                envoyConnectGrpcPort = envoyConnectGrpcPort,
+                envoyConnectGrpcPort2 = envoyConnectGrpcPort2,
                 envoyImage = envoyImage
             )
 
@@ -123,11 +129,10 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
             if (envoys == 2) {
                 envoyContainer2 = createEnvoyContainer(
-                    true,
-                    secondEnvoyConfig,
-                    envoyConnectGrpcPort,
-                    envoyConnectGrpcPort2,
-                    echoContainer2.ipAddress(),
+                    envoyConfig = secondEnvoyConfig,
+                    envoyConnectGrpcPort = envoyConnectGrpcPort,
+                    envoyConnectGrpcPort2 = envoyConnectGrpcPort2,
+                    localServiceIp = echoContainer2.ipAddress(),
                     envoyImage = envoyImage
                 )
                 try {
@@ -154,34 +159,43 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
 
         private fun createEnvoyContainer(
-            instancesInSameDc: Boolean,
             envoyConfig: EnvoyConfig,
-            envoyConnectGrpcPort: Int?,
-            envoyConnectGrpcPort2: Int?,
+            instancesInSameDc: Boolean = true,
+            envoyConnectGrpcPort: Int? = null,
+            envoyConnectGrpcPort2: Int? = null,
             localServiceIp: String = localServiceContainer.ipAddress(),
             envoyImage: String = defaultEnvoyImage
         ): EnvoyContainer {
-            return if (envoyControls == 2 && instancesInSameDc) {
-                EnvoyContainer(
-                    envoyConfig,
-                    localServiceIp,
-                    envoyConnectGrpcPort ?: envoyControl1.grpcPort,
-                    envoyConnectGrpcPort2 ?: envoyControl2.grpcPort,
-                    image = envoyImage
-                ).withNetwork(network)
-            } else {
-                EnvoyContainer(
-                    envoyConfig,
-                    localServiceIp,
-                    envoyConnectGrpcPort ?: envoyControl1.grpcPort,
-                    image = envoyImage
-                ).withNetwork(network)
-            }
+            val envoyControl1XdsPort = envoyConnectGrpcPort ?: envoyControl1.grpcPort
+            val envoyControl2XdsPort = if (envoyControls == 2 && instancesInSameDc) {
+                envoyConnectGrpcPort2 ?: envoyControl2.grpcPort
+            } else envoyControl1XdsPort
+            return EnvoyContainer(
+                config = envoyConfig,
+                localServiceIp = localServiceIp,
+                envoyControl1XdsPort = envoyControl1XdsPort,
+                envoyControl2XdsPort = envoyControl2XdsPort,
+                image = envoyImage
+            ).withNetwork(network)
         }
 
         fun createEnvoyContainerWithFaultyConfig(): EnvoyContainer {
-            return createEnvoyContainer(true, FaultyConfig, null, null)
-                .withStartupTimeout(Duration.ofSeconds(10))
+            return createEnvoyContainer(
+                envoyConfig = FaultyConfig,
+                envoyConnectGrpcPort = null,
+                envoyConnectGrpcPort2 = null
+            ).withStartupTimeout(Duration.ofSeconds(10))
+        }
+
+        fun createEnvoyContainerWithEcho3Certificate(configOverride: String = ""): EnvoyContainer {
+            val echo3EnvoyConfig = Echo3EnvoyAuthConfig.copy(configOverride = configOverride)
+
+            return EnvoyContainer(
+                echo3EnvoyConfig,
+                localServiceContainer.ipAddress(),
+                envoyControl1.grpcPort,
+                image = defaultEnvoyImage
+            ).withNetwork(network)
         }
 
         fun registerEnvoyControls(
@@ -217,16 +231,16 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
 
         fun callEnvoyIngress(path: String): Response =
-            call("", address = envoyContainer1.ingressListenerUrl(), pathAndQuery = path)
+            call(address = envoyContainer1.ingressListenerUrl(), pathAndQuery = path)
 
         fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
-            call("", address)
+            call(address = address)
 
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", address)
 
         fun callDomain(domain: String, address: String = envoyContainer1.egressListenerUrl()): Response =
-            call(domain, address)
+            call(host = domain, address = address)
 
         fun callService(
             service: String,
@@ -256,8 +270,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             pathAndQuery: String = ""
         ): Response = call(service, address, headers, pathAndQuery, insecureClient)
 
-        private fun call(
-            host: String,
+        fun call(
+            host: String? = null,
             address: String = envoyContainer1.egressListenerUrl(),
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = "",
@@ -266,7 +280,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             val request = client.newCall(
                 Request.Builder()
                     .get()
-                    .header("Host", host)
+                    .apply { if (host != null) header("Host", host) }
                     .apply {
                         headers.forEach { name, value -> header(name, value) }
                     }
@@ -493,6 +507,10 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         matches { it.serviceNames().isNotEmpty() }
         return this
     }
+
+    fun ToxiproxyContainer.createProxyToEnvoyIngress(envoy: EnvoyContainer) = this.createProxy(
+        targetIp = envoyContainer2.ipAddress(), targetPort = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
+    )
 
     @AfterEach
     fun cleanupTest() {
