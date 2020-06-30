@@ -45,10 +45,6 @@ class AccessLogProperties {
     var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
         "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
 
-    // TODO(mfalkowski): do wywalenia, nie chcemy mieć access logów specjalnych dla rbaca
-    var messageFormatRBAC = "ACCESS_LOG: \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%" +
-                "%RESPONSE_CODE% flags: %RESPONSE_FLAGS% ALL_RBAC_METADATA: %DYNAMIC_METADATA(envoy.filters.http.rbac)%"
-
     var level = "TRACE"
     var logger = "envoy.AccessLog"
 }

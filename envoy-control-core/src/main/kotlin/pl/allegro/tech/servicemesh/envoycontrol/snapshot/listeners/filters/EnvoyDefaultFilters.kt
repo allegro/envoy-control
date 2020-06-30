@@ -15,9 +15,6 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
             RBACFilterPermissions()
     )
 
-    // TODO(mfalkowski): ta instancja powinna być użyta, a metoda luaFilter nie powinna być statyczna
-    private val luaFactory = EnvoyShadowRulesFiltersFactory()
-
     private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
             snapshotProperties.routing.serviceTags.header,
             snapshotProperties.routing.serviceTags.metadataKey
@@ -32,7 +29,9 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     }
 
     private val luaFilter = {
-        group: Group, snapshot: GlobalSnapshot -> EnvoyShadowRulesFiltersFactory.luaFilter(group)
+        // TODO(mfalkowski): metoda luaFilter nie powinna być statyczna, powinniśmy mieć instancję EnvoyShadowRulesFiltersFactory
+        //   A klasa nie powinna się nazywać EnvoyShadowRulesFiltersFactory tylko LuaIngressFilterFactory
+        group: Group, snapshot: GlobalSnapshot -> EnvoyShadowRulesFiltersFactory.luaFilter(snapshotProperties.incomingPermissions.enabled)
     }
 
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)

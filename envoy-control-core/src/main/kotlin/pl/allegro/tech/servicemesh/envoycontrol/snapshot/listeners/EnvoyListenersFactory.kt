@@ -57,9 +57,6 @@ class EnvoyListenersFactory(
     private val localServiceProperties = snapshotProperties.localService
     private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
     private val accessLogMessageFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormat)
-    private val accessLogMessageFormatRBAC = stringValue(
-            listenersFactoryProperties.httpFilters.accessLog.messageFormatRBAC
-    )
     private val accessLogLevel = stringValue(listenersFactoryProperties.httpFilters.accessLog.level)
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
     private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
@@ -215,7 +212,7 @@ class EnvoyListenersFactory(
 
         addHttpFilters(connectionManagerBuilder, egressFilters, group, globalSnapshot)
 
-        return createFilter(connectionManagerBuilder, "egress", listenersConfig, false)
+        return createFilter(connectionManagerBuilder, "egress", listenersConfig)
     }
 
     private fun addHttpFilters(
@@ -235,17 +232,11 @@ class EnvoyListenersFactory(
     private fun createFilter(
         connectionManagerBuilder: HttpConnectionManager.Builder,
         accessLogType: String,
-        listenersConfig: ListenersConfig,
-        useRBACMessageFormat: Boolean
+        listenersConfig: ListenersConfig
     ): Filter {
         if (listenersConfig.accessLogEnabled) {
             connectionManagerBuilder.addAccessLog(
-                accessLog(
-                    listenersConfig.accessLogPath,
-                    accessLogType,
-                    listenersConfig.accessLogFilterSettings,
-                    useRBACMessageFormat
-                )
+                accessLog(listenersConfig.accessLogPath, accessLogType, listenersConfig.accessLogFilterSettings)
             )
         }
 
@@ -306,17 +297,7 @@ class EnvoyListenersFactory(
 
         addHttpFilters(connectionManagerBuilder, ingressFilters, group, globalSnapshot)
 
-        val addFilterRBACMessage: Boolean = addFilterRBACLuaFilter(group.proxySettings.incoming)
-
-        return createFilter(connectionManagerBuilder, "ingress", listenersConfig, addFilterRBACMessage)
-    }
-
-    private fun addFilterRBACLuaFilter(incoming: Incoming): Boolean {
-        // TODO(mfalkowski): logowanie powinno być włączone zawsze, także w trybie blockAndLog
-        return incoming.unlistedEndpointsPolicy == Incoming.UnlistedEndpointsPolicy.LOG ||
-                incoming.endpoints.stream().anyMatch {
-                    it.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.LOG
-                }
+        return createFilter(connectionManagerBuilder, "ingress", listenersConfig)
     }
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
@@ -364,8 +345,7 @@ class EnvoyListenersFactory(
     private fun accessLog(
         accessLogPath: String,
         accessLogType: String,
-        accessLogFilterSettings: AccessLogFilterSettings?,
-        useRBACMessageFormat: Boolean
+        accessLogFilterSettings: AccessLogFilterSettings?
     ): AccessLog {
         val builder = AccessLog.newBuilder().setName("envoy.file_access_log")
 
@@ -375,8 +355,6 @@ class EnvoyListenersFactory(
             }
         }
 
-        val message = if (useRBACMessageFormat) accessLogMessageFormatRBAC else accessLogMessageFormat
-
         return builder.setTypedConfig(
                         ProtobufAny.pack(
                                 FileAccessLog.newBuilder()
@@ -384,7 +362,7 @@ class EnvoyListenersFactory(
                                         .setJsonFormat(
                                                 Struct.newBuilder()
                                                         .putFields("time", accessLogTimeFormat)
-                                                        .putFields("message", message)
+                                                        .putFields("message", accessLogMessageFormat)
                                                         .putFields("level", accessLogLevel)
                                                         .putFields("logger", accessLogLogger)
                                                         .putFields("access_log_type", stringValue(accessLogType))

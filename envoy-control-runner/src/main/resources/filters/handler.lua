@@ -29,7 +29,7 @@ function envoy_on_response(handle)
             if source_ip == nil then source_ip = "" end
 
             -- TODO(mfalkowski): print if this request has been blocked or only logged (using rbacMetadata["engine_result"])
-            handle:logInfo("\nLUA: Permission denied: shadow_engine: "..shadow_engine_result..", path: "..path..", method: "..method..", service-name: "..service_name..", ip: "..source_ip)
+            handle:logInfo("\nRBAC: Permission denied: shadow_engine: "..shadow_engine_result..", path: "..path..", method: "..method..", service-name: "..service_name..", ip: "..source_ip)
         end
     end
 end
