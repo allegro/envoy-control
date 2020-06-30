@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.Duration
 import com.google.protobuf.UInt32Value

@@ -6,7 +6,6 @@ import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Http
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routing.ServiceTagFilter
 
 class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     private val rbacFilterFactory = RBACFilterFactory(

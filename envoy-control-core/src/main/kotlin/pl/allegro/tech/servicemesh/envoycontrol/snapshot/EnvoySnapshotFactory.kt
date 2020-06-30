@@ -18,10 +18,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.EnvoyClustersFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.EnvoyEgressRoutesFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.EnvoyEndpointsFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.EnvoyIngressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
 
 class EnvoySnapshotFactory(
@@ -227,6 +227,8 @@ class EnvoySnapshotFactory(
             emptyList()
         }
 
+        // TODO(dj): endpoints depends on prerequisite of routes -> but only to extract clusterName,
+        // which is present only in services (not domains) so it could be implemented differently.
         val endpoints = getServicesEndpointsForGroup(globalSnapshot, egressRouteSpecification)
 
         val version = snapshotsVersions.version(group, clusters, endpoints, listeners)

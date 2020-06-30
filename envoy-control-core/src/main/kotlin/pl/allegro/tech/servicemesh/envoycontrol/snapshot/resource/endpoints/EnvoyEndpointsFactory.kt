@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints
 
 import com.google.protobuf.ListValue
 import com.google.protobuf.Struct
@@ -16,7 +16,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routing.ServiceTagMetadataGenerator
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 
 class EnvoyEndpointsFactory(
     private val properties: SnapshotProperties,

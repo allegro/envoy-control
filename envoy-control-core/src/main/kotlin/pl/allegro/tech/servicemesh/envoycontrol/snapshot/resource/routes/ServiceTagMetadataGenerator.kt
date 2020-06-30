@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routing
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.re2j.Pattern
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsProperties

@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
@@ -102,7 +102,7 @@ class AdminRoutesFactory(
         return AuthorizationRoute(authorizedRoute, unauthorizedRoute)
     }
 
-    fun guardAccessWithDisableHeader(): List<Route> {
+    private fun guardAccessWithDisableHeader(): List<Route> {
         if (properties.admin.disable.onHeader.isEmpty()) {
             return emptyList()
         }

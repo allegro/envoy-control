@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources

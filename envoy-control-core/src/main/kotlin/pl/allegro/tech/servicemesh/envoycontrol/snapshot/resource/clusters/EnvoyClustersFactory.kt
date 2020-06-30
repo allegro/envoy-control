@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters
 
 import com.google.protobuf.Any
 import com.google.protobuf.Struct
