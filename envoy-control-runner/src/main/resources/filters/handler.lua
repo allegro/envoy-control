@@ -28,7 +28,7 @@ function envoy_on_response(handle)
             end
             if source_ip == nil then source_ip = "" end
 
-            handle:logInfo("\nLUA: Permission denied: shadow_engine: "..shadow_engine_result..", path: "..path..", method: "..method..", service-name: "..service_name..", ip: "..source_ip)
+            handle:logInfo("\nRBAC: Permission denied: shadow_engine: "..shadow_engine_result..", path: "..path..", method: "..method..", service-name: "..service_name..", ip: "..source_ip)
         end
     end
 end

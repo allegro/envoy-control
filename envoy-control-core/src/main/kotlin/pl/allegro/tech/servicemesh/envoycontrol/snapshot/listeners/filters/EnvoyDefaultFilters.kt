@@ -15,8 +15,6 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
             RBACFilterPermissions()
     )
 
-    private val luaFactory = EnvoyShadowRulesFiltersFactory()
-
     private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
             snapshotProperties.routing.serviceTags.header,
             snapshotProperties.routing.serviceTags.metadataKey
@@ -31,7 +29,7 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     }
 
     private val luaFilter = {
-        group: Group, snapshot: GlobalSnapshot -> EnvoyShadowRulesFiltersFactory.luaFilter(group)
+        group: Group, snapshot: GlobalSnapshot -> EnvoyShadowRulesFiltersFactory.luaFilter(snapshotProperties.incomingPermissions.enabled)
     }
 
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
