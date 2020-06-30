@@ -192,7 +192,13 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(protocol = "https")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/block-unlisted-clients",
+            method = "GET",
+            clientName = "echo2",
+            clientIp = echo2Envoy.ipAddress()
+        )
     }
 
     @Test
@@ -203,7 +209,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isForbidden()
         assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(protocol = "https")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/block-unlisted-clients",
+            method = "GET",
+            clientName = "echo",
+            clientIp = echoEnvoy.ipAddress())
     }
 
     @Test
@@ -236,7 +247,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(protocol = "http")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "http",
+            path = "/block-unlisted-clients",
+            method = "GET",
+            clientName = "",
+            clientIp = echoEnvoy.hostIp())
     }
 
     @Test
@@ -247,7 +263,11 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isForbidden()
         assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(protocol = "http")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(protocol = "http",
+            path = "/block-unlisted-clients",
+            method = "GET",
+            clientName = "",
+            clientIp = echo2Envoy.hostIp())
     }
 
     @Test
@@ -280,7 +300,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
         assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionLog(protocol = "https")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/log-unlisted-clients",
+            method = "GET",
+            clientName = "echo2",
+            clientIp = echo2Envoy.ipAddress())
     }
 
     @Test
@@ -291,7 +316,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
         assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(protocol = "https")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/log-unlisted-clients",
+            method = "GET",
+            clientName = "echo",
+            clientIp = echoEnvoy.ipAddress())
     }
 
     @Test
@@ -324,7 +354,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
         assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionLog(protocol = "http")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionLog(
+            protocol = "http",
+            path = "/log-unlisted-clients",
+            method = "GET",
+            clientName = "",
+            clientIp = echoEnvoy.hostIp())
     }
 
     @Test
@@ -335,7 +370,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
         assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(protocol = "http")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(
+            protocol = "http",
+            path = "/log-unlisted-clients",
+            method = "GET",
+            clientName = "",
+            clientIp = echoEnvoy.hostIp())
     }
 
     @Test
@@ -368,7 +408,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(protocol = "https")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/block-unlisted-clients-by-default",
+            method = "GET",
+            clientName = "echo2",
+            clientIp = echo2Envoy.ipAddress())
     }
 
     @Test
@@ -379,7 +424,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isForbidden()
         assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(protocol = "https")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/block-unlisted-clients-by-default",
+            method = "GET",
+            clientName = "echo",
+            clientIp = echoEnvoy.ipAddress())
     }
 
     @Test
@@ -412,7 +462,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(protocol = "http")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "http",
+            path = "/block-unlisted-clients-by-default",
+            method = "GET",
+            clientName = "",
+            clientIp = echoEnvoy.hostIp())
     }
 
     @Test
@@ -423,7 +478,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isForbidden()
         assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(protocol = "http")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(
+            protocol = "http",
+            path = "/block-unlisted-clients-by-default",
+            method = "GET",
+            clientName = "",
+            clientIp = echo2Envoy.hostIp())
     }
 
     @Test
@@ -434,7 +494,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(protocol = "https")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/unlisted-endpoint",
+            method = "GET",
+            clientName = "echo3",
+            clientIp = echo3Envoy.ipAddress())
     }
 
     @Test
@@ -445,7 +510,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
         assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(protocol = "https")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/unlisted-endpoint",
+            method = "GET",
+            clientName = "echo3",
+            clientIp = echo3Envoy.ipAddress())
     }
 
     @Test
@@ -456,7 +526,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(protocol = "https")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/unlisted-endpoint",
+            method = "GET",
+            clientName = "echo2",
+            clientIp = echo2Envoy.ipAddress())
     }
 
     @Test
@@ -467,7 +542,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
         assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(protocol = "https")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/unlisted-endpoint",
+            method = "GET",
+            clientName = "echo",
+            clientIp = echoEnvoy.ipAddress())
     }
 
     @Test
@@ -478,7 +558,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(protocol = "http")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "http",
+            path = "/unlisted-endpoint",
+            method = "GET",
+            clientName = "",
+            clientIp = sourceIpClient.ipAddress())
     }
 
     @Test
@@ -489,7 +574,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
         assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(protocol = "http")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+            protocol = "http",
+            path = "/unlisted-endpoint",
+            method = "GET",
+            clientName = "",
+            clientIp = sourceIpClient.ipAddress())
     }
 
     @Test
@@ -500,7 +590,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(protocol = "http")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "http",
+            path = "/unlisted-endpoint",
+            method = "GET",
+            clientName = "",
+            clientIp = echoEnvoy.hostIp())
     }
 
     @Test
@@ -511,7 +606,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
         assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(protocol = "http")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+            protocol = "http",
+            path = "/unlisted-endpoint",
+            method = "GET",
+            clientName = "",
+            clientIp = echo2Envoy.hostIp())
     }
 
     @Test
@@ -522,7 +622,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(protocol = "https")
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/log-unlisted-clients",
+            method = "POST",
+            clientName = "echo3",
+            clientIp = echo3Envoy.ipAddress())
     }
 
     @Test
@@ -533,7 +638,12 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
         assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(protocol = "https")
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/log-unlisted-clients",
+            method = "POST",
+            clientName = "echo3",
+            clientIp = echo3Envoy.ipAddress())
     }
 
     @BeforeEach
@@ -568,6 +678,6 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
 
     private fun EnvoyContainer.recordRBACLogs() {
         // TODO: correct predicate
-        logRecorder.recordLogs { log -> log.contains("RBAC") }
+        logRecorder.recordLogs { log -> log.contains("Access denied") }
     }
 }

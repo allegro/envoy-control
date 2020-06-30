@@ -15,6 +15,7 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
             RBACFilterPermissions()
     )
 
+    // TODO(mfalkowski): ta instancja powinna być użyta, a metoda luaFilter nie powinna być statyczna
     private val luaFactory = EnvoyShadowRulesFiltersFactory()
 
     private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
