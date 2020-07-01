@@ -504,6 +504,15 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
 
     @Test
     fun `echo2 should allow echo3 to access unlisted endpoint over https and log it`() {
+        // TODO untilAsserted added just for be able to run this single test
+        untilAsserted {
+            val echo2Response = call(service = "echo2", from = echo3Envoy, path = "/unlisted-endpoint")
+            assertThat(echo2Response).isOk()
+            echoEnvoy.admin().resetCounters()
+            echo2Envoy.admin().resetCounters()
+            echo3Envoy.admin().resetCounters()
+        }
+
         // when
         val echo2Response = call(service = "echo2", from = echo3Envoy, path = "/unlisted-endpoint")
 

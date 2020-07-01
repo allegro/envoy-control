@@ -13,13 +13,21 @@ end
 function envoy_on_response(handle)
     handle:logInfo("running envoy_on_response")
     local path = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua")["request.info.path"]
+
+    local protocol = "https"
+    if handle:connection():ssl() == nil then
+        protocol = "http"
+    end
+
     local method = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua")["request.info.method"]
     local service_name = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua")["request.info.service_name"]
     local xff_header = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua")["request.info.xff_header"]
 
     local rbacMetadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.rbac")
+
     local shadow_engine_result = rbacMetadata["shadow_engine_result"]
     if rbacMetadata ~= nil then
+
         if service_name == nil then service_name = "" end
         if shadow_engine_result == "denied" then
             local source_ip
@@ -29,7 +37,9 @@ function envoy_on_response(handle)
             if source_ip == nil then source_ip = "" end
 
             -- TODO(mfalkowski): print if this request has been blocked or only logged (using rbacMetadata["engine_result"])
-            handle:logInfo("\nRBAC: Permission denied: shadow_engine: "..shadow_engine_result..", path: "..path..", method: "..method..", service-name: "..service_name..", ip: "..source_ip)
+            -- TODO(awawrzyniak): there is no key engine_result in rbacMetadata structure
+
+            handle:logInfo("\nAccess denied for request: method = "..method..", path = "..path..", clientIp = "..source_ip..", clientName = "..service_name..", protocol = "..protocol)
         end
     end
 end
