@@ -12,6 +12,9 @@ end
 
 function envoy_on_response(handle)
     handle:logInfo("running envoy_on_response")
+
+    -- TODO(mfalkowski): wszystko co możliwe warto przenieść do if'a poniżej. Ten kod jest krytyczny jeśli chodzi o
+    --   wydajność - jeśli można go zoptymalizować, to trzeba go zoptymalizować
     local path = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua")["request.info.path"]
 
     local protocol = "https"
@@ -38,6 +41,7 @@ function envoy_on_response(handle)
 
             -- TODO(mfalkowski): print if this request has been blocked or only logged (using rbacMetadata["engine_result"])
             -- TODO(awawrzyniak): there is no key engine_result in rbacMetadata structure
+            -- TODO(mfalkowski): so let's print a response code instead. If it is 403 we are 95% sure that request was blocked
 
             handle:logInfo("\nAccess denied for request: method = "..method..", path = "..path..", clientIp = "..source_ip..", clientName = "..service_name..", protocol = "..protocol)
         end

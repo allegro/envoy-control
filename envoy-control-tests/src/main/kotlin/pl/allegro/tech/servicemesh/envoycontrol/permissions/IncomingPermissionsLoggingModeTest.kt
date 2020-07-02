@@ -6,10 +6,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.MethodOrderer
-import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestMethodOrder
 import org.testcontainers.junit.jupiter.Container
 import pl.allegro.tech.servicemesh.envoycontrol.asssertions.hasNoRBACDenials
 import pl.allegro.tech.servicemesh.envoycontrol.asssertions.hasOneAccessDenialWithActionBlock
@@ -22,7 +19,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyConta
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 
 @SuppressWarnings("LargeClass")
-@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguration() {
 
     companion object {
@@ -105,41 +101,36 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
 
             registerServiceWithEnvoyOnIngress(name = "echo", envoy = echoEnvoy, tags = listOf("mtls:enabled"))
             registerServiceWithEnvoyOnIngress(name = "echo2", envoy = echo2Envoy, tags = listOf("mtls:enabled"))
+
+            waitForEnvoysInitialized()
+        }
+
+        private fun waitForEnvoysInitialized() {
+            untilAsserted {
+                assertThat(echo3Envoy.admin().isEndpointHealthy("echo", echoEnvoy.ipAddress())).isTrue()
+                assertThat(echo3Envoy.admin().isEndpointHealthy("echo2", echo2Envoy.ipAddress())).isTrue()
+                assertThat(echoEnvoy.admin().isEndpointHealthy("echo2", echo2Envoy.ipAddress())).isTrue()
+                assertThat(echo2Envoy.admin().isEndpointHealthy("echo", echoEnvoy.ipAddress())).isTrue()
+            }
         }
     }
 
-    /**
-     * We arbitrary choose to run this test first. It acts as a setup phase for all tests.
-     * This way we don't have to use untilAsserted loop in any other tests, because after this test we are sure, that
-     * everything is initialized
-     */
-    @Test
-    @Order(0)
     fun `should allow echo3 to access status endpoint over https`() {
+        // when
+        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/status/hc")
 
-        untilAsserted {
-            echoEnvoy.admin().resetCounters()
+        // then
+        assertThat(echoResponse).isOk().isFrom(echoLocalService)
+        assertThat(echoEnvoy.ingressSslRequests).isOne()
+        assertThat(echoEnvoy).hasNoRBACDenials()
 
-            // when
-            val echoResponse = call(service = "echo", from = echo3Envoy, path = "/status/hc")
+        // when
+        val echo2Response = call(service = "echo2", from = echo3Envoy, path = "/status/hc")
 
-            // then
-            assertThat(echoResponse).isOk().isFrom(echoLocalService)
-            assertThat(echoEnvoy.ingressSslRequests).isOne()
-            assertThat(echoEnvoy).hasNoRBACDenials()
-        } // aaacab33-caeb-468a-9f22-a0679eb87832
-
-        untilAsserted {
-            echo2Envoy.admin().resetCounters()
-
-            // when
-            val echo2Response = call(service = "echo2", from = echo3Envoy, path = "/status/hc")
-
-            // then
-            assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-            assertThat(echo2Envoy.ingressSslRequests).isOne()
-            assertThat(echo2Envoy).hasNoRBACDenials()
-        }
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.ingressSslRequests).isOne()
+        assertThat(echo2Envoy).hasNoRBACDenials()
     }
 
     @Test

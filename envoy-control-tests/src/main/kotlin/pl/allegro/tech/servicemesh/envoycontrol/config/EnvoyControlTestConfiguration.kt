@@ -359,6 +359,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 )
             }
         }
+
+        fun <T> untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (T)): T {
+            var lastResult: T? = null
+            await().atMost(wait).untilAsserted({ lastResult = fn() })
+            assertThat(lastResult).isNotNull
+            return lastResult!!
+        }
     }
 
     data class ResponseWithBody(val response: Response, val body: String) {
@@ -456,13 +463,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 }
             }
         }
-    }
-
-    fun <T> untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (T)): T {
-        var lastResult: T? = null
-        await().atMost(wait).untilAsserted({ lastResult = fn() })
-        assertThat(lastResult).isNotNull
-        return lastResult!!
     }
 
     fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {

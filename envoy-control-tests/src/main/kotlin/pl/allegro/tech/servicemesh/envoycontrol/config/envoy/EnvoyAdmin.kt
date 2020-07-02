@@ -10,6 +10,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import org.assertj.core.api.Assertions
+import pl.allegro.tech.servicemesh.envoycontrol.IncomingPermissionsLoggingModeTest
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 
 class EnvoyAdmin(
@@ -42,6 +44,10 @@ class EnvoyAdmin(
             ?.find {
                 it.address?.socketAddress?.address == ip
             }
+
+    fun isEndpointHealthy(clusterName: String, ip: String) = hostStatus(clusterName, ip)
+        ?.healthStatus
+        ?.edsHealthStatus == "HEALTHY"
 
     fun statValue(statName: String): String? = get("stats?filter=$statName").body()?.use {
         val splitedStats = it.string().lines().first().split(":")
