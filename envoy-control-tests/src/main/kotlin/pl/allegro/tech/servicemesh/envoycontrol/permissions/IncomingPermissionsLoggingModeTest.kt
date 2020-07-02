@@ -188,7 +188,8 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo2",
-            clientIp = echo2Envoy.ipAddress()
+            clientIp = echo2Envoy.ipAddress(),
+            statusCode = "403"
         )
     }
 
@@ -205,7 +206,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo",
-            clientIp = echoEnvoy.ipAddress())
+            clientIp = echoEnvoy.ipAddress(),
+            statusCode = "200"
+        )
     }
 
     @Test
@@ -243,7 +246,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "",
-            clientIp = echoEnvoy.hostIp())
+            clientIp = echoEnvoy.hostIp(),
+            statusCode = "403"
+        )
     }
 
     @Test
@@ -258,7 +263,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "",
-            clientIp = echo2Envoy.hostIp())
+            clientIp = echo2Envoy.hostIp(),
+            statusCode = "200"
+        )
     }
 
     @Test
@@ -366,7 +373,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "",
-            clientIp = echoEnvoy.hostIp())
+            clientIp = echoEnvoy.hostIp(),
+            statusCode = "200"
+        )
     }
 
     @Test
@@ -404,7 +413,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "echo2",
-            clientIp = echo2Envoy.ipAddress())
+            clientIp = echo2Envoy.ipAddress(),
+            statusCode = "403"
+        )
     }
 
     @Test
@@ -420,7 +431,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "echo",
-            clientIp = echoEnvoy.ipAddress())
+            clientIp = echoEnvoy.ipAddress(),
+            statusCode = "200"
+        )
     }
 
     @Test
@@ -458,7 +471,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
-            clientIp = echoEnvoy.hostIp())
+            clientIp = echoEnvoy.hostIp(),
+            statusCode = "400"
+        )
     }
 
     @Test
@@ -474,7 +489,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
-            clientIp = echo2Envoy.hostIp())
+            clientIp = echo2Envoy.hostIp(),
+            statusCode = "200"
+        )
     }
 
     @Test
@@ -490,7 +507,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo3",
-            clientIp = echo3Envoy.ipAddress())
+            clientIp = echo3Envoy.ipAddress(),
+            statusCode = "403"
+        )
     }
 
     @Test
@@ -522,7 +541,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo2",
-            clientIp = echo2Envoy.ipAddress())
+            clientIp = echo2Envoy.ipAddress(),
+            statusCode = "403"
+        )
     }
 
     @Test
@@ -554,7 +575,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
-            clientIp = sourceIpClient.ipAddress())
+            clientIp = sourceIpClient.ipAddress(),
+            statusCode = "403"
+        )
     }
 
     @Test
@@ -586,7 +609,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
-            clientIp = echoEnvoy.hostIp())
+            clientIp = echoEnvoy.hostIp(),
+            statusCode = "200"
+        )
     }
 
     @Test
@@ -618,7 +643,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/log-unlisted-clients",
             method = "POST",
             clientName = "echo3",
-            clientIp = echo3Envoy.ipAddress())
+            clientIp = echo3Envoy.ipAddress(),
+            statusCode = "403"
+        )
     }
 
     @Test
@@ -634,7 +661,9 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/log-unlisted-clients",
             method = "POST",
             clientName = "echo3",
-            clientIp = echo3Envoy.ipAddress())
+            clientIp = echo3Envoy.ipAddress(),
+            statusCode = "200"
+        )
     }
 
     @BeforeEach
