@@ -57,9 +57,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     assertThat(admin.statValue("http.ingress_$protocol.rbac.denied")?.toInt()).isZero()
     assertThat(admin.statValue("http.ingress_$protocol.rbac.shadow_denied")?.toInt()).isOne()
 
-
-    // TODO(awawrzyniak) I have removed assertion hasSize(1)
-    assertThat(it.logRecorder.getRecordedLogs()).first().matchesRbacAccessDeniedLog(
+    assertThat(it.logRecorder.getRecordedLogs()).hasSize(1).first().matchesRbacAccessDeniedLog(
         EnvoyAssertions(
             requestBlocked = false,
             protocol = protocol,
