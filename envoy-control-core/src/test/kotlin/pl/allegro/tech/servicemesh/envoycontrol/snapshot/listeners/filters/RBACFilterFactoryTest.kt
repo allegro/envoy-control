@@ -561,7 +561,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client1")}
+                ${authenticatedPrincipal("client1")}
               ]
             },
             "client2": {
@@ -581,7 +581,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client2")}
+                ${authenticatedPrincipal("client2")}
               ]
             }
           }
@@ -724,7 +724,7 @@ internal class RBACFilterFactoryTest {
                 }
               ], "principals": [
                 { "orIds": { "ids": [${principalSourceIp("127.0.0.1")}] } },
-                ${principalHeader("x-service-name", ("client2"))}
+                ${authenticatedPrincipal(("client2"))}
               ]
             }
           }
@@ -752,8 +752,8 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", ("client1"))},
-                ${principalHeader("x-service-name", ("client2"))}
+                ${authenticatedPrincipal(("client1"))},
+                ${authenticatedPrincipal(("client2"))}
               ]
             }
           }
@@ -782,9 +782,9 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", ("client1"))},
-                ${principalHeader("x-service-name", ("client1-duplicated"))},
-                ${principalHeader("x-service-name", ("client2"))}
+                ${authenticatedPrincipal(("client1"))},
+                ${authenticatedPrincipal(("client1-duplicated"))},
+                ${authenticatedPrincipal(("client2"))}
               ]
             }
           }
@@ -827,8 +827,8 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", ("client1"))},
-                ${principalHeader("x-service-name", ("client2"))}
+                ${authenticatedPrincipal(("client1"))},
+                ${authenticatedPrincipal(("client2"))}
               ]
             }
           }
@@ -848,8 +848,8 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", ("client1"))},
-                ${principalHeader("x-service-name", ("client2"))}
+                ${authenticatedPrincipal(("client1"))},
+                ${authenticatedPrincipal(("client2"))}
               ]
             }
           }
@@ -987,6 +987,16 @@ internal class RBACFilterFactoryTest {
                     "header": {
                       "name": "$name",
                       "exact_match": "$value"
+                    }
+                }"""
+    }
+
+    private fun authenticatedPrincipal(value: String): String {
+        return """{
+                    "authenticated": {
+                      "principal_name": {
+                        "exact": "spiffe://$value"
+                      }
                     }
                 }"""
     }
