@@ -8,7 +8,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagFilter
 
-class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
+class EnvoyDefaultFilters(
+        private val snapshotProperties: SnapshotProperties,
+        private val luaIngressFilterFactory: LuaIngressFilterFactory
+) {
     private val rbacFilterFactory = RBACFilterFactory(
             snapshotProperties.incomingPermissions,
             snapshotProperties.routes.status,
@@ -29,10 +32,7 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     }
 
     private val luaFilter = {
-        // TODO(mfalkowski): metoda luaFilter nie powinna być statyczna, powinniśmy mieć instancję
-        // EnvoyShadowRulesFiltersFactory
-        //   A klasa nie powinna się nazywać EnvoyShadowRulesFiltersFactory tylko LuaIngressFilterFactory
-        group: Group, snapshot: GlobalSnapshot -> EnvoyShadowRulesFiltersFactory.luaFilter(
+        group: Group, snapshot: GlobalSnapshot -> luaIngressFilterFactory.luaFilter(
             snapshotProperties.incomingPermissions.enabled
         )
     }

@@ -44,7 +44,6 @@ class AccessLogProperties {
     var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
     var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
         "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
-
     var level = "TRACE"
     var logger = "envoy.AccessLog"
 }

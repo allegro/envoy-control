@@ -11,7 +11,7 @@ class EnvoyHttpFilters(
         val emptyFilters = EnvoyHttpFilters(listOf(), listOf())
 
         fun defaultFilters(snapshotProperties: SnapshotProperties): EnvoyHttpFilters {
-            val defaultFilters = EnvoyDefaultFilters(snapshotProperties)
+            val defaultFilters = EnvoyDefaultFilters(snapshotProperties, LuaIngressFilterFactory())
             return EnvoyHttpFilters(defaultFilters.defaultIngressFilters, defaultFilters.defaultEgressFilters)
         }
     }
