@@ -5,12 +5,12 @@ import org.assertj.core.api.ObjectAssert
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 
 class EnvoyAssertions(
-    val requestBlocked: Boolean,
     val protocol: String,
     val path: String,
     val method: String,
     val clientName: String,
-    val clientIp: String
+    val clientIp: String,
+    val statusCode: String
 )
 
 fun ObjectAssert<EnvoyContainer>.hasNoRBACDenials() = satisfies {
@@ -24,26 +24,17 @@ fun ObjectAssert<EnvoyContainer>.hasNoRBACDenials() = satisfies {
 }
 
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
-    protocol: String,
-    path: String,
-    method: String,
-    clientName: String,
-    clientIp: String
+    envoyAssertions: EnvoyAssertions
 ) = satisfies {
     val admin = it.admin()
-    assertThat(admin.statValue("http.ingress_$protocol.rbac.denied")?.toInt()).isOne()
-    assertThat(admin.statValue("http.ingress_$protocol.rbac.shadow_denied")?.toInt()).isOne()
 
-    assertThat(it.logRecorder.getRecordedLogs()).hasSize(1).first().matchesRbacAccessDeniedLog(
-        EnvoyAssertions(
-            requestBlocked = true,
-            protocol = protocol,
-            path = path,
-            method = method,
-            clientName = clientName,
-            clientIp = clientIp
-        )
-    )
+    val deniedRules = admin.statValue("http.ingress_${envoyAssertions.protocol}.rbac.denied")?.toInt()
+    val deniedShadowRules = admin.statValue("http.ingress_${envoyAssertions.protocol}.rbac.shadow_denied")?.toInt()
+
+    assertThat(deniedRules).isOne()
+    assertThat(deniedShadowRules).isOne()
+
+    assertThat(it.logRecorder.getRecordedLogs()).hasSize(1).first().matchesRbacAccessDeniedLog(envoyAssertions)
 }
 
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
@@ -59,25 +50,25 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
 
     assertThat(it.logRecorder.getRecordedLogs()).hasSize(1).first().matchesRbacAccessDeniedLog(
         EnvoyAssertions(
-            requestBlocked = false,
             protocol = protocol,
             path = path,
             method = method,
             clientName = clientName,
-            clientIp = clientIp
+            clientIp = clientIp,
+            statusCode = "200"
         )
     )
 }
 
-fun ObjectAssert<String>.matchesRbacAccessDeniedLog(i: EnvoyAssertions) = satisfies {
+fun ObjectAssert<String>.matchesRbacAccessDeniedLog(envoyAssertions: EnvoyAssertions) = satisfies {
     // TODO(mfalkowski): check if this log shows properly in Kibana (correct logger, etc.)
 
     // val actionMessage = if (i.requestBlocked) "block" else "allow and log"
     // TODO(awawrzyniak) there is no way to catch if it's "block" or "allow and log")
 
     assertThat(it).isEqualTo(
-        "Access denied for request: method = ${i.method}, path = ${i.path}, clientIp = ${i.clientIp}, " +
-            "clientName = ${i.clientName}, protocol = ${i.protocol}\n"
-    // "clientName = ${i.clientName}, protocol = ${i.protocol}. Action: $actionMessage"
+        "Access denied for request: method = ${envoyAssertions.method}, path = ${envoyAssertions.path}, " +
+            "clientIp = ${envoyAssertions.clientIp}, clientName = ${envoyAssertions.clientName}, " +
+            "protocol = ${envoyAssertions.protocol}, statusCode = ${envoyAssertions.statusCode}\n"
     )
 }
