@@ -35,11 +35,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 
 internal class EnvoyClustersFactory(
     private val properties: SnapshotProperties
 ) {
+    private val logger by logger()
     private val httpProtocolOptions: HttpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(
             Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
     ).build()
@@ -73,13 +75,20 @@ internal class EnvoyClustersFactory(
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies()
                 .mapNotNull {
-                    if (enableTlsForCluster(group, globalSnapshot, it.service)) {
-                        globalSnapshot.securedClusters.resources().get(it.service)
-                    } else {
-                        globalSnapshot.clusters.resources().get(it.service)
-                    }
+                    selectCluster(group, globalSnapshot, it.service)
                 }
-            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map { it.value }
+            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters
+                .mapNotNull { (service, _) ->
+                    selectCluster(group, globalSnapshot, service)
+                }
+        }
+    }
+
+    private fun selectCluster(group: Group, globalSnapshot: GlobalSnapshot, clusterName: String): Cluster? {
+        return if (enableTlsForCluster(group, globalSnapshot, clusterName)) {
+            globalSnapshot.securedClusters.resources().get(clusterName)
+        } else {
+            globalSnapshot.clusters.resources().get(clusterName)
         }
     }
 
