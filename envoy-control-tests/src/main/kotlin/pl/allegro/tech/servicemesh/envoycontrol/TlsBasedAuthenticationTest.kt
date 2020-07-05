@@ -62,7 +62,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @BeforeEach
     fun setup() {
-        registerService(name = "echo", tags = listOf("mtls:enabled"))
+        registerService(name = "echo")
         registerEcho2WithEnvoyOnIngress()
     }
 
