@@ -44,18 +44,25 @@ static_resources:
           filename: /app/root-ca.crt
   clusters:
     - connect_timeout: 1s
-      hosts:
-        - socket_address:
-            address: HOST_IP
-            port_value: HOST_PORT
-        - socket_address:
-            address: HOST_IP
-            port_value: HOST2_PORT
+      load_assignment:
+        cluster_name: envoy-control-xds
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: HOST_IP
+                      port_value: HOST_PORT
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: HOST_IP
+                      port_value: HOST2_PORT
       http2_protocol_options: {}
       name: envoy-control-xds
     - name: envoy-original-destination
       type: ORIGINAL_DST
-      lb_policy: ORIGINAL_DST_LB
+      lb_policy: CLUSTER_PROVIDED
       original_dst_lb_config:
         use_http_header: true
       connect_timeout:
@@ -64,16 +71,26 @@ static_resources:
         allow_absolute_url: true
     - name: local_service
       type: STATIC
-      hosts:
-        - socket_address:
-            address: LOCAL_SERVICE_IP
-            port_value: 5678
+      load_assignment:
+        cluster_name: local_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: LOCAL_SERVICE_IP
+                      port_value: 5678
       connect_timeout: 1s
     - name: this_admin
       type: STATIC
-      hosts:
-        - socket_address:
-            address: 127.0.0.1
-            port_value: 10000
+      load_assignment:
+        cluster_name: this_admin
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 10000
       connect_timeout:
         seconds: 1
