@@ -44,8 +44,6 @@ private fun getClustersForAllServicesGroups(
     if (blacklist.isEmpty()) {
         return clusters.keys
     } else {
-        return clusters.filter { (serviceName) -> blacklist.none { serviceName.startsWith(it) } }.map {
-            it.key
-        }.toSet()
+        return clusters.filter { (serviceName) -> blacklist.none { serviceName.startsWith(it) } }.keys
     }
 }
