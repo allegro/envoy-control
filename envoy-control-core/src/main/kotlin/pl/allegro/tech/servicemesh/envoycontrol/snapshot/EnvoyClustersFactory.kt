@@ -73,13 +73,20 @@ internal class EnvoyClustersFactory(
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies()
                 .mapNotNull {
-                    if (enableTlsForCluster(group, globalSnapshot, it.service)) {
-                        globalSnapshot.securedClusters.resources().get(it.service)
-                    } else {
-                        globalSnapshot.clusters.resources().get(it.service)
-                    }
+                    selectCluster(group, globalSnapshot, it.service)
                 }
-            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map { it.value }
+            is AllServicesGroup -> globalSnapshot.allServicesNames
+                .mapNotNull { serviceName ->
+                    selectCluster(group, globalSnapshot, serviceName)
+                }
+        }
+    }
+
+    private fun selectCluster(group: Group, globalSnapshot: GlobalSnapshot, clusterName: String): Cluster? {
+        return if (enableTlsForCluster(group, globalSnapshot, clusterName)) {
+            globalSnapshot.securedClusters.resources().get(clusterName)
+        } else {
+            globalSnapshot.clusters.resources().get(clusterName)
         }
     }
 
