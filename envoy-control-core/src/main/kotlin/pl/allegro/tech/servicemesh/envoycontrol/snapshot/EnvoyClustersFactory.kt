@@ -75,9 +75,9 @@ internal class EnvoyClustersFactory(
                 .mapNotNull {
                     selectCluster(group, globalSnapshot, it.service)
                 }
-            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters
-                .mapNotNull { (service, _) ->
-                    selectCluster(group, globalSnapshot, service)
+            is AllServicesGroup -> globalSnapshot.allServicesNames
+                .mapNotNull { serviceName ->
+                    selectCluster(group, globalSnapshot, serviceName)
                 }
         }
     }

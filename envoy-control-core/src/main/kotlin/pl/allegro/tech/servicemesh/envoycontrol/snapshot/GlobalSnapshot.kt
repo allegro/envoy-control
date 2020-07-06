@@ -6,7 +6,7 @@ import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 
 data class GlobalSnapshot(
     val clusters: SnapshotResources<Cluster>,
-    val allServicesGroupsClusters: Map<String, Cluster>,
+    val allServicesNames: Set<String>,
     val endpoints: SnapshotResources<ClusterLoadAssignment>,
     val clusterConfigurations: Map<String, ClusterConfiguration>,
     val securedClusters: SnapshotResources<Cluster>
@@ -25,13 +25,13 @@ internal fun globalSnapshot(
 ): GlobalSnapshot {
     val clusters = SnapshotResources.create(clusters, "")
     val securedClusters = SnapshotResources.create(securedClusters, "")
-    val allServicesGroupsClusters = getClustersForAllServicesGroups(clusters.resources(), properties)
+    val allServicesNames = getClustersForAllServicesGroups(clusters.resources(), properties)
     val endpoints = SnapshotResources.create(endpoints, "")
     return GlobalSnapshot(
         clusters = clusters,
         securedClusters = securedClusters,
         endpoints = endpoints,
-        allServicesGroupsClusters = allServicesGroupsClusters,
+        allServicesNames = allServicesNames,
         clusterConfigurations = clusterConfigurations
     )
 }
@@ -39,11 +39,13 @@ internal fun globalSnapshot(
 private fun getClustersForAllServicesGroups(
     clusters: Map<String, Cluster>,
     properties: OutgoingPermissionsProperties
-): Map<String, Cluster> {
+): Set<String> {
     val blacklist = properties.allServicesDependencies.notIncludedByPrefix
     if (blacklist.isEmpty()) {
-        return clusters
+        return clusters.keys
     } else {
-        return clusters.filter { (serviceName) -> blacklist.none { serviceName.startsWith(it) } }
+        return clusters.filter { (serviceName) -> blacklist.none { serviceName.startsWith(it) } }.map {
+            it.key
+        }.toSet()
     }
 }
