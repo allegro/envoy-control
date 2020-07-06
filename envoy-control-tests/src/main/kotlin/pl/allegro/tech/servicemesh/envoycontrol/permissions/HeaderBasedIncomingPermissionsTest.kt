@@ -41,28 +41,4 @@ internal class HeaderBasedIncomingPermissionsTest : EnvoyControlTestConfiguratio
             assertThat(statusUpstreamOk).isGreaterThan(0)
         }
     }
-
-    @Test
-    fun `should allow access to endpoint by authorized client`() {
-        untilAsserted {
-            // when
-            val response = callLocalService(endpoint = "/endpoint?a=b",
-                headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
-
-            // then
-            assertThat(response).isOk().isFrom(localServiceContainer)
-        }
-    }
-
-    @Test
-    fun `should deny access to endpoint by unauthorized client`() {
-        untilAsserted {
-            // when
-            val response = callLocalService(endpoint = "/endpoint",
-                headers = Headers.of(mapOf("x-service-name" to "unuthorizedClient")))
-
-            // then
-            assertThat(response).isForbidden()
-        }
-    }
 }

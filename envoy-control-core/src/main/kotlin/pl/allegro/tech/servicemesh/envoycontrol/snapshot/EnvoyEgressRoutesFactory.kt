@@ -94,8 +94,6 @@ internal class EnvoyEgressRoutesFactory(
                         HeaderValueOption.newBuilder()
                             .setHeader(
                                 HeaderValue.newBuilder()
-                                    // TODO(https://github.com/allegro/envoy-control/issues/122):
-                                    // remove when service name is passed from certificate
                                     .setKey(properties.incomingPermissions.clientIdentityHeader)
                                     .setValue(serviceName)
                             )

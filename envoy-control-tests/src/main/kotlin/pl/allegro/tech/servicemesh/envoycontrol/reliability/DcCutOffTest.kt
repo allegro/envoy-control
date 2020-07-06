@@ -43,7 +43,7 @@ class DcCutOffTest : ReliabilityTest() {
     @Test
     fun `should be resilient to transient unavailability of one DC`() {
         // given
-        val id = registerServiceInRemoteDc("echo", echoContainer)
+        val id = registerServiceInRemoteCluster("echo", echoContainer)
 
         // then
         waitUntilEchoCalledThroughEnvoyResponds(echoContainer)
@@ -69,7 +69,7 @@ class DcCutOffTest : ReliabilityTest() {
             // if failureDuration is Duration(1, SECONDS).divide(2) then Duration(0, SECONDS)
             Thread.sleep(failureDuration.divide(2L).valueInMS)
             deregisterServiceInRemoteDc(id)
-            registerServiceInRemoteDc("echo", echoContainer2)
+            registerServiceInRemoteCluster("echo", echoContainer2)
         }.start()
     }
 

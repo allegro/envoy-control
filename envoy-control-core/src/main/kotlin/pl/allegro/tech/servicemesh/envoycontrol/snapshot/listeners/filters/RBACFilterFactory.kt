@@ -226,11 +226,8 @@ class RBACFilterFactory(
             ipFromDiscoveryPrincipals(clientWithSelector, selectorMatching, snapshot)
         } else if (staticRangesForClient != null) {
             listOf(staticRangesForClient)
-        } else if (snapshot.mtlsEnabledForCluster(clientWithSelector.name)) {
-            tlsPrincipals(incomingPermissionsProperties.tlsAuthentication, clientWithSelector.name)
         } else {
-            headerPrincipals(clientWithSelector.name) // TODO(https://github.com/allegro/envoy-control/issues/122)
-            // remove when service name is passed from certificate
+            tlsPrincipals(incomingPermissionsProperties.tlsAuthentication, clientWithSelector.name)
         }
     }
 
@@ -339,13 +336,6 @@ class RBACFilterFactory(
         } else {
             sourceIpPrincipal
         }
-    }
-
-    private fun headerPrincipals(client: Client): List<Principal> {
-        val clientMatch = HeaderMatcher.newBuilder()
-                .setName(incomingPermissionsProperties.clientIdentityHeader).setExactMatch(client).build()
-
-        return listOf(Principal.newBuilder().setHeader(clientMatch).build())
     }
 
     fun createHttpFilter(group: Group, snapshot: GlobalSnapshot): HttpFilter? {

@@ -3,12 +3,13 @@ package pl.allegro.tech.servicemesh.envoycontrol.infrastructure.health
 import org.springframework.boot.actuate.health.AbstractHealthIndicator
 import org.springframework.boot.actuate.health.Health
 import org.springframework.stereotype.Component
-import pl.allegro.tech.servicemesh.envoycontrol.services.LocalServiceChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.LocalClusterStateChanges
 
 @Component
-class EnvoyControlHealthIndicator(private val localServiceChanges: LocalServiceChanges) : AbstractHealthIndicator() {
+class EnvoyControlHealthIndicator(private val localClusterStateChanges: LocalClusterStateChanges)
+    : AbstractHealthIndicator() {
     override fun doHealthCheck(builder: Health.Builder?) {
-        if (localServiceChanges.isServiceStateLoaded()) {
+        if (localClusterStateChanges.isInitialStateLoaded()) {
             builder!!.up()
         } else {
             builder!!.down()

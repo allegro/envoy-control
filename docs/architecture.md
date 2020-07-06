@@ -6,7 +6,7 @@ This is high level view of Service Mesh system with Envoy Control
 
 ![high level architecture](assets/images/high_level_architecture.png)
 
-In each data center, Envoy Control polls the services location from a discovery service system. Then, the state
+In each cluster, Envoy Control polls the services' location from a discovery service system. Then, the state
 is propagated to Envoy instances running alongside service instances.
 
 When _service-a_ wants to communicate with _service-b_ it sends a request to it, but the request is intercepted
@@ -28,13 +28,14 @@ but there is nothing special about our integration with Consul and users can int
 
 ## Sources
 
-Source is a stream of `cluster` and `endpoints` states.
+Source is a stream of `ClusterState`s. The `ClusterState` is a current representation of `services` and `service instances`
+(which map to `cluster` and `endpoint` from Envoy's terminology). 
 
 There can be many sources, all they have to do is:
 
-* implement `LocalServiceChanges`
-* be exposed as a bean - if you're using Envoy Control Runner then all of them will be combined in `GlobalServiceChanges`,
-if not - you have to combine them yourself
+* implement `LocalClusterStateChanges`
+* be exposed as a bean - if you're using Envoy Control Runner then all of them will be combined in
+`GlobalStateChanges`, if not - you have to combine them yourself
 
 ### Consul
 Implements a stream of service instance changes coming from Consul discovery service.
