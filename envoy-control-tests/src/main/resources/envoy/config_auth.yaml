@@ -28,8 +28,7 @@ node:
     proxy_settings:
       outgoing:
         dependencies:
-          - service: "echo2"
-          - service: "echo3"
+          - service: "*"
 
 static_resources:
   secrets:

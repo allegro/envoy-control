@@ -19,6 +19,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo"),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
             "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
             "envoy-control.envoy.snapshot.routes.status.enabled" to true

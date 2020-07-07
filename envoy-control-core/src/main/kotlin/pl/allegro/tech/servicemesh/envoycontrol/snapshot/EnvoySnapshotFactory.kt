@@ -195,10 +195,10 @@ internal class EnvoySnapshotFactory(
                     settings = it.settings
                 )
             }
-            is AllServicesGroup -> globalSnapshot.allServicesGroupsClusters.map {
+            is AllServicesGroup -> globalSnapshot.allServicesNames.map {
                 RouteSpecification(
-                    clusterName = it.key,
-                    routeDomain = it.key,
+                    clusterName = it,
+                    routeDomain = it,
                     settings = defaultDependencySettings
                 )
             }
