@@ -32,6 +32,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServi
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.LuaFilterFactory
 import reactor.core.scheduler.Schedulers
 import java.net.URI
 
@@ -129,9 +130,10 @@ class ControlPlaneConfig {
 
     @Bean
     fun envoyHttpFilters(
-        properties: EnvoyControlProperties
+        properties: EnvoyControlProperties,
+        luaFilterFactory: LuaFilterFactory
     ): EnvoyHttpFilters {
-        return EnvoyHttpFilters.defaultFilters(properties.envoy.snapshot)
+        return EnvoyHttpFilters.defaultFilters(properties.envoy.snapshot, luaFilterFactory)
     }
 
     fun localDatacenter(properties: ConsulProperties) =
@@ -150,5 +152,10 @@ class ControlPlaneConfig {
     @Bean
     fun protobufJsonFormatHttpMessageConverter(): ProtobufJsonFormatHttpMessageConverter {
         return ProtobufJsonFormatHttpMessageConverter()
+    }
+
+    @Bean
+    fun luaFilterFactory(): LuaFilterFactory {
+        return LuaFilterFactory()
     }
 }

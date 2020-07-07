@@ -489,7 +489,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
                 method = "GET",
                 clientName = "",
                 clientIp = echoEnvoy.hostIp(),
-                statusCode = "400"
+                statusCode = "403"
             )
         )
     }

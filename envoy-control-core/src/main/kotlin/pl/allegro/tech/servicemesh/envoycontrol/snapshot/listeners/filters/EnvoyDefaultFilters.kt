@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagFilte
 
 class EnvoyDefaultFilters(
     private val snapshotProperties: SnapshotProperties,
-    private val luaIngressFilterFactory: LuaIngressFilterFactory
+    private val luaIngressFilterFactory: LuaFilterFactory
 ) {
     private val rbacFilterFactory = RBACFilterFactory(
             snapshotProperties.incomingPermissions,
@@ -32,7 +32,7 @@ class EnvoyDefaultFilters(
     }
 
     private val luaFilter = {
-        group: Group, snapshot: GlobalSnapshot -> luaIngressFilterFactory.luaFilter(
+        group: Group, snapshot: GlobalSnapshot -> luaIngressFilterFactory.ingressFilter(
             snapshotProperties.incomingPermissions.enabled
         )
     }
