@@ -230,7 +230,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client1")}
+                ${authenticatedPrincipal("client1")}
               ]
             }
           }
@@ -287,7 +287,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client1")}
+                ${authenticatedPrincipal("client1")}
               ]
             }
           }
@@ -344,7 +344,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client1")}
+                ${authenticatedPrincipal("client1")}
               ]
             }
           }
@@ -1234,7 +1234,7 @@ internal class RBACFilterFactoryTest {
                   }
                 }
               ], "principals": [
-                ${principalHeader("x-service-name", "client1")}
+                ${authenticatedPrincipal("client1")}
               ]
             }
           }
