@@ -1,4 +1,4 @@
-local M = {}
+M = {}
 
 function M:envoy_on_request(handle)
     handle:logInfo("running envoy_on_request")
@@ -50,5 +50,6 @@ function M:envoy_on_response(handle)
         end
     end
 end
+
 
 return M
