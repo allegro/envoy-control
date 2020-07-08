@@ -338,6 +338,7 @@ class RBACFilterFactory(
 
             val rbacFilter = RBACFilter.newBuilder().setRules(rules.actualRules)
                     .setShadowRules(rules.shadowRules)
+
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac")
                     .setTypedConfig(Any.pack(rbacFilter.build())).build()
         } else {

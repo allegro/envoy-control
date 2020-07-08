@@ -4,7 +4,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import org.testcontainers.containers.wait.strategy.Wait
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration.Companion.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.LuaContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
