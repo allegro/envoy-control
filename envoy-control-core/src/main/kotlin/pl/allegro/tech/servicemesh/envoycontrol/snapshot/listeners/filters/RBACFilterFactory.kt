@@ -41,6 +41,8 @@ class RBACFilterFactory(
             .ipFromRange
             .keys
 
+    private val anyPrincipal = Principal.newBuilder().setAny(true).build()
+
     init {
         incomingPermissionsProperties.selectorMatching.forEach {
             if (it.key !in incomingServicesIpRangeAuthentication && it.key !in incomingServicesSourceAuthentication) {
@@ -51,143 +53,128 @@ class RBACFilterFactory(
 
     companion object {
         private val logger by logger()
-        private const val ANY_PRINCIPAL_NAME = "_ANY_"
+        private const val ALLOW_UNLISTED_POLICY_NAME = "ALLOW_UNLISTED_POLICY"
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
 
-    private val statusRoutePrincipal = createStatusRoutePrincipal(statusRouteProperties)
+    private val statusRoutePolicy = createStatusRoutePolicy(statusRouteProperties)
     private val staticIpRanges = createStaticIpRanges()
+
+    data class EndpointWithPolicy(val endpoint: IncomingEndpoint, val policy: Policy.Builder)
 
     private fun getIncomingEndpointPolicies(
         serviceName: String,
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
         roles: List<Role>
-    ): Map<IncomingEndpoint, Policy.Builder> {
-        val clientToPolicyBuilder = mutableMapOf<IncomingEndpoint, Policy.Builder>()
-
-        incomingPermissions.endpoints.forEach { incomingEndpoint ->
+    ): List<EndpointWithPolicy> = incomingPermissions.endpoints
+        .mapNotNull { incomingEndpoint ->
             if (incomingEndpoint.clients.isEmpty()) {
                 logger.warn("An incoming endpoint definition for $serviceName does not have any clients defined." +
                         "It means that no one will be able to contact that endpoint.")
-                return@forEach
+                return@mapNotNull null
             }
 
             val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
             val principals = clientsWithSelectors.flatMap { mapClientWithSelectorToPrincipals(it, snapshot) }.toSet()
 
             if (principals.isNotEmpty()) {
-                val policy: Policy.Builder = clientToPolicyBuilder.computeIfAbsent(incomingEndpoint) {
-                    Policy.newBuilder().addAllPrincipals(principals)
-                }
-
+                val policy = Policy.newBuilder().addAllPrincipals(principals)
                 val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
                 policy.addPermissions(combinedPermissions)
+                EndpointWithPolicy(incomingEndpoint, policy)
+            } else {
+                null
             }
         }
-        return clientToPolicyBuilder
-    }
+
+    data class Rules(val shadowRules: RBAC.Builder, val actualRules: RBAC.Builder)
 
     private fun getRules(
         serviceName: String,
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
         roles: List<Role>
-    ): Pair<RBAC.Builder, RBAC.Builder> {
+    ): Rules {
 
         val incomingEndpointsPolicies = getIncomingEndpointPolicies(
                 serviceName, incomingPermissions, snapshot, roles
-        ).mapValues { it.value.build() }
-
-        val blockIncomingEndpointsPolicies = incomingEndpointsPolicies.filter {
-            return@filter it.key.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
-        }
-
-        val blockRulesClientToPolicy: Map<String, Policy> = mapIncomingEndpointsPoliciesToClientsPolicies(
-            blockIncomingEndpointsPolicies, roles
         )
-        val blockRules = RBAC.newBuilder()
-                .setAction(RBAC.Action.ALLOW)
-                .putAllPolicies(blockRulesClientToPolicy)
 
-        val actualRules = if (incomingPermissions.unlistedEndpointsPolicy == Incoming.UnlistedEndpointsPolicy.LOG) {
-            val otherRules = notRule(blockRules)
-            otherRules.mergeFrom(blockRules.build())
-        } else {
-            blockRules
-        }
+        val allowedEndpointsPolicies = statusRoutePolicy + incomingEndpointsPolicies
+            .filter { it.endpoint.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG }
+            .map { (endpoint, policy) -> "$endpoint" to policy.build() }.toMap()
+
+        val loggedEndpointsPolicies = incomingEndpointsPolicies
+            .filter { it.endpoint.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.LOG }
+            .map { (endpoint, policy) -> "$endpoint" to policy.build() }.toMap()
+
+        val shadowPolicies = allowedEndpointsPolicies + loggedEndpointsPolicies
+
+        val allowUnlistedPolicies = allowUnlistedPolicies(
+            incomingPermissions,
+            allowedEndpointsPolicies.values,
+            loggedEndpointsPolicies.values
+        )
+
+        val actualPolicies = allowedEndpointsPolicies + allowUnlistedPolicies
+
+        // TODO(mfalkowski) test with empty policies list - it should deny all (integration test)
+
+        val actualRules = RBAC.newBuilder()
+            .setAction(RBAC.Action.ALLOW)
+            .putAllPolicies(actualPolicies)
 
         val shadowRules = RBAC.newBuilder()
                 .setAction(RBAC.Action.ALLOW)
-                .putAllPolicies(mapIncomingEndpointsPoliciesToClientsPolicies(incomingEndpointsPolicies, roles))
+                .putAllPolicies(shadowPolicies)
 
-        return actualRules to shadowRules
+        return Rules(shadowRules = shadowRules, actualRules = actualRules)
     }
 
-    private fun mapIncomingEndpointsPoliciesToClientsPolicies(
-        endpoints: Map<IncomingEndpoint, Policy>,
-        roles: List<Role>
+    private fun allowUnlistedPolicies(
+        incomingPermissions: Incoming,
+        allowedEndpointsPolicies: Iterable<Policy>,
+        loggedEndpointsPolicies: Iterable<Policy>
     ): Map<String, Policy> {
-        val rulesClientToPolicy: MutableMap<String, Policy> = mutableMapOf()
-
-        if (statusRoutePrincipal != null) {
-            rulesClientToPolicy[ANY_PRINCIPAL_NAME] = statusRoutePrincipal.build()
+        return if (incomingPermissions.unlistedEndpointsPolicy == Incoming.UnlistedEndpointsPolicy.LOG) {
+            allowUnlistedEndpointsPolicy(allowedEndpointsPolicies)
+        } else {
+            allowLoggedEndpointsPolicy(loggedEndpointsPolicies)
         }
-
-        endpoints.entries.stream().forEach { entry ->
-            run {
-                val clientsWithSelectors = resolveClientsWithSelectors(entry.key, roles)
-                val clients = clientsWithSelectors.joinToString(",") { it.compositeName() }
-
-                if (rulesClientToPolicy.containsKey(clients)) {
-                    val newPolicy = Policy.newBuilder()
-                    newPolicy.addAllPrincipals(rulesClientToPolicy[clients]!!.principalsList)
-                    newPolicy.addAllPermissions(rulesClientToPolicy[clients]!!.permissionsList)
-                    newPolicy.addAllPermissions(entry.value.permissionsList)
-                    rulesClientToPolicy[clients] = newPolicy.build()
-                } else {
-                    rulesClientToPolicy.put(clients, entry.value)
-                }
-            }
-        }
-        return rulesClientToPolicy
     }
 
-    private fun notRule(rules: RBAC.Builder): RBAC.Builder {
-        // if rules are empty then there is no way to create a not rule so we simply allow everyone
-        if (rules.policiesCount == 0) {
-            return RBAC.newBuilder()
-                .setAction(RBAC.Action.ALLOW)
-                .putPolicies("ALLOW_ANY", Policy.newBuilder()
-                    .addPrincipals(Principal.newBuilder().setAny(true).build())
-                    .addPermissions(Permission.newBuilder().setAny(true).build()).build()
-                )
-        }
+    private fun allowUnlistedEndpointsPolicy(allowedEndpointsPolicies: Iterable<Policy>): Map<String, Policy> {
 
-        val notRule = RBAC.newBuilder()
+        val allDefinedEndpointsPermissions = allowedEndpointsPolicies.asSequence()
+            .flatMap { it.permissionsList.asSequence() }
+            .toList()
 
-        val policyMap = rules.policiesMap.mapValues { policy ->
-            val permissions = policy.value.permissionsList.map { permission ->
-                Permission.newBuilder().setNotRule(permission).build()
-            }
-            val principals = policy.value.principalsList.map { principal ->
-                Principal.newBuilder().setAny(true).build()
-            }
-
-            Policy.newBuilder()
-                    .addAllPermissions(permissions)
-                    .addAllPrincipals(principals)
-                    .build()
-        }.mapKeys {
-            it.key + "_not"
-        }
-
-        return notRule
-                .setAction(RBAC.Action.ALLOW)
-                .putAllPolicies(policyMap)
+        return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
+            .addPrincipals(anyPrincipal)
+            .addPermissions(not(allDefinedEndpointsPermissions))
+            .build()
+        )
     }
 
-    private fun createStatusRoutePrincipal(statusRouteProperties: StatusRouteProperties): Policy.Builder? {
+    private fun allowLoggedEndpointsPolicy(loggedEndpointsPolicies: Iterable<Policy>): Map<String, Policy> {
+
+        val allDefinedEndpointsPermissions = loggedEndpointsPolicies.asSequence()
+            .flatMap { it.permissionsList.asSequence() }
+            .asIterable()
+
+        if (allDefinedEndpointsPermissions.count() == 0) {
+            return mapOf()
+        }
+
+        return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
+            .addPrincipals(anyPrincipal)
+            .addPermissions(or(allDefinedEndpointsPermissions))
+            .build()
+        )
+    }
+
+    private fun createStatusRoutePolicy(statusRouteProperties: StatusRouteProperties): Map<String, Policy> {
         return if (statusRouteProperties.enabled) {
             val permission = Permission.newBuilder().setHeader(
                     HeaderMatcher.newBuilder()
@@ -196,11 +183,13 @@ class RBACFilterFactory(
                             .build())
                     .build()
 
-            Policy.newBuilder()
-                    .addPrincipals(Principal.newBuilder().setAny(true).build())
-                    .addPermissions(permission)
+            val policy = Policy.newBuilder()
+                .addPrincipals(anyPrincipal)
+                .addPermissions(permission)
+                .build()
+            mapOf("STATUS POLICY NAME TODO" to policy)
         } else {
-            null
+            mapOf()
         }
     }
 
@@ -340,19 +329,30 @@ class RBACFilterFactory(
 
     fun createHttpFilter(group: Group, snapshot: GlobalSnapshot): HttpFilter? {
         return if (incomingPermissionsProperties.enabled && group.proxySettings.incoming.permissionsEnabled) {
-            val (actualRules, shadowRules) = getRules(
+            val rules = getRules(
                 group.serviceName,
                 group.proxySettings.incoming,
                 snapshot,
                 group.proxySettings.incoming.roles
             )
 
-            val rbacFilter = RBACFilter.newBuilder().setRules(actualRules)
-                    .setShadowRules(shadowRules)
+            val rbacFilter = RBACFilter.newBuilder().setRules(rules.actualRules)
+                    .setShadowRules(rules.shadowRules)
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac")
                     .setTypedConfig(Any.pack(rbacFilter.build())).build()
         } else {
             null
         }
     }
+
+    private fun permission() = Permission.newBuilder()
+    private fun not(permission: Permission.Builder) = permission().setNotRule(permission)
+    private fun or(permissions: Iterable<Permission>) = permission()
+        .setOrRules(Permission.Set.newBuilder().addAllRules(permissions))
+    private fun not(permissions: Iterable<Permission>) =
+        if (permissions.count() > 0) {
+            not(or(permissions))
+        } else {
+            permission().setAny(true)
+        }
 }

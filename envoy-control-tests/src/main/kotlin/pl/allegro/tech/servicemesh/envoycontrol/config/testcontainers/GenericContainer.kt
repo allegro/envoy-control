@@ -77,6 +77,13 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
             .ipAddress!!
     }
 
+    fun gatewayIp(): String {
+        return containerInfo
+            .networkSettings
+            .networks[(network as Network.NetworkImpl).name]!!
+            .gateway!!
+    }
+
     open fun sigstop() {
         sendSignal("STOP")
     }

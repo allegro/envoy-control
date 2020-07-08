@@ -41,10 +41,6 @@ function M:envoy_on_response(handle)
             end
             if source_ip == nil then source_ip = "" end
 
-            -- TODO(mfalkowski): print if this request has been blocked or only logged (using rbacMetadata["engine_result"])
-            -- TODO(awawrzyniak): there is no key engine_result in rbacMetadata structure
-            -- TODO(mfalkowski): so let's print a response code instead. If it is 403 we are 95% sure that request was blocked
-
             local statusCode = handle:headers():get(":status")
             handle:logInfo("\nAccess denied for request: method = "..method..", path = "..path..", clientIp = "..source_ip..", clientName = "..service_name..", protocol = "..protocol..", statusCode = "..statusCode)
         end

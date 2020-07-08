@@ -9,6 +9,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.containers.LuaContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.time.Duration
 
+// TODO(mfalkowski): I think it should be an unit test (unless it's hard to move it there)
+// TODO(mfalkowski): I reveive an error launching this test:
+//    "pull access denied for luatest, repository does not exist or may require 'docker login': denied: requested access to the resource is denied"
 internal class LuaIngressHandlerTest {
     companion object {
 
