@@ -4,6 +4,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.testcontainers.containers.wait.strategy.Wait
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration.Companion.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.LuaContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -14,9 +15,9 @@ import java.time.Duration
 //    "pull access denied for luatest, repository does not exist or may require 'docker login': denied: requested access to the resource is denied"
 internal class LuaIngressHandlerTest {
     companion object {
-
         private val logger by logger()
-        private val container = LuaContainer().withStartupTimeout(Duration.ofMinutes(2))
+        private val container = LuaContainer()
+                .withStartupTimeout(Duration.ofMinutes(1))
 
         @JvmStatic
         @BeforeAll
@@ -34,9 +35,9 @@ internal class LuaIngressHandlerTest {
     @Test
     fun `should execute ingress handler tests`() {
         untilAsserted {
-            val logs = container.getLogs()
-            logger.info("\n\n" + logs)
-            assertThat(logs.contains("Result: FASILED"))
+            container.logs.isNotEmpty()
         }
+        logger.info("\n\n%s".format(container.logs))
+        assertThat(container.logs).contains("Result: PASS")
     }
 }

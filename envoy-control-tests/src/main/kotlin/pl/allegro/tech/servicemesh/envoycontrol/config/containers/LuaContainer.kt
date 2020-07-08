@@ -3,7 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.containers
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.GenericContainer as BaseGenericContainer
 
-class LuaContainer : BaseGenericContainer<LuaContainer>("luatest:latest") {
+class LuaContainer : BaseGenericContainer<LuaContainer>("andrzejwaw/testlua:latest") {
     private val TEST_SCRIPT = "testcontainers/handler_test.lua"
     private val TEST_SCRIPT_DEST = "/lua/handler_test.lua"
 
