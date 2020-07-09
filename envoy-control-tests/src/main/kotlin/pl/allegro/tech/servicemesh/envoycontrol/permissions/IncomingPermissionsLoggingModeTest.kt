@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol
+package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
 import okhttp3.MediaType
 import okhttp3.RequestBody
