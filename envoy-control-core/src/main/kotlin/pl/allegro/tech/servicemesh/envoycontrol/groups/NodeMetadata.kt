@@ -110,7 +110,6 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
 
 fun Value?.toIncoming(): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
-
     return Incoming(
         endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
         // if there is no endpoint field defined in metadata, we allow for all traffic
