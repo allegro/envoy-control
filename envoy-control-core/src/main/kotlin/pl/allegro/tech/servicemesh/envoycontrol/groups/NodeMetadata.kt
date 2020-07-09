@@ -111,13 +111,6 @@ fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): D
 fun Value?.toIncoming(): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
 
-    var unlistedEndpointsPolicy: Incoming.UnlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG
-
-    val unlistedEndpointsPolicyValue = this?.field("unlistedEndpointsPolicy")?.stringValue
-    if (unlistedEndpointsPolicyValue != null && unlistedEndpointsPolicyValue.isNotEmpty()) {
-        unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.valueOf(unlistedEndpointsPolicyValue.toUpperCase())
-    }
-
     return Incoming(
         endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
         // if there is no endpoint field defined in metadata, we allow for all traffic
@@ -125,9 +118,27 @@ fun Value?.toIncoming(): Incoming {
         healthCheck = this?.field("healthCheck").toHealthCheck(),
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
         timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy(),
-        unlistedEndpointsPolicy = unlistedEndpointsPolicy
+        unlistedEndpointsPolicy = this?.field("unlistedEndpointsPolicy").toUnlistedEndpointsPolicy()
     )
 }
+
+fun Value?.toUnlistedEndpointsPolicy() = this?.stringValue
+    ?.takeIf { it.isNotEmpty() }
+    ?.let { when (it) {
+        "log" -> Incoming.UnlistedEndpointsPolicy.LOG
+        "blockAndLog" -> Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG
+        else -> throw NodeMetadataValidationException("Invalid unlistedEndpointsPolicy value: $it")
+    } }
+    ?: Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG
+
+fun Value?.toUnlistedClientsPolicy() = this?.stringValue
+    ?.takeIf { it.isNotEmpty() }
+    ?.let { when (it) {
+        "log" -> IncomingEndpoint.UnlistedClientsPolicy.LOG
+        "blockAndLog" -> IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
+        else -> throw NodeMetadataValidationException("Invalid unlistedClientsPolicy value: $it")
+    } }
+    ?: IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
 
 fun Value?.toHealthCheck(): HealthCheck {
     val path = this?.field("path")?.stringValue
@@ -149,13 +160,7 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
     val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
-
-    var unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
-
-    val unlistedClientsPolicyValue = this.field("unlistedClientsPolicy")?.stringValue
-    if (unlistedClientsPolicyValue != null && unlistedClientsPolicyValue.isNotEmpty()) {
-        unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.valueOf(unlistedClientsPolicyValue.toUpperCase())
-    }
+    val unlistedClientsPolicy = this.field("unlistedClientsPolicy").toUnlistedClientsPolicy()
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy)

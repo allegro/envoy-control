@@ -295,7 +295,7 @@ internal class RBACFilterFactoryTest {
         """
 
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
-                expectedUnlictedEndpointPermissions,
+                expectedUnlistedEndpointPermissions,
                 expectedShadowRules
         )
         val incomingPermission = Incoming(
@@ -1235,7 +1235,7 @@ internal class RBACFilterFactoryTest {
     private val expectedStatusRoutePermissionsJson = """
         {
           "policies": {
-            "STATUS POLICY NAME TODO": {
+            "STATUS_ALLOW_ALL_POLICY": {
               "permissions": [
                 ${pathHeaderRule("/status/")}
               ], "principals": [
@@ -1263,7 +1263,7 @@ internal class RBACFilterFactoryTest {
 
     private val expectedEmptyEndpointPermissions = """{ "policies": {} }"""
 
-    private val expectedUnlictedEndpointPermissions = """{ "policies": {
+    private val expectedUnlistedEndpointPermissions = """{ "policies": {
             "ALLOW_UNLISTED_POLICY": {
               "permissions": [
               {

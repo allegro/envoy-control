@@ -54,6 +54,7 @@ class RBACFilterFactory(
     companion object {
         private val logger by logger()
         private const val ALLOW_UNLISTED_POLICY_NAME = "ALLOW_UNLISTED_POLICY"
+        private const val STATUS_ROUTE_POLICY_NAME = "STATUS_ALLOW_ALL_POLICY"
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
 
@@ -67,26 +68,31 @@ class RBACFilterFactory(
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
         roles: List<Role>
-    ): List<EndpointWithPolicy> = incomingPermissions.endpoints
-        .mapNotNull { incomingEndpoint ->
-            if (incomingEndpoint.clients.isEmpty()) {
-                logger.warn("An incoming endpoint definition for $serviceName does not have any clients defined." +
+    ): List<EndpointWithPolicy> {
+        val principalCache = mutableMapOf<ClientWithSelector, List<Principal>>()
+        return incomingPermissions.endpoints
+            .mapNotNull { incomingEndpoint ->
+                if (incomingEndpoint.clients.isEmpty()) {
+                    logger.warn("An incoming endpoint definition for $serviceName does not have any clients defined." +
                         "It means that no one will be able to contact that endpoint.")
-                return@mapNotNull null
-            }
+                    return@mapNotNull null
+                }
 
-            val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
-            val principals = clientsWithSelectors.flatMap { mapClientWithSelectorToPrincipals(it, snapshot) }.toSet()
+                val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
+                val principals = clientsWithSelectors.flatMap { client ->
+                    principalCache.computeIfAbsent(client) { mapClientWithSelectorToPrincipals(it, snapshot) }
+                }.toSet()
 
-            if (principals.isNotEmpty()) {
-                val policy = Policy.newBuilder().addAllPrincipals(principals)
-                val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
-                policy.addPermissions(combinedPermissions)
-                EndpointWithPolicy(incomingEndpoint, policy)
-            } else {
-                null
+                if (principals.isNotEmpty()) {
+                    val policy = Policy.newBuilder().addAllPrincipals(principals)
+                    val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
+                    policy.addPermissions(combinedPermissions)
+                    EndpointWithPolicy(incomingEndpoint, policy)
+                } else {
+                    null
+                }
             }
-        }
+    }
 
     data class Rules(val shadowRules: RBAC.Builder, val actualRules: RBAC.Builder)
 
@@ -101,23 +107,24 @@ class RBACFilterFactory(
                 serviceName, incomingPermissions, snapshot, roles
         )
 
-        val allowedEndpointsPolicies = statusRoutePolicy + incomingEndpointsPolicies
+        val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
             .filter { it.endpoint.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG }
             .map { (endpoint, policy) -> "$endpoint" to policy.build() }.toMap()
 
-        val loggedEndpointsPolicies = incomingEndpointsPolicies
+        val loggedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
             .filter { it.endpoint.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.LOG }
             .map { (endpoint, policy) -> "$endpoint" to policy.build() }.toMap()
 
-        val shadowPolicies = allowedEndpointsPolicies + loggedEndpointsPolicies
+        val commonPolicies = statusRoutePolicy + restrictedEndpointsPolicies
 
-        val allowUnlistedPolicies = allowUnlistedPolicies(
+        val allowUnlistedPolicies = unlistedAndLoggedEndpointsPolicies(
             incomingPermissions,
-            allowedEndpointsPolicies.values,
+            commonPolicies.values,
             loggedEndpointsPolicies.values
         )
 
-        val actualPolicies = allowedEndpointsPolicies + allowUnlistedPolicies
+        val shadowPolicies = commonPolicies + loggedEndpointsPolicies
+        val actualPolicies = commonPolicies + allowUnlistedPolicies
 
         // TODO(mfalkowski) test with empty policies list - it should deny all (integration test)
 
@@ -132,13 +139,13 @@ class RBACFilterFactory(
         return Rules(shadowRules = shadowRules, actualRules = actualRules)
     }
 
-    private fun allowUnlistedPolicies(
+    private fun unlistedAndLoggedEndpointsPolicies(
         incomingPermissions: Incoming,
-        allowedEndpointsPolicies: Iterable<Policy>,
+        restrictedEndpointsPolicies: Iterable<Policy>,
         loggedEndpointsPolicies: Iterable<Policy>
     ): Map<String, Policy> {
         return if (incomingPermissions.unlistedEndpointsPolicy == Incoming.UnlistedEndpointsPolicy.LOG) {
-            allowUnlistedEndpointsPolicy(allowedEndpointsPolicies)
+            allowUnlistedEndpointsPolicy(restrictedEndpointsPolicies)
         } else {
             allowLoggedEndpointsPolicy(loggedEndpointsPolicies)
         }
@@ -148,7 +155,7 @@ class RBACFilterFactory(
 
         val allDefinedEndpointsPermissions = allowedEndpointsPolicies.asSequence()
             .flatMap { it.permissionsList.asSequence() }
-            .toList()
+            .asIterable()
 
         return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
@@ -187,7 +194,7 @@ class RBACFilterFactory(
                 .addPrincipals(anyPrincipal)
                 .addPermissions(permission)
                 .build()
-            mapOf("STATUS POLICY NAME TODO" to policy)
+            mapOf(STATUS_ROUTE_POLICY_NAME to policy)
         } else {
             mapOf()
         }
@@ -199,9 +206,9 @@ class RBACFilterFactory(
     ): Collection<ClientWithSelector> {
         val clients = incomingEndpoint.clients.flatMap { clientOrRole ->
             roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
-        }.toSortedSet()
+        }
         // sorted order ensures that we do not duplicate rules
-        return clients
+        return clients.toSortedSet()
     }
 
     private fun mapClientWithSelectorToPrincipals(
