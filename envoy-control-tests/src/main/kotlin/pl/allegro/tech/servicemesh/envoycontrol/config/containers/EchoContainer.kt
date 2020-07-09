@@ -2,7 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.containers
 
 import org.testcontainers.containers.wait.strategy.Wait
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
-import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.util.UUID
 
 class EchoContainer : GenericContainer<EchoContainer>("hashicorp/http-echo:latest") {
