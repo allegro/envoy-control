@@ -46,7 +46,7 @@ typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFil
 
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
-    private val snapshotProperties: SnapshotProperties,
+    snapshotProperties: SnapshotProperties,
     envoyHttpFilters: EnvoyHttpFilters
 ) {
     private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters

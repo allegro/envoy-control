@@ -9,13 +9,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagFilter
 
 class EnvoyDefaultFilters(
-    private val snapshotProperties: SnapshotProperties,
-    private val luaIngressFilterFactory: LuaFilterFactory
+    private val snapshotProperties: SnapshotProperties
 ) {
     private val rbacFilterFactory = RBACFilterFactory(
             snapshotProperties.incomingPermissions,
             snapshotProperties.routes.status,
             RBACFilterPermissions()
+    )
+    private val luaFilterFactory = LuaFilterFactory(
+        snapshotProperties.incomingPermissions
     )
 
     private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
@@ -30,15 +32,10 @@ class EnvoyDefaultFilters(
     private val defaultRbacFilter = {
         group: Group, snapshot: GlobalSnapshot -> rbacFilterFactory.createHttpFilter(group, snapshot)
     }
-
-    private val luaFilter = {
-        group: Group, snapshot: GlobalSnapshot -> luaIngressFilterFactory.ingressFilter(
-            snapshotProperties.incomingPermissions.enabled
-        )
-    }
+    private val defaultIngressLuaFilter = { group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressFilter(group) }
 
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
-    val defaultIngressFilters = listOf(luaFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter)
+    val defaultIngressFilters = listOf(defaultIngressLuaFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter)
 
     private fun headerToMetadataConfig(
         rules: List<Config.Rule>,

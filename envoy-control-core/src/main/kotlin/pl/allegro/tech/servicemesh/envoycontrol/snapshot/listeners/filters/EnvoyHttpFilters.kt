@@ -10,11 +10,8 @@ class EnvoyHttpFilters(
     companion object {
         val emptyFilters = EnvoyHttpFilters(listOf(), listOf())
 
-        fun defaultFilters(
-            snapshotProperties: SnapshotProperties,
-            luaIngressFilterFactory: LuaFilterFactory
-        ): EnvoyHttpFilters {
-            val defaultFilters = EnvoyDefaultFilters(snapshotProperties, luaIngressFilterFactory)
+        fun defaultFilters(snapshotProperties: SnapshotProperties): EnvoyHttpFilters {
+            val defaultFilters = EnvoyDefaultFilters(snapshotProperties)
             return EnvoyHttpFilters(defaultFilters.defaultIngressFilters, defaultFilters.defaultEgressFilters)
         }
     }
