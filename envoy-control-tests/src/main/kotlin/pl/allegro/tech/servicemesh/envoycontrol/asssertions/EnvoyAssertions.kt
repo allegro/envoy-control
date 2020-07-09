@@ -73,8 +73,6 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
 }
 
 fun ObjectAssert<String>.matchesRbacAccessDeniedLog(envoyAssertions: EnvoyAssertions, statusCode: String) = satisfies {
-    // TODO(mfalkowski): check if this log shows properly in Kibana (correct logger, etc.)
-
     assertThat(it).isEqualTo(
         "Access denied for request: method = ${envoyAssertions.method}, path = ${envoyAssertions.path}, " +
             "clientIp = ${envoyAssertions.clientIp}, clientName = ${envoyAssertions.clientName}, " +
