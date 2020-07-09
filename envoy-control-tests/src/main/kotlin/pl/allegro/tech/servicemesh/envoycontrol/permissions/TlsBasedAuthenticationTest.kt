@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol
+package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
@@ -25,18 +25,36 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
         )
 
-        private lateinit var echo1Envoy: EnvoyContainer
-        private lateinit var echo2Envoy: EnvoyContainer
-        private lateinit var echo3Envoy: EnvoyContainer
+        val echo1Envoy by lazy { envoyContainer1 }
+        val echo2Envoy by lazy { envoyContainer2 }
+
+        // language=yaml
+        private val echo1EnvoyConfig = Echo1EnvoyAuthConfig.copy(configOverride = """
+            node:
+              metadata:
+                proxy_settings:
+                  outgoing:
+                    dependencies:
+                      - service: "echo2"
+                      - service: "echo3"
+        """.trimIndent())
+        // language=yaml
+        private val echo2EnvoyConfig = Echo2EnvoyAuthConfig.copy(configOverride = """
+            node:
+              metadata:
+                proxy_settings:
+                  incoming:
+                    endpoints:
+                      - path: "/secured_endpoint"
+                        clients: ["echo"]
+        """.trimIndent())
 
         @JvmStatic
         @BeforeAll
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            }, envoyConfig = Echo1EnvoyAuthConfig, secondEnvoyConfig = Echo2EnvoyAuthConfig, envoys = 2)
-            echo1Envoy = envoyContainer1
-            echo2Envoy = envoyContainer2
+            }, envoyConfig = echo1EnvoyConfig, secondEnvoyConfig = echo2EnvoyConfig, envoys = 2)
         }
 
         private fun registerEcho2WithEnvoyOnIngress() {
@@ -62,7 +80,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @BeforeEach
     fun setup() {
-        registerService(name = "echo")
         registerEcho2WithEnvoyOnIngress()
     }
 
@@ -85,13 +102,13 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     fun `should not allow traffic that fails client SAN validation`() {
-        echo3Envoy = createEnvoyContainerWithEcho3San()
+        val echo3Envoy = createEnvoyContainerWithEcho3San()
         echo3Envoy.start()
 
         untilAsserted {
             // when
             // echo2 doesn't allow requests from echo3
-            val invalidResponse = callEcho2FromEcho3()
+            val invalidResponse = callEcho2(from = echo3Envoy)
 
             // then
             val sanValidationFailure = echo2Envoy.admin().statValue("http.ingress_https.rbac.denied")?.toInt()
@@ -188,25 +205,21 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         return callServiceInsecure(address = echo2Envoy.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
     }
 
-    private fun callEcho2FromEcho1() = callService(service = "echo2", pathAndQuery = "/secured_endpoint")
+    private fun callEcho2FromEcho1() = call(service = "echo2", path = "/secured_endpoint", from = echo1Envoy)
 
-    private fun callEcho2(from: EnvoyContainer) = callService(
-        service = "echo2", pathAndQuery = "/secured_endpoint", address = from.egressListenerUrl())
+    private fun callEcho2(from: EnvoyContainer) = call(service = "echo2", path = "/secured_endpoint", from = from)
 
-    private fun callEcho3FromEcho1() = callService(service = "echo3", pathAndQuery = "/secured_endpoint")
-
-    private fun callEcho2FromEcho3(): Response {
-        return callService(address = echo3Envoy.egressListenerUrl(), service = "echo2", pathAndQuery = "/secured_endpoint")
-    }
+    private fun callEcho3FromEcho1() = call(service = "echo3", path = "/secured_endpoint", from = echo1Envoy)
 
     private fun createEnvoyNotTrustingDefaultCA(): EnvoyContainer {
         val envoy = EnvoyContainer(
-            Echo1EnvoyAuthConfig.filePath,
+            Echo1EnvoyAuthConfig.copy(
+                // do not trust default CA used by other Envoys
+                trustedCa = "/app/root-ca2.crt"
+            ),
             localServiceContainer.ipAddress(),
             envoyControl1.grpcPort,
-            image = defaultEnvoyImage,
-            // do not trust default CA used by other Envoys
-            trustedCa = "/app/root-ca2.crt"
+            image = defaultEnvoyImage
         ).withNetwork(network)
         envoy.start()
         return envoy
@@ -214,14 +227,29 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     private fun createEnvoyNotSignedByDefaultCA(): EnvoyContainer {
         val envoy = EnvoyContainer(
-            Echo1EnvoyAuthConfig.filePath,
+            Echo1EnvoyAuthConfig.copy(
+                // certificate not signed by default CA
+                certificateChain = "/app/fullchain_echo_root-ca2.pem"
+            ),
             localServiceContainer.ipAddress(),
             envoyControl1.grpcPort,
-            image = defaultEnvoyImage,
-            // certificate not signed by default CA
-            certificateChain = "/app/fullchain_echo_root-ca2.pem"
+            image = defaultEnvoyImage
         ).withNetwork(network)
         envoy.start()
         return envoy
+    }
+
+    private fun createEnvoyContainerWithEcho3San(): EnvoyContainer {
+        // language=yaml
+        val configOverride = """
+            node:
+              metadata:
+                proxy_settings:
+                  outgoing:
+                    dependencies:
+                      - service: "echo2"
+        """.trimIndent()
+
+        return createEnvoyContainerWithEcho3Certificate(configOverride = configOverride)
     }
 }
