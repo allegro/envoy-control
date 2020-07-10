@@ -8,23 +8,16 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 
 class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsProperties) {
 
+    private val ingressScript: String = this::class.java.classLoader
+        .getResource("lua/ingress_handler.lua")!!.readText()
+
     private val ingressHttpFilter = if (incomingPermissionsProperties.enabled) {
         HttpFilter.newBuilder()
             .setName("envoy.lua")
-            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(getIngressScript()).build()))
+            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressScript).build()))
             .build()
     } else {
         null
-    }
-
-    private fun getIngressScript(): String {
-        // TODO(mfalkowski): move lua file to envoy-control-core
-        return this::class.java.classLoader
-                .getResource("filters/ingress_handler.lua")!!.readText()
-                .replace("return M",
-                this::class.java.classLoader
-                    .getResource("filters/script_ingress_handler.lua")!!.readText()
-        )
     }
 
     fun ingressFilter(group: Group): HttpFilter? =

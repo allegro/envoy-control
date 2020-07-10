@@ -1,7 +1,5 @@
-M = {}
 
-function M:envoy_on_request(handle)
-    handle:logInfo("running envoy_on_request")
+function envoy_on_request(handle)
     local path = handle:headers():get(":path")
     local method = handle:headers():get(":method")
     local service_name = handle:headers():get("x-service-name")
@@ -12,8 +10,7 @@ function M:envoy_on_request(handle)
     handle:streamInfo():dynamicMetadata():set("envoy.filters.http.lua", "request.info.xff_header", xff_header)
 end
 
-function M:envoy_on_response(handle)
-    handle:logInfo("running envoy_on_response")
+function envoy_on_response(handle)
     local rbacMetadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.rbac")
 
     if rbacMetadata ~= nil then
@@ -47,5 +44,3 @@ function M:envoy_on_response(handle)
     end
 end
 
-
-return M
