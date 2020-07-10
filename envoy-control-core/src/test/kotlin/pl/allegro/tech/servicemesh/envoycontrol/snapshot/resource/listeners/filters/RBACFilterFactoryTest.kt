@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
 import com.google.protobuf.util.JsonFormat

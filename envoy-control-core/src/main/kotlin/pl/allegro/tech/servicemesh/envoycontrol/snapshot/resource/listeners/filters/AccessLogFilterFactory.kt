@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.re2j.Pattern
 import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter

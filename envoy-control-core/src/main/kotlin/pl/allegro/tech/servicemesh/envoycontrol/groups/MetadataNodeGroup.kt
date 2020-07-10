@@ -7,7 +7,7 @@ import io.envoyproxy.envoy.api.v2.core.Node
 
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
 
 class MetadataNodeGroup(
     val properties: SnapshotProperties,

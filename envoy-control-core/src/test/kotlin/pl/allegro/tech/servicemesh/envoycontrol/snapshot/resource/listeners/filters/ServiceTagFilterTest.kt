@@ -1,8 +1,10 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.routing.ServiceTagMetadataGenerator
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsCombinationsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 
 internal class ServiceTagFilterTest {
 

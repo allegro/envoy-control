@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources
@@ -10,8 +10,10 @@ import io.envoyproxy.envoy.api.v2.route.Route
 import io.envoyproxy.envoy.api.v2.route.RouteAction
 import io.envoyproxy.envoy.api.v2.route.RouteMatch
 import io.envoyproxy.envoy.api.v2.route.VirtualHost
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
-internal class EnvoyEgressRoutesFactory(
+class EnvoyEgressRoutesFactory(
     private val properties: SnapshotProperties
 ) {
 

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
 
 @Suppress("LargeClass")
 class NodeMetadataTest {

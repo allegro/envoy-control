@@ -21,9 +21,17 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.CompositeDiscov
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
 import reactor.core.Disposable
@@ -182,11 +190,30 @@ class ControlPlane private constructor(
                 CachedProtoResourcesSerializer(meterRegistry, properties.server.reportProtobufCacheMetrics)
             )
 
+            val snapshotProperties = properties.envoy.snapshot
+            val envoySnapshotFactory = EnvoySnapshotFactory(
+                ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties),
+                egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
+                clustersFactory = EnvoyClustersFactory(snapshotProperties),
+                endpointsFactory = EnvoyEndpointsFactory(
+                    snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags)
+                ),
+                listenersFactory = EnvoyListenersFactory(
+                    snapshotProperties,
+                    envoyHttpFilters
+                ),
+                // Remember when LDS change we have to send RDS again
+                snapshotsVersions = SnapshotsVersions(),
+                properties = snapshotProperties,
+                meterRegistry = meterRegistry
+            )
+
             return ControlPlane(
                 grpcServer(properties.server, discoveryServer, nioEventLoopExecutor!!, grpcServerExecutor!!),
                 SnapshotUpdater(
                     cache,
                     properties.envoy.snapshot,
+                    envoySnapshotFactory,
                     Schedulers.fromExecutor(globalSnapshotExecutor!!),
                     groupSnapshotScheduler,
                     groupChangeWatcher.onGroupAdded(),

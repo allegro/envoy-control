@@ -30,7 +30,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMe
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServiceInstancesFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalStateChanges
 import reactor.core.scheduler.Schedulers
 import java.net.URI
