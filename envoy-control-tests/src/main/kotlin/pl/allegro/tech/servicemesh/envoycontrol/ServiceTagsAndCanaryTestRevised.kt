@@ -9,8 +9,9 @@ import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.AfterEachCallback
-import org.junit.jupiter.api.extension.BeforeEachCallback
+import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.testcontainers.containers.Network
@@ -27,47 +28,48 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
-class EchoServiceExtension : BeforeEachCallback, AfterEachCallback {
+class EchoServiceExtension : BeforeAllCallback, AfterAllCallback {
 
     val container = EchoContainer()
 
-    override fun beforeEach(context: ExtensionContext) {
+    override fun beforeAll(context: ExtensionContext?) {
         container.start()
     }
 
-    override fun afterEach(context: ExtensionContext) {
+    override fun afterAll(context: ExtensionContext?) {
         container.stop()
     }
 
 }
 
-class ConsulExtension : BeforeEachCallback, AfterEachCallback {
+class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
-    var server: ConsulSetup? = null
+    val server: ConsulSetup = ConsulSetup(Network.SHARED, ConsulServerConfig(1, "dc1", expectNodes = 1))
 
-    override fun beforeEach(context: ExtensionContext) {
-        server = ConsulSetup(Network.SHARED, ConsulServerConfig(1, "dc1", expectNodes = 1))
-        server?.container?.start()
-//        server?.container?.execInContainer()
+    override fun beforeAll(context: ExtensionContext?) {
+        server.container.start()
     }
 
     override fun afterEach(context: ExtensionContext) {
-        server?.container?.stop()
-        server = null
+        server.consulOperations.deregisterAll()
+    }
+
+    override fun afterAll(context: ExtensionContext?) {
+        server.container.stop()
     }
 
 }
 
 class EnvoyControlExtension(val consul: ConsulExtension,
-                            val properties: Map<String, Any> = mapOf()) : BeforeEachCallback,
-        AfterEachCallback {
+                            val properties: Map<String, Any> = mapOf()) : BeforeAllCallback,
+        AfterAllCallback {
 
     var ec: EnvoyControlTestApp? = null
 
-    override fun beforeEach(context: ExtensionContext) {
+    override fun beforeAll(context: ExtensionContext) {
         ec = EnvoyControlRunnerTestApp(
                 properties = properties,
-                consulPort = consul.server?.port!!
+                consulPort = consul.server.port
         )
         ec?.run()
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted {
@@ -75,18 +77,18 @@ class EnvoyControlExtension(val consul: ConsulExtension,
         }
     }
 
-    override fun afterEach(context: ExtensionContext) {
+    override fun afterAll(context: ExtensionContext) {
         ec?.stop()
         ec = null
     }
 
 }
 
-class EnvoyExtension(val envoyControl: EnvoyControlExtension) : BeforeEachCallback, AfterEachCallback {
+class EnvoyExtension(val envoyControl: EnvoyControlExtension) : BeforeAllCallback, AfterAllCallback {
 
     var envoy: EnvoyContainer? = null
 
-    override fun beforeEach(context: ExtensionContext?) {
+    override fun beforeAll(context: ExtensionContext?) {
         envoy = EnvoyContainer(
                 Ads,
                 "127.0.0.1",
@@ -102,7 +104,7 @@ class EnvoyExtension(val envoyControl: EnvoyControlExtension) : BeforeEachCallba
         }
     }
 
-    override fun afterEach(context: ExtensionContext?) {
+    override fun afterAll(context: ExtensionContext?) {
         envoy?.stop()
         envoy = null
     }
@@ -113,42 +115,42 @@ open class ServiceTagsAndCanaryTestRevised {
 
     companion object {
         val logger by logger()
+
+        @JvmField
+        @Order(0)
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @Order(1)
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+                "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
+                "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
+                "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to true,
+                "envoy-control.envoy.snapshot.load-balancing.canary.metadata-key" to "canary",
+                "envoy-control.envoy.snapshot.load-balancing.canary.metadata-value" to "1"
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl)
+
+        @JvmField
+        @RegisterExtension
+        val loremRegularService = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val loremCanaryService = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val ipsumRegularService = EchoServiceExtension()
     }
 
-    @JvmField
-    @Order(0)
-    @RegisterExtension
-    val consul = ConsulExtension()
-
-    @JvmField
-    @Order(1)
-    @RegisterExtension
-    val envoyControl = EnvoyControlExtension(consul, mapOf(
-        "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
-        "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
-        "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to true,
-        "envoy-control.envoy.snapshot.load-balancing.canary.metadata-key" to "canary",
-        "envoy-control.envoy.snapshot.load-balancing.canary.metadata-value" to "1"
-    ))
-
-    @JvmField
-    @RegisterExtension
-    val envoy = EnvoyExtension(envoyControl)
-
-    @JvmField
-    @RegisterExtension
-    val loremRegularService = EchoServiceExtension()
-
-    @JvmField
-    @RegisterExtension
-    val loremCanaryService = EchoServiceExtension()
-
-    @JvmField
-    @RegisterExtension
-    val ipsumRegularService = EchoServiceExtension()
-
     protected fun registerServices() {
-        val consulOps = ConsulOperations(consul.server?.port!!)
+        val consulOps = ConsulOperations(consul.server.port)
         consulOps.registerService(name = "echo", address = loremRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem"))
         consulOps.registerService(name = "echo", address = loremCanaryService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem", "canary"))
         consulOps.registerService(name = "echo", address = ipsumRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("ipsum"))
