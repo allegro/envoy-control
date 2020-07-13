@@ -43,6 +43,10 @@ class EnvoyAdmin(
                 it.address?.socketAddress?.address == ip
             }
 
+    fun isEndpointHealthy(clusterName: String, ip: String) = hostStatus(clusterName, ip)
+        ?.healthStatus
+        ?.edsHealthStatus == "HEALTHY"
+
     fun statValue(statName: String): String? = get("stats?filter=$statName").body()?.use {
         val splitedStats = it.string().lines().first().split(":")
         if (splitedStats.size != 2) {
