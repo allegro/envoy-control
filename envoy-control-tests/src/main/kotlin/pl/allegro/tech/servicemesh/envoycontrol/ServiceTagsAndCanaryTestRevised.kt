@@ -20,7 +20,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulServerConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulSetup
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
@@ -44,7 +43,9 @@ class EchoServiceExtension : BeforeAllCallback, AfterAllCallback {
 
 class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
-    val server: ConsulSetup = ConsulSetup(Network.SHARED, ConsulServerConfig(1, "dc1", expectNodes = 1))
+    val server: ConsulSetup = ConsulSetup(
+            Network.SHARED, ConsulServerConfig(1, "dc1", expectNodes = 1)
+    )
 
     override fun beforeAll(context: ExtensionContext?) {
         server.container.start()
@@ -60,53 +61,55 @@ class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
 }
 
-class EnvoyControlExtension(val consul: ConsulExtension,
-                            val properties: Map<String, Any> = mapOf()) : BeforeAllCallback,
-        AfterAllCallback {
+class EnvoyControlExtension(consul: ConsulExtension, properties: Map<String, Any> = mapOf())
+    : BeforeAllCallback, AfterAllCallback {
 
-    var ec: EnvoyControlTestApp? = null
+    val app: EnvoyControlTestApp = EnvoyControlRunnerTestApp(
+            properties = properties,
+            consulPort = consul.server.port
+    )
 
     override fun beforeAll(context: ExtensionContext) {
-        ec = EnvoyControlRunnerTestApp(
-                properties = properties,
-                consulPort = consul.server.port
-        )
-        ec?.run()
+        app.run()
+        waitUntilHealthy()
+    }
+
+    private fun waitUntilHealthy() {
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted {
-            assertThat(ec?.isHealthy()).isTrue()
+            assertThat(app.isHealthy()).isTrue()
         }
     }
 
     override fun afterAll(context: ExtensionContext) {
-        ec?.stop()
-        ec = null
+        app.stop()
     }
 
 }
 
-class EnvoyExtension(val envoyControl: EnvoyControlExtension) : BeforeAllCallback, AfterAllCallback {
+class EnvoyExtension(envoyControl: EnvoyControlExtension)
+    : BeforeAllCallback, AfterAllCallback {
 
-    var envoy: EnvoyContainer? = null
+    companion object {
+        val logger by logger()
+    }
+
+    val container: EnvoyContainer = EnvoyContainer(
+            Ads,
+            "127.0.0.1",
+            envoyControl.app.grpcPort
+    ).withNetwork(Network.SHARED)
 
     override fun beforeAll(context: ExtensionContext?) {
-        envoy = EnvoyContainer(
-                Ads,
-                "127.0.0.1",
-                envoyControl.ec?.grpcPort!!,
-                image = EnvoyControlTestConfiguration.defaultEnvoyImage
-        ).withNetwork(Network.SHARED)
-
         try {
-            envoy?.start()
+            container.start()
         } catch (e: Exception) {
-            ServiceTagsAndCanaryTestRevised.logger.error("Logs from failed container: ${envoy?.logs}")
+            logger.error("Logs from failed container: ${container.logs}")
             throw e
         }
     }
 
     override fun afterAll(context: ExtensionContext?) {
-        envoy?.stop()
-        envoy = null
+        container.stop()
     }
 
 }
@@ -114,16 +117,15 @@ class EnvoyExtension(val envoyControl: EnvoyControlExtension) : BeforeAllCallbac
 open class ServiceTagsAndCanaryTestRevised {
 
     companion object {
-        val logger by logger()
 
         @JvmField
-        @Order(0)
         @RegisterExtension
+        @Order(0)
         val consul = ConsulExtension()
 
         @JvmField
-        @Order(1)
         @RegisterExtension
+        @Order(1)
         val envoyControl = EnvoyControlExtension(consul, mapOf(
                 "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
                 "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
@@ -149,28 +151,16 @@ open class ServiceTagsAndCanaryTestRevised {
         val ipsumRegularService = EchoServiceExtension()
     }
 
-    protected fun registerServices() {
-        val consulOps = ConsulOperations(consul.server.port)
-        consulOps.registerService(name = "echo", address = loremRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem"))
-        consulOps.registerService(name = "echo", address = loremCanaryService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem", "canary"))
-        consulOps.registerService(name = "echo", address = ipsumRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("ipsum"))
-    }
-
-    fun <T> untilAsserted(wait: org.awaitility.Duration = BaseEnvoyTest.defaultDuration, fn: () -> (T)): T {
-        var lastResult: T? = null
-        Awaitility.await().atMost(wait).untilAsserted({ lastResult = fn() })
-        assertThat(lastResult).isNotNull
-        return lastResult!!
-    }
-
-    fun waitForReadyServicesRevised(vararg serviceNames: String) {
-        serviceNames.forEach {
-            untilAsserted {
-                callService(service = it, address = envoy.envoy?.egressListenerUrl()!!).also {
-                    assertThat(it).isOk()
-                }
-            }
-        }
+    fun registerServices() {
+        consul.server.consulOperations.registerService(
+                name = "echo", address = loremRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem")
+        )
+        consul.server.consulOperations.registerService(
+                name = "echo", address = loremCanaryService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem", "canary")
+        )
+        consul.server.consulOperations.registerService(
+                name = "echo", address = ipsumRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("ipsum")
+        )
     }
 
     @Test
@@ -238,6 +228,23 @@ open class ServiceTagsAndCanaryTestRevised {
         assertThat(stats.ipsumRegularHits).isEqualTo(0)
     }
 
+    fun waitForReadyServicesRevised(vararg serviceNames: String) {
+        serviceNames.forEach {
+            untilAsserted {
+                callService(service = it, address = envoy.container.egressListenerUrl()).also {
+                    assertThat(it).isOk()
+                }
+            }
+        }
+    }
+
+    fun <T> untilAsserted(wait: org.awaitility.Duration = BaseEnvoyTest.defaultDuration, fn: () -> (T)): T {
+        var lastResult: T? = null
+        Awaitility.await().atMost(wait).untilAsserted { lastResult = fn() }
+        assertThat(lastResult).isNotNull
+        return lastResult!!
+    }
+
     protected open fun callStats() = EnvoyControlTestConfiguration.CallStats(
             listOf(loremCanaryService.container, loremRegularService.container,
                     ipsumRegularService.container))
@@ -259,7 +266,7 @@ open class ServiceTagsAndCanaryTestRevised {
             maxRepeat = repeat,
             headers = tagHeader + canaryHeader,
             assertNoErrors = assertNoErrors,
-            address = envoy.envoy?.egressListenerUrl()!!
+            address = envoy.container.egressListenerUrl()
         )
         return stats
     }
@@ -273,16 +280,16 @@ open class ServiceTagsAndCanaryTestRevised {
 
     fun callService(
             service: String,
-            address: String = EnvoyControlTestConfiguration.envoyContainer1.egressListenerUrl(),
+            address: String,
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
     ): Response = call(service, address, headers, pathAndQuery)
 
     private fun call(
             host: String,
-            address: String = EnvoyControlTestConfiguration.envoyContainer1.egressListenerUrl(),
-            headers: Map<String, String> = mapOf(),
-            pathAndQuery: String = "",
+            address: String,
+            headers: Map<String, String>,
+            pathAndQuery: String,
             client: OkHttpClient = OkHttpClient.Builder()
                     // envoys default timeout is 15 seconds while OkHttp is 10
                     .readTimeout(Duration.ofSeconds(20))
@@ -306,18 +313,18 @@ open class ServiceTagsAndCanaryTestRevised {
     protected fun callServiceRepeatedly(
             service: String,
             stats: EnvoyControlTestConfiguration.CallStats,
-            minRepeat: Int = 1,
-            maxRepeat: Int = 100,
+            minRepeat: Int,
+            maxRepeat: Int,
             repeatUntil: (EnvoyControlTestConfiguration.ResponseWithBody) -> Boolean = { false },
-            headers: Map<String, String> = mapOf(),
+            headers: Map<String, String>,
             pathAndQuery: String = "",
-            assertNoErrors: Boolean = true,
-            address: String = EnvoyControlTestConfiguration.envoyContainer1.egressListenerUrl()
+            assertNoErrors: Boolean,
+            address: String
     ): EnvoyControlTestConfiguration.CallStats {
         var conditionFulfilled = false
         (1..maxRepeat).asSequence()
                 .map { i ->
-                    EnvoyControlTestConfiguration.callService(service = service, headers = headers,
+                    callService(service = service, headers = headers,
                             pathAndQuery = pathAndQuery, address = address).also {
                         if (assertNoErrors) assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
                     }
