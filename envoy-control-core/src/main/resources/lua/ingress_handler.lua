@@ -7,7 +7,7 @@ function envoy_on_request(handle)
     local metadata = handle:streamInfo():dynamicMetadata()
     metadata:set("envoy.filters.http.lua", "request.info.path", path)
     metadata:set("envoy.filters.http.lua", "request.info.method", method)
-    metadata:set("envoy.filters.http.lua", "request.info.service_name", service_name) -- TODO(mfalkowski): this should be read from certificate
+    metadata:set("envoy.filters.http.lua", "request.info.service_name", service_name)
     metadata:set("envoy.filters.http.lua", "request.info.xff_header", xff_header)
 end
 

@@ -58,13 +58,13 @@ describe("envoy_on_response:", function()
         }
         metadata = {
             ['envoy.filters.http.rbac'] = {
-                ['shadow_engine_result'] = 'denied' -- TODO: test !denied
+                ['shadow_engine_result'] = 'denied'
             },
             ['envoy.filters.http.lua'] = {
                 ['request.info.service_name'] = 'service-first',
                 ['request.info.path'] = '/path?query=val',
                 ['request.info.method'] = 'POST',
-                ['request.info.xff_header'] = '127.1.1.3',  -- TODO: test multiple ip's
+                ['request.info.xff_header'] = '127.1.1.3',
 
             }
         }
@@ -102,7 +102,7 @@ describe("envoy_on_response:", function()
             assert.spy(handle.logInfo).was_called(1)
         end)
 
-        it("allowed request", function ()
+        it("allowed & logged request", function ()
             -- given
             headers[':status'] = '200'
             local handle = handlerMock(headers, metadata, ssl)
@@ -163,7 +163,7 @@ describe("envoy_on_response:", function()
         end)
     end)
 
-    describe("should not log authorized requests:", function()
+    describe("should not log requests:", function()
 
         it("request with no rbac metadata", function()
             -- given
@@ -179,7 +179,7 @@ describe("envoy_on_response:", function()
             assert.spy(metadataMock.get).was_not_called_with(_, 'envoy.filters.http.lua')
         end)
 
-        it("request with rbac action 'allow'", function()
+        it("authorized request'", function()
             -- given
             metadata['envoy.filters.http.rbac']['shadow_engine_result'] = 'allowed'
             local handle = handlerMock(headers, metadata, ssl)
