@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.asssertions.hasOneAccessDenialWithActionLog
+import pl.allegro.tech.servicemesh.envoycontrol.asssertions.isRbacAccessLog
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
@@ -81,6 +82,6 @@ internal class IncomingPermissionsEmptyEndpointsTest : EnvoyControlTestConfigura
         get() = this.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()
 
     private fun EnvoyContainer.recordRBACLogs() {
-        logRecorder.recordLogs { log -> log.contains("Access denied") }
+        logRecorder.recordLogs(::isRbacAccessLog)
     }
 }

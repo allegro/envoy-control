@@ -1,52 +1,230 @@
 require("ingress_handler")
 
-describe('hello world', function()
-    it("2 == 2", function()
-        assert.same(2, 2)
-    end)
-end)
---
---describe("failed suite", function()
---    it("2 == 3", function()
---        assert.same(2, 3)
---    end)
---end)
-
 local _ = match._
+local contains = function(substring) return match.matches(substring, nil, true) end
 
-describe("envoy_on_request:", function()
-
-    local headers = {
-        [':path'] = '/path',
-        [':method'] = 'GET',
-        ['x-service-name'] = 'lorem-service',
-        ['x-forwarded-for'] = "127.0.4.3"
-    }
-
-    local metadataSet = spy(function() end)
-
-    local handle = {
+local function handlerMock(headers, metadata, https)
+    local metadataMock = mock({
+        set = function() end,
+        get = function(_, key) return metadata[key] end
+    })
+    local logInfoMock = spy(function() end)
+    return {
         headers = function() return {
-            get = function(self, key) return headers[key] end
+            get = function(_, key) return headers[key] end
         } end,
         streamInfo = function() return {
-            dynamicMetadata = function() return {
-                set = metadataSet
-            } end
-        } end
+            dynamicMetadata = function() return metadataMock end
+        } end,
+        connection = function() return {
+            ssl = function() return https or nil end
+        } end,
+        logInfo = logInfoMock
     }
+end
 
+describe("envoy_on_request:", function()
     it("should set dynamic metadata", function()
+        -- given
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+            ['x-service-name'] = 'lorem-service',
+            ['x-forwarded-for'] = "127.0.4.3"
+        }
+
+        local handle = handlerMock(headers)
+        local metadata = handle:streamInfo():dynamicMetadata()
+
         -- when
         envoy_on_request(handle)
 
-        -- io.stderr:write(string.format("HEJJJJJJJJ\n"))
-        -- handle:streamInfo():dynamicMetadata():set("envoy.filters.http.lua", "request.info.path", "/path")
-
         -- then
-        assert.spy(metadataSet).was_called_with(_, "envoy.filters.http.lua", "request.info.path", "/path")
-        assert.spy(metadataSet).was_called_with(_, "envoy.filters.http.lua", "request.info.method", "GET")
-        assert.spy(metadataSet).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "lorem-service")
-        assert.spy(metadataSet).was_called_with(_, "envoy.filters.http.lua", "request.info.xff_header", "127.0.4.3")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.path", "/path")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.method", "GET")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "lorem-service")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.xff_header", "127.0.4.3")
     end)
 end)
+
+describe("envoy_on_response:", function()
+    local headers
+    local metadata
+    local ssl
+
+    before_each(function ()
+        headers = {
+            [':status'] = '403'
+        }
+        metadata = {
+            ['envoy.filters.http.rbac'] = {
+                ['shadow_engine_result'] = 'denied' -- TODO: test !denied
+            },
+            ['envoy.filters.http.lua'] = {
+                ['request.info.service_name'] = 'service-first',
+                ['request.info.path'] = '/path?query=val',
+                ['request.info.method'] = 'POST',
+                ['request.info.xff_header'] = '127.1.1.3',  -- TODO: test multiple ip's
+
+            }
+        }
+        ssl = true
+    end)
+
+    describe("should log unauthorized requests:", function ()
+
+        it("https request", function ()
+            -- given
+            local handle = handlerMock(headers, metadata, ssl)
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_called_with(_,
+              "\nUnauthorized request: method = POST, path = '/path?query=val', "..
+              "clientIp = 127.1.1.3, clientName = service-first, protocol = https, statusCode = 403")
+            assert.spy(handle.logInfo).was_called(1)
+        end)
+
+        it("http request", function ()
+            -- given
+            ssl = false
+            local handle = handlerMock(headers, metadata, ssl)
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_called_with(_,
+              "\nUnauthorized request: method = POST, path = '/path?query=val', "..
+                "clientIp = 127.1.1.3, clientName = service-first, protocol = http, statusCode = 403")
+            assert.spy(handle.logInfo).was_called(1)
+        end)
+
+        it("allowed request", function ()
+            -- given
+            headers[':status'] = '200'
+            local handle = handlerMock(headers, metadata, ssl)
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_called_with(_,
+              "\nUnauthorized request: method = POST, path = '/path?query=val', "..
+                "clientIp = 127.1.1.3, clientName = service-first, protocol = https, statusCode = 200")
+            assert.spy(handle.logInfo).was_called(1)
+        end)
+
+        it("request with no metadata fields saved", function ()
+            -- given
+            metadata['envoy.filters.http.lua'] = {}
+            headers = {}
+            local handle = handlerMock(headers, metadata, ssl)
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_called_with(_,
+              "\nUnauthorized request: method = , path = , clientIp = , clientName = , protocol = https, statusCode = ")
+            assert.spy(handle.logInfo).was_called(1)
+        end)
+
+        it("request with no metadata saved", function ()
+            -- given
+            metadata['envoy.filters.http.lua'] = nil
+            headers = {}
+            local handle = handlerMock(headers, metadata, ssl)
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_called_with(_,
+              "\nUnauthorized request: method = , path = , clientIp = , clientName = , protocol = https, statusCode = ")
+            assert.spy(handle.logInfo).was_called(1)
+        end)
+
+        it("request with empty path", function ()
+            -- given
+            metadata['envoy.filters.http.lua']['request.info.path'] = ''
+            local handle = handlerMock(headers, metadata, ssl)
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_called_with(_,
+              "\nUnauthorized request: method = POST, path = '', "..
+                "clientIp = 127.1.1.3, clientName = service-first, protocol = https, statusCode = 403")
+            assert.spy(handle.logInfo).was_called(1)
+        end)
+    end)
+
+    describe("should not log authorized requests:", function()
+
+        it("request with no rbac metadata", function()
+            -- given
+            metadata = {}
+            local handle = handlerMock(headers, metadata, ssl)
+            local metadataMock = handle:streamInfo():dynamicMetadata()
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_not_called()
+            assert.spy(metadataMock.get).was_not_called_with(_, 'envoy.filters.http.lua')
+        end)
+
+        it("request with rbac action 'allow'", function()
+            -- given
+            metadata['envoy.filters.http.rbac']['shadow_engine_result'] = 'allowed'
+            local handle = handlerMock(headers, metadata, ssl)
+            local metadataMock = handle:streamInfo():dynamicMetadata()
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_not_called()
+            assert.spy(metadataMock.get).was_not_called_with(_, 'envoy.filters.http.lua')
+        end)
+    end)
+
+    it("should handle x-forwarded-for formats", function ()
+        local xff_to_expected_client_ip= {
+            {"", ""},
+            {"127.9.3.2", "127.9.3.2"},
+            {"3.23.2.44 , 2.34.3.2,127.1.3.5", "127.1.3.5"},
+            {"2001:db8:85a3:8d3:1319:8a2e:370:7348,1001:db8:85a3:8d3:1319:8a2e:370:2222", "1001:db8:85a3:8d3:1319:8a2e:370:2222"},
+            {"2001:db8:85a3:8d3:1319:8a2e:370:7348,127.1.3.4", "127.1.3.4"}
+        }
+
+        for i,v in ipairs(xff_to_expected_client_ip) do
+            -- given
+            local xff = v[1]
+            local expected_client_ip = v[2]
+            metadata['envoy.filters.http.lua']['request.info.xff_header'] = xff
+            local handle = handlerMock(headers, metadata, ssl)
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_called_with(_, contains("clientIp = "..expected_client_ip..","))
+        end
+
+        -- when
+
+    end)
+end)
+
+--[[
+tools:
+  show spy calls:
+    require 'pl.pretty'.dump(handle.logInfo.calls, "/dev/stderr")
+]]--
+
