@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.config.rbac.v2.Permission

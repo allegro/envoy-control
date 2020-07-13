@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
 import io.envoyproxy.envoy.config.filter.http.lua.v2.Lua
@@ -11,7 +11,7 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
     private val ingressScript: String = this::class.java.classLoader
         .getResource("lua/ingress_handler.lua")!!.readText()
 
-    private val ingressHttpFilter = if (incomingPermissionsProperties.enabled) {
+    private val ingressHttpFilter: HttpFilter? = if (incomingPermissionsProperties.enabled) {
         HttpFilter.newBuilder()
             .setName("envoy.lua")
             .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressScript).build()))
