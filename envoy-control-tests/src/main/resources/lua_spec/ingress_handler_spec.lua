@@ -179,7 +179,7 @@ describe("envoy_on_response:", function()
             assert.spy(metadataMock.get).was_not_called_with(_, 'envoy.filters.http.lua')
         end)
 
-        it("authorized request'", function()
+        it("authorized request", function()
             -- given
             metadata['envoy.filters.http.rbac']['shadow_engine_result'] = 'allowed'
             local handle = handlerMock(headers, metadata, ssl)
@@ -216,9 +216,6 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, contains("clientIp = "..expected_client_ip..","))
         end
-
-        -- when
-
     end)
 end)
 
