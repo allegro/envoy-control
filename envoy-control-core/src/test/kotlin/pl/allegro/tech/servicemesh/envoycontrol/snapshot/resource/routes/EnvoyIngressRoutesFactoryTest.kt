@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Test
@@ -21,6 +21,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPoliciesProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SecuredRoute
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.time.Duration
 
 internal class EnvoyIngressRoutesFactoryTest {

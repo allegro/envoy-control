@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import io.envoyproxy.envoy.api.v2.core.DataSource
 import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
@@ -7,8 +7,10 @@ import io.envoyproxy.envoy.api.v2.route.RedirectAction
 import io.envoyproxy.envoy.api.v2.route.Route
 import io.envoyproxy.envoy.api.v2.route.RouteAction
 import io.envoyproxy.envoy.api.v2.route.RouteMatch
+import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RoutesProperties
 
-internal class AdminRoutesFactory(
+class AdminRoutesFactory(
     private val properties: RoutesProperties
 ) {
     private val adminRouteAction = RouteAction.newBuilder()
@@ -100,7 +102,7 @@ internal class AdminRoutesFactory(
         return AuthorizationRoute(authorizedRoute, unauthorizedRoute)
     }
 
-    fun guardAccessWithDisableHeader(): List<Route> {
+    private fun guardAccessWithDisableHeader(): List<Route> {
         if (properties.admin.disable.onHeader.isEmpty()) {
             return emptyList()
         }

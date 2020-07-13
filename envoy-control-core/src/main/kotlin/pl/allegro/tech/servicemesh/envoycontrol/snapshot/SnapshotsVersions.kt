@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
  * invocation the group is still there. This is fine, it will be removed on the next retainGroups invocation.
  * We don't need strong consistency there.
  */
-internal class SnapshotsVersions {
+class SnapshotsVersions {
     companion object {
         fun newVersion(): String = UUID.randomUUID().toString().replace("-", "")
     }
@@ -104,7 +104,7 @@ internal class SnapshotsVersions {
         val listeners: List<Listener>
     )
 
-    internal data class Version(
+    data class Version(
         val clusters: ClustersVersion,
         val endpoints: EndpointsVersion,
         val listeners: ListenersVersion,

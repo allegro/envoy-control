@@ -4,7 +4,7 @@ import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import io.envoyproxy.envoy.api.v2.core.Node
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HttpMethod
+import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties

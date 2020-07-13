@@ -8,7 +8,7 @@ import io.envoyproxy.controlplane.server.exception.RequestException
 import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.listeners.filters.AccessLogFilterFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
 import java.net.URL
 import java.text.ParseException
 
