@@ -39,12 +39,12 @@ class ConsulClientConfig(id: Int, dc: String, serverAddress: String, jsonFiles: 
     jsonFiles
 )
 
-class ConsulServerConfig(id: Int, dc: String, jsonFiles: List<File> = listOf()) : ConsulConfig(
+class ConsulServerConfig(id: Int, dc: String, expectNodes: Int = 3, jsonFiles: List<File> = listOf()) : ConsulConfig(
     id,
     dc,
     defaultConfig + mapOf(
         "server" to "",
-        "bootstrap-expect" to "3",
+        "bootstrap-expect" to expectNodes.toString(),
         "ui" to "",
         "node" to "consul-server-$dc-$id"
     ),

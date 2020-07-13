@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.containers
 
+import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
-import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.util.UUID
 
@@ -12,7 +12,7 @@ class EchoContainer : GenericContainer<EchoContainer>("hashicorp/http-echo:lates
     override fun configure() {
         super.configure()
         withExposedPorts(PORT)
-        withNetwork(BaseEnvoyTest.network)
+        withNetwork(Network.SHARED)
         withCommand(String.format("-text=%s", response))
         waitingFor(Wait.forHttp("/").forStatusCode(200))
     }

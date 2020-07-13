@@ -397,12 +397,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         repeatUntil: (ResponseWithBody) -> Boolean = { false },
         headers: Map<String, String> = mapOf(),
         pathAndQuery: String = "",
-        assertNoErrors: Boolean = true
+        assertNoErrors: Boolean = true,
+        address: String = envoyContainer1.egressListenerUrl()
     ): CallStats {
         var conditionFulfilled = false
         (1..maxRepeat).asSequence()
             .map { i ->
-                callService(service = service, headers = headers, pathAndQuery = pathAndQuery).also {
+                callService(service = service, headers = headers, pathAndQuery = pathAndQuery, address = address).also {
                     if (assertNoErrors) assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
                 }
             }
