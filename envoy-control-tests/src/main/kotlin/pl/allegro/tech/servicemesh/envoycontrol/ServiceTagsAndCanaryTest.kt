@@ -7,7 +7,6 @@ import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility
-import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
@@ -24,12 +23,10 @@ class ServiceTagsAndCanaryTest {
 
         @JvmField
         @RegisterExtension
-        @Order(0)
         val consul = ConsulExtension()
 
         @JvmField
         @RegisterExtension
-        @Order(1)
         val envoyControl = EnvoyControlExtension(consul, mapOf(
                 "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
                 "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",

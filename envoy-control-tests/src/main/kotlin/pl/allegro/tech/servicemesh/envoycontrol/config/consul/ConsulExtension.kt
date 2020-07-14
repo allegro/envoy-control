@@ -12,16 +12,22 @@ class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
             Network.SHARED,
             ConsulServerConfig(1, "dc1", expectNodes = 1)
     )
+    var started = false
 
-    override fun beforeAll(context: ExtensionContext?) {
+    override fun beforeAll(context: ExtensionContext) {
+        if (started) {
+            return
+        }
+
         server.container.start()
+        started = true
     }
 
     override fun afterEach(context: ExtensionContext) {
         server.consulOperations.deregisterAll()
     }
 
-    override fun afterAll(context: ExtensionContext?) {
+    override fun afterAll(context: ExtensionContext) {
         server.container.stop()
     }
 

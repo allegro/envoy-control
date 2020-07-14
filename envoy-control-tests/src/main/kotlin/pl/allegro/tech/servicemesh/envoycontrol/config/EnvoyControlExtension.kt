@@ -8,7 +8,7 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import java.util.concurrent.TimeUnit
 
-class EnvoyControlExtension(consul: ConsulExtension, properties: Map<String, Any> = mapOf())
+class EnvoyControlExtension(val consul: ConsulExtension, properties: Map<String, Any> = mapOf())
     : BeforeAllCallback, AfterAllCallback {
 
     val app: EnvoyControlTestApp = EnvoyControlRunnerTestApp(
@@ -17,6 +17,9 @@ class EnvoyControlExtension(consul: ConsulExtension, properties: Map<String, Any
     )
 
     override fun beforeAll(context: ExtensionContext) {
+        if (!consul.started) {
+            consul.beforeAll(context)
+        }
         app.run()
         waitUntilHealthy()
     }

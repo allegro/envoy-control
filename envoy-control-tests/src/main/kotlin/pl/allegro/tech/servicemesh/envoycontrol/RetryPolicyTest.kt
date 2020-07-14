@@ -5,7 +5,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
@@ -20,12 +19,10 @@ class RetryPolicyTest {
 
         @JvmField
         @RegisterExtension
-        @Order(0)
         val consul = ConsulExtension()
 
         @JvmField
         @RegisterExtension
-        @Order(1)
         val envoyControl = EnvoyControlExtension(consul, mapOf(
                 "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.enabled" to true,
                 "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.retry-on" to listOf("connect-failure", "reset"),
