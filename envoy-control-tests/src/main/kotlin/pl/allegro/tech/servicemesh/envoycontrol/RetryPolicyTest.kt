@@ -8,7 +8,11 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration.Companion.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import java.time.Duration
 
 class RetryPolicyTest {

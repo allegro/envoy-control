@@ -9,110 +9,15 @@ import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.AfterAllCallback
-import org.junit.jupiter.api.extension.AfterEachCallback
-import org.junit.jupiter.api.extension.BeforeAllCallback
-import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.RegisterExtension
-import org.testcontainers.containers.Network
-import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulServerConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulSetup
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import java.time.Duration
-import java.util.concurrent.TimeUnit
-
-class EchoServiceExtension : BeforeAllCallback, AfterAllCallback {
-
-    val container = EchoContainer()
-
-    override fun beforeAll(context: ExtensionContext?) {
-        container.start()
-    }
-
-    override fun afterAll(context: ExtensionContext?) {
-        container.stop()
-    }
-
-}
-
-class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
-
-    val server: ConsulSetup = ConsulSetup(
-            Network.SHARED, ConsulServerConfig(1, "dc1", expectNodes = 1)
-    )
-
-    override fun beforeAll(context: ExtensionContext?) {
-        server.container.start()
-    }
-
-    override fun afterEach(context: ExtensionContext) {
-        server.consulOperations.deregisterAll()
-    }
-
-    override fun afterAll(context: ExtensionContext?) {
-        server.container.stop()
-    }
-
-}
-
-class EnvoyControlExtension(consul: ConsulExtension, properties: Map<String, Any> = mapOf())
-    : BeforeAllCallback, AfterAllCallback {
-
-    val app: EnvoyControlTestApp = EnvoyControlRunnerTestApp(
-            properties = properties,
-            consulPort = consul.server.port
-    )
-
-    override fun beforeAll(context: ExtensionContext) {
-        app.run()
-        waitUntilHealthy()
-    }
-
-    private fun waitUntilHealthy() {
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted {
-            assertThat(app.isHealthy()).isTrue()
-        }
-    }
-
-    override fun afterAll(context: ExtensionContext) {
-        app.stop()
-    }
-
-}
-
-class EnvoyExtension(envoyControl: EnvoyControlExtension)
-    : BeforeAllCallback, AfterAllCallback {
-
-    companion object {
-        val logger by logger()
-    }
-
-    val container: EnvoyContainer = EnvoyContainer(
-            Ads,
-            "127.0.0.1",
-            envoyControl.app.grpcPort
-    ).withNetwork(Network.SHARED)
-
-    override fun beforeAll(context: ExtensionContext?) {
-        try {
-            container.start()
-        } catch (e: Exception) {
-            logger.error("Logs from failed container: ${container.logs}")
-            throw e
-        }
-    }
-
-    override fun afterAll(context: ExtensionContext?) {
-        container.stop()
-    }
-
-}
 
 class ServiceTagsAndCanaryTest {
     companion object {

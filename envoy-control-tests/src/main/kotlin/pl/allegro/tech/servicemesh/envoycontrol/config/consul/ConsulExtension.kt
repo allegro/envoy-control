@@ -1,0 +1,28 @@
+package pl.allegro.tech.servicemesh.envoycontrol.config.consul
+
+import org.junit.jupiter.api.extension.AfterAllCallback
+import org.junit.jupiter.api.extension.AfterEachCallback
+import org.junit.jupiter.api.extension.BeforeAllCallback
+import org.junit.jupiter.api.extension.ExtensionContext
+import org.testcontainers.containers.Network
+
+class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
+
+    val server: ConsulSetup = ConsulSetup(
+            Network.SHARED,
+            ConsulServerConfig(1, "dc1", expectNodes = 1)
+    )
+
+    override fun beforeAll(context: ExtensionContext?) {
+        server.container.start()
+    }
+
+    override fun afterEach(context: ExtensionContext) {
+        server.consulOperations.deregisterAll()
+    }
+
+    override fun afterAll(context: ExtensionContext?) {
+        server.container.stop()
+    }
+
+}
