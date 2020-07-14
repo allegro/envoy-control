@@ -1,32 +1,46 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import okhttp3.Headers
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration.Companion.untilAsserted
+import java.time.Duration
 
-internal class RetryPolicyTest : EnvoyControlTestConfiguration() {
+class RetryPolicyTest {
     companion object {
 
-        private val properties = mapOf(
-            "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.enabled" to true,
-            "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.retry-on" to listOf("connect-failure", "reset"),
-            "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.num-retries" to 3
-        )
+        @JvmField
+        @RegisterExtension
+        @Order(0)
+        val consul = ConsulExtension()
 
-        @JvmStatic
-        @BeforeAll
-        fun setupRetryPolicyTest() {
-            setup(appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) })
-        }
+        @JvmField
+        @RegisterExtension
+        @Order(1)
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+                "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.enabled" to true,
+                "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.retry-on" to listOf("connect-failure", "reset"),
+                "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.num-retries" to 3
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl)
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
     }
 
     @Test
     fun `should retry request 3 times when application is down`() {
         // given
-        localServiceContainer.stop()
+        service.container.stop()
 
         // when
         callLocalService(endpoint = "/endpoint", headers = Headers.of(mapOf("x-service-name" to "authorizedClient")))
@@ -38,10 +52,24 @@ internal class RetryPolicyTest : EnvoyControlTestConfiguration() {
     }
 
     private fun hasRetriedRequest(numberOfRetries: Long): Boolean {
-        return envoyContainer1.admin()
+        return envoy.container.admin()
             .statValue("cluster.local_service.upstream_rq_retry")
             ?.toLong()
             ?.equals(numberOfRetries)
             ?: false
     }
+
+    fun callLocalService(endpoint: String, headers: Headers): Response =
+            OkHttpClient.Builder()
+                    .readTimeout(Duration.ofSeconds(20))
+                    .build()
+                    .newCall(
+                    Request.Builder()
+                            .get()
+                            .headers(headers)
+                            .url(envoy.container.ingressListenerUrl() + endpoint)
+                            .build()
+            )
+                    .execute()
+
 }

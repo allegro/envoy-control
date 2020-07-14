@@ -115,7 +115,6 @@ class EnvoyExtension(envoyControl: EnvoyControlExtension)
 }
 
 class ServiceTagsAndCanaryTest {
-
     companion object {
 
         @JvmField
