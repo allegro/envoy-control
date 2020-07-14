@@ -5,11 +5,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.ObjectAssert
-import org.awaitility.Awaitility
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
@@ -139,13 +138,6 @@ class ServiceTagsAndCanaryTest {
         }
     }
 
-    fun <T> untilAsserted(wait: org.awaitility.Duration = BaseEnvoyTest.defaultDuration, fn: () -> (T)): T {
-        var lastResult: T? = null
-        Awaitility.await().atMost(wait).untilAsserted { lastResult = fn() }
-        assertThat(lastResult).isNotNull
-        return lastResult!!
-    }
-
     protected open fun callStats() = EnvoyControlTestConfiguration.CallStats(
             listOf(loremCanaryService.container, loremRegularService.container,
                     ipsumRegularService.container))
@@ -237,11 +229,6 @@ class ServiceTagsAndCanaryTest {
                 .map { it.value }
                 .forEach { stats.addResponse(it) }
         return stats
-    }
-
-    fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
-        matches { it.isSuccessful }
-        return this
     }
 
 }
