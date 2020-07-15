@@ -1,4 +1,3 @@
-
 function envoy_on_request(handle)
     local path = handle:headers():get(":path")
     local method = handle:headers():get(":method")
