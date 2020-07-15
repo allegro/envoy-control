@@ -52,6 +52,12 @@ class EnvoyClustersFactory(
     private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
     private val tlsProperties = properties.incomingPermissions.tlsAuthentication
+    private val matchPlaintextContext = Cluster.TransportSocketMatch.newBuilder()
+            .setName(tlsProperties.plaintextTransportSocketMatchName)
+            .setTransportSocket(
+                    TransportSocket.newBuilder().setName("envoy.transport_sockets.raw_buffer").build()
+            )
+            .build()
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,
@@ -64,9 +70,19 @@ class EnvoyClustersFactory(
         return insecureClusters.map { cluster ->
             val upstreamTlsContext = createTlsContextWithSdsSecretConfig(cluster.name)
             val secureCluster = Cluster.newBuilder(cluster)
-            secureCluster.setTransportSocket(TransportSocket.newBuilder()
-                    .setName("envoy.transport_sockets.tls")
-                    .setTypedConfig(Any.pack(upstreamTlsContext)))
+
+            val matchTlsContext = Cluster.TransportSocketMatch.newBuilder()
+                    .setName(tlsProperties.tlsTransportSocketMatchName)
+                    .setMatch(
+                            Struct.newBuilder().putFields(tlsProperties.tlsContextMetadataMatchKey,
+                            Value.newBuilder().setBoolValue(true).build())
+                    )
+                    .setTransportSocket(TransportSocket.newBuilder()
+                            .setName("envoy.transport_sockets.tls")
+                            .setTypedConfig(Any.pack(upstreamTlsContext)))
+                    .build()
+
+            secureCluster.addAllTransportSocketMatches(listOf(matchTlsContext, matchPlaintextContext))
                     .build()
         }
     }
@@ -88,18 +104,16 @@ class EnvoyClustersFactory(
     }
 
     private fun selectCluster(group: Group, globalSnapshot: GlobalSnapshot, clusterName: String): Cluster? {
-        return if (enableTlsForCluster(group, globalSnapshot, clusterName)) {
+        return if (enableTlsForCluster(group)) {
             globalSnapshot.securedClusters.resources().get(clusterName)
         } else {
             globalSnapshot.clusters.resources().get(clusterName)
         }
     }
 
-    private fun enableTlsForCluster(group: Group, globalSnapshot: GlobalSnapshot, clusterName: String): Boolean {
+    private fun enableTlsForCluster(group: Group): Boolean {
         val hasStaticSecretsDefined = group.listenersConfig?.hasStaticSecretsDefined ?: false
-        val mtlsEnabled = globalSnapshot.mtlsEnabledForCluster(clusterName)
-
-        return hasStaticSecretsDefined && mtlsEnabled
+        return hasStaticSecretsDefined
     }
 
     private val commonTlsParams = TlsParameters.newBuilder()

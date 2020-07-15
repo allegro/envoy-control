@@ -74,6 +74,9 @@ class SelectorMatching {
 }
 
 class TlsAuthenticationProperties {
+    var plaintextTransportSocketMatchName = "defaultToPlaintext"
+    var tlsTransportSocketMatchName = "enableMTLS"
+    var tlsContextMetadataMatchKey = "acceptMTLS"
     var protocol = TlsProtocolProperties()
     var requireClientCertificate: Boolean = true // if false, will not validate cert
     var validationContextSecretName: String = "validation_context"
