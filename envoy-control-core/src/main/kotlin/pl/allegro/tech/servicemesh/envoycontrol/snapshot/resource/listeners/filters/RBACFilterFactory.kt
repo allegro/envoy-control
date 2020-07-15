@@ -126,8 +126,6 @@ class RBACFilterFactory(
         val shadowPolicies = commonPolicies + loggedEndpointsPolicies
         val actualPolicies = commonPolicies + allowUnlistedPolicies
 
-        // TODO(mfalkowski) test with empty policies list - it should deny all (integration test)
-
         val actualRules = RBAC.newBuilder()
             .setAction(RBAC.Action.ALLOW)
             .putAllPolicies(actualPolicies)
