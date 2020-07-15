@@ -10,8 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 class RBACFilterPermissions {
     fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
         val combinedPermissions = Permission.newBuilder()
-        val pathPermission = Permission.newBuilder()
-                .setUrlPath(createPathMatcher(incomingEndpoint))
+        val pathPermission = createPathPermissionForEndpoint(incomingEndpoint)
 
         if (incomingEndpoint.methods.isNotEmpty()) {
             val methodPermissions = createMethodPermissions(incomingEndpoint)
@@ -30,6 +29,14 @@ class RBACFilterPermissions {
         return combinedPermissions
     }
 
+    fun createPathPermission(path: String, matchingType: PathMatchingType): Permission.Builder {
+        return Permission.newBuilder().setUrlPath(createPathMatcher(path, matchingType))
+    }
+
+    private fun createPathPermissionForEndpoint(incomingEndpoint: IncomingEndpoint): Permission.Builder {
+        return createPathPermission(incomingEndpoint.path, incomingEndpoint.pathMatchingType)
+    }
+
     private fun createMethodPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
         val methodPermissions = Permission.newBuilder()
         val methodPermissionSet = Permission.Set.newBuilder()
@@ -45,25 +52,22 @@ class RBACFilterPermissions {
         return Permission.newBuilder().setHeader(methodMatch).build()
     }
 
-    private fun createPathMatcher(incomingEndpoint: IncomingEndpoint): PathMatcher {
-        return when (incomingEndpoint.pathMatchingType) {
-            PathMatchingType.PATH ->
-                PathMatcher.newBuilder()
-                        .setPath(
-                                StringMatcher.newBuilder()
-                                        .setExact(incomingEndpoint.path)
-                                        .build()
-                        )
-                        .build()
-
-            PathMatchingType.PATH_PREFIX ->
-                PathMatcher.newBuilder()
-                        .setPath(
-                                StringMatcher.newBuilder()
-                                        .setPrefix(incomingEndpoint.path)
-                                        .build()
-                        )
-                        .build()
+    private fun createPathMatcher(path: String, matchingType: PathMatchingType): PathMatcher {
+        val matcher = when (matchingType) {
+            PathMatchingType.PATH -> StringMatcher.newBuilder().setExact(path).build()
+            PathMatchingType.PATH_PREFIX -> StringMatcher.newBuilder().setPrefix(path).build()
         }
+        return PathMatcher.newBuilder().setPath(matcher).build()
     }
 }
+
+private fun permission() = Permission.newBuilder()
+private fun not(permission: Permission.Builder) = permission().setNotRule(permission)
+fun or(permissions: Iterable<Permission>): Permission.Builder = permission()
+    .setOrRules(Permission.Set.newBuilder().addAllRules(permissions))
+fun not(permissions: Iterable<Permission>): Permission.Builder =
+    if (permissions.count() > 0) {
+        not(or(permissions))
+    } else {
+        permission().setAny(true)
+    }

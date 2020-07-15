@@ -6,7 +6,6 @@ import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.core.CidrRange
 import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
-import io.envoyproxy.envoy.config.rbac.v2.Permission
 import io.envoyproxy.envoy.config.rbac.v2.Policy
 import io.envoyproxy.envoy.config.rbac.v2.Principal
 import io.envoyproxy.envoy.config.rbac.v2.RBAC
@@ -15,6 +14,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
@@ -29,7 +29,7 @@ import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,
     statusRouteProperties: StatusRouteProperties,
-    private val rBACFilterPermissions: RBACFilterPermissions
+    private val rBACFilterPermissions: RBACFilterPermissions = RBACFilterPermissions()
 ) {
     private val incomingServicesSourceAuthentication = incomingPermissionsProperties
             .sourceIpAuthentication
@@ -183,13 +183,10 @@ class RBACFilterFactory(
 
     private fun createStatusRoutePolicy(statusRouteProperties: StatusRouteProperties): Map<String, Policy> {
         return if (statusRouteProperties.enabled) {
-            val permission = Permission.newBuilder().setHeader(
-                    HeaderMatcher.newBuilder()
-                            .setName(":path")
-                            .setPrefixMatch(statusRouteProperties.pathPrefix)
-                            .build())
-                    .build()
-
+            val permission = rBACFilterPermissions.createPathPermission(
+                path = statusRouteProperties.pathPrefix,
+                matchingType = PathMatchingType.PATH_PREFIX
+            )
             val policy = Policy.newBuilder()
                 .addPrincipals(anyPrincipal)
                 .addPermissions(permission)
@@ -352,15 +349,4 @@ class RBACFilterFactory(
             null
         }
     }
-
-    private fun permission() = Permission.newBuilder()
-    private fun not(permission: Permission.Builder) = permission().setNotRule(permission)
-    private fun or(permissions: Iterable<Permission>) = permission()
-        .setOrRules(Permission.Set.newBuilder().addAllRules(permissions))
-    private fun not(permissions: Iterable<Permission>) =
-        if (permissions.count() > 0) {
-            not(or(permissions))
-        } else {
-            permission().setAny(true)
-        }
 }
