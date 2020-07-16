@@ -117,7 +117,7 @@ describe("envoy_on_response:", function()
             assert.spy(handle.logInfo).was_called(1)
         end)
 
-        it("request with no metadata fields saved", function ()
+        it("request with no lua filter metadata fields saved", function ()
             -- given
             metadata['envoy.filters.http.lua'] = {}
             headers = {}
@@ -132,7 +132,7 @@ describe("envoy_on_response:", function()
             assert.spy(handle.logInfo).was_called(1)
         end)
 
-        it("request with no metadata saved", function ()
+        it("request with no lua filter metadata saved", function ()
             -- given
             metadata['envoy.filters.http.lua'] = nil
             headers = {}
@@ -194,7 +194,7 @@ describe("envoy_on_response:", function()
         end)
     end)
 
-    it("should handle x-forwarded-for formats", function ()
+    describe("should handle x-forwarded-for formats:", function ()
         local xff_to_expected_client_ip= {
             {"", ""},
             {"127.9.3.2", "127.9.3.2"},
@@ -204,17 +204,20 @@ describe("envoy_on_response:", function()
         }
 
         for i,v in ipairs(xff_to_expected_client_ip) do
-            -- given
             local xff = v[1]
             local expected_client_ip = v[2]
-            metadata['envoy.filters.http.lua']['request.info.xff_header'] = xff
-            local handle = handlerMock(headers, metadata, ssl)
 
-            -- when
-            envoy_on_response(handle)
+            it("'"..xff.."' -> '"..expected_client_ip.."'", function ()
+                -- given
+                metadata['envoy.filters.http.lua']['request.info.xff_header'] = xff
+                local handle = handlerMock(headers, metadata, ssl)
 
-            -- then
-            assert.spy(handle.logInfo).was_called_with(_, contains("clientIp = "..expected_client_ip..","))
+                -- when
+                envoy_on_response(handle)
+
+                -- then
+                assert.spy(handle.logInfo).was_called_with(_, contains("clientIp = "..expected_client_ip..","))
+            end)
         end
     end)
 end)
