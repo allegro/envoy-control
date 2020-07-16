@@ -7,8 +7,7 @@ import org.junit.jupiter.api.fail
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.LuaTestsContainer
 
 /**
- * TODO(https://github.com/junit-team/junit5/issues/2041): upgrade  to Gradle 6.5.* to see Lua test names in the output
- * More info: https://github.com/gradle/gradle/issues/5975
+ * TODO(https://github.com/allegro/envoy-control/issues/140): upgrade  to Gradle 6.5.* to see Lua test names in the output
  */
 internal class LuaTest {
 
@@ -17,7 +16,6 @@ internal class LuaTest {
     @TestFactory
     fun luaTests(): List<DynamicTest> {
         val luaContainer = LuaTestsContainer()
-        luaContainer.start()
 
         val results = luaContainer.runLuaTests()
         val output = results.stdout
