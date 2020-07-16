@@ -23,6 +23,8 @@ class EnvoyExtension(envoyControl: EnvoyControlExtension,
             envoyControl.app.grpcPort
     ).withNetwork(Network.SHARED)
 
+    val ingressOperations: IngressOperations = IngressOperations(container)
+
     override fun beforeAll(context: ExtensionContext?) {
         if (localService != null && !localService.started) {
             localService.beforeAll(context)

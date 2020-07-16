@@ -17,6 +17,7 @@ import org.springframework.boot.actuate.health.Status
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.IngressOperations
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.security.KeyStore
@@ -319,30 +320,14 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             endpoint: String,
             headers: Headers,
             envoyContainer: EnvoyContainer = envoyContainer1
-        ): Response =
-            defaultClient.newCall(
-                Request.Builder()
-                    .get()
-                    .headers(headers)
-                    .url(envoyContainer.ingressListenerUrl() + endpoint)
-                    .build()
-            )
-                .execute()
+        ): Response = IngressOperations(envoyContainer).callLocalService(endpoint, headers)
 
         fun callPostLocalService(
             endpoint: String,
             headers: Headers,
             body: RequestBody,
             envoyContainer: EnvoyContainer = envoyContainer1
-        ): Response =
-            defaultClient.newCall(
-                Request.Builder()
-                    .post(body)
-                    .headers(headers)
-                    .url(envoyContainer.ingressListenerUrl() + endpoint)
-                    .build()
-            )
-                .execute()
+        ): Response = IngressOperations(envoyContainer).callPostLocalService(endpoint, headers, body)
 
         fun ToxiproxyContainer.createProxyToEnvoyIngress(envoy: EnvoyContainer) = this.createProxy(
             targetIp = envoy.ipAddress(), targetPort = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
