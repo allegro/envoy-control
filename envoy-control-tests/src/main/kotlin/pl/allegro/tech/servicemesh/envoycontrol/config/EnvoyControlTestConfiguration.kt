@@ -172,7 +172,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             } else envoyControl1XdsPort
             return EnvoyContainer(
                 config = envoyConfig,
-                localServiceIp = localServiceIp,
+                localServiceIp = { localServiceIp },
                 envoyControl1XdsPort = envoyControl1XdsPort,
                 envoyControl2XdsPort = envoyControl2XdsPort,
                 image = envoyImage
@@ -192,7 +192,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
             return EnvoyContainer(
                 echo3EnvoyConfig,
-                localServiceContainer.ipAddress(),
+                { localServiceContainer.ipAddress() },
                 envoyControl1.grpcPort,
                 image = defaultEnvoyImage
             ).withNetwork(network)

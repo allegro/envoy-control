@@ -11,7 +11,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger as loggerDelegate
 
 class EnvoyContainer(
     private val config: EnvoyConfig,
-    private val localServiceIp: String,
+    private val localServiceIp: () -> String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
     private val trustedCa: String = "/app/root-ca.crt",
@@ -60,7 +60,7 @@ class EnvoyContainer(
             Integer.toString(envoyControl1XdsPort),
             Integer.toString(envoyControl2XdsPort),
             CONFIG_DEST,
-            localServiceIp,
+            localServiceIp.invoke(),
             config.trustedCa,
             config.certificateChain,
             config.privateKey,

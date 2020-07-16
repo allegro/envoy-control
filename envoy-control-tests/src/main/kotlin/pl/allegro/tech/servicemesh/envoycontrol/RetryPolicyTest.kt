@@ -31,11 +31,11 @@ class RetryPolicyTest {
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl)
+        val service = EchoServiceExtension()
 
         @JvmField
         @RegisterExtension
-        val service = EchoServiceExtension()
+        val envoy = EnvoyExtension(envoyControl, service)
     }
 
     @Test

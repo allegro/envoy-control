@@ -6,19 +6,28 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
-class EnvoyExtension(envoyControl: EnvoyControlExtension) : BeforeAllCallback, AfterAllCallback {
+class EnvoyExtension(envoyControl: EnvoyControlExtension,
+                     val localService: EchoServiceExtension? = null)
+    : BeforeAllCallback, AfterAllCallback {
 
     companion object {
         val logger by logger()
     }
 
     val container: EnvoyContainer = EnvoyContainer(
-            RandomConfigFile, "127.0.0.1", envoyControl.app.grpcPort
+            RandomConfigFile,
+            { localService?.container?.ipAddress() ?: "127.0.0.1" },
+            envoyControl.app.grpcPort
     ).withNetwork(Network.SHARED)
 
     override fun beforeAll(context: ExtensionContext?) {
+        if (localService != null && !localService.started) {
+            localService.beforeAll(context)
+        }
+
         try {
             container.start()
         } catch (e: Exception) {
