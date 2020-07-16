@@ -16,8 +16,11 @@ import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EgressOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.IngressOperations
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.security.KeyStore
@@ -245,10 +248,10 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         fun callService(
             service: String,
-            address: String = envoyContainer1.egressListenerUrl(),
+            fromEnvoy: EnvoyContainer = envoyContainer1,
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
-        ): Response = call(service, address, headers, pathAndQuery)
+        ): Response = EgressOperations(fromEnvoy).callService(service, headers, pathAndQuery)
 
         private fun getInsecureSSLSocketFactory(): SSLSocketFactory {
             val builder = SSLContextBuilder()
@@ -353,27 +356,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
     }
 
-    data class ResponseWithBody(val response: Response, val body: String) {
-        fun isFrom(echoContainer: EchoContainer) = body.contains(echoContainer.response)
-        fun isOk() = response.isSuccessful
-    }
-
-    class CallStats(private val containers: List<EchoContainer>) {
-        var failedHits: Int = 0
-        var totalHits: Int = 0
-
-        private var containerHits: MutableMap<String, Int> = containers.associate { it.containerId to 0 }.toMutableMap()
-
-        fun hits(container: EchoContainer) = containerHits[container.containerId] ?: 0
-
-        fun addResponse(response: ResponseWithBody) {
-            containers.firstOrNull { response.isFrom(it) }
-                ?.let { containerHits.compute(it.containerId) { _, i -> i?.inc() } }
-            if (!response.isOk()) failedHits++
-            totalHits++
-        }
-    }
-
     protected fun callServiceRepeatedly(
         service: String,
         stats: CallStats,
@@ -383,23 +365,10 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         headers: Map<String, String> = mapOf(),
         pathAndQuery: String = "",
         assertNoErrors: Boolean = true,
-        address: String = envoyContainer1.egressListenerUrl()
-    ): CallStats {
-        var conditionFulfilled = false
-        (1..maxRepeat).asSequence()
-            .map { i ->
-                callService(service = service, headers = headers, pathAndQuery = pathAndQuery, address = address).also {
-                    if (assertNoErrors) assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
-                }
-            }
-            .map { ResponseWithBody(it, it.body()?.string() ?: "") }
-            .onEach { conditionFulfilled = conditionFulfilled || repeatUntil(it) }
-            .withIndex()
-            .takeWhile { (i, _) -> i < minRepeat || !conditionFulfilled }
-            .map { it.value }
-            .forEach { stats.addResponse(it) }
-        return stats
-    }
+        fromEnvoy: EnvoyContainer = envoyContainer1
+    ): CallStats = EgressOperations(fromEnvoy).callServiceRepeatedly(
+            service, stats, minRepeat, maxRepeat, repeatUntil, headers, pathAndQuery, assertNoErrors
+    )
 
     private fun waitForEchoServices(instances: Int) {
         untilAsserted {

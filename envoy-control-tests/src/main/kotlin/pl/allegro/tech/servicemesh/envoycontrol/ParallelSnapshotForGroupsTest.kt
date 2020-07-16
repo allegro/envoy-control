@@ -39,10 +39,10 @@ class ParallelSnapshotForGroupsTest : EnvoyControlTestConfiguration() {
 
         // then
         untilAsserted {
-            callService(service = "echo", address = envoyContainer1.egressListenerUrl()).also {
+            callService(service = "echo", fromEnvoy = envoyContainer1).also {
                 assertThat(it).isOk().isFrom(echoContainer)
             }
-            callService(service = "echo", address = envoyContainer2.egressListenerUrl()).also {
+            callService(service = "echo", fromEnvoy = envoyContainer2).also {
                 assertThat(it).isOk().isFrom(echoContainer)
             }
         }

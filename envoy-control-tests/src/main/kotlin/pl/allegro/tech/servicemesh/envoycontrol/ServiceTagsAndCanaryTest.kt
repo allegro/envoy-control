@@ -1,21 +1,17 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
-import java.time.Duration
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 
 class ServiceTagsAndCanaryTest {
     companion object {
@@ -131,104 +127,41 @@ class ServiceTagsAndCanaryTest {
     fun waitForReadyServices(vararg serviceNames: String) {
         serviceNames.forEach {
             untilAsserted {
-                callService(service = it, address = envoy.container.egressListenerUrl()).also {
+                envoy.egressOperations.callService(it).also {
                     assertThat(it).isOk()
                 }
             }
         }
     }
 
-    protected open fun callStats() = EnvoyControlTestConfiguration.CallStats(
-            listOf(loremCanaryService.container, loremRegularService.container,
-                    ipsumRegularService.container))
-
-    protected open fun callEchoServiceRepeatedly(
+    fun callEchoServiceRepeatedly(
         repeat: Int,
         tag: String? = null,
         canary: Boolean,
         assertNoErrors: Boolean = true
-    ): EnvoyControlTestConfiguration.CallStats {
-        val stats = callStats()
+    ): CallStats {
+        val stats = CallStats(listOf(
+                loremCanaryService.container, loremRegularService.container, ipsumRegularService.container
+        ))
         val tagHeader = tag?.let { mapOf("x-service-tag" to it) } ?: emptyMap()
         val canaryHeader = if (canary) mapOf("x-canary" to "1") else emptyMap()
 
-        callServiceRepeatedly(
+        envoy.egressOperations.callServiceRepeatedly(
             service = "echo",
             stats = stats,
             minRepeat = repeat,
             maxRepeat = repeat,
             headers = tagHeader + canaryHeader,
-            assertNoErrors = assertNoErrors,
-            address = envoy.container.egressListenerUrl()
+            assertNoErrors = assertNoErrors
         )
         return stats
     }
 
-    val EnvoyControlTestConfiguration.CallStats.loremCanaryHits: Int
+    val CallStats.loremCanaryHits: Int
         get() = this.hits(loremCanaryService.container)
-    val EnvoyControlTestConfiguration.CallStats.loremRegularHits: Int
+    val CallStats.loremRegularHits: Int
         get() = this.hits(loremRegularService.container)
-    val EnvoyControlTestConfiguration.CallStats.ipsumRegularHits: Int
+    val CallStats.ipsumRegularHits: Int
         get() = this.hits(ipsumRegularService.container)
-
-    fun callService(
-            service: String,
-            address: String,
-            headers: Map<String, String> = mapOf(),
-            pathAndQuery: String = ""
-    ): Response = call(service, address, headers, pathAndQuery)
-
-    private fun call(
-            host: String,
-            address: String,
-            headers: Map<String, String>,
-            pathAndQuery: String,
-            client: OkHttpClient = OkHttpClient.Builder()
-                    // envoys default timeout is 15 seconds while OkHttp is 10
-                    .readTimeout(Duration.ofSeconds(20))
-                    .build()
-
-    ): Response {
-        val request = client.newCall(
-                Request.Builder()
-                        .get()
-                        .header("Host", host)
-                        .apply {
-                            headers.forEach { name, value -> header(name, value) }
-                        }
-                        .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
-                        .build()
-        )
-
-        return request.execute()
-    }
-
-    protected fun callServiceRepeatedly(
-            service: String,
-            stats: EnvoyControlTestConfiguration.CallStats,
-            minRepeat: Int,
-            maxRepeat: Int,
-            repeatUntil: (EnvoyControlTestConfiguration.ResponseWithBody) -> Boolean = { false },
-            headers: Map<String, String>,
-            pathAndQuery: String = "",
-            assertNoErrors: Boolean,
-            address: String
-    ): EnvoyControlTestConfiguration.CallStats {
-        var conditionFulfilled = false
-        (1..maxRepeat).asSequence()
-                .map { i ->
-                    callService(service = service, headers = headers,
-                            pathAndQuery = pathAndQuery, address = address).also {
-                        if (assertNoErrors) assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
-                    }
-                }
-                .map { EnvoyControlTestConfiguration.ResponseWithBody(it, it.body()?.string() ?: "") }
-                .onEach { conditionFulfilled = conditionFulfilled || repeatUntil(it) }
-                .withIndex()
-                .takeWhile { (i, _) -> i < minRepeat || !conditionFulfilled }
-                .map { it.value }
-                .forEach { stats.addResponse(it) }
-        return stats
-    }
 
 }

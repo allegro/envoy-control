@@ -24,6 +24,7 @@ class EnvoyExtension(envoyControl: EnvoyControlExtension,
     ).withNetwork(Network.SHARED)
 
     val ingressOperations: IngressOperations = IngressOperations(container)
+    val egressOperations: EgressOperations = EgressOperations(container)
 
     override fun beforeAll(context: ExtensionContext?) {
         if (localService != null && !localService.started) {
