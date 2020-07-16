@@ -153,7 +153,7 @@ class RBACFilterFactory(
 
         val allDefinedEndpointsPermissions = allowedEndpointsPolicies.asSequence()
             .flatMap { it.permissionsList.asSequence() }
-            .asIterable()
+            .toList()
 
         return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
@@ -164,17 +164,17 @@ class RBACFilterFactory(
 
     private fun allowLoggedEndpointsPolicy(loggedEndpointsPolicies: Iterable<Policy>): Map<String, Policy> {
 
-        val allDefinedEndpointsPermissions = loggedEndpointsPolicies.asSequence()
+        val allLoggedEndpointsPermissions = loggedEndpointsPolicies.asSequence()
             .flatMap { it.permissionsList.asSequence() }
-            .asIterable()
+            .toList()
 
-        if (allDefinedEndpointsPermissions.count() == 0) {
+        if (allLoggedEndpointsPermissions.isEmpty()) {
             return mapOf()
         }
 
         return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
-            .addPermissions(or(allDefinedEndpointsPermissions))
+            .addPermissions(or(allLoggedEndpointsPermissions))
             .build()
         )
     }
@@ -338,11 +338,13 @@ class RBACFilterFactory(
                 group.proxySettings.incoming.roles
             )
 
-            val rbacFilter = RBACFilter.newBuilder().setRules(rules.actualRules)
-                    .setShadowRules(rules.shadowRules)
+            val rbacFilter = RBACFilter.newBuilder()
+                .setRules(rules.actualRules)
+                .setShadowRules(rules.shadowRules)
+                .build()
 
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac")
-                    .setTypedConfig(Any.pack(rbacFilter.build())).build()
+                    .setTypedConfig(Any.pack(rbacFilter)).build()
         } else {
             null
         }

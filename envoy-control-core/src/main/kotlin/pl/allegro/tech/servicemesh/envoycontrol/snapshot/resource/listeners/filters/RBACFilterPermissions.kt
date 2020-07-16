@@ -65,8 +65,8 @@ private fun permission() = Permission.newBuilder()
 private fun not(permission: Permission.Builder) = permission().setNotRule(permission)
 fun or(permissions: Iterable<Permission>): Permission.Builder = permission()
     .setOrRules(Permission.Set.newBuilder().addAllRules(permissions))
-fun not(permissions: Iterable<Permission>): Permission.Builder =
-    if (permissions.count() > 0) {
+fun not(permissions: List<Permission>): Permission.Builder =
+    if (permissions.isNotEmpty()) {
         not(or(permissions))
     } else {
         permission().setAny(true)
