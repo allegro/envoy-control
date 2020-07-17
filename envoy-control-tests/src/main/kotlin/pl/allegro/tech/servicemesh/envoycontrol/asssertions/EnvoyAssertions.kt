@@ -13,7 +13,7 @@ private class RbacLogDescription(
     val statusCode: String
 )
 
-private const val RBAC_LOG_PREFIX = "Access denied"
+private const val RBAC_LOG_PREFIX = "Unauthorized request"
 
 fun isRbacAccessLog(log: String) = log.startsWith(RBAC_LOG_PREFIX)
 
@@ -88,7 +88,7 @@ private fun ObjectAssert<EnvoyContainer>.hasOneAccessDenial(
 
 private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logDescription: RbacLogDescription) = satisfies {
     assertThat(it).isEqualTo(
-        "Access denied for request: method = ${logDescription.method}, path = ${logDescription.path}, " +
+        "$RBAC_LOG_PREFIX: method = ${logDescription.method}, path = '${logDescription.path}', " +
             "clientIp = ${logDescription.clientIp}, clientName = ${logDescription.clientName}, " +
             "protocol = ${logDescription.protocol}, statusCode = ${logDescription.statusCode}\n"
     )
