@@ -137,10 +137,10 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
         assertThat(callStats.hits(echoContainer)).isEqualTo(1)
         assertThat(callStats.hits(echoContainer2)).isEqualTo(1)
 
-        val defaultToPlaintextMatchesCount = echo1Envoy.admin().statValue("cluster.echo2.defaultToPlaintext.total_match_count")?.toInt()
+        val defaultToPlaintextMatchesCount = echo1Envoy.admin().statValue("cluster.echo2.plaintext_match.total_match_count")?.toInt()
         assertThat(defaultToPlaintextMatchesCount).isEqualTo(1)
 
-        val enableMTLSMatchesCount = echo1Envoy.admin().statValue("cluster.echo2.enableMTLS.total_match_count")?.toInt()
+        val enableMTLSMatchesCount = echo1Envoy.admin().statValue("cluster.echo2.mtls_match.total_match_count")?.toInt()
         assertThat(enableMTLSMatchesCount).isEqualTo(1)
     }
 
