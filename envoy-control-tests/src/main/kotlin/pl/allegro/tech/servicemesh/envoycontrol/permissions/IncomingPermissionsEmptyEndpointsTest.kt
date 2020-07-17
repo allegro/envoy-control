@@ -38,7 +38,6 @@ internal class IncomingPermissionsEmptyEndpointsTest : EnvoyControlTestConfigura
                 EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort) },
                 envoyConfig = echoConfig
             )
-
             waitForEnvoysInitialized()
         }
 
@@ -51,13 +50,11 @@ internal class IncomingPermissionsEmptyEndpointsTest : EnvoyControlTestConfigura
 
     @Test
     fun `echo should allow any client to access any endpoint and log request`() {
-
         // when
         val echoResponse = callEnvoyIngress(envoy = echoEnvoy, path = "/some-endpoint")
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
         assertThat(echoEnvoy).hasOneAccessDenialWithActionLog(
                 protocol = "http",
                 path = "/some-endpoint",
@@ -77,9 +74,6 @@ internal class IncomingPermissionsEmptyEndpointsTest : EnvoyControlTestConfigura
         echoEnvoy.admin().resetCounters()
         echoEnvoy.logRecorder.stopRecording()
     }
-
-    private val EnvoyContainer.ingressPlainHttpRequests: Int?
-        get() = this.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()
 
     private fun EnvoyContainer.recordRBACLogs() {
         logRecorder.recordLogs(::isRbacAccessLog)

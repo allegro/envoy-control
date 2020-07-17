@@ -268,7 +268,7 @@ internal class RBACFilterFactoryTest {
         """
 
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
-                expectedUnlistedEndpointPermissions,
+                expectedUnlistedClientsPermissions,
                 expectedShadowRules
         )
         val incomingPermission = Incoming(
@@ -508,19 +508,113 @@ internal class RBACFilterFactoryTest {
     @Test
     fun `should generate RBAC rules for incoming permissions without clients`() {
         // given
-        val expectedRbacBuilder = getRBACFilter(expectedEmptyEndpointPermissions)
         val incomingPermission = Incoming(
                 permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
                         "/example",
                         PathMatchingType.PATH,
-                        setOf("GET", "POST"),
                         setOf()
                 ))
         )
+        val expectedPolicies = expectedDenyForAllEndpointPermissions(policyName = "${incomingPermission.endpoints[0]}")
+        val expectedRbacBuilder = getRBACFilter(expectedPolicies)
 
         // when
         val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should correctly map endpoint without clients when unlistedEndpointsPolicy is set to log`() {
+        // given
+        val expectedActual = """
+        {
+          "policies": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[], clients=[], unlistedClientsPolicy=BLOCKANDLOG)": {
+              "permissions": [{
+                "and_rules": {
+                  "rules": [ ${pathRule("/example")} ]
+                }
+              }],
+              "principals": [{ "not_id": $anyTrue }]
+            },
+            "ALLOW_UNLISTED_POLICY": {
+              "permissions": [{
+                "not_rule": {
+                  "or_rules": {
+                    "rules": [{
+                      "and_rules": {
+                        "rules": [ ${pathRule("/example")} ]
+                      }
+                    }]
+                  }
+                }
+              }],
+              "principals": [ $anyTrue ]
+            }
+          }
+        }
+        """
+
+        val incomingPermissions = Incoming(
+            permissionsEnabled = true,
+            unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG,
+            endpoints = listOf(IncomingEndpoint(
+                path = "/example",
+                clients = setOf(),
+                unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
+            ))
+        )
+
+        val expectedShadow = expectedDenyForAllEndpointPermissions(policyName = "${incomingPermissions.endpoints[0]}")
+        val expectedRbacBuilder = getRBACFilterWithShadowRules(expectedActual, expectedShadow)
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermissions), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should correctly map endpoint without clients when unlistedClientsPolicy is set to log`() {
+        // given
+        val expectedActual = """
+        {
+          "policies": {
+            "ALLOW_UNLISTED_POLICY": {
+              "permissions": [{
+                "or_rules": {
+                  "rules": [{
+                    "and_rules": {
+                      "rules": [ ${pathRule("/example")} ]
+                    }
+                  }]
+                }
+              }],
+              "principals": [ $anyTrue ]
+            }
+          }
+        }
+        """
+
+        val incomingPermissions = Incoming(
+            permissionsEnabled = true,
+            unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG,
+            endpoints = listOf(IncomingEndpoint(
+                path = "/example",
+                clients = setOf(),
+                unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.LOG
+            ))
+        )
+
+        val expectedShadow = expectedDenyForAllEndpointPermissions(policyName = "${incomingPermissions.endpoints[0]}")
+        val expectedRbacBuilder = getRBACFilterWithShadowRules(expectedActual, expectedShadow)
+
+        // when
+        val generated = rbacFilterFactory.createHttpFilter(createGroup(incomingPermissions), snapshot)
 
         // then
         assertThat(generated).isEqualTo(expectedRbacBuilder)
@@ -948,11 +1042,7 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private val anyTrue = """
-        {
-            "any": "true"
-        }
-    """
+    private val anyTrue = """{ "any": "true"}"""
 
     private val expectedStatusRoutePermissionsJson = """
         {
@@ -985,7 +1075,22 @@ internal class RBACFilterFactoryTest {
 
     private val expectedEmptyEndpointPermissions = """{ "policies": {} }"""
 
-    private val expectedUnlistedEndpointPermissions = """{ "policies": {
+    private fun expectedDenyForAllEndpointPermissions(policyName: String) = """
+    {
+      "policies": {
+        "$policyName": {
+          "permissions": [{
+            "and_rules": {
+              "rules": [ ${pathRule("/example")} ]
+            }
+          }],
+          "principals": [{ "not_id": $anyTrue }]
+        }
+      }
+    }    
+    """
+
+    private val expectedUnlistedClientsPermissions = """{ "policies": {
             "ALLOW_UNLISTED_POLICY": {
               "permissions": [
               {

@@ -42,6 +42,7 @@ class RBACFilterFactory(
             .keys
 
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
+    private val denyForAllPrincipal = Principal.newBuilder().setNotId(Principal.newBuilder().setAny(true)).build()
 
     init {
         incomingPermissionsProperties.selectorMatching.forEach {
@@ -70,28 +71,25 @@ class RBACFilterFactory(
         roles: List<Role>
     ): List<EndpointWithPolicy> {
         val principalCache = mutableMapOf<ClientWithSelector, List<Principal>>()
-        return incomingPermissions.endpoints
-            .mapNotNull { incomingEndpoint ->
-                if (incomingEndpoint.clients.isEmpty()) {
-                    logger.warn("An incoming endpoint definition for $serviceName does not have any clients defined." +
-                        "It means that no one will be able to contact that endpoint.")
-                    return@mapNotNull null
-                }
+        return incomingPermissions.endpoints.map { incomingEndpoint ->
+            if (incomingEndpoint.clients.isEmpty()) {
+                logger.warn("An incoming endpoint definition for $serviceName does not have any clients defined." +
+                    "It means that no one will be able to contact that endpoint, unless 'log' policy is defined " +
+                    "for unlisted endpoints or clients.")
+            }
 
-                val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
-                val principals = clientsWithSelectors.flatMap { client ->
+            val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
+            val principals = clientsWithSelectors
+                .flatMap { client ->
                     principalCache.computeIfAbsent(client) { mapClientWithSelectorToPrincipals(it, snapshot) }
                 }.toSet()
+                .ifEmpty { setOf(denyForAllPrincipal) }
 
-                if (principals.isNotEmpty()) {
-                    val policy = Policy.newBuilder().addAllPrincipals(principals)
-                    val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
-                    policy.addPermissions(combinedPermissions)
-                    EndpointWithPolicy(incomingEndpoint, policy)
-                } else {
-                    null
-                }
-            }
+            val policy = Policy.newBuilder().addAllPrincipals(principals)
+            val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
+            policy.addPermissions(combinedPermissions)
+            EndpointWithPolicy(incomingEndpoint, policy)
+        }
     }
 
     data class Rules(val shadowRules: RBAC.Builder, val actualRules: RBAC.Builder)
