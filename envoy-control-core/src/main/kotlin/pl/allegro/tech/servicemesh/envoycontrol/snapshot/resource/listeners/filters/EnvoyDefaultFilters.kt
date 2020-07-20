@@ -30,10 +30,20 @@ class EnvoyDefaultFilters(
     private val defaultRbacFilter = {
         group: Group, snapshot: GlobalSnapshot -> rbacFilterFactory.createHttpFilter(group, snapshot)
     }
-    private val defaultIngressLuaFilter = { group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressFilter(group) }
+    private val defaultRbacLoggingFilter = {
+        group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressRbacLoggingFilter(group)
+    }
 
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
-    val defaultIngressFilters = listOf(defaultIngressLuaFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter)
+
+    /**
+     * Order matters:
+     * * defaultRbacLoggingFilter has to be before defaultRbacFilter, otherwise unauthorised requests will not be
+     *   logged, because the RBAC filter will stop filter chain execution and subsequent filters will not process
+     *   the request
+     * * defaultEnvoyRouterHttpFilter - router filter should be always the last filter.
+     */
+    val defaultIngressFilters = listOf(defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter)
 
     private fun headerToMetadataConfig(
         rules: List<Config.Rule>,

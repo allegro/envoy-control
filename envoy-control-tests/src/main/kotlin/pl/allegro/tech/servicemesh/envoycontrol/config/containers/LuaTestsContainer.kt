@@ -31,7 +31,8 @@ class LuaTestsContainer : BaseGenericContainer<LuaTestsContainer>("vpanov/lua-bu
     fun runLuaTests(): TestsResults = use {
         start()
         val results = execInContainer("busted", "--output=json", "--lpath=$LUA_SRC_DIR_DEST/?.lua", LUA_SPEC_DIR_DST)
-        val output = mapper.readValue(results.stdout, TestsOutput::class.java)
+        val output = kotlin.runCatching { mapper.readValue(results.stdout, TestsOutput::class.java) }
+            .getOrElse { error -> invalidTestOutput(results.stdout, error) }
         return TestsResults(stdout = output, stderr = results.stderr, exitCodeSuccess = (results.exitCode == 0))
     }
 
@@ -42,11 +43,16 @@ class LuaTestsContainer : BaseGenericContainer<LuaTestsContainer>("vpanov/lua-bu
     )
 
     data class TestsOutput(
-        val successes: List<TestResult>,
-        val failures: List<TestResult>,
-        val errors: List<TestResult>,
-        val pendings: List<TestResult>
+        val successes: List<TestResult> = emptyList(),
+        val failures: List<TestResult> = emptyList(),
+        val errors: List<TestResult> = emptyList(),
+        val pendings: List<TestResult> = emptyList()
     )
+
+    private fun invalidTestOutput(output: String, error: Throwable) = TestsOutput(errors = listOf(TestResult(
+        name = "LuaTests",
+        message = "Invalid test output:\n$output\nerror:\n$error"
+    )))
 
     data class TestResult(val name: String, val message: String = "")
 }

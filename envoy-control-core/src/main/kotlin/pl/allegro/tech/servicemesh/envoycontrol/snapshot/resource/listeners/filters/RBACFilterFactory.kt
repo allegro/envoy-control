@@ -42,7 +42,7 @@ class RBACFilterFactory(
             .keys
 
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
-    private val denyForAllPrincipal = Principal.newBuilder().setNotId(Principal.newBuilder().setAny(true)).build()
+    private val denyForAllPrincipal = Principal.newBuilder().setNotId(anyPrincipal).build()
 
     init {
         incomingPermissionsProperties.selectorMatching.forEach {
@@ -155,7 +155,7 @@ class RBACFilterFactory(
 
         return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
-            .addPermissions(not(allDefinedEndpointsPermissions))
+            .addPermissions(noneOf(allDefinedEndpointsPermissions))
             .build()
         )
     }
@@ -172,7 +172,7 @@ class RBACFilterFactory(
 
         return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
-            .addPermissions(or(allLoggedEndpointsPermissions))
+            .addPermissions(anyOf(allLoggedEndpointsPermissions))
             .build()
         )
     }
