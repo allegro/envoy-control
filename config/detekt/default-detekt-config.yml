@@ -9,6 +9,9 @@ test-pattern: # Configure exclusions for test sources
     - '.*TestConfiguration.kt'
     - '.*Spec.kt'
     - '.*Container.kt'
+    - '.*Assertions.kt'
+    - '.*Extension.kt'
+    - '.*Operations.kt'
   exclude-rule-sets:
     - 'comments'
   exclude-rules:

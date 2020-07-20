@@ -4,7 +4,7 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import java.time.Duration
 
@@ -46,7 +46,9 @@ class EgressOperations(val envoy: EnvoyContainer) {
         (1..maxRepeat).asSequence()
                 .map { i ->
                     callService(service, headers, pathAndQuery).also {
-                        if (assertNoErrors) Assertions.assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
+                        if (assertNoErrors) {
+                            assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
+                        }
                     }
                 }
                 .map { ResponseWithBody(it, it.body()?.string() ?: "") }
