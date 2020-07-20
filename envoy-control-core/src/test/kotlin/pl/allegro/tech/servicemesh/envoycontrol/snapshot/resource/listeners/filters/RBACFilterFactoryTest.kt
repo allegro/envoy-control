@@ -182,33 +182,10 @@ internal class RBACFilterFactoryTest {
     @Test
     fun `should generate RBAC rules for incoming permissions with log unlisted clients and endpoints`() {
         // given
-        val expectedShadowRules = """
-        {
-          "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=LOG)": {
-              "permissions": [
-                {
-                  "and_rules": {
-                    "rules": [
-                      ${pathRule("/example")},
-                      {
-                        "or_rules": {
-                          "rules": [
-                            ${methodRule("GET")},
-                            ${methodRule("POST")}
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ], "principals": [
-                ${authenticatedPrincipal("client1")}
-              ]
-            }
-          }
-        }
-        """
+        val policyName = "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], " +
+            "clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], " +
+            "unlistedClientsPolicy=LOG)"
+        val expectedShadowRules = expectedSimpleEndpointPermissionsJson(policyName)
 
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedAnyPermissionJson,
@@ -221,11 +198,11 @@ internal class RBACFilterFactoryTest {
                 "/example",
                     PathMatchingType.PATH,
                     setOf("GET", "POST"),
-                    setOf(ClientWithSelector("client1")),
-                    IncomingEndpoint.UnlistedClientsPolicy.LOG
+                    setOf(ClientWithSelector("client1"), ClientWithSelector("client2")),
+                    Incoming.UnlistedPolicy.LOG
                 )
             ),
-            unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG
+            unlistedEndpointsPolicy = Incoming.UnlistedPolicy.LOG
         )
 
         // when
@@ -238,34 +215,10 @@ internal class RBACFilterFactoryTest {
     @Test
     fun `should generate RBAC rules for incoming permissions with block unlisted endpoints and log clients`() {
         // given
-
-        val expectedShadowRules = """
-        {
-          "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=LOG)": {
-              "permissions": [
-                {
-                  "and_rules": {
-                    "rules": [
-                      ${pathRule("/example")},
-                      {
-                        "or_rules": {
-                          "rules": [
-                            ${methodRule("GET")},
-                            ${methodRule("POST")}
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ], "principals": [
-                ${authenticatedPrincipal("client1")}
-              ]
-            }
-          }
-        }
-        """
+        val policyName = "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], " +
+            "clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], " +
+            "unlistedClientsPolicy=LOG)"
+        val expectedShadowRules = expectedSimpleEndpointPermissionsJson(policyName)
 
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
                 expectedUnlistedClientsPermissions,
@@ -278,11 +231,11 @@ internal class RBACFilterFactoryTest {
                                 "/example",
                                 PathMatchingType.PATH,
                                 setOf("GET", "POST"),
-                                setOf(ClientWithSelector("client1")),
-                                IncomingEndpoint.UnlistedClientsPolicy.LOG
+                                setOf(ClientWithSelector("client1"), ClientWithSelector("client2")),
+                                Incoming.UnlistedPolicy.LOG
                         )
                 ),
-                unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG
+                unlistedEndpointsPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG
         )
 
         // when
@@ -295,34 +248,10 @@ internal class RBACFilterFactoryTest {
     @Test
     fun `should generate RBAC rules for incoming permissions with log unlisted endpoints and block clients`() {
         // given
-
-        val expectedShadowRules = """
-        {
-          "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG)": {
-              "permissions": [
-                {
-                  "and_rules": {
-                    "rules": [
-                      ${pathRule("/example")},
-                      {
-                        "or_rules": {
-                          "rules": [
-                            ${methodRule("GET")},
-                            ${methodRule("POST")}
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ], "principals": [
-                ${authenticatedPrincipal("client1")}
-              ]
-            }
-          }
-        }
-        """
+        val policyName = "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], " +
+            "clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], " +
+            "unlistedClientsPolicy=BLOCKANDLOG)"
+        val expectedShadowRules = expectedSimpleEndpointPermissionsJson(policyName)
 
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
                 expectedEndpointPermissionsLogUnlistedEndpointsAndBlockUnlistedClients,
@@ -335,11 +264,11 @@ internal class RBACFilterFactoryTest {
                                 "/example",
                                 PathMatchingType.PATH,
                                 setOf("GET", "POST"),
-                                setOf(ClientWithSelector("client1")),
-                                IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
+                                setOf(ClientWithSelector("client1"), ClientWithSelector("client2")),
+                                Incoming.UnlistedPolicy.BLOCKANDLOG
                         )
                 ),
-                unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG
+                unlistedEndpointsPolicy = Incoming.UnlistedPolicy.LOG
         )
 
         // when
@@ -352,7 +281,9 @@ internal class RBACFilterFactoryTest {
     @Test
     fun `should generate RBAC rules for incoming permissions with roles`() {
         // given
-        val expectedRbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson)
+        val policyName = "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], " +
+            "clients=[ClientWithSelector(name=role-1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG)"
+        val expectedRbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson(policyName))
         val incomingPermission = Incoming(
                 permissionsEnabled = true,
                 endpoints = listOf(IncomingEndpoint(
@@ -560,11 +491,11 @@ internal class RBACFilterFactoryTest {
 
         val incomingPermissions = Incoming(
             permissionsEnabled = true,
-            unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.LOG,
+            unlistedEndpointsPolicy = Incoming.UnlistedPolicy.LOG,
             endpoints = listOf(IncomingEndpoint(
                 path = "/example",
                 clients = setOf(),
-                unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
+                unlistedClientsPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG
             ))
         )
 
@@ -602,11 +533,11 @@ internal class RBACFilterFactoryTest {
 
         val incomingPermissions = Incoming(
             permissionsEnabled = true,
-            unlistedEndpointsPolicy = Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG,
+            unlistedEndpointsPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG,
             endpoints = listOf(IncomingEndpoint(
                 path = "/example",
                 clients = setOf(),
-                unlistedClientsPolicy = IncomingEndpoint.UnlistedClientsPolicy.LOG
+                unlistedClientsPolicy = Incoming.UnlistedPolicy.LOG
             ))
         )
 
@@ -931,10 +862,10 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private val expectedSimpleEndpointPermissionsJson = """
+    private fun expectedSimpleEndpointPermissionsJson(policyName: String) = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=role-1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG)": {
+            "$policyName": {
               "permissions": [
                 {
                   "and_rules": {
@@ -1185,7 +1116,7 @@ internal class RBACFilterFactoryTest {
     private val expectedEndpointPermissionsLogUnlistedEndpointsAndBlockUnlistedClients = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], unlistedClientsPolicy=BLOCKANDLOG)": {
               "permissions": [
                 {
                     "and_rules": {
@@ -1203,7 +1134,8 @@ internal class RBACFilterFactoryTest {
                       }
                 }
               ], "principals": [
-                ${authenticatedPrincipal(("client1"))}
+                ${authenticatedPrincipal(("client1"))},
+                ${authenticatedPrincipal(("client2"))}
               ]
             },
             "ALLOW_UNLISTED_POLICY": {

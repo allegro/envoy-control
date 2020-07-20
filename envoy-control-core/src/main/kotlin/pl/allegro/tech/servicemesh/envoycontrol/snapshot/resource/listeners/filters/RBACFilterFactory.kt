@@ -106,11 +106,11 @@ class RBACFilterFactory(
         )
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
-            .filter { it.endpoint.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG }
+            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG }
             .map { (endpoint, policy) -> "$endpoint" to policy.build() }.toMap()
 
         val loggedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
-            .filter { it.endpoint.unlistedClientsPolicy == IncomingEndpoint.UnlistedClientsPolicy.LOG }
+            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG }
             .map { (endpoint, policy) -> "$endpoint" to policy.build() }.toMap()
 
         val commonPolicies = statusRoutePolicy + restrictedEndpointsPolicies
@@ -140,7 +140,7 @@ class RBACFilterFactory(
         restrictedEndpointsPolicies: Iterable<Policy>,
         loggedEndpointsPolicies: Iterable<Policy>
     ): Map<String, Policy> {
-        return if (incomingPermissions.unlistedEndpointsPolicy == Incoming.UnlistedEndpointsPolicy.LOG) {
+        return if (incomingPermissions.unlistedEndpointsPolicy == Incoming.UnlistedPolicy.LOG) {
             allowUnlistedEndpointsPolicy(restrictedEndpointsPolicies)
         } else {
             allowLoggedEndpointsPolicy(loggedEndpointsPolicies)

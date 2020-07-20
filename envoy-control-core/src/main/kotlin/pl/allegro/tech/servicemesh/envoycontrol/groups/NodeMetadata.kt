@@ -117,27 +117,18 @@ fun Value?.toIncoming(): Incoming {
         healthCheck = this?.field("healthCheck").toHealthCheck(),
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
         timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy(),
-        unlistedEndpointsPolicy = this?.field("unlistedEndpointsPolicy").toUnlistedEndpointsPolicy()
+        unlistedEndpointsPolicy = this?.field("unlistedEndpointsPolicy").toUnlistedPolicy()
     )
 }
 
-fun Value?.toUnlistedEndpointsPolicy() = this?.stringValue
+fun Value?.toUnlistedPolicy() = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
     ?.let { when (it) {
-        "log" -> Incoming.UnlistedEndpointsPolicy.LOG
-        "blockAndLog" -> Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG
-        else -> throw NodeMetadataValidationException("Invalid unlistedEndpointsPolicy value: $it")
+        "log" -> Incoming.UnlistedPolicy.LOG
+        "blockAndLog" -> Incoming.UnlistedPolicy.BLOCKANDLOG
+        else -> throw NodeMetadataValidationException("Invalid UnlistedPolicy value: $it")
     } }
-    ?: Incoming.UnlistedEndpointsPolicy.BLOCKANDLOG
-
-fun Value?.toUnlistedClientsPolicy() = this?.stringValue
-    ?.takeIf { it.isNotEmpty() }
-    ?.let { when (it) {
-        "log" -> IncomingEndpoint.UnlistedClientsPolicy.LOG
-        "blockAndLog" -> IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
-        else -> throw NodeMetadataValidationException("Invalid unlistedClientsPolicy value: $it")
-    } }
-    ?: IncomingEndpoint.UnlistedClientsPolicy.BLOCKANDLOG
+    ?: Incoming.UnlistedPolicy.BLOCKANDLOG
 
 fun Value?.toHealthCheck(): HealthCheck {
     val path = this?.field("path")?.stringValue
@@ -159,7 +150,7 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
     val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
-    val unlistedClientsPolicy = this.field("unlistedClientsPolicy").toUnlistedClientsPolicy()
+    val unlistedClientsPolicy = this.field("unlistedClientsPolicy").toUnlistedPolicy()
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy)
@@ -220,7 +211,7 @@ data class Incoming(
     val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(
         idleTimeout = null, responseTimeout = null, connectionIdleTimeout = null
     ),
-    val unlistedEndpointsPolicy: UnlistedEndpointsPolicy = UnlistedEndpointsPolicy.BLOCKANDLOG
+    val unlistedEndpointsPolicy: UnlistedPolicy = UnlistedPolicy.BLOCKANDLOG
 ) {
 
     data class TimeoutPolicy(
@@ -229,7 +220,7 @@ data class Incoming(
         val connectionIdleTimeout: Duration?
     )
 
-    enum class UnlistedEndpointsPolicy {
+    enum class UnlistedPolicy {
         LOG, BLOCKANDLOG
     }
 }
@@ -334,13 +325,8 @@ data class IncomingEndpoint(
     override val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
     override val methods: Set<String> = emptySet(),
     val clients: Set<ClientWithSelector> = emptySet(),
-    val unlistedClientsPolicy: UnlistedClientsPolicy = UnlistedClientsPolicy.BLOCKANDLOG
-) : EndpointBase {
-
-    enum class UnlistedClientsPolicy {
-        LOG, BLOCKANDLOG
-    }
-}
+    val unlistedClientsPolicy: Incoming.UnlistedPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG
+) : EndpointBase
 
 enum class PathMatchingType {
     PATH, PATH_PREFIX
