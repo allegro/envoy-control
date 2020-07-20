@@ -18,7 +18,7 @@ class EnvoyContainer(
     private val certificateChain: String = "/app/fullchain_echo.pem",
     private val privateKey: String = "/app/privkey.pem",
     private val logLevel: String = "info",
-    image: String = "envoyproxy/envoy-alpine-dev:5b1723ff54b1a51e104c514ee6363234aaa44366"  // We use envoy version from master. This is 1.14.0-dev.
+    image: String = "envoyproxy/envoy-alpine-dev:5b1723ff54b1a51e104c514ee6363234aaa44366" // We use envoy version from master. This is 1.14.0-dev.
 ) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
         .run("apk --no-cache add curl iproute2")

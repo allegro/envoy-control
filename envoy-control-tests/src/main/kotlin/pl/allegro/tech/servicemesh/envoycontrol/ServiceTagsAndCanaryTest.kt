@@ -11,7 +11,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 
 class ServiceTagsAndCanaryTest {
     companion object {
@@ -163,5 +162,4 @@ class ServiceTagsAndCanaryTest {
         get() = this.hits(loremRegularService.container)
     val CallStats.ipsumRegularHits: Int
         get() = this.hits(ipsumRegularService.container)
-
 }

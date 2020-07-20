@@ -57,5 +57,4 @@ class RetryPolicyTest {
             ?.equals(numberOfRetries)
             ?: false
     }
-
 }

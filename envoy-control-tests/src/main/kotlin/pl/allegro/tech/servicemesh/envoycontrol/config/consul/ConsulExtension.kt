@@ -30,5 +30,4 @@ class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
     override fun afterAll(context: ExtensionContext) {
         server.container.stop()
     }
-
 }

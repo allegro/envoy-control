@@ -9,9 +9,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
-class EnvoyExtension(envoyControl: EnvoyControlExtension,
-                     val localService: EchoServiceExtension? = null)
-    : BeforeAllCallback, AfterAllCallback {
+class EnvoyExtension(
+    envoyControl: EnvoyControlExtension,
+    val localService: EchoServiceExtension? = null
+) : BeforeAllCallback, AfterAllCallback {
 
     companion object {
         val logger by logger()
@@ -42,5 +43,4 @@ class EnvoyExtension(envoyControl: EnvoyControlExtension,
     override fun afterAll(context: ExtensionContext?) {
         container.stop()
     }
-
 }

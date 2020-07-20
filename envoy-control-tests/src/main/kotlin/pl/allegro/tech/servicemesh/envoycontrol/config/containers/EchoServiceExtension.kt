@@ -21,5 +21,4 @@ class EchoServiceExtension : BeforeAllCallback, AfterAllCallback {
     override fun afterAll(context: ExtensionContext?) {
         container.stop()
     }
-
 }

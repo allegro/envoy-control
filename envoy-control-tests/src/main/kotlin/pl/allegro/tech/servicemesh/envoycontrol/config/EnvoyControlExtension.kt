@@ -33,5 +33,4 @@ class EnvoyControlExtension(val consul: ConsulExtension, properties: Map<String,
     override fun afterAll(context: ExtensionContext) {
         app.stop()
     }
-
 }

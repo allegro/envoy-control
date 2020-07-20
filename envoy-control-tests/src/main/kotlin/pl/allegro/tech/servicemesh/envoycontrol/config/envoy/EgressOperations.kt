@@ -16,41 +16,41 @@ class EgressOperations(val envoy: EnvoyContainer) {
             .build()
 
     fun callService(
-            service: String,
-            headers: Map<String, String> = mapOf(),
-            pathAndQuery: String = ""
+        service: String,
+        headers: Map<String, String> = mapOf(),
+        pathAndQuery: String = ""
     ): Response =
-            client.newCall(
-                    Request.Builder()
-                            .get()
-                            .header("Host", service)
-                            .apply {
-                                headers.forEach { name, value -> header(name, value) }
-                            }
-                            .url(HttpUrl.get(envoy.egressListenerUrl()).newBuilder(pathAndQuery)!!.build())
-                            .build()
+        client.newCall(
+                Request.Builder()
+                        .get()
+                        .header("Host", service)
+                        .apply {
+                            headers.forEach { name, value -> header(name, value) }
+                        }
+                        .url(HttpUrl.get(envoy.egressListenerUrl()).newBuilder(pathAndQuery)!!.build())
+                        .build()
             )
-                    .execute()
+                .execute()
 
     fun callServiceRepeatedly(
-            service: String,
-            stats: CallStats,
-            minRepeat: Int = 1,
-            maxRepeat: Int = 100,
-            repeatUntil: (ResponseWithBody) -> Boolean = { false },
-            headers: Map<String, String> = mapOf(),
-            pathAndQuery: String = "",
-            assertNoErrors: Boolean = true
+        service: String,
+        stats: CallStats,
+        minRepeat: Int = 1,
+        maxRepeat: Int = 100,
+        repeatUntil: (ResponseWithBody) -> Boolean = { false },
+        headers: Map<String, String> = mapOf(),
+        pathAndQuery: String = "",
+        assertNoErrors: Boolean = true
     ): CallStats {
         var conditionFulfilled = false
         (1..maxRepeat).asSequence()
-                .map { i ->
-                    callService(service, headers, pathAndQuery).also {
-                        if (assertNoErrors) {
-                            assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
-                        }
+            .map { i ->
+                callService(service, headers, pathAndQuery).also {
+                    if (assertNoErrors) {
+                        assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
                     }
                 }
+            }
                 .map { ResponseWithBody(it, it.body()?.string() ?: "") }
                 .onEach { conditionFulfilled = conditionFulfilled || repeatUntil(it) }
                 .withIndex()
@@ -59,5 +59,4 @@ class EgressOperations(val envoy: EnvoyContainer) {
                 .forEach { stats.addResponse(it) }
         return stats
     }
-
 }
