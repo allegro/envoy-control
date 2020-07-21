@@ -8,18 +8,18 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 
 class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsProperties) {
 
-    private val ingressScript: String = this::class.java.classLoader
-        .getResource("lua/ingress_handler.lua")!!.readText()
+    private val ingressRbacLoggingScript: String = this::class.java.classLoader
+        .getResource("lua/ingress_rbac_logging.lua")!!.readText()
 
-    private val ingressHttpFilter: HttpFilter? = if (incomingPermissionsProperties.enabled) {
+    private val ingressRbacLoggingFilter: HttpFilter? = if (incomingPermissionsProperties.enabled) {
         HttpFilter.newBuilder()
             .setName("envoy.lua")
-            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressScript).build()))
+            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressRbacLoggingScript).build()))
             .build()
     } else {
         null
     }
 
-    fun ingressFilter(group: Group): HttpFilter? =
-        ingressHttpFilter.takeIf { group.proxySettings.incoming.permissionsEnabled }
+    fun ingressRbacLoggingFilter(group: Group): HttpFilter? =
+        ingressRbacLoggingFilter.takeIf { group.proxySettings.incoming.permissionsEnabled }
 }
