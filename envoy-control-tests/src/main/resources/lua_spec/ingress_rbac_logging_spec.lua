@@ -1,4 +1,4 @@
-require("ingress_handler")
+require("ingress_rbac_logging")
 
 local _ = match._
 local contains = function(substring) return match.matches(substring, nil, true) end
