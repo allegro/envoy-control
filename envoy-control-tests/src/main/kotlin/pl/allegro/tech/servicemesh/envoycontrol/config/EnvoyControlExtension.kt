@@ -8,13 +8,14 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import java.util.concurrent.TimeUnit
 
-class EnvoyControlExtension(val consul: ConsulExtension, properties: Map<String, Any> = mapOf())
+class EnvoyControlExtension(private val consul: ConsulExtension, val app: EnvoyControlTestApp)
     : BeforeAllCallback, AfterAllCallback {
 
-    val app: EnvoyControlTestApp = EnvoyControlRunnerTestApp(
-            properties = properties,
-            consulPort = consul.server.port
-    )
+    constructor(consul: ConsulExtension, properties: Map<String, Any> = mapOf())
+        : this(consul, EnvoyControlRunnerTestApp(
+                    properties = properties,
+                    consulPort = consul.server.port
+        ))
 
     override fun beforeAll(context: ExtensionContext) {
         if (!consul.started) {
