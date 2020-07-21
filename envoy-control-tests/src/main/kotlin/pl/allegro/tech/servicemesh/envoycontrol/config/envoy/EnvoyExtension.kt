@@ -11,7 +11,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class EnvoyExtension(
     envoyControl: EnvoyControlExtension,
-    val localService: EchoServiceExtension? = null
+    private val localService: EchoServiceExtension? = null
 ) : BeforeAllCallback, AfterAllCallback {
 
     companion object {

@@ -12,7 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExt
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 
-class ServiceTagsAndCanaryTest {
+open class ServiceTagsAndCanaryTest {
     companion object {
 
         @JvmField
@@ -133,7 +133,7 @@ class ServiceTagsAndCanaryTest {
         }
     }
 
-    fun callEchoServiceRepeatedly(
+    open fun callEchoServiceRepeatedly(
         repeat: Int,
         tag: String? = null,
         canary: Boolean,

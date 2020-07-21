@@ -60,7 +60,7 @@ class EnvoyContainer(
             Integer.toString(envoyControl1XdsPort),
             Integer.toString(envoyControl2XdsPort),
             CONFIG_DEST,
-            localServiceIp.invoke(),
+            localServiceIp(),
             config.trustedCa,
             config.certificateChain,
             config.privateKey,
