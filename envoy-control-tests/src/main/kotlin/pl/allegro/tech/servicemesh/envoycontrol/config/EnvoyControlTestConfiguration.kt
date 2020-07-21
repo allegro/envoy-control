@@ -16,7 +16,11 @@ import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EgressOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.IngressOperations
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.security.KeyStore
@@ -172,7 +176,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             } else envoyControl1XdsPort
             return EnvoyContainer(
                 config = envoyConfig,
-                localServiceIp = localServiceIp,
+                localServiceIp = { localServiceIp },
                 envoyControl1XdsPort = envoyControl1XdsPort,
                 envoyControl2XdsPort = envoyControl2XdsPort,
                 image = envoyImage
@@ -192,7 +196,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
             return EnvoyContainer(
                 echo3EnvoyConfig,
-                localServiceContainer.ipAddress(),
+                { localServiceContainer.ipAddress() },
                 envoyControl1.grpcPort,
                 image = defaultEnvoyImage
             ).withNetwork(network)
@@ -244,10 +248,10 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         fun callService(
             service: String,
-            address: String = envoyContainer1.egressListenerUrl(),
+            fromEnvoy: EnvoyContainer = envoyContainer1,
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
-        ): Response = call(service, address, headers, pathAndQuery)
+        ): Response = EgressOperations(fromEnvoy).callService(service, headers, pathAndQuery)
 
         private fun getInsecureSSLSocketFactory(): SSLSocketFactory {
             val builder = SSLContextBuilder()
@@ -319,30 +323,14 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             endpoint: String,
             headers: Headers,
             envoyContainer: EnvoyContainer = envoyContainer1
-        ): Response =
-            defaultClient.newCall(
-                Request.Builder()
-                    .get()
-                    .headers(headers)
-                    .url(envoyContainer.ingressListenerUrl() + endpoint)
-                    .build()
-            )
-                .execute()
+        ): Response = IngressOperations(envoyContainer).callLocalService(endpoint, headers)
 
         fun callPostLocalService(
             endpoint: String,
             headers: Headers,
             body: RequestBody,
             envoyContainer: EnvoyContainer = envoyContainer1
-        ): Response =
-            defaultClient.newCall(
-                Request.Builder()
-                    .post(body)
-                    .headers(headers)
-                    .url(envoyContainer.ingressListenerUrl() + endpoint)
-                    .build()
-            )
-                .execute()
+        ): Response = IngressOperations(envoyContainer).callPostLocalService(endpoint, headers, body)
 
         fun ToxiproxyContainer.createProxyToEnvoyIngress(envoy: EnvoyContainer) = this.createProxy(
             targetIp = envoy.ipAddress(), targetPort = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
@@ -368,27 +356,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
     }
 
-    data class ResponseWithBody(val response: Response, val body: String) {
-        fun isFrom(echoContainer: EchoContainer) = body.contains(echoContainer.response)
-        fun isOk() = response.isSuccessful
-    }
-
-    class CallStats(private val containers: List<EchoContainer>) {
-        var failedHits: Int = 0
-        var totalHits: Int = 0
-
-        private var containerHits: MutableMap<String, Int> = containers.associate { it.containerId to 0 }.toMutableMap()
-
-        fun hits(container: EchoContainer) = containerHits[container.containerId] ?: 0
-
-        fun addResponse(response: ResponseWithBody) {
-            containers.firstOrNull { response.isFrom(it) }
-                ?.let { containerHits.compute(it.containerId) { _, i -> i?.inc() } }
-            if (!response.isOk()) failedHits++
-            totalHits++
-        }
-    }
-
     protected fun callServiceRepeatedly(
         service: String,
         stats: CallStats,
@@ -397,23 +364,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         repeatUntil: (ResponseWithBody) -> Boolean = { false },
         headers: Map<String, String> = mapOf(),
         pathAndQuery: String = "",
-        assertNoErrors: Boolean = true
-    ): CallStats {
-        var conditionFulfilled = false
-        (1..maxRepeat).asSequence()
-            .map { i ->
-                callService(service = service, headers = headers, pathAndQuery = pathAndQuery).also {
-                    if (assertNoErrors) assertThat(it).isOk().describedAs("Error response at attempt $i: \n$it")
-                }
-            }
-            .map { ResponseWithBody(it, it.body()?.string() ?: "") }
-            .onEach { conditionFulfilled = conditionFulfilled || repeatUntil(it) }
-            .withIndex()
-            .takeWhile { (i, _) -> i < minRepeat || !conditionFulfilled }
-            .map { it.value }
-            .forEach { stats.addResponse(it) }
-        return stats
-    }
+        assertNoErrors: Boolean = true,
+        fromEnvoy: EnvoyContainer = envoyContainer1
+    ): CallStats = EgressOperations(fromEnvoy).callServiceRepeatedly(
+            service, stats, minRepeat, maxRepeat, repeatUntil, headers, pathAndQuery, assertNoErrors
+    )
 
     private fun waitForEchoServices(instances: Int) {
         untilAsserted {
