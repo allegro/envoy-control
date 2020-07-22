@@ -1,43 +1,57 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnreachable
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 
-class RegexServicesFilterTest : EnvoyControlTestConfiguration() {
+class RegexServicesFilterTest {
 
     companion object {
 
-        private val properties = mapOf(
-            "envoy-control.service-filters.excluded-names-patterns" to ".*-[1-2]$".toRegex()
-        )
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) })
-        }
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.service-filters.excluded-names-patterns" to ".*-[1-2]$".toRegex()
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl)
     }
 
     @Test
     fun `should not reach service whose name ends with number from 1 to 4`() {
         // given
-        registerService(name = "service-1", container = echoContainer)
-        registerService(name = "service-2", container = echoContainer)
-        registerService(name = "service-3", container = echoContainer)
+        consul.server.consulOperations.registerService(service.container, name = "service-1")
+        consul.server.consulOperations.registerService(service.container, name = "service-2")
+        consul.server.consulOperations.registerService(service.container, name = "service-3")
 
         untilAsserted {
             // when
-            val response1 = callService("service-1")
-            val response2 = callService("service-2")
-            val response3 = callService("service-3")
+            val response1 = envoy.egressOperations.callService("service-1")
+            val response2 = envoy.egressOperations.callService("service-2")
+            val response3 = envoy.egressOperations.callService("service-3")
 
             // then
             assertThat(response1).isUnreachable()
             assertThat(response2).isUnreachable()
-            assertThat(response3).isOk().isFrom(echoContainer)
+            assertThat(response3).isOk().isFrom(service.container)
         }
     }
 }
