@@ -217,7 +217,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                 // do not trust default CA used by other Envoys
                 trustedCa = "/app/root-ca2.crt"
             ),
-            localServiceContainer.ipAddress(),
+            { localServiceContainer.ipAddress() },
             envoyControl1.grpcPort,
             image = defaultEnvoyImage
         ).withNetwork(network)
@@ -231,7 +231,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                 // certificate not signed by default CA
                 certificateChain = "/app/fullchain_echo_root-ca2.pem"
             ),
-            localServiceContainer.ipAddress(),
+            { localServiceContainer.ipAddress() },
             envoyControl1.grpcPort,
             image = defaultEnvoyImage
         ).withNetwork(network)
