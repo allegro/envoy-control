@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.config.containers
+package pl.allegro.tech.servicemesh.envoycontrol.config.echo
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -6,6 +6,7 @@ import okhttp3.Response
 import org.assertj.core.api.Assertions
 import org.assertj.core.api.ObjectAssert
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
 
 class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http-https-echo@$hash") {
 

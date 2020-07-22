@@ -8,9 +8,9 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsAllDependencies
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.time.Duration
 import java.util.concurrent.Executors

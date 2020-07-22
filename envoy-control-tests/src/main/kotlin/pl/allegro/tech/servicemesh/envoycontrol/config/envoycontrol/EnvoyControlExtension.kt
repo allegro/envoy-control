@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.config
+package pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol
 
 import org.assertj.core.api.Assertions
 import org.awaitility.Awaitility

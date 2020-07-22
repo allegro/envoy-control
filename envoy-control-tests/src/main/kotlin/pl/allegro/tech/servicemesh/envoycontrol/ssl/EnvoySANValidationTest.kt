@@ -4,9 +4,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.HttpsEchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.HttpsEchoContainer
 
 class EnvoySANValidationTest : EnvoyControlTestConfiguration() {
     companion object {

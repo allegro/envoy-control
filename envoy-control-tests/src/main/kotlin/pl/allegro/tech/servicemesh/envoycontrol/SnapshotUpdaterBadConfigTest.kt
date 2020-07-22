@@ -5,7 +5,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.testcontainers.containers.ContainerLaunchException
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 
 internal class SnapshotUpdaterBadConfigTest : EnvoyControlTestConfiguration() {
