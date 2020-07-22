@@ -7,10 +7,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
-class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
+class EnvoyDefaultFilters(
+    private val snapshotProperties: SnapshotProperties
+) {
     private val rbacFilterFactory = RBACFilterFactory(
             snapshotProperties.incomingPermissions,
             snapshotProperties.routes.status
+    )
+    private val luaFilterFactory = LuaFilterFactory(
+        snapshotProperties.incomingPermissions
     )
 
     private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
@@ -25,9 +30,20 @@ class EnvoyDefaultFilters(private val snapshotProperties: SnapshotProperties) {
     private val defaultRbacFilter = {
         group: Group, snapshot: GlobalSnapshot -> rbacFilterFactory.createHttpFilter(group, snapshot)
     }
+    private val defaultRbacLoggingFilter = {
+        group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressRbacLoggingFilter(group)
+    }
 
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
-    val defaultIngressFilters = listOf(defaultRbacFilter, defaultEnvoyRouterHttpFilter)
+
+    /**
+     * Order matters:
+     * * defaultRbacLoggingFilter has to be before defaultRbacFilter, otherwise unauthorised requests will not be
+     *   logged, because the RBAC filter will stop filter chain execution and subsequent filters will not process
+     *   the request
+     * * defaultEnvoyRouterHttpFilter - router filter should be always the last filter.
+     */
+    val defaultIngressFilters = listOf(defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter)
 
     private fun headerToMetadataConfig(
         rules: List<Config.Rule>,

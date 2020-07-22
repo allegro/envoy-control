@@ -11,11 +11,14 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger as loggerDelegate
 
 class EnvoyContainer(
     private val config: EnvoyConfig,
-    private val localServiceIp: String,
+    private val localServiceIp: () -> String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
+    private val trustedCa: String = "/app/root-ca.crt",
+    private val certificateChain: String = "/app/fullchain_echo.pem",
+    private val privateKey: String = "/app/privkey.pem",
     private val logLevel: String = "info",
-    image: String
+    image: String = "envoyproxy/envoy-alpine-dev:5b1723ff54b1a51e104c514ee6363234aaa44366" // We use envoy version from master. This is 1.14.0-dev.
 ) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
         .run("apk --no-cache add curl iproute2")
@@ -57,7 +60,7 @@ class EnvoyContainer(
             Integer.toString(envoyControl1XdsPort),
             Integer.toString(envoyControl2XdsPort),
             CONFIG_DEST,
-            localServiceIp,
+            localServiceIp(),
             config.trustedCa,
             config.certificateChain,
             config.privateKey,
