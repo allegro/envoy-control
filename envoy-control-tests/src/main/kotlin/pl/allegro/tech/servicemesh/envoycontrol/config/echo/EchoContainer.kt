@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.config.containers
+package pl.allegro.tech.servicemesh.envoycontrol.config.echo
 
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait

@@ -5,10 +5,10 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.asssertions.hasOneAccessDenialWithActionLog
-import pl.allegro.tech.servicemesh.envoycontrol.asssertions.isRbacAccessLog
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionLog
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 

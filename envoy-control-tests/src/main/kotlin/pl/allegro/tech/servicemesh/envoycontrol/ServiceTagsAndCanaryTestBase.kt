@@ -5,10 +5,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 

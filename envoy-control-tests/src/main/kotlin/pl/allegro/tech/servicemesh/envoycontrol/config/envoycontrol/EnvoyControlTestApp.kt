@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.config
+package pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
