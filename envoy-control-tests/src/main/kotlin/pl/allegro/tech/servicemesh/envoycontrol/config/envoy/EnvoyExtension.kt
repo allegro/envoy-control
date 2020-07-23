@@ -4,14 +4,16 @@ import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class EnvoyExtension(
     envoyControl: EnvoyControlExtension,
-    private val localService: EchoServiceExtension? = null
+    private val localService: EchoServiceExtension? = null,
+    config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback {
 
     companion object {
@@ -19,9 +21,9 @@ class EnvoyExtension(
     }
 
     val container: EnvoyContainer = EnvoyContainer(
-            RandomConfigFile,
-            { localService?.container?.ipAddress() ?: "127.0.0.1" },
-            envoyControl.app.grpcPort
+        config,
+        { localService?.container?.ipAddress() ?: "127.0.0.1" },
+        envoyControl.app.grpcPort
     ).withNetwork(Network.SHARED)
 
     val ingressOperations: IngressOperations = IngressOperations(container)

@@ -1,49 +1,59 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsWithDisabledEndpointPermissions
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 
-class ParallelSnapshotForGroupsTest : EnvoyControlTestConfiguration() {
+class ParallelSnapshotForGroupsTest {
 
     companion object {
-        private val properties = mapOf(
+
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
             "envoy-control.server.group-snapshot-update-scheduler.type" to "PARALLEL",
             "envoy-control.server.group-snapshot-update-scheduler.parallel-pool-size" to 3,
             "logging.level.pl.allegro.tech.servicemesh.envoycontrol.server.callbacks" to "DEBUG"
-        )
+        ))
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(
-                appFactoryForEc1 = { consulPort ->
-                    EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-                },
-                envoys = 2,
-                envoyConfig = Ads,
-                // we need different config for second envoy to ensure we have two cache groups
-                secondEnvoyConfig = AdsWithDisabledEndpointPermissions
-            )
-        }
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, config = Ads)
+
+        @JvmField
+        @RegisterExtension
+        val secondEnvoy = EnvoyExtension(envoyControl, config = AdsWithDisabledEndpointPermissions)
     }
 
     @Test
     fun `should update multiple envoy's configs in PARALLEL mode`() {
         // when
-        registerService(name = "echo")
+        consul.server.consulOperations.registerService(service.container, name = "echo")
 
         // then
         untilAsserted {
-            callService(service = "echo", fromEnvoy = envoyContainer1).also {
-                assertThat(it).isOk().isFrom(echoContainer)
+            envoy.egressOperations.callService(service = "echo").also {
+                assertThat(it).isOk().isFrom(service.container)
             }
-            callService(service = "echo", fromEnvoy = envoyContainer2).also {
-                assertThat(it).isOk().isFrom(echoContainer)
+            secondEnvoy.egressOperations.callService(service = "echo").also {
+                assertThat(it).isOk().isFrom(service.container)
             }
         }
     }
