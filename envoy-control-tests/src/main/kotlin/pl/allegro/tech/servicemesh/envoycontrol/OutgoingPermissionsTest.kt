@@ -85,8 +85,8 @@ interface OutgoingPermissionsTest {
     @Test
     fun `should only allow access to resources from node_metadata_dependencies`() {
         // given
-        consul().server.consulOperations.registerService(service().container, name = "not-accessible")
-        consul().server.consulOperations.registerService(service().container, name = "echo")
+        consul().server.operations.registerService(service().container, name = "not-accessible")
+        consul().server.operations.registerService(service().container, name = "echo")
 
         untilAsserted {
             // when

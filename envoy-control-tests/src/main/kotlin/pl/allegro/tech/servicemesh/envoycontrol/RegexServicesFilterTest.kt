@@ -38,9 +38,9 @@ class RegexServicesFilterTest {
     @Test
     fun `should not reach service whose name ends with number from 1 to 4`() {
         // given
-        consul.server.consulOperations.registerService(service.container, name = "service-1")
-        consul.server.consulOperations.registerService(service.container, name = "service-2")
-        consul.server.consulOperations.registerService(service.container, name = "service-3")
+        consul.server.operations.registerService(service.container, name = "service-1")
+        consul.server.operations.registerService(service.container, name = "service-2")
+        consul.server.operations.registerService(service.container, name = "service-3")
 
         untilAsserted {
             // when

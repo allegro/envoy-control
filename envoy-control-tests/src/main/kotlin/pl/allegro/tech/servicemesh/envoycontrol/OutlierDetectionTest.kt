@@ -42,8 +42,8 @@ class OutlierDetectionTest {
     fun `should not send requests to instance when outlier check failed`() {
         // given
         val unhealthyIp = unhealthyService.container.ipAddress()
-        consul.server.consulOperations.registerService(healthyService.container, name = "echo")
-        consul.server.consulOperations.registerService(unhealthyService.container, name = "echo")
+        consul.server.operations.registerService(healthyService.container, name = "echo")
+        consul.server.operations.registerService(unhealthyService.container, name = "echo")
         unhealthyService.container.stop()
 
         untilAsserted {

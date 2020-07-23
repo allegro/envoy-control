@@ -35,13 +35,13 @@ interface ServiceTagsAndCanaryTestBase {
     fun envoy(): EnvoyExtension
 
     fun registerServices() {
-        consul().server.consulOperations.registerService(
+        consul().server.operations.registerService(
                 name = "echo", address = loremRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem")
         )
-        consul().server.consulOperations.registerService(
+        consul().server.operations.registerService(
                 name = "echo", address = loremCanaryService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem", "canary")
         )
-        consul().server.consulOperations.registerService(
+        consul().server.operations.registerService(
                 name = "echo", address = ipsumRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("ipsum")
         )
     }

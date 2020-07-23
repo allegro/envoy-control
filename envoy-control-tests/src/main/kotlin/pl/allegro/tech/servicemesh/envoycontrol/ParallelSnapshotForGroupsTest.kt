@@ -45,7 +45,7 @@ class ParallelSnapshotForGroupsTest {
     @Test
     fun `should update multiple envoy's configs in PARALLEL mode`() {
         // when
-        consul.server.consulOperations.registerService(service.container, name = "echo")
+        consul.server.operations.registerService(service.container, name = "echo")
 
         // then
         untilAsserted {
