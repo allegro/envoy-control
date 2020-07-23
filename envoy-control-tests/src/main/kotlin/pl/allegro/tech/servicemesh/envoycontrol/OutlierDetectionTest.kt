@@ -1,46 +1,54 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyAdmin
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 
-internal class OutlierDetectionTest : EnvoyControlTestConfiguration() {
+class OutlierDetectionTest {
+
     companion object {
 
-        private val properties = mapOf(
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
             "envoy-control.envoy.snapshot.cluster-outlier-detection.enabled" to true
-        )
+        ))
 
-        @JvmStatic
-        @BeforeAll
-        fun setupOutlierDetectionTest() {
-            setup(appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) })
-        }
-    }
+        @JvmField
+        @RegisterExtension
+        val healthyService = EchoServiceExtension()
 
-    @AfterEach
-    fun after() {
-        cleanupTest()
-        if (!echoContainer2.isRunning) {
-            echoContainer2.start()
-        }
+        @JvmField
+        @RegisterExtension
+        val unhealthyService = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl)
     }
 
     @Test
     fun `should not send requests to instance when outlier check failed`() {
         // given
-        val unhealthyIp = echoContainer2.ipAddress()
-        registerService(name = "echo")
-        registerService(name = "echo", container = echoContainer2)
-        echoContainer2.stop()
+        val unhealthyIp = unhealthyService.container.ipAddress()
+        consul.server.consulOperations.registerService(healthyService.container, name = "echo")
+        consul.server.consulOperations.registerService(unhealthyService.container, name = "echo")
+        unhealthyService.container.stop()
 
         untilAsserted {
             // when
-            callEcho()
+            envoy.egressOperations.callService("echo")
 
             // then
             assertThat(hasOutlierCheckFailed(cluster = "echo", unhealthyIp = unhealthyIp)).isTrue()
@@ -49,15 +57,15 @@ internal class OutlierDetectionTest : EnvoyControlTestConfiguration() {
         // when
         repeat(times = 10) {
             // when
-            val response = callEcho()
+            val response = envoy.egressOperations.callService("echo")
 
             // then
-            assertThat(response).isOk().isFrom(echoContainer)
+            assertThat(response).isOk().isFrom(healthyService.container)
         }
     }
 
-    private fun hasOutlierCheckFailed(cluster: String, unhealthyIp: String): Boolean {
-        return EnvoyAdmin(address = envoyContainer1.adminUrl())
+    fun hasOutlierCheckFailed(cluster: String, unhealthyIp: String): Boolean {
+        return envoy.container.admin()
             .hostStatus(cluster, unhealthyIp)
             ?.healthStatus
             ?.failedOutlierCheck
