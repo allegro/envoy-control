@@ -15,22 +15,8 @@ class EgressOperations(val envoy: EnvoyContainer) {
             .readTimeout(Duration.ofSeconds(20))
             .build()
 
-    fun callService(
-        service: String,
-        headers: Map<String, String> = mapOf(),
-        pathAndQuery: String = ""
-    ): Response =
-        client.newCall(
-                Request.Builder()
-                        .get()
-                        .header("Host", service)
-                        .apply {
-                            headers.forEach { name, value -> header(name, value) }
-                        }
-                        .url(HttpUrl.get(envoy.egressListenerUrl()).newBuilder(pathAndQuery)!!.build())
-                        .build()
-            )
-                .execute()
+    fun callService(service: String, headers: Map<String, String> = mapOf(), pathAndQuery: String = "") =
+        callWithHostHeader(service, headers, pathAndQuery)
 
     fun callServiceRepeatedly(
         service: String,
@@ -58,5 +44,21 @@ class EgressOperations(val envoy: EnvoyContainer) {
                 .map { it.value }
                 .forEach { stats.addResponse(it) }
         return stats
+    }
+
+    fun callDomain(domain: String) = callWithHostHeader(domain, mapOf(), "")
+
+    private fun callWithHostHeader(host: String, headers: Map<String, String>, pathAndQuery: String): Response {
+        return client.newCall(
+            Request.Builder()
+                .get()
+                .header("Host", host)
+                .apply {
+                    headers.forEach { name, value -> header(name, value) }
+                }
+                .url(HttpUrl.get(envoy.egressListenerUrl()).newBuilder(pathAndQuery)!!.build())
+                .build()
+        )
+            .execute()
     }
 }
