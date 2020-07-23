@@ -6,6 +6,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
 import java.time.Duration
 
 class EgressOperations(val envoy: EnvoyContainer) {
@@ -48,13 +49,20 @@ class EgressOperations(val envoy: EnvoyContainer) {
 
     fun callDomain(domain: String) = callWithHostHeader(domain, mapOf(), "")
 
-    private fun callWithHostHeader(host: String, headers: Map<String, String>, pathAndQuery: String): Response {
+    fun callServiceWithOriginalDst(service: EchoServiceExtension) =
+        callWithHostHeader(
+            "envoy-original-destination",
+            mapOf("x-envoy-original-dst-host" to service.container.address()),
+            ""
+        )
+
+    private fun callWithHostHeader(host: String, moreHeaders: Map<String, String>, pathAndQuery: String): Response {
         return client.newCall(
             Request.Builder()
                 .get()
                 .header("Host", host)
                 .apply {
-                    headers.forEach { name, value -> header(name, value) }
+                    moreHeaders.forEach { name, value -> header(name, value) }
                 }
                 .url(HttpUrl.get(envoy.egressListenerUrl()).newBuilder(pathAndQuery)!!.build())
                 .build()
