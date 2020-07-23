@@ -45,15 +45,15 @@ class ParallelSnapshotForGroupsTest {
     @Test
     fun `should update multiple envoy's configs in PARALLEL mode`() {
         // when
-        consul.server.operations.registerService(service.container, name = "echo")
+        consul.server.operations.registerService(service, name = "echo")
 
         // then
         untilAsserted {
             envoy.egressOperations.callService(service = "echo").also {
-                assertThat(it).isOk().isFrom(service.container)
+                assertThat(it).isOk().isFrom(service)
             }
             secondEnvoy.egressOperations.callService(service = "echo").also {
-                assertThat(it).isOk().isFrom(service.container)
+                assertThat(it).isOk().isFrom(service)
             }
         }
     }

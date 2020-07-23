@@ -85,8 +85,8 @@ interface OutgoingPermissionsTest {
     @Test
     fun `should only allow access to resources from node_metadata_dependencies`() {
         // given
-        consul().server.operations.registerService(service().container, name = "not-accessible")
-        consul().server.operations.registerService(service().container, name = "echo")
+        consul().server.operations.registerService(service(), name = "not-accessible")
+        consul().server.operations.registerService(service(), name = "echo")
 
         untilAsserted {
             // when
@@ -97,7 +97,7 @@ interface OutgoingPermissionsTest {
             val unreachableDomainResponse = envoy().egressOperations.callDomain("www.another-example.com")
 
             // then
-            assertThat(reachableResponse).isOk().isFrom(service().container)
+            assertThat(reachableResponse).isOk().isFrom(service())
             assertThat(reachableDomainResponse).isOk()
             assertThat(unreachableDomainResponse).isUnreachable()
             assertThat(unreachableResponse).isUnreachable()
