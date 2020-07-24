@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.asssertions
+package pl.allegro.tech.servicemesh.envoycontrol.assertions
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert

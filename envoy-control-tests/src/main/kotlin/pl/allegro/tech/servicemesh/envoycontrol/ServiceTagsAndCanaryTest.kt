@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.junit.jupiter.api.extension.RegisterExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 

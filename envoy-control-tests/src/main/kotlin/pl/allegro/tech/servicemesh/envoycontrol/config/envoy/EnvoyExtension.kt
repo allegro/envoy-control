@@ -4,9 +4,9 @@ import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class EnvoyExtension(
