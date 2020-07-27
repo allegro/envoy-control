@@ -33,7 +33,7 @@ class ConsulOperations(port: Int) {
     }
 
     fun registerService(
-        extension: ServiceExtension,
+        extension: ServiceExtension<*>,
         id: String = UUID.randomUUID().toString(),
         name: String,
         registerDefaultCheck: Boolean = false,

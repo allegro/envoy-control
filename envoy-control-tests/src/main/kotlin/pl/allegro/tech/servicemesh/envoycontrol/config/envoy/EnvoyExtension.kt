@@ -12,7 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class EnvoyExtension(
     envoyControl: EnvoyControlExtension,
-    private val localService: ServiceExtension? = null,
+    private val localService: ServiceExtension<*>? = null,
     config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback {
 
