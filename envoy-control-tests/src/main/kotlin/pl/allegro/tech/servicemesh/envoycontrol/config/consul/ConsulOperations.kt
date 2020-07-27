@@ -12,9 +12,9 @@ class ConsulOperations(port: Int) {
 
     fun registerService(
         id: String = UUID.randomUUID().toString(),
-        name: String = "sample",
-        address: String = "localhost",
-        port: Int = 1234,
+        name: String,
+        address: String,
+        port: Int,
         registerDefaultCheck: Boolean = false,
         tags: List<String> = listOf("a")
     ): String {
@@ -36,7 +36,7 @@ class ConsulOperations(port: Int) {
     fun registerService(
         extension: EchoServiceExtension,
         id: String = UUID.randomUUID().toString(),
-        name: String = "sample",
+        name: String,
         registerDefaultCheck: Boolean = false,
         tags: List<String> = listOf("a")
     ) = registerService(id, name, extension.container.ipAddress(), EchoContainer.PORT, registerDefaultCheck, tags)
