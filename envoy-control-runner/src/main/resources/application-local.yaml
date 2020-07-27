@@ -3,3 +3,7 @@ envoy-control:
     consul:
       host: localhost
       port: 18500
+
+chaos:
+  username: "user"
+  password: "{noop}pass"
