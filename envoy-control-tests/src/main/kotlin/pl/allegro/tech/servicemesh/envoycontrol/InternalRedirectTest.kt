@@ -1,8 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -11,6 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.redirect.RedirectServiceContainer
@@ -38,19 +37,9 @@ class InternalRedirectTest {
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service)
 
-        val redirectServiceContainer = RedirectServiceContainer(redirectTo = "service-1")
-
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            redirectServiceContainer.start()
-        }
-
-        @JvmStatic
-        @AfterAll
-        fun teardownTest() {
-            redirectServiceContainer.stop()
-        }
+        @JvmField
+        @RegisterExtension
+        val redirectService = ServiceExtension(RedirectServiceContainer(redirectTo = "service-1"))
     }
 
     @Test
@@ -58,7 +47,7 @@ class InternalRedirectTest {
         // given
         consul.server.operations.registerService(service, name = "service-1")
         // service-redirect has defined in metadata redirect policy
-        registerRedirectService(name = "service-redirect")
+        consul.server.operations.registerService(redirectService, name = "service-redirect")
 
         untilAsserted {
             // when
@@ -73,7 +62,7 @@ class InternalRedirectTest {
     fun `envoy should not handle redirects by default`() {
         // given
         consul.server.operations.registerService(service, name = "service-1")
-        registerRedirectService(name = "service-5")
+        consul.server.operations.registerService(redirectService, name = "service-5")
 
         untilAsserted {
             // when
@@ -84,11 +73,5 @@ class InternalRedirectTest {
             // then
             assertThat(exception.message).contains("service-1")
         }
-    }
-
-    fun registerRedirectService(name: String) {
-        consul.server.operations.registerService(
-            name = name, address = redirectServiceContainer.ipAddress(), port = RedirectServiceContainer.PORT
-        )
     }
 }

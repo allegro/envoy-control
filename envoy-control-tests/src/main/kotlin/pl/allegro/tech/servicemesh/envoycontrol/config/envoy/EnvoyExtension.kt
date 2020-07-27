@@ -6,13 +6,13 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class EnvoyExtension(
     envoyControl: EnvoyControlExtension,
-    private val localService: EchoServiceExtension? = null,
+    private val localService: ServiceExtension? = null,
     config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback {
 
@@ -29,7 +29,7 @@ class EnvoyExtension(
     val ingressOperations: IngressOperations = IngressOperations(container)
     val egressOperations: EgressOperations = EgressOperations(container)
 
-    override fun beforeAll(context: ExtensionContext?) {
+    override fun beforeAll(context: ExtensionContext) {
         if (localService != null && !localService.started) {
             localService.beforeAll(context)
         }
@@ -42,7 +42,7 @@ class EnvoyExtension(
         }
     }
 
-    override fun afterAll(context: ExtensionContext?) {
+    override fun afterAll(context: ExtensionContext) {
         container.stop()
     }
 }
