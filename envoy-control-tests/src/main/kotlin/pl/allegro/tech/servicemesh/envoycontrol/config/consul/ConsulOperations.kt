@@ -2,7 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.consul
 
 import com.ecwid.consul.v1.ConsulClient
 import com.ecwid.consul.v1.agent.model.NewService
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.ServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import java.util.UUID
 
 class ConsulOperations(port: Int) {

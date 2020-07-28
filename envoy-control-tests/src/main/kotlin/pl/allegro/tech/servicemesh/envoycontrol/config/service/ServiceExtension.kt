@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.config.echo
+package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback

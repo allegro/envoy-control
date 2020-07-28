@@ -6,7 +6,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 
 open class ServiceTagsTest : EnvoyControlTestConfiguration() {
