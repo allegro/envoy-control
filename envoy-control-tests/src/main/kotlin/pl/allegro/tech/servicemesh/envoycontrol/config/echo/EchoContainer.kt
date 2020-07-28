@@ -5,7 +5,7 @@ import org.testcontainers.containers.wait.strategy.Wait
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.util.UUID
 
-class EchoContainer : GenericContainer<EchoContainer>("hashicorp/http-echo:latest") {
+class EchoContainer : GenericContainer<EchoContainer>("hashicorp/http-echo:latest"), ServiceContainer {
 
     val response = UUID.randomUUID().toString()
 
@@ -18,6 +18,8 @@ class EchoContainer : GenericContainer<EchoContainer>("hashicorp/http-echo:lates
     }
 
     fun address(): String = "${ipAddress()}:$PORT"
+
+    override fun port() = PORT
 
     companion object {
         const val PORT = 5678

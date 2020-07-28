@@ -7,7 +7,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -35,15 +34,9 @@ interface ServiceTagsAndCanaryTestBase {
     fun envoy(): EnvoyExtension
 
     fun registerServices() {
-        consul().server.consulOperations.registerService(
-                name = "echo", address = loremRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem")
-        )
-        consul().server.consulOperations.registerService(
-                name = "echo", address = loremCanaryService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("lorem", "canary")
-        )
-        consul().server.consulOperations.registerService(
-                name = "echo", address = ipsumRegularService.container.ipAddress(), port = EchoContainer.PORT, tags = listOf("ipsum")
-        )
+        consul().server.operations.registerService(loremRegularService, name = "echo", tags = listOf("lorem"))
+        consul().server.operations.registerService(loremCanaryService, name = "echo", tags = listOf("lorem", "canary"))
+        consul().server.operations.registerService(ipsumRegularService, name = "echo", tags = listOf("ipsum"))
     }
 
     @Test
