@@ -2,7 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.assertions
 
 import okhttp3.Response
 import org.assertj.core.api.ObjectAssert
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
 fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
     matches { it.isSuccessful }
