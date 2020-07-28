@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 
 class CallStats(private val containers: List<EchoContainer>) {
     var failedHits: Int = 0

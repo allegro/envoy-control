@@ -1,7 +1,6 @@
-package pl.allegro.tech.servicemesh.envoycontrol.config.redirect
+package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.ServiceContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.util.UUID
 

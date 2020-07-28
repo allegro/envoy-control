@@ -1,3 +1,3 @@
-package pl.allegro.tech.servicemesh.envoycontrol.config.echo
+package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
 class EchoServiceExtension : ServiceExtension<EchoContainer>(EchoContainer())

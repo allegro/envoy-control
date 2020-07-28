@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.config.echo
+package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
 interface ServiceContainer {
 
