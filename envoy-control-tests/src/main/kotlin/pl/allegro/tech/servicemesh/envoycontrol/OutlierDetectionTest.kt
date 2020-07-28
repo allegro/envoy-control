@@ -31,7 +31,7 @@ class OutlierDetectionTest {
 
         @JvmField
         @RegisterExtension
-        val unhealthyService = EchoServiceExtension()
+        val unhealthyService = EchoServiceExtension(shared = false)
 
         @JvmField
         @RegisterExtension

@@ -20,11 +20,11 @@ interface ServiceTagsAndCanaryTestBase {
 
         @JvmField
         @RegisterExtension
-        val loremCanaryService = EchoServiceExtension()
+        val loremCanaryService = EchoServiceExtension(shared = false)
 
         @JvmField
         @RegisterExtension
-        val ipsumRegularService = EchoServiceExtension()
+        val ipsumRegularService = EchoServiceExtension(shared = false)
     }
 
     fun consul(): ConsulExtension

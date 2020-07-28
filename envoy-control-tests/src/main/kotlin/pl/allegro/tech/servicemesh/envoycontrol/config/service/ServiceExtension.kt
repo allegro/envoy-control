@@ -4,7 +4,8 @@ import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 
-open class ServiceExtension<T : ServiceContainer>(val container: T) : BeforeAllCallback, AfterAllCallback {
+open class ServiceExtension<T : ServiceContainer>(val container: T, private val shared: Boolean = false)
+    : BeforeAllCallback, AfterAllCallback {
 
     var started = false
 
@@ -18,6 +19,8 @@ open class ServiceExtension<T : ServiceContainer>(val container: T) : BeforeAllC
     }
 
     override fun afterAll(context: ExtensionContext) {
-        container.stop()
+        if (!shared) {
+            container.stop()
+        }
     }
 }
