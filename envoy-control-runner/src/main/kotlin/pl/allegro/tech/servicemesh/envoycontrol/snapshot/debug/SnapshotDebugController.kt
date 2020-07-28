@@ -122,8 +122,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     }
 
     @Configuration
-    class SecurityConfig(
-    ) : WebSecurityConfigurerAdapter() {
+    class SecurityConfig : WebSecurityConfigurerAdapter() {
 
         @Bean
         @ConfigurationProperties("chaos")
