@@ -1,63 +1,103 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnreachable
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 
-class AdsOutgoingPermissionsTest : OutgoingPermissionsTest() {
+class AdsOutgoingPermissionsTest : OutgoingPermissionsTest {
+
     companion object {
 
-        private val properties = mapOf("envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true)
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(
-                envoyConfig = Ads,
-                appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
-            )
-        }
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, config = Ads)
     }
+
+    override fun consul() = consul
+
+    override fun service() = service
+
+    override fun envoy() = envoy
 }
 
-class XdsOutgoingPermissionsTest : OutgoingPermissionsTest() {
+class XdsOutgoingPermissionsTest : OutgoingPermissionsTest {
+
     companion object {
 
-        private val properties = mapOf("envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true)
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(
-                envoyConfig = Xds,
-                appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
-            )
-        }
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, config = Xds)
     }
+
+    override fun consul() = consul
+
+    override fun service() = service
+
+    override fun envoy() = envoy
 }
 
-abstract class OutgoingPermissionsTest : EnvoyControlTestConfiguration() {
+interface OutgoingPermissionsTest {
+
+    fun consul(): ConsulExtension
+
+    fun service(): EchoServiceExtension
+
+    fun envoy(): EnvoyExtension
 
     @Test
     fun `should only allow access to resources from node_metadata_dependencies`() {
         // given
-        registerService(name = "not-accessible", container = echoContainer)
-        registerService(name = "echo")
+        consul().server.operations.registerService(service(), name = "not-accessible")
+        consul().server.operations.registerService(service(), name = "echo")
 
         untilAsserted {
             // when
-            val unreachableResponse = callService(service = "not-accessible")
-            val unregisteredResponse = callService(service = "unregistered")
-            val reachableResponse = callEcho()
-            val reachableDomainResponse = callDomain("www.example.com")
-            val unreachableDomainResponse = callDomain("www.another-example.com")
+            val unreachableResponse = envoy().egressOperations.callService("not-accessible")
+            val unregisteredResponse = envoy().egressOperations.callService("unregistered")
+            val reachableResponse = envoy().egressOperations.callService("echo")
+            val reachableDomainResponse = envoy().egressOperations.callDomain("www.example.com")
+            val unreachableDomainResponse = envoy().egressOperations.callDomain("www.another-example.com")
 
             // then
-            assertThat(reachableResponse).isOk().isFrom(echoContainer)
+            assertThat(reachableResponse).isOk().isFrom(service())
             assertThat(reachableDomainResponse).isOk()
             assertThat(unreachableDomainResponse).isUnreachable()
             assertThat(unreachableResponse).isUnreachable()

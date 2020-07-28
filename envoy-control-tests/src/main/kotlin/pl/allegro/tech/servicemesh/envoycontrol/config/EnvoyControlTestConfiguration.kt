@@ -311,17 +311,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             return request.execute()
         }
 
-        fun callServiceWithOriginalDst(originalDstUrl: String, envoyUrl: String): Response =
-            defaultClient.newCall(
-                Request.Builder()
-                    .get()
-                    .header("Host", "envoy-original-destination")
-                    .header("x-envoy-original-dst-host", originalDstUrl)
-                    .url(envoyUrl)
-                    .build()
-            )
-                .execute()
-
         fun callLocalService(
             endpoint: String,
             headers: Headers,

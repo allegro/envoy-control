@@ -24,7 +24,7 @@ class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
     }
 
     override fun afterEach(context: ExtensionContext) {
-        server.consulOperations.deregisterAll()
+        server.operations.deregisterAll()
     }
 
     override fun afterAll(context: ExtensionContext) {

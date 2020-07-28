@@ -109,7 +109,7 @@ class DcCutOffTest : ReliabilityTest() {
         from: List<ConsulSetup>,
         operation: ModifyConnection
     ) {
-        val peers = to[0].consulOperations.peers().map { ip -> ip.split(":")[0] }
+        val peers = to[0].operations.peers().map { ip -> ip.split(":")[0] }
         peers.forEach { ip ->
             from.forEach { consul ->
                 if (operation == ModifyConnection.BLOCK) {
