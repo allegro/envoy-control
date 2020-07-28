@@ -144,7 +144,6 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
                 .csrf().disable()
                 .formLogin().disable()
         }
-
     }
 
     class BasicAuthUser {
