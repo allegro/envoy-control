@@ -151,8 +151,13 @@ class AdminRouteProperties {
 
 class StatusRouteProperties {
     var enabled = false
-    var pathPrefix = "/status/"
+    var endpoints: List<EndpointMatch> = mutableListOf(EndpointMatch())
     var createVirtualCluster = false
+}
+
+class EndpointMatch {
+    var path = "/status/"
+    var matchingType = "PATH_PREFIX"
 }
 
 class AdminDisableProperties {

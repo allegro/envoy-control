@@ -17,13 +17,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.protocol.TlsUtils
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
-import pl.allegro.tech.servicemesh.envoycontrol.protocol.TlsUtils
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 
 class RBACFilterFactory(
@@ -179,13 +179,18 @@ class RBACFilterFactory(
 
     private fun createStatusRoutePolicy(statusRouteProperties: StatusRouteProperties): Map<String, Policy> {
         return if (statusRouteProperties.enabled) {
-            val permission = rBACFilterPermissions.createPathPermission(
-                path = statusRouteProperties.pathPrefix,
-                matchingType = PathMatchingType.PATH_PREFIX
-            )
+            val permissions = statusRouteProperties.endpoints
+                .map {
+                    val pathMatchingType = PathMatchingType.valueOf(it.matchingType)
+                    rBACFilterPermissions.createPathPermission(
+                        path = it.path,
+                        matchingType = pathMatchingType
+                    ).build()
+                }
+                .asIterable()
             val policy = Policy.newBuilder()
                 .addPrincipals(anyPrincipal)
-                .addPermissions(permission)
+                .addPermissions(anyOf(permissions = permissions))
                 .build()
             mapOf(STATUS_ROUTE_POLICY_NAME to policy)
         } else {
@@ -227,7 +232,7 @@ class RBACFilterFactory(
         val matching = incomingPermissionsProperties.selectorMatching[client.name]
         if (matching == null && client.selector != null) {
             logger.warn("No selector matching found for client '${client.name}' with selector '${client.selector}' " +
-                    "in EC properties. Source IP based authentication will not contain additional matching.")
+                "in EC properties. Source IP based authentication will not contain additional matching.")
             return null
         }
 
@@ -246,12 +251,12 @@ class RBACFilterFactory(
     private fun tlsPrincipals(tlsProperties: TlsAuthenticationProperties, client: String): List<Principal> {
         val principalName = TlsUtils.resolveSanUri(client, tlsProperties.sanUriFormat)
         return listOf(Principal.newBuilder().setAuthenticated(
-                Principal.Authenticated.newBuilder()
-                        .setPrincipalName(StringMatcher.newBuilder()
-                                .setExact(principalName)
-                                .build()
-                        )
-                ).build()
+            Principal.Authenticated.newBuilder()
+                .setPrincipalName(StringMatcher.newBuilder()
+                    .setExact(principalName)
+                    .build()
+                )
+        ).build()
         )
     }
 
@@ -263,9 +268,9 @@ class RBACFilterFactory(
                 val (ip, prefixLength) = ipWithPrefix.split("/")
 
                 Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
-                        .setAddressPrefix(ip)
-                        .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
-                        .build()
+                    .setAddressPrefix(ip)
+                    .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
+                    .build()
             }
 
             Principal.newBuilder().setOrIds(Principal.Set.newBuilder().addAllIds(principals).build()).build()
@@ -296,10 +301,10 @@ class RBACFilterFactory(
             }
         }.orEmpty().map { address ->
             Principal.newBuilder()
-                    .setSourceIp(CidrRange.newBuilder()
-                            .setAddressPrefix(address.socketAddress.address)
-                            .setPrefixLen(EXACT_IP_MASK).build())
-                    .build()
+                .setSourceIp(CidrRange.newBuilder()
+                    .setAddressPrefix(address.socketAddress.address)
+                    .setPrefixLen(EXACT_IP_MASK).build())
+                .build()
         }
 
         return if (principals.isNotEmpty()) {
@@ -316,11 +321,11 @@ class RBACFilterFactory(
     ): Principal {
         return if (selectorMatching.header.isNotEmpty()) {
             val additionalMatchingPrincipal = Principal.newBuilder()
-                    .setHeader(HeaderMatcher.newBuilder().setName(selectorMatching.header).setExactMatch(selector))
-                    .build()
+                .setHeader(HeaderMatcher.newBuilder().setName(selectorMatching.header).setExactMatch(selector))
+                .build()
 
             Principal.newBuilder().setAndIds(Principal.Set.newBuilder().addAllIds(
-                    listOf(sourceIpPrincipal, additionalMatchingPrincipal)
+                listOf(sourceIpPrincipal, additionalMatchingPrincipal)
             ).build()).build()
         } else {
             sourceIpPrincipal
@@ -342,7 +347,7 @@ class RBACFilterFactory(
                 .build()
 
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac")
-                    .setTypedConfig(Any.pack(rbacFilter)).build()
+                .setTypedConfig(Any.pack(rbacFilter)).build()
         } else {
             null
         }
