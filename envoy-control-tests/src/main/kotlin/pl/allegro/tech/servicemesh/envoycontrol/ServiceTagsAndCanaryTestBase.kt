@@ -20,11 +20,11 @@ interface ServiceTagsAndCanaryTestBase {
 
         @JvmField
         @RegisterExtension
-        val loremCanaryService = EchoServiceExtension(shared = false)
+        val loremCanaryService = EchoServiceExtension()
 
         @JvmField
         @RegisterExtension
-        val ipsumRegularService = EchoServiceExtension(shared = false)
+        val ipsumRegularService = EchoServiceExtension()
     }
 
     fun consul(): ConsulExtension
@@ -115,7 +115,7 @@ interface ServiceTagsAndCanaryTestBase {
     }
 
     fun callStats() = CallStats(listOf(
-            loremCanaryService.container, loremRegularService.container, ipsumRegularService.container
+            loremCanaryService.container(), loremRegularService.container(), ipsumRegularService.container()
     ))
 
     fun callEchoServiceRepeatedly(
@@ -140,9 +140,9 @@ interface ServiceTagsAndCanaryTestBase {
     }
 
     val CallStats.loremCanaryHits: Int
-        get() = this.hits(loremCanaryService.container)
+        get() = this.hits(loremCanaryService.container())
     val CallStats.loremRegularHits: Int
-        get() = this.hits(loremRegularService.container)
+        get() = this.hits(loremRegularService.container())
     val CallStats.ipsumRegularHits: Int
-        get() = this.hits(ipsumRegularService.container)
+        get() = this.hits(ipsumRegularService.container())
 }

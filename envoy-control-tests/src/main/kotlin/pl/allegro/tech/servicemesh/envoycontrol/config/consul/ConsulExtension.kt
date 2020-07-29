@@ -16,7 +16,7 @@ class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
     }
 
     val server = SHARED_CONSUL
-    var started = false
+    private var started = false
 
     override fun beforeAll(context: ExtensionContext) {
         if (started) {
