@@ -1,14 +1,12 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
 import org.junit.jupiter.api.extension.ExtensionContext
-import java.util.LinkedList
-import java.util.Queue
+import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerPool
 
 class EchoServiceExtension : ServiceExtension<EchoContainer> {
 
     companion object {
-        private val freeContainers: Queue<EchoContainer> = LinkedList()
-        private val usedContainers = mutableMapOf<EchoServiceExtension, EchoContainer>()
+        private val pool = ContainerPool<EchoServiceExtension, EchoContainer> { EchoContainer() }
     }
 
     var started = false
@@ -21,15 +19,11 @@ class EchoServiceExtension : ServiceExtension<EchoContainer> {
             return
         }
 
-        container = freeContainers.poll()?: EchoContainer()
-        usedContainers[this] = container!!
-
-        container!!.start()
+        container = pool.acquire(this)
         started = true
     }
 
     override fun afterAll(context: ExtensionContext) {
-        val container = usedContainers.remove(this)!!
-        freeContainers.offer(container)
+        pool.release(this)
     }
 }
