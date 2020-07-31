@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import org.apache.http.conn.ssl.NoopHostnameVerifier
 import org.apache.http.conn.ssl.TrustAllStrategy
 import org.apache.http.ssl.SSLContextBuilder
 import org.assertj.core.api.Assertions.assertThat
@@ -73,8 +74,9 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             .build()
 
         private val insecureClient = OkHttpClient.Builder()
-                // envoys default timeout is 15 seconds while OkHttp is 10
+                .hostnameVerifier(NoopHostnameVerifier())
                 .sslSocketFactory(getInsecureSSLSocketFactory(), getInsecureTrustManager())
+                // envoys default timeout is 15 seconds while OkHttp is 10
                 .readTimeout(Duration.ofSeconds(20))
                 .build()
 
