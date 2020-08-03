@@ -136,7 +136,7 @@ internal class RBACFilterFactoryTest {
             StatusRouteProperties().also { it.enabled = true; it.endpoints =
                 listOf(
                     EndpointMatch(),
-                    EndpointMatch().also { endpoint -> endpoint.path = "/example-endpoint/"; endpoint.matchingType = "PATH" }
+                    EndpointMatch().also { endpoint -> endpoint.path = "/example-endpoint/"; endpoint.matchingType = PathMatchingType.PATH }
                 )
             }
         )

@@ -11,6 +11,7 @@ import io.envoyproxy.envoy.api.v2.route.RouteAction
 import io.envoyproxy.envoy.api.v2.route.RouteMatch
 import io.envoyproxy.envoy.api.v2.route.VirtualCluster
 import io.envoyproxy.envoy.api.v2.route.VirtualHost
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
@@ -40,8 +41,28 @@ class EnvoyIngressRoutesFactory(
     private val endpointsPrefixMatcher = HeaderMatcher.newBuilder()
             .setName(":path").setPrefixMatch("/").build()
 
-    private val statusPrefixMatcher: List<HeaderMatcher> = statusEndpointsMatch.map { HeaderMatcher.newBuilder()
-        .setName(":path").setPrefixMatch(it.path).build() }
+    private val statusPrefixMatcher: List<HeaderMatcher> = statusEndpointsMatch.map {
+        if (it.matchingType == PathMatchingType.PATH_PREFIX) {
+            HeaderMatcher.newBuilder().setName(":path").setPrefixMatch(it.path).build()
+        } else {
+            HeaderMatcher.newBuilder().setName(":path").setExactMatch(it.path).build()
+        }
+    }
+
+    private val endpoints = listOf(
+        VirtualCluster.newBuilder()
+            .addHeaders(endpointsPrefixMatcher)
+            .setName("endpoints")
+            .build()
+    )
+
+    private val statusClusters = statusPrefixMatcher
+        .map {
+            VirtualCluster.newBuilder()
+                .addHeaders(it)
+                .setName("status")
+                .build()
+        }
 
     private fun retryPolicy(retryProps: RetryPolicyProperties): RetryPolicy = RetryPolicy.newBuilder().apply {
         retryOn = retryProps.retryOn.joinToString(separator = ",")
@@ -108,20 +129,7 @@ class EnvoyIngressRoutesFactory(
     fun createSecuredIngressRouteConfig(proxySettings: ProxySettings): RouteConfiguration {
         val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
             true -> {
-                val endpoints = listOf(
-                    VirtualCluster.newBuilder()
-                        .addHeaders(endpointsPrefixMatcher)
-                        .setName("endpoints")
-                        .build()
-                )
-                val statusRoutes = statusPrefixMatcher
-                    .map {
-                        VirtualCluster.newBuilder()
-                            .addHeaders(it)
-                            .setName("status")
-                            .build()
-                    }
-                statusRoutes + endpoints
+                statusClusters + endpoints
             }
             false ->
                 emptyList()

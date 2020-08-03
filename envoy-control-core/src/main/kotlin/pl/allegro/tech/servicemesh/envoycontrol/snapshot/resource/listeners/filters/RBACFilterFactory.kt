@@ -14,7 +14,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
-import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.TlsUtils
@@ -181,16 +180,14 @@ class RBACFilterFactory(
         return if (statusRouteProperties.enabled) {
             val permissions = statusRouteProperties.endpoints
                 .map {
-                    val pathMatchingType = PathMatchingType.valueOf(it.matchingType)
                     rBACFilterPermissions.createPathPermission(
                         path = it.path,
-                        matchingType = pathMatchingType
+                        matchingType = it.matchingType
                     ).build()
                 }
-                .asIterable()
             val policy = Policy.newBuilder()
                 .addPrincipals(anyPrincipal)
-                .addPermissions(anyOf(permissions = permissions))
+                .addPermissions(anyOf(permissions))
                 .build()
             mapOf(STATUS_ROUTE_POLICY_NAME to policy)
         } else {
