@@ -8,10 +8,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.RedirectServiceContainer
 import java.net.UnknownHostException
 
@@ -39,7 +39,7 @@ class InternalRedirectTest {
 
         @JvmField
         @RegisterExtension
-        val redirectService = ServiceExtension(RedirectServiceContainer(redirectTo = "service-1"))
+        val redirectService = GenericServiceExtension(RedirectServiceContainer(redirectTo = "service-1"))
     }
 
     @Test

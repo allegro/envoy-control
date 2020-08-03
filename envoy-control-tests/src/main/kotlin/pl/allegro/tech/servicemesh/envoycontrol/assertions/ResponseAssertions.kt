@@ -19,7 +19,7 @@ fun ObjectAssert<Response>.isUnreachable(): ObjectAssert<Response> {
 
 fun ObjectAssert<Response>.isFrom(echoServiceExtension: EchoServiceExtension): ObjectAssert<Response> {
     matches {
-        it.body()?.use { it.string().contains(echoServiceExtension.container.response) } ?: false
+        it.body()?.use { it.string().contains(echoServiceExtension.container().response) } ?: false
     }
     return this
 }
