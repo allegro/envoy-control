@@ -22,16 +22,9 @@ import io.envoyproxy.envoy.config.rbac.v2.RBAC
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
-import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.jackson.JsonComponent
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
-import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
-import org.springframework.security.config.annotation.web.builders.HttpSecurity
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
@@ -66,11 +59,6 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
                 HttpStatus.OK
             )
         }
-    }
-
-    @PostMapping("/chaos/fault/read_network_delay")
-    fun readNetworkDelay(): HttpStatus {
-        return HttpStatus.OK
     }
 
     @GetMapping("/snapshot-global")
@@ -119,36 +107,6 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         override fun serialize(message: Message, gen: JsonGenerator, serializers: SerializerProvider) {
             gen.writeRawValue(printer.print(message))
         }
-    }
-
-    @Configuration
-    class SecurityConfig : WebSecurityConfigurerAdapter() {
-
-        @Bean
-        @ConfigurationProperties("chaos")
-        fun basicAuthUser() = BasicAuthUser()
-
-        override fun configure(auth: AuthenticationManagerBuilder) {
-            auth.inMemoryAuthentication()
-                .withUser(basicAuthUser().username)
-                .password(basicAuthUser().password)
-                .roles("CHAOS")
-        }
-
-        override fun configure(http: HttpSecurity) {
-            http.httpBasic()
-                .and()
-                .authorizeRequests()
-                .antMatchers(HttpMethod.POST, "/chaos/fault/**").hasRole("CHAOS")
-                .and()
-                .csrf().disable()
-                .formLogin().disable()
-        }
-    }
-
-    class BasicAuthUser {
-        var username: String = "username"
-        var password: String = "{noop}password"
     }
 
     class SnapshotNotFoundException : RuntimeException("snapshot missing")
