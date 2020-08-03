@@ -22,7 +22,7 @@ class EnvoyExtension(
 
     val container: EnvoyContainer = EnvoyContainer(
         config,
-        { localService?.container?.ipAddress() ?: "127.0.0.1" },
+        { localService?.container()?.ipAddress() ?: "127.0.0.1" },
         envoyControl.app.grpcPort
     ).withNetwork(Network.SHARED)
 
@@ -30,9 +30,7 @@ class EnvoyExtension(
     val egressOperations: EgressOperations = EgressOperations(container)
 
     override fun beforeAll(context: ExtensionContext) {
-        if (localService != null && !localService.started) {
-            localService.beforeAll(context)
-        }
+        localService?.beforeAll(context)
 
         try {
             container.start()
