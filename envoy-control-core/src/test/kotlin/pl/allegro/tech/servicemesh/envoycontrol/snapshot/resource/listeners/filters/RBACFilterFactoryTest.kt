@@ -116,7 +116,7 @@ internal class RBACFilterFactoryTest {
         // given
         val rbacFilterFactoryWithStatusRoute = RBACFilterFactory(
                 IncomingPermissionsProperties().also { it.enabled = true },
-                StatusRouteProperties().also { it.enabled = true }
+                StatusRouteProperties().also { it.enabled = true; it.endpoints = mutableListOf(EndpointMatch()) }
         )
         val incomingPermission = Incoming(permissionsEnabled = true)
         val expectedRbacBuilder = getRBACFilter(expectedStatusRoutePermissionsJson)
@@ -134,7 +134,7 @@ internal class RBACFilterFactoryTest {
         val rbacFilterFactoryWithStatusRoute = RBACFilterFactory(
             IncomingPermissionsProperties().also { it.enabled = true },
             StatusRouteProperties().also { it.enabled = true; it.endpoints =
-                listOf(
+                mutableListOf(
                     EndpointMatch(),
                     EndpointMatch().also { endpoint -> endpoint.path = "/example-endpoint/"; endpoint.matchingType = PathMatchingType.PATH }
                 )
