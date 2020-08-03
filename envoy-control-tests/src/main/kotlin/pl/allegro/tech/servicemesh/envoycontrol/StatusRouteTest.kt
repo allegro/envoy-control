@@ -11,7 +11,7 @@ class StatusRouteTest : EnvoyControlTestConfiguration() {
     companion object {
         private val properties = mapOf(
                 "envoy-control.envoy.snapshot.routes.status.enabled" to true,
-                "envoy-control.envoy.snapshot.routes.status.endpoints" to listOf(EndpointMatch().also { it.path = "/my-status/" }),
+                "envoy-control.envoy.snapshot.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/my-status/" }),
                 "envoy-control.envoy.snapshot.routes.status.createVirtualCluster" to true
         )
 
