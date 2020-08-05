@@ -8,7 +8,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulServerConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulSetup
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.io.File
@@ -40,8 +40,8 @@ open class BaseEnvoyTest {
         var consulAgentInDc1: ConsulSetup
         var lowRpcConsulClient: ConsulSetup
 
-        val consulOperationsInFirstDc = consulMastersInDc1[0].consulOperations
-        val consulOperationsInSecondDc = consulMastersInDc2[0].consulOperations
+        val consulOperationsInFirstDc = consulMastersInDc1[0].operations
+        val consulOperationsInSecondDc = consulMastersInDc2[0].operations
         val consulHttpPort = consulMastersInDc1[0].port
         val consul2HttpPort = consulMastersInDc2[0].port
         val consul: ConsulContainer = consulMastersInDc1[0].container
@@ -153,7 +153,7 @@ open class BaseEnvoyTest {
         fun deregisterAllServices() {
             consulOperationsInFirstDc.deregisterAll()
             consulOperationsInSecondDc.deregisterAll()
-            consulAgentInDc1.consulOperations.deregisterAll()
+            consulAgentInDc1.operations.deregisterAll()
             sleep(1000) // todo remove it?
         }
     }

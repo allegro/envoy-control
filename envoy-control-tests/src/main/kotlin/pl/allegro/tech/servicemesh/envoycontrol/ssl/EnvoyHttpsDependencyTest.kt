@@ -6,9 +6,9 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.HttpsEchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.HttpsEchoResponse
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.hasSNI
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoResponse
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.hasSNI
 
 class EnvoyCurrentVersionHttpsDependencyTest : EnvoyHttpsDependencyTest() {
     companion object {

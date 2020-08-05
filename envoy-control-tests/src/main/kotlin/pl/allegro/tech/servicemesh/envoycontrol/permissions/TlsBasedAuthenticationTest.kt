@@ -12,8 +12,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfigura
 import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
-import javax.net.ssl.SSLHandshakeException
-import javax.net.ssl.SSLPeerUnverifiedException
 
 internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
@@ -224,30 +222,20 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     @SuppressWarnings("SwallowedException")
-    fun `should reject client without a certificate`() {
+    fun `should reject client without a certificate during RBAC verification`() {
         untilAsserted {
-            var invalidResponse: Response? = null
-            try {
-                // when
-                invalidResponse = callEcho2IngressUsingClientWithoutCertificate()
+            // when
+            val invalidResponse = callEcho2IngressUsingClientWithoutCertificate()
 
-                // then
-                assertThat(invalidResponse).isUnreachable()
-            } catch (_: SSLPeerUnverifiedException) {
-                assertEcho2EnvoyReportedNoPeerCertificateError()
-            } catch (_: SSLHandshakeException) {
-                assertEcho2EnvoyReportedNoPeerCertificateError()
-            }
+            // then
+            val sanValidationFailure = echo2Envoy.admin().statValue("http.ingress_https.rbac.denied")?.toInt()
+            assertThat(sanValidationFailure).isGreaterThan(0)
+            assertThat(invalidResponse).isForbidden()
         }
     }
 
-    private fun assertEcho2EnvoyReportedNoPeerCertificateError() {
-        val sslHandshakeErrors = echo2Envoy.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_no_cert")?.toInt()
-        assertThat(sslHandshakeErrors).isGreaterThan(0)
-    }
-
     private fun callEcho2IngressUsingClientWithoutCertificate(): Response {
-        return callServiceInsecure(address = echo2Envoy.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
+        return callServiceInsecure(address = echo2Envoy.ingressListenerUrl(secured = true) + "/secured_endpoint/", service = "echo2")
     }
 
     private fun callEcho2FromEcho1() = call(service = "echo2", path = "/secured_endpoint", from = echo1Envoy)

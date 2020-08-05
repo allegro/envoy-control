@@ -61,7 +61,7 @@ internal class ConsulRpcLimitReachedTest : ReliabilityTest() {
 
     private fun rpcLimitReached() {
         untilAsserted {
-            val limitReached = burstRpcLimit(lowRpcConsulClient.consulOperations)
+            val limitReached = burstRpcLimit(lowRpcConsulClient.operations)
             assertThat(limitReached).isEqualTo(true)
         }
     }

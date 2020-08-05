@@ -12,5 +12,5 @@ class ConsulSetup(
 ) {
     val container: ConsulContainer = ConsulContainer(consulConfig.dc, port, consulConfig.id, consulConfig)
         .withNetwork(network)
-    val consulOperations = ConsulOperations(port)
+    val operations = ConsulOperations(port)
 }

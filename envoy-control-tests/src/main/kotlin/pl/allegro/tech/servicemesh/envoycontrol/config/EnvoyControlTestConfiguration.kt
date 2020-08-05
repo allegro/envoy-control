@@ -6,15 +6,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import org.apache.http.conn.ssl.TrustAllStrategy
-import org.apache.http.ssl.SSLContextBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.springframework.boot.actuate.health.Status
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EgressOperations
@@ -24,14 +21,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.Health
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
-import java.security.KeyStore
 import java.time.Duration
 import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLSocketFactory
-import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.X509TrustManager
 import kotlin.random.Random
 
 data class EnvoyConfig(
@@ -67,16 +61,8 @@ val RandomConfigFile =
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {
         private val logger by logger()
-        private val defaultClient = OkHttpClient.Builder()
-            // envoys default timeout is 15 seconds while OkHttp is 10
-            .readTimeout(Duration.ofSeconds(20))
-            .build()
-
-        private val insecureClient = OkHttpClient.Builder()
-                // envoys default timeout is 15 seconds while OkHttp is 10
-                .sslSocketFactory(getInsecureSSLSocketFactory(), getInsecureTrustManager())
-                .readTimeout(Duration.ofSeconds(20))
-                .build()
+        private val defaultClient = ClientsFactory.createClient()
+        private val insecureClient = ClientsFactory.createInsecureClient()
 
         lateinit var envoyContainer1: EnvoyContainer
         lateinit var envoyContainer2: EnvoyContainer
@@ -256,20 +242,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             pathAndQuery: String = ""
         ): Response = EgressOperations(fromEnvoy).callService(service, headers, pathAndQuery)
 
-        private fun getInsecureSSLSocketFactory(): SSLSocketFactory {
-            val builder = SSLContextBuilder()
-            builder.loadTrustMaterial(null, TrustAllStrategy())
-            return builder.build().socketFactory
-        }
-
-        private fun getInsecureTrustManager(): X509TrustManager {
-            val trustManagerFactory: TrustManagerFactory = TrustManagerFactory.getInstance(
-                    TrustManagerFactory.getDefaultAlgorithm())
-            trustManagerFactory.init(null as KeyStore?)
-            val trustManagers = trustManagerFactory.trustManagers
-            return trustManagers[0] as X509TrustManager
-        }
-
         fun callServiceInsecure(
             service: String,
             address: String = envoyContainer1.egressListenerUrl(),
@@ -310,17 +282,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
             return request.execute()
         }
-
-        fun callServiceWithOriginalDst(originalDstUrl: String, envoyUrl: String): Response =
-            defaultClient.newCall(
-                Request.Builder()
-                    .get()
-                    .header("Host", "envoy-original-destination")
-                    .header("x-envoy-original-dst-host", originalDstUrl)
-                    .url(envoyUrl)
-                    .build()
-            )
-                .execute()
 
         fun callLocalService(
             endpoint: String,

@@ -8,6 +8,10 @@ envoy-control:
     consul:
       host: localhost
 
+chaos:
+  username: "user"
+  password: "{noop}pass"
+
 management:
   endpoint:
     metrics.enabled: true
