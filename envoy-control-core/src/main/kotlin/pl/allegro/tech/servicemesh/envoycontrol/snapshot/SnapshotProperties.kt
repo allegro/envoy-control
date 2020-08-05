@@ -74,6 +74,7 @@ class SelectorMatching {
 }
 
 class TlsAuthenticationProperties {
+    var tlsContextMetadataMatchKey = "acceptMTLS"
     var protocol = TlsProtocolProperties()
     /** if true, a request without a cert will be rejected during handshake and will not reach RBAC filter */
     var requireClientCertificate: Boolean = false
