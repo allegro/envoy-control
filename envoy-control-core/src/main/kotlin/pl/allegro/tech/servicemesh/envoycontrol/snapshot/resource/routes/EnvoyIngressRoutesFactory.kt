@@ -41,11 +41,10 @@ class EnvoyIngressRoutesFactory(
     private val endpointsPrefixMatcher = HeaderMatcher.newBuilder()
             .setName(":path").setPrefixMatch("/").build()
 
-    private val statusPrefixMatcher: List<HeaderMatcher> = statusEndpointsMatch.map {
-        if (it.matchingType == PathMatchingType.PATH_PREFIX) {
-            HeaderMatcher.newBuilder().setName(":path").setPrefixMatch(it.path).build()
-        } else {
-            HeaderMatcher.newBuilder().setName(":path").setExactMatch(it.path).build()
+    private val statusMatcher: List<HeaderMatcher> = statusEndpointsMatch.map {
+        when (it.matchingType) {
+            PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder().setName(":path").setPrefixMatch(it.path).build()
+            PathMatchingType.PATH -> HeaderMatcher.newBuilder().setName(":path").setExactMatch(it.path).build()
         }
     }
 
@@ -56,7 +55,7 @@ class EnvoyIngressRoutesFactory(
             .build()
     )
 
-    private val statusClusters = statusPrefixMatcher
+    private val statusClusters = statusMatcher
         .map {
             VirtualCluster.newBuilder()
                 .addHeaders(it)
