@@ -9,9 +9,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.echo.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 
 internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
