@@ -14,16 +14,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
-import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.protocol.TlsUtils
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
-import pl.allegro.tech.servicemesh.envoycontrol.protocol.TlsUtils
 import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
 
 class RBACFilterFactory(
@@ -179,13 +178,16 @@ class RBACFilterFactory(
 
     private fun createStatusRoutePolicy(statusRouteProperties: StatusRouteProperties): Map<String, Policy> {
         return if (statusRouteProperties.enabled) {
-            val permission = rBACFilterPermissions.createPathPermission(
-                path = statusRouteProperties.pathPrefix,
-                matchingType = PathMatchingType.PATH_PREFIX
-            )
+            val permissions = statusRouteProperties.endpoints
+                .map {
+                    rBACFilterPermissions.createPathPermission(
+                        path = it.path,
+                        matchingType = it.matchingType
+                    ).build()
+                }
             val policy = Policy.newBuilder()
                 .addPrincipals(anyPrincipal)
-                .addPermissions(permission)
+                .addPermissions(anyOf(permissions))
                 .build()
             mapOf(STATUS_ROUTE_POLICY_NAME to policy)
         } else {

@@ -4,6 +4,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.auth.TlsParameters
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import java.time.Duration
 
 class SnapshotProperties {
@@ -153,8 +154,13 @@ class AdminRouteProperties {
 
 class StatusRouteProperties {
     var enabled = false
-    var pathPrefix = "/status/"
+    var endpoints: MutableList<EndpointMatch> = mutableListOf()
     var createVirtualCluster = false
+}
+
+class EndpointMatch {
+    var path = "/status/"
+    var matchingType: PathMatchingType = PathMatchingType.PATH_PREFIX
 }
 
 class AdminDisableProperties {

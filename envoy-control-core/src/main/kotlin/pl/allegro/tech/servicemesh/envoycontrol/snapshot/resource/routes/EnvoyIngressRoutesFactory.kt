@@ -11,8 +11,10 @@ import io.envoyproxy.envoy.api.v2.route.RouteAction
 import io.envoyproxy.envoy.api.v2.route.RouteMatch
 import io.envoyproxy.envoy.api.v2.route.VirtualCluster
 import io.envoyproxy.envoy.api.v2.route.VirtualHost
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
@@ -34,13 +36,32 @@ class EnvoyIngressRoutesFactory(
             .setIdleTimeout(timeoutIdle)
     }
 
-    private val statusPathPrefix = properties.routes.status.pathPrefix
+    private val statusEndpointsMatch: List<EndpointMatch> = properties.routes.status.endpoints
 
     private val endpointsPrefixMatcher = HeaderMatcher.newBuilder()
             .setName(":path").setPrefixMatch("/").build()
 
-    private val statusPrefixMatcher = HeaderMatcher.newBuilder()
-            .setName(":path").setPrefixMatch(statusPathPrefix).build()
+    private val statusMatcher: List<HeaderMatcher> = statusEndpointsMatch.map {
+        when (it.matchingType) {
+            PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder().setName(":path").setPrefixMatch(it.path).build()
+            PathMatchingType.PATH -> HeaderMatcher.newBuilder().setName(":path").setExactMatch(it.path).build()
+        }
+    }
+
+    private val endpoints = listOf(
+        VirtualCluster.newBuilder()
+            .addHeaders(endpointsPrefixMatcher)
+            .setName("endpoints")
+            .build()
+    )
+
+    private val statusClusters = statusMatcher
+        .map {
+            VirtualCluster.newBuilder()
+                .addHeaders(it)
+                .setName("status")
+                .build()
+        }
 
     private fun retryPolicy(retryProps: RetryPolicyProperties): RetryPolicy = RetryPolicy.newBuilder().apply {
         retryOn = retryProps.retryOn.joinToString(separator = ",")
@@ -107,16 +128,7 @@ class EnvoyIngressRoutesFactory(
     fun createSecuredIngressRouteConfig(proxySettings: ProxySettings): RouteConfiguration {
         val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
             true -> {
-                listOf(
-                    VirtualCluster.newBuilder()
-                        .addHeaders(statusPrefixMatcher)
-                        .setName("status")
-                        .build(),
-                    VirtualCluster.newBuilder()
-                        .addHeaders(endpointsPrefixMatcher)
-                        .setName("endpoints")
-                        .build()
-                )
+                statusClusters + endpoints
             }
             false ->
                 emptyList()

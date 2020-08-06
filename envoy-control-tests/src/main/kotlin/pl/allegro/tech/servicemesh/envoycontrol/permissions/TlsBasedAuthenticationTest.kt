@@ -7,10 +7,11 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 
 internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
@@ -21,8 +22,9 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
             "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo"),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
-            "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
+            "envoy-control.envoy.snapshot.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
             "envoy-control.envoy.snapshot.routes.status.enabled" to true,
+            "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
             // Round robin gives much more predictable results in tests than LEAST_REQUEST
             "envoy-control.envoy.snapshot.load-balancing.policy" to "ROUND_ROBIN"
         )
