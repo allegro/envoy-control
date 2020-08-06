@@ -25,7 +25,6 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
             "envoy-control.envoy.snapshot.routes.status.enabled" to true,
             "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
-            "envoy-control.envoy.snapshot.routes.status.enabled" to true,
             // Round robin gives much more predictable results in tests than LEAST_REQUEST
             "envoy-control.envoy.snapshot.load-balancing.policy" to "ROUND_ROBIN"
         )
