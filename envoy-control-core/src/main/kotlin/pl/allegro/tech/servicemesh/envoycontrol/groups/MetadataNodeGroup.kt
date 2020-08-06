@@ -15,7 +15,11 @@ class MetadataNodeGroup(
 ) : NodeGroup<Group> {
     private val logger by logger()
 
-    override fun hash(node: Node): Group = createGroup(node)
+    override fun hashV2(node: Node): Group = createGroup(node)
+
+    override fun hashV3(node: io.envoyproxy.envoy.config.core.v3.Node?): Group {
+        TODO("Not yet implemented")
+    }
 
     @SuppressWarnings("ReturnCount")
     private fun metadataToListenersHostPort(

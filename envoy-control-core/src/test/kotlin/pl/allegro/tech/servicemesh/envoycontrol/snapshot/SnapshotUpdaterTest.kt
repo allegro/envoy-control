@@ -2,11 +2,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.Response
-import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.StatusInfo
+import io.envoyproxy.controlplane.cache.V2Snapshot
 import io.envoyproxy.controlplane.cache.Watch
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest
+import io.envoyproxy.controlplane.cache.XdsRequest
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
@@ -394,7 +394,7 @@ class SnapshotUpdaterTest {
     class FailingMockCache : MockCache() {
         var called = 0
 
-        override fun setSnapshot(group: Group, snapshot: Snapshot?) {
+        override fun setSnapshot(group: Group, snapshot: V2Snapshot?) {
             if (called > 0) {
                 throw FailingMockCacheException()
             }
@@ -405,19 +405,19 @@ class SnapshotUpdaterTest {
 
     class FailingMockCacheException : RuntimeException()
 
-    open class MockCache : SnapshotCache<Group> {
-        val groups: MutableMap<Group, Snapshot?> = mutableMapOf()
+    open class MockCache : SnapshotCache<Group, V2Snapshot> {
+        val groups: MutableMap<Group, V2Snapshot?> = mutableMapOf()
         private var concurrentSetSnapshotCounter: CountDownLatch? = null
 
         override fun groups(): MutableCollection<Group> {
             return groups.keys.toMutableList()
         }
 
-        override fun getSnapshot(group: Group): Snapshot? {
+        override fun getSnapshot(group: Group): V2Snapshot? {
             return groups[group]
         }
 
-        override fun setSnapshot(group: Group, snapshot: Snapshot?) {
+        override fun setSnapshot(group: Group, snapshot: V2Snapshot?) {
             setSnapshotWait()
             groups[group] = snapshot
         }
@@ -428,7 +428,7 @@ class SnapshotUpdaterTest {
 
         override fun createWatch(
             ads: Boolean,
-            request: DiscoveryRequest,
+            request: XdsRequest,
             knownResourceNames: MutableSet<String>,
             responseConsumer: Consumer<Response>,
             hasClusterChanged: Boolean
@@ -454,31 +454,31 @@ class SnapshotUpdaterTest {
         }
     }
 
-    private fun hasSnapshot(cache: SnapshotCache<Group>, group: Group): Snapshot {
+    private fun hasSnapshot(cache: SnapshotCache<Group, V2Snapshot>, group: Group): V2Snapshot {
         val snapshot = cache.getSnapshot(group)
         assertThat(snapshot).isNotNull
         return snapshot
     }
 
-    private fun Snapshot.hasOnlyClustersFor(vararg expected: String): Snapshot {
+    private fun V2Snapshot.hasOnlyClustersFor(vararg expected: String): V2Snapshot {
         assertThat(this.clusters().resources().keys.toSet())
             .isEqualTo(expected.toSet())
         return this
     }
 
-    private fun Snapshot.hasOnlyEndpointsFor(vararg expected: String): Snapshot {
+    private fun V2Snapshot.hasOnlyEndpointsFor(vararg expected: String): V2Snapshot {
         assertThat(this.endpoints().resources().keys.toSet())
             .isEqualTo(expected.toSet())
         return this
     }
 
-    private fun Snapshot.hasOnlyEgressRoutesForClusters(vararg expected: String): Snapshot {
+    private fun V2Snapshot.hasOnlyEgressRoutesForClusters(vararg expected: String): V2Snapshot {
         assertThat(this.routes().resources()["default_routes"]!!.virtualHostsList.flatMap { it.domainsList }.toSet())
             .isEqualTo(expected.toSet() + setOf("envoy-original-destination", "*"))
         return this
     }
 
-    private fun Snapshot.withoutClusters() {
+    private fun V2Snapshot.withoutClusters() {
         assertThat(this.clusters().resources().keys).isEmpty()
     }
 
@@ -533,7 +533,7 @@ class SnapshotUpdaterTest {
         )
 
     private fun snapshotUpdater(
-        cache: SnapshotCache<Group>,
+        cache: SnapshotCache<Group, V2Snapshot>,
         properties: SnapshotProperties = SnapshotProperties(),
         groups: List<Group> = emptyList(),
         groupSnapshotScheduler: ParallelizableScheduler = DirectScheduler

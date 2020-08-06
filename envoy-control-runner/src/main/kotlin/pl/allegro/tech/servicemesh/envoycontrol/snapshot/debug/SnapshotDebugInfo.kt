@@ -38,7 +38,7 @@ data class SnapshotDebugInfo(
     val snapshot: Snapshot,
     val versions: Versions
 ) {
-    constructor(snapshot: io.envoyproxy.controlplane.cache.Snapshot) : this(
+    constructor(snapshot: io.envoyproxy.controlplane.cache.V2Snapshot) : this(
         snapshot = Snapshot(
             clusters = snapshot.clusters().resources(),
             endpoints = snapshot.endpoints().resources(),

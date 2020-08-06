@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import com.google.protobuf.util.Durations
-import io.envoyproxy.controlplane.cache.Snapshot
+import io.envoyproxy.controlplane.cache.V2Snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.api.v2.Listener
@@ -144,7 +144,7 @@ class EnvoySnapshotFactory(
         }
     }
 
-    fun getSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot): Snapshot {
+    fun getSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot): V2Snapshot {
         val groupSample = Timer.start(meterRegistry)
 
         val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
@@ -203,7 +203,7 @@ class EnvoySnapshotFactory(
     private fun newSnapshotForGroup(
         group: Group,
         globalSnapshot: GlobalSnapshot
-    ): Snapshot {
+    ): V2Snapshot {
 
         // TODO(dj): This is where serious refactoring needs to be done
         val egressRouteSpecification = getEgressRoutesSpecification(group, globalSnapshot)
@@ -253,8 +253,8 @@ class EnvoySnapshotFactory(
         routesVersion: RoutesVersion,
         listeners: List<Listener> = emptyList(),
         listenersVersion: ListenersVersion
-    ): Snapshot =
-        Snapshot.create(
+    ): V2Snapshot =
+        V2Snapshot.create(
             clusters,
             clustersVersion.value,
             endpoints,

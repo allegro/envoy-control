@@ -4,6 +4,7 @@ import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
 import com.google.protobuf.Any
 import com.google.protobuf.Message
+import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.server.serializer.ProtoResourcesSerializer
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.binder.cache.GuavaCacheMetrics
@@ -21,6 +22,7 @@ internal class CachedProtoResourcesSerializer(
         noopTimer
     }
 
+    // todo extend cache to support both api versions
     private val cache: Cache<Collection<Message>, MutableCollection<Any>> = if (reportMetrics) {
         GuavaCacheMetrics
             .monitor(
@@ -37,8 +39,12 @@ internal class CachedProtoResourcesSerializer(
             .build<Collection<Message>, MutableCollection<Any>>()
     }
 
-    override fun serialize(resources: MutableCollection<out Message>): MutableCollection<Any> = serializeTimer
-        .record(Supplier { getResources(resources) })
+    override fun serialize(
+        resources: MutableCollection<out Message>,
+        apiVersion: Resources.ApiVersion
+    ): MutableCollection<Any> {
+        return  serializeTimer.record(Supplier { getResources(resources) })
+    }
 
     private fun getResources(resources: MutableCollection<out Message>): MutableCollection<Any> {
         return cache.get(resources) {
@@ -49,7 +55,7 @@ internal class CachedProtoResourcesSerializer(
     }
 
     @Suppress("NotImplementedDeclaration")
-    override fun serialize(resource: Message?): Any {
+    override fun serialize(resource: Message?, apiVersion: Resources.ApiVersion): Any {
         throw NotImplementedError("Serializing single messages is not supported")
     }
 }

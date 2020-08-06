@@ -13,6 +13,7 @@ import com.google.protobuf.util.JsonFormat
 import com.google.protobuf.util.JsonFormat.TypeRegistry
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SnapshotCache
+import io.envoyproxy.controlplane.cache.V2Snapshot
 import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
 import io.envoyproxy.envoy.api.v2.core.Node
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config
@@ -38,7 +39,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 
 @RestController
 class SnapshotDebugController(controlPlane: ControlPlane) {
-    val cache: SnapshotCache<Group> = controlPlane.cache
+    val cache: SnapshotCache<Group, V2Snapshot> = controlPlane.cache
     val nodeGroup: NodeGroup<Group> = controlPlane.nodeGroup
     val snapshotUpdater: SnapshotUpdater = controlPlane.snapshotUpdater
 
@@ -49,7 +50,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
      */
     @PostMapping("/snapshot")
     fun snapshot(@RequestBody node: Node): ResponseEntity<SnapshotDebugInfo> {
-        val nodeHash = nodeGroup.hash(node)
+        val nodeHash = nodeGroup.hashV2(node)
         val snapshot = cache.getSnapshot(nodeHash)
         return if (snapshot == null) {
             throw SnapshotNotFoundException()

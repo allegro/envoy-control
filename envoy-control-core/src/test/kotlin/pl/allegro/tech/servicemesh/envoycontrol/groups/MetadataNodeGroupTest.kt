@@ -27,7 +27,7 @@ class MetadataNodeGroupTest {
         val node = node(serviceDependencies = setOf("*", "a", "b", "c"), ads = false)
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group).isEqualTo(AllServicesGroup(
@@ -45,7 +45,7 @@ class MetadataNodeGroupTest {
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true), accessLogFilterFactory)
 
         // when
-        val group = nodeGroup.hash(Node.newBuilder().build())
+        val group = nodeGroup.hashV2(Node.newBuilder().build())
 
         // then
         assertThat(group).isEqualTo(
@@ -63,7 +63,7 @@ class MetadataNodeGroupTest {
         val node = node(serviceDependencies = setOf("a", "b", "c"), ads = false)
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group).isEqualTo(
@@ -81,7 +81,7 @@ class MetadataNodeGroupTest {
         val node = node(serviceDependencies = setOf("*"), ads = true)
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group).isEqualTo(
@@ -99,7 +99,7 @@ class MetadataNodeGroupTest {
         val node = node(serviceDependencies = setOf("a", "b", "c"), ads = true)
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group).isEqualTo(
@@ -117,7 +117,7 @@ class MetadataNodeGroupTest {
         val node = node(serviceDependencies = setOf("a", "b", "c"), ads = true)
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group).isEqualTo(AllServicesGroup(
@@ -139,7 +139,7 @@ class MetadataNodeGroupTest {
         )
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group).isEqualTo(
@@ -157,7 +157,7 @@ class MetadataNodeGroupTest {
         val node = node(serviceDependencies = setOf("*"), ads = false, serviceName = "app1", incomingSettings = true)
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group.proxySettings.incoming).isEqualTo(Incoming())
@@ -170,7 +170,7 @@ class MetadataNodeGroupTest {
         val node = node(serviceDependencies = setOf("a", "b"), ads = true, serviceName = "app1", incomingSettings = true)
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group).isEqualTo(ServicesGroup(
@@ -187,7 +187,7 @@ class MetadataNodeGroupTest {
         val node = node(serviceDependencies = setOf("*"), ads = false, serviceName = "app1", incomingSettings = true)
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group).isEqualTo(AllServicesGroup(
@@ -205,7 +205,7 @@ class MetadataNodeGroupTest {
             responseTimeout = "777s", idleTimeout = "13.33s")
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group.proxySettings.incoming.timeoutPolicy.responseTimeout?.seconds).isEqualTo(777)
@@ -220,7 +220,7 @@ class MetadataNodeGroupTest {
             healthCheckPath = "/status/ping", healthCheckClusterName = "local_service_health_check")
 
         // when
-        val group = nodeGroup.hash(node)
+        val group = nodeGroup.hashV2(node)
 
         // then
         assertThat(group.proxySettings.incoming.healthCheck.path).isEqualTo("/status/ping")
@@ -237,7 +237,7 @@ class MetadataNodeGroupTest {
         metadata!!.putFields("access_log_filter", accessLogFilterProto("EQ:400"))
 
         // when
-        val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
+        val group = nodeGroup.hashV2(Node.newBuilder().setMetadata(metadata.build()).build())
 
         // then
         assertThat(group.listenersConfig!!.accessLogFilterSettings.statusCodeFilterSettings!!.comparisonCode).isEqualTo(400)
@@ -259,7 +259,7 @@ class MetadataNodeGroupTest {
 
         // expect
         val exception = assertThrows<NodeMetadataValidationException> {
-            nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
+            nodeGroup.hashV2(Node.newBuilder().setMetadata(metadata.build()).build())
         }
         assertThat(exception.status.description)
             .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
@@ -273,7 +273,7 @@ class MetadataNodeGroupTest {
         val metadata = createMetadataBuilderWithDefaults()
 
         // when
-        val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata?.build()).build())
+        val group = nodeGroup.hashV2(Node.newBuilder().setMetadata(metadata?.build()).build())
 
         // then
         assertThat(group.listenersConfig!!.accessLogFilterSettings.statusCodeFilterSettings).isNull()
