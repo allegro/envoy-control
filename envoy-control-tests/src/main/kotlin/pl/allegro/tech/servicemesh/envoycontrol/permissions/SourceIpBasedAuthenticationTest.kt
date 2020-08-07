@@ -12,6 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControl
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 
 internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
@@ -29,7 +30,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
                     listOf("echo"),
             "$prefix.incoming-permissions.source-ip-authentication.ip-from-range.lorem" to "${loremContainer.ipAddress()}/32",
             "$prefix.routes.status.create-virtual-cluster" to true,
-            "$prefix.routes.status.path-prefix" to "/status/",
+            "$prefix.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
             "$prefix.routes.status.enabled" to true
         ) }
 

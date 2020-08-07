@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 
 internal class StatusRouteIncomingPermissionsTest : EnvoyControlTestConfiguration() {
 
@@ -14,7 +15,7 @@ internal class StatusRouteIncomingPermissionsTest : EnvoyControlTestConfiguratio
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
-            "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
+            "envoy-control.envoy.snapshot.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
         )
 

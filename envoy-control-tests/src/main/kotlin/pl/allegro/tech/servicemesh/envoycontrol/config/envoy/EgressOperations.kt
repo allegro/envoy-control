@@ -52,7 +52,7 @@ class EgressOperations(val envoy: EnvoyContainer) {
     fun callServiceWithOriginalDst(service: EchoServiceExtension) =
         callWithHostHeader(
             "envoy-original-destination",
-            mapOf("x-envoy-original-dst-host" to service.container.address()),
+            mapOf("x-envoy-original-dst-host" to service.container().address()),
             ""
         )
 

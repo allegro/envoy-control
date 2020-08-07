@@ -21,6 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
@@ -115,10 +116,32 @@ internal class RBACFilterFactoryTest {
         // given
         val rbacFilterFactoryWithStatusRoute = RBACFilterFactory(
                 IncomingPermissionsProperties().also { it.enabled = true },
-                StatusRouteProperties().also { it.enabled = true }
+                StatusRouteProperties().also { it.enabled = true; it.endpoints = mutableListOf(EndpointMatch()) }
         )
         val incomingPermission = Incoming(permissionsEnabled = true)
         val expectedRbacBuilder = getRBACFilter(expectedStatusRoutePermissionsJson)
+
+        // when
+        val generated = rbacFilterFactoryWithStatusRoute.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should create RBAC filter with two status routes permissions when no incoming permissions are defined`() {
+        // given
+        val rbacFilterFactoryWithStatusRoute = RBACFilterFactory(
+            IncomingPermissionsProperties().also { it.enabled = true },
+            StatusRouteProperties().also { it.enabled = true; it.endpoints =
+                mutableListOf(
+                    EndpointMatch(),
+                    EndpointMatch().also { endpoint -> endpoint.path = "/example-endpoint/"; endpoint.matchingType = PathMatchingType.PATH }
+                )
+            }
+        )
+        val incomingPermission = Incoming(permissionsEnabled = true)
+        val expectedRbacBuilder = getRBACFilter(expectedTwoStatusRoutesPermissionsJson)
 
         // when
         val generated = rbacFilterFactoryWithStatusRoute.createHttpFilter(createGroup(incomingPermission), snapshot)
@@ -979,9 +1002,32 @@ internal class RBACFilterFactoryTest {
         {
           "policies": {
             "STATUS_ALLOW_ALL_POLICY": {
-              "permissions": [
-                ${pathPrefixRule("/status/")}
-              ], "principals": [
+              "permissions": [{
+                "or_rules": {
+                    "rules": [
+                        ${pathPrefixRule("/status/")}
+                    ]
+                }
+              }], "principals": [
+                $anyTrue
+              ]
+            }
+          }
+        }
+    """
+
+    private val expectedTwoStatusRoutesPermissionsJson = """
+        {
+          "policies": {
+            "STATUS_ALLOW_ALL_POLICY": {
+              "permissions": [{
+                "or_rules": {
+                    "rules": [
+                        ${pathPrefixRule("/status/")},
+                        ${pathRule("/example-endpoint/")}
+                    ]
+                }
+              }], "principals": [
                 $anyTrue
               ]
             }

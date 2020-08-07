@@ -21,6 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPoliciesProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SecuredRoute
@@ -57,6 +58,7 @@ internal class EnvoyIngressRoutesFactoryTest {
     }
     private val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
         routes.status.enabled = true
+        routes.status.endpoints = mutableListOf(EndpointMatch())
         routes.status.createVirtualCluster = true
         localService.retryPolicy = retryPolicyProps
         routes.admin.publicAccessEnabled = true

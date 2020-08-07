@@ -10,11 +10,7 @@ data class GlobalSnapshot(
     val endpoints: SnapshotResources<ClusterLoadAssignment>,
     val clusterConfigurations: Map<String, ClusterConfiguration>,
     val securedClusters: SnapshotResources<Cluster>
-) {
-    fun mtlsEnabledForCluster(cluster: String): Boolean {
-        return clusterConfigurations[cluster]?.mtlsEnabled ?: false
-    }
-}
+)
 
 internal fun globalSnapshot(
     clusters: Iterable<Cluster>,

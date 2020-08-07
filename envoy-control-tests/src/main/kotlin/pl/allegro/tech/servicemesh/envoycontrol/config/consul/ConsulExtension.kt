@@ -8,11 +8,15 @@ import org.testcontainers.containers.Network
 
 class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
-    val server: ConsulSetup = ConsulSetup(
+    companion object {
+        private val SHARED_CONSUL = ConsulSetup(
             Network.SHARED,
             ConsulServerConfig(1, "dc1", expectNodes = 1)
-    )
-    var started = false
+        )
+    }
+
+    val server = SHARED_CONSUL
+    private var started = false
 
     override fun beforeAll(context: ExtensionContext) {
         if (started) {
@@ -28,6 +32,5 @@ class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
     }
 
     override fun afterAll(context: ExtensionContext) {
-        server.container.stop()
     }
 }

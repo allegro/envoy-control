@@ -37,7 +37,7 @@ class RetryPolicyTest {
     @Test
     fun `should retry request 3 times when application is down`() {
         // given
-        service.container.stop()
+        service.container().stop()
 
         // when
         envoy.ingressOperations.callLocalService(

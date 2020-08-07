@@ -7,11 +7,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
-import javax.net.ssl.SSLHandshakeException
-import javax.net.ssl.SSLPeerUnverifiedException
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 
 internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
@@ -21,8 +22,11 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
             "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo"),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
+            "envoy-control.envoy.snapshot.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
+            "envoy-control.envoy.snapshot.routes.status.enabled" to true,
             "envoy-control.envoy.snapshot.routes.status.path-prefix" to "/status/",
-            "envoy-control.envoy.snapshot.routes.status.enabled" to true
+            // Round robin gives much more predictable results in tests than LEAST_REQUEST
+            "envoy-control.envoy.snapshot.load-balancing.policy" to "ROUND_ROBIN"
         )
 
         val echo1Envoy by lazy { envoyContainer1 }
@@ -76,6 +80,16 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                     tags = listOf("mtls:enabled")
             )
         }
+
+        private fun registerEcho2Insecure() {
+            registerService(
+                    id = "echo2_not_secure",
+                    name = "echo2",
+                    container = echoContainer,
+                    port = EchoContainer.PORT,
+                    tags = listOf()
+            )
+        }
     }
 
     @BeforeEach
@@ -98,6 +112,37 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
             assertThat(validResponse).isOk().isFrom(echoContainer2)
         }
+    }
+
+    @Test
+    fun `should encrypt traffic between selected services even if only one endpoint supports mtls`() {
+        // given 2 endpoints
+        registerEcho2Insecure()
+        untilAsserted {
+            val echo2endpoints = echo1Envoy.admin().cluster("echo2")?.hostStatuses?.size ?: 0
+            assertThat(echo2endpoints).isEqualTo(2)
+        }
+
+        // when
+        val callStats = callServiceRepeatedly(
+                service = "echo2",
+                pathAndQuery = "/secured_endpoint",
+                assertNoErrors = true,
+                minRepeat = 2,
+                maxRepeat = 2,
+                stats = CallStats(listOf(echoContainer, echoContainer2))
+        )
+
+        // then
+        assertThat(callStats.failedHits).isEqualTo(0)
+        assertThat(callStats.hits(echoContainer)).isEqualTo(1)
+        assertThat(callStats.hits(echoContainer2)).isEqualTo(1)
+
+        val defaultToPlaintextMatchesCount = echo1Envoy.admin().statValue("cluster.echo2.plaintext_match.total_match_count")?.toInt()
+        assertThat(defaultToPlaintextMatchesCount).isEqualTo(1)
+
+        val enableMTLSMatchesCount = echo1Envoy.admin().statValue("cluster.echo2.mtls_match.total_match_count")?.toInt()
+        assertThat(enableMTLSMatchesCount).isEqualTo(1)
     }
 
     @Test
@@ -179,30 +224,20 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
 
     @Test
     @SuppressWarnings("SwallowedException")
-    fun `should reject client without a certificate`() {
+    fun `should reject client without a certificate during RBAC verification`() {
         untilAsserted {
-            var invalidResponse: Response? = null
-            try {
-                // when
-                invalidResponse = callEcho2IngressUsingClientWithoutCertificate()
+            // when
+            val invalidResponse = callEcho2IngressUsingClientWithoutCertificate()
 
-                // then
-                assertThat(invalidResponse).isUnreachable()
-            } catch (_: SSLPeerUnverifiedException) {
-                assertEcho2EnvoyReportedNoPeerCertificateError()
-            } catch (_: SSLHandshakeException) {
-                assertEcho2EnvoyReportedNoPeerCertificateError()
-            }
+            // then
+            val sanValidationFailure = echo2Envoy.admin().statValue("http.ingress_https.rbac.denied")?.toInt()
+            assertThat(sanValidationFailure).isGreaterThan(0)
+            assertThat(invalidResponse).isForbidden()
         }
     }
 
-    private fun assertEcho2EnvoyReportedNoPeerCertificateError() {
-        val sslHandshakeErrors = echo2Envoy.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_no_cert")?.toInt()
-        assertThat(sslHandshakeErrors).isGreaterThan(0)
-    }
-
     private fun callEcho2IngressUsingClientWithoutCertificate(): Response {
-        return callServiceInsecure(address = echo2Envoy.ingressListenerUrl(secured = true) + "/status/", service = "echo2")
+        return callServiceInsecure(address = echo2Envoy.ingressListenerUrl(secured = true) + "/secured_endpoint/", service = "echo2")
     }
 
     private fun callEcho2FromEcho1() = call(service = "echo2", path = "/secured_endpoint", from = echo1Envoy)

@@ -92,26 +92,35 @@ class EnvoyEndpointsFactory(
     }
 
     private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance, serviceName: String): LbEndpoint.Builder {
-        val metadataKeys = Struct.newBuilder()
+        val lbMetadataKeys = Struct.newBuilder()
+        val socketMatchMetadataKeys = Struct.newBuilder()
 
         if (properties.loadBalancing.canary.enabled && instance.canary) {
-            metadataKeys.putFields(
+            lbMetadataKeys.putFields(
                 properties.loadBalancing.canary.metadataKey,
                 Value.newBuilder().setStringValue(properties.loadBalancing.canary.headerValue).build()
             )
         }
         if (instance.regular) {
-            metadataKeys.putFields(
+            lbMetadataKeys.putFields(
                 properties.loadBalancing.regularMetadataKey,
                 Value.newBuilder().setBoolValue(true).build()
             )
         }
-
         if (properties.routing.serviceTags.enabled) {
-            addServiceTagsToMetadata(metadataKeys, instance, serviceName)
+            addServiceTagsToMetadata(lbMetadataKeys, instance, serviceName)
+        }
+        if (instance.tags.contains(properties.incomingPermissions.tlsAuthentication.mtlsEnabledTag)) {
+            socketMatchMetadataKeys.putFields(
+                    properties.incomingPermissions.tlsAuthentication.tlsContextMetadataMatchKey,
+                    Value.newBuilder().setBoolValue(true).build()
+            )
         }
 
-        return setMetadata(Metadata.newBuilder().putFilterMetadata("envoy.lb", metadataKeys.build()))
+        return setMetadata(Metadata.newBuilder()
+                .putFilterMetadata("envoy.lb", lbMetadataKeys.build())
+                .putFilterMetadata("envoy.transport_socket_match", socketMatchMetadataKeys.build())
+        )
     }
 
     private fun addServiceTagsToMetadata(metadata: Struct.Builder, instance: ServiceInstance, serviceName: String) {
