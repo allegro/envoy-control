@@ -2,7 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.reliability
 
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.ec1HttpPort
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.ec2HttpPort
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.externalEnvoyControl1GrpcPort
@@ -52,7 +52,7 @@ internal class EnvoyControlDownInAllDcs : ReliabilityTest() {
     @Test
     fun `should allow to communicate between already known clusters when all ECs are down`() {
         // given
-        registerServiceInRemoteDc(name = "service-1")
+        registerServiceInRemoteCluster(name = "service-1")
         assertReachableThroughEnvoy("service-1")
 
         // when

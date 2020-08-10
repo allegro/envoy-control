@@ -2,7 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.reliability
 
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.ec1HttpPort
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.ec2HttpPort
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.externalEnvoyControl1HttpPort
@@ -43,7 +43,7 @@ internal class EnvoyControlDownInOneDc : ReliabilityTest() {
     @Test
     fun `should be resilient to transient unavailability of EC in one DC`() {
         // given
-        val id = registerServiceInRemoteDc("echo", echoContainer)
+        val id = registerServiceInRemoteCluster("echo", echoContainer)
 
         // then
         waitUntilEchoCalledThroughEnvoyResponds(echoContainer)
@@ -69,7 +69,7 @@ internal class EnvoyControlDownInOneDc : ReliabilityTest() {
             // if failureDuration is Duration(1, SECONDS).divide(2) then Duration(0, SECONDS)
             Thread.sleep(failureDuration.divide(2L).valueInMS)
             deregisterServiceInRemoteDc(id)
-            registerServiceInRemoteDc("echo", echoContainer2)
+            registerServiceInRemoteCluster("echo", echoContainer2)
         }.start()
     }
 }

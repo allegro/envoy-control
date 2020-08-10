@@ -10,7 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 
 class EnvoyAdmin(
     private val address: String,
@@ -42,6 +42,10 @@ class EnvoyAdmin(
             ?.find {
                 it.address?.socketAddress?.address == ip
             }
+
+    fun isEndpointHealthy(clusterName: String, ip: String) = hostStatus(clusterName, ip)
+        ?.healthStatus
+        ?.edsHealthStatus == "HEALTHY"
 
     fun statValue(statName: String): String? = get("stats?filter=$statName").body()?.use {
         val splitedStats = it.string().lines().first().split(":")
@@ -90,12 +94,12 @@ class EnvoyAdmin(
             ?.let { regex.find(it)!!.groupValues[1].toInt() }!!
     }
 
-    fun zone(cluster: String, ip: String): AdminInstance? {
+    fun cluster(cluster: String, ip: String): AdminInstance? {
         val regex = "$cluster::$ip:${EchoContainer.PORT}::zone::(.+)".toRegex()
         val response = get("clusters")
         return response.body()?.use { it.string().lines() }
             ?.find { it.matches(regex) }
-            ?.let { AdminInstance(ip, zone = regex.find(it)!!.groupValues[1]) }
+            ?.let { AdminInstance(ip, cluster = regex.find(it)!!.groupValues[1]) }
     }
 
     private val client = OkHttpClient.Builder()
@@ -118,7 +122,7 @@ class EnvoyAdmin(
                 .build()
         ).execute()
 
-    data class AdminInstance(val ip: String, val zone: String)
+    data class AdminInstance(val ip: String, val cluster: String)
 }
 
 data class ClusterStatuses(

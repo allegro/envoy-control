@@ -11,7 +11,7 @@ class SimpleConsulInstanceFetcher(
     private val envoyControlAppName: String
 ) : ControlPlaneInstanceFetcher {
 
-    override fun instances(dc: String): List<URI> = toServiceUri(findInstances(dc))
+    override fun instances(cluster: String): List<URI> = toServiceUri(findInstances(cluster))
 
     private fun toServiceUri(instances: MutableList<HealthService>) =
         instances.map { instance -> createURI(instance.service.address, instance.service.port) }

@@ -2,7 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.reliability
 
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulSetup
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.ec1HttpPort
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.ec2HttpPort
@@ -43,7 +43,7 @@ class DcCutOffTest : ReliabilityTest() {
     @Test
     fun `should be resilient to transient unavailability of one DC`() {
         // given
-        val id = registerServiceInRemoteDc("echo", echoContainer)
+        val id = registerServiceInRemoteCluster("echo", echoContainer)
 
         // then
         waitUntilEchoCalledThroughEnvoyResponds(echoContainer)
@@ -69,7 +69,7 @@ class DcCutOffTest : ReliabilityTest() {
             // if failureDuration is Duration(1, SECONDS).divide(2) then Duration(0, SECONDS)
             Thread.sleep(failureDuration.divide(2L).valueInMS)
             deregisterServiceInRemoteDc(id)
-            registerServiceInRemoteDc("echo", echoContainer2)
+            registerServiceInRemoteCluster("echo", echoContainer2)
         }.start()
     }
 
@@ -109,7 +109,7 @@ class DcCutOffTest : ReliabilityTest() {
         from: List<ConsulSetup>,
         operation: ModifyConnection
     ) {
-        val peers = to[0].consulOperations.peers().map { ip -> ip.split(":")[0] }
+        val peers = to[0].operations.peers().map { ip -> ip.split(":")[0] }
         peers.forEach { ip ->
             from.forEach { consul ->
                 if (operation == ModifyConnection.BLOCK) {

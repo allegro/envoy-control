@@ -5,18 +5,17 @@ import org.springframework.core.io.ClassPathResource
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder
+import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger as loggerDelegate
 
 class EnvoyContainer(
-    private val configPath: String,
-    private val localServiceIp: String,
+    private val config: EnvoyConfig,
+    private val localServiceIp: () -> String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
-    private val trustedCa: String = "/app/root-ca.crt",
-    private val certificateChain: String = "/app/fullchain_echo.pem",
-    private val privateKey: String = "/app/privkey.pem",
-    image: String
+    private val logLevel: String = "info",
+    image: String = "envoyproxy/envoy-alpine-dev:5b1723ff54b1a51e104c514ee6363234aaa44366" // We use envoy version from master. This is 1.14.0-dev.
 ) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
         .run("apk --no-cache add curl iproute2")
@@ -44,7 +43,7 @@ class EnvoyContainer(
             LAUNCH_ENVOY_SCRIPT_DEST,
             BindMode.READ_ONLY
         )
-        withClasspathResourceMapping(configPath, CONFIG_DEST, BindMode.READ_ONLY)
+        withClasspathResourceMapping(config.filePath, CONFIG_DEST, BindMode.READ_ONLY)
 
         if (ClassPathResource(EXTRA_DIR).exists()) {
             withClasspathResourceMapping(EXTRA_DIR, EXTRA_DIR_DEST, BindMode.READ_ONLY)
@@ -58,11 +57,13 @@ class EnvoyContainer(
             Integer.toString(envoyControl1XdsPort),
             Integer.toString(envoyControl2XdsPort),
             CONFIG_DEST,
-            localServiceIp,
-            trustedCa,
-            certificateChain,
-            privateKey,
-            "-l", "debug"
+            localServiceIp(),
+            config.trustedCa,
+            config.certificateChain,
+            config.privateKey,
+            config.serviceName,
+            "--config-yaml", config.configOverride,
+            "-l", logLevel
         )
     }
 

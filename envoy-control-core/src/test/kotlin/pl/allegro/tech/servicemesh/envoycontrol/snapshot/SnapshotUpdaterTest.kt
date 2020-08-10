@@ -7,6 +7,7 @@ import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.StatusInfo
 import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
+import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -32,6 +33,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Compa
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
@@ -76,7 +84,7 @@ class SnapshotUpdaterTest {
                 )))
             )
         ),
-        Locality.LOCAL, "zone"
+        Locality.LOCAL, "cluster"
     ).toMultiClusterState()
 
     @Test
@@ -233,7 +241,7 @@ class SnapshotUpdaterTest {
                     "service" to ServiceInstances("service", setOf())
                 )
             ),
-            Locality.LOCAL, "zone"
+            Locality.LOCAL, "cluster"
         ).toMultiClusterState()
 
         // when
@@ -267,7 +275,7 @@ class SnapshotUpdaterTest {
 
         val stateWithNoServices = ClusterState(
             ServicesState(serviceNameToInstances = mapOf()),
-            Locality.LOCAL, "zone"
+            Locality.LOCAL, "cluster"
         ).toMultiClusterState()
 
         // when
@@ -379,7 +387,7 @@ class SnapshotUpdaterTest {
                 serviceNameToInstances = services.map { it to ServiceInstances(it, emptySet()) }.toMap()
 
             ),
-            Locality.LOCAL, "zone"
+            Locality.LOCAL, "cluster"
         ).toMultiClusterState()
     )
 
@@ -506,6 +514,24 @@ class SnapshotUpdaterTest {
         return this
     }
 
+    private fun snapshotFactory(snapshotProperties: SnapshotProperties, meterRegistry: MeterRegistry) =
+        EnvoySnapshotFactory(
+            ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties),
+            egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
+            clustersFactory = EnvoyClustersFactory(snapshotProperties),
+            endpointsFactory = EnvoyEndpointsFactory(
+                snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags)
+            ),
+            listenersFactory = EnvoyListenersFactory(
+                snapshotProperties,
+                EnvoyHttpFilters.emptyFilters
+            ),
+            // Remember when LDS change we have to send RDS again
+            snapshotsVersions = SnapshotsVersions(),
+            properties = snapshotProperties,
+            meterRegistry = meterRegistry
+        )
+
     private fun snapshotUpdater(
         cache: SnapshotCache<Group>,
         properties: SnapshotProperties = SnapshotProperties(),
@@ -514,6 +540,7 @@ class SnapshotUpdaterTest {
     ) = SnapshotUpdater(
         cache = cache,
         properties = properties,
+        snapshotFactory = snapshotFactory(properties, simpleMeterRegistry),
         globalSnapshotScheduler = Schedulers.newSingle("update-snapshot"),
         groupSnapshotScheduler = groupSnapshotScheduler,
         onGroupAdded = Flux.just(groups),

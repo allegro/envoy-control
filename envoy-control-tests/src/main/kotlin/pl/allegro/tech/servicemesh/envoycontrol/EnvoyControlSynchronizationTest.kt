@@ -5,9 +5,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -46,7 +46,7 @@ abstract class EnvoyControlSynchronizationTest : EnvoyControlTestConfiguration()
     @Test
     fun `should prefer services from local dc and fallback to remote dc when needed`() {
         // given: local and remote instances
-        registerServiceInRemoteDc("echo", echoContainer2)
+        registerServiceInRemoteCluster("echo", echoContainer2)
         val localId = registerServiceInLocalDc("echo")
 
         // then: local called
@@ -69,7 +69,7 @@ abstract class EnvoyControlSynchronizationTest : EnvoyControlTestConfiguration()
     fun `latency between service registration in remote dc and being able to access it via envoy should be similar to envoy-control polling interval`() {
         // when
         val latency = measureRegistrationToAccessLatency { name, target ->
-            registerServiceInRemoteDc(name, target)
+            registerServiceInRemoteCluster(name, target)
         }
 
         // then

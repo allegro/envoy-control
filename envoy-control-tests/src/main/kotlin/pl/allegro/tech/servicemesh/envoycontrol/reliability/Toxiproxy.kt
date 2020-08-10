@@ -2,12 +2,12 @@ package pl.allegro.tech.servicemesh.envoycontrol.reliability
 
 import com.pszymczyk.consul.infrastructure.Ports
 import eu.rekawek.toxiproxy.Proxy
-import eu.rekawek.toxiproxy.ToxiproxyClient
 import org.testcontainers.junit.jupiter.Testcontainers
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest.Companion.consul
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest.Companion.network
-import pl.allegro.tech.servicemesh.envoycontrol.reliability.ToxiproxyContainer.Companion.internalToxiproxyPort
-import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer.Companion.allInterfaces
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer.Companion.internalToxiproxyPort
+import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer.Companion.allInterfaces
 
 @Testcontainers
 internal class Toxiproxy {
@@ -36,7 +36,7 @@ internal class Toxiproxy {
         init {
             toxiContainer.start()
         }
-        private val client = ToxiproxyClient("localhost", toxiContainer.getMappedPort(internalToxiproxyPort))
+        private val client = toxiContainer.client
 
         val consulProxy: Proxy = client.createProxy(
             "consul",

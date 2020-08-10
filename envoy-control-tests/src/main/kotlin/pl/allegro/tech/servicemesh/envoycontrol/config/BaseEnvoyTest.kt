@@ -8,8 +8,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulServerConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulSetup
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.testcontainers.GenericContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.io.File
 import java.lang.Thread.sleep
 import java.util.UUID
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeUnit
 open class BaseEnvoyTest {
     companion object {
         val defaultDuration = Duration(90, TimeUnit.SECONDS)
-        val network: Network = Network.newNetwork()
+        val network: Network = Network.SHARED
 
         val echoContainer: EchoContainer = EchoContainer()
         val echoContainer2: EchoContainer = EchoContainer()
@@ -39,8 +40,8 @@ open class BaseEnvoyTest {
         var consulAgentInDc1: ConsulSetup
         var lowRpcConsulClient: ConsulSetup
 
-        val consulOperationsInFirstDc = consulMastersInDc1[0].consulOperations
-        val consulOperationsInSecondDc = consulMastersInDc2[0].consulOperations
+        val consulOperationsInFirstDc = consulMastersInDc1[0].operations
+        val consulOperationsInSecondDc = consulMastersInDc2[0].operations
         val consulHttpPort = consulMastersInDc1[0].port
         val consul2HttpPort = consulMastersInDc2[0].port
         val consul: ConsulContainer = consulMastersInDc1[0].container
@@ -93,6 +94,13 @@ open class BaseEnvoyTest {
             }
         }
 
+        fun registerServiceWithEnvoyOnIngress(name: String, envoy: EnvoyContainer, tags: List<String>) = registerService(
+            name = name,
+            container = envoy,
+            port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
+            tags = tags
+        )
+
         fun registerService(
             id: String,
             name: String,
@@ -125,7 +133,7 @@ open class BaseEnvoyTest {
             )
         }
 
-        fun registerServiceInRemoteDc(name: String, target: EchoContainer = echoContainer): String {
+        fun registerServiceInRemoteCluster(name: String, target: EchoContainer = echoContainer): String {
             return registerService(
                 id = UUID.randomUUID().toString(),
                 name = name,
@@ -145,7 +153,7 @@ open class BaseEnvoyTest {
         fun deregisterAllServices() {
             consulOperationsInFirstDc.deregisterAll()
             consulOperationsInSecondDc.deregisterAll()
-            consulAgentInDc1.consulOperations.deregisterAll()
+            consulAgentInDc1.operations.deregisterAll()
             sleep(1000) // todo remove it?
         }
     }

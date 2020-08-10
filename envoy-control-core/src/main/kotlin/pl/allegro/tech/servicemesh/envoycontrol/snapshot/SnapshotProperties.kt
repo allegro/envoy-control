@@ -4,6 +4,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.auth.TlsParameters
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import java.time.Duration
 
 class SnapshotProperties {
@@ -74,8 +75,10 @@ class SelectorMatching {
 }
 
 class TlsAuthenticationProperties {
+    var tlsContextMetadataMatchKey = "acceptMTLS"
     var protocol = TlsProtocolProperties()
-    var requireClientCertificate: Boolean = true // if false, will not validate cert
+    /** if true, a request without a cert will be rejected during handshake and will not reach RBAC filter */
+    var requireClientCertificate: Boolean = false
     var validationContextSecretName: String = "validation_context"
     var tlsCertificateSecretName: String = "server_cert"
     var mtlsEnabledTag: String = "mtls:enabled"
@@ -151,8 +154,13 @@ class AdminRouteProperties {
 
 class StatusRouteProperties {
     var enabled = false
-    var pathPrefix = "/status/"
+    var endpoints: MutableList<EndpointMatch> = mutableListOf()
     var createVirtualCluster = false
+}
+
+class EndpointMatch {
+    var path = "/status/"
+    var matchingType: PathMatchingType = PathMatchingType.PATH_PREFIX
 }
 
 class AdminDisableProperties {

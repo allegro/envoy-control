@@ -17,7 +17,7 @@ internal class LocalConsulAgentToMasterCutOff : ReliabilityTest() {
         }
 
         // and
-        registerService(name = "service-2", consulOps = consulAgentInDc1.consulOperations)
+        registerService(name = "service-2", consulOps = consulAgentInDc1.operations)
 
         // then
         holdAssertionsTrue {
