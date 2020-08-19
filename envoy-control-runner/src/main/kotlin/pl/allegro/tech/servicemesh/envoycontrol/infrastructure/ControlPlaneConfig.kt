@@ -18,13 +18,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.DefaultEnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlProperties
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.domain.ChaosService
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.storage.ChaosDataStoreService
 import pl.allegro.tech.servicemesh.envoycontrol.consul.ConsulProperties
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceMapper
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
-import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.EmptyAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMerger
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
@@ -151,4 +153,7 @@ class ControlPlaneConfig {
     fun protobufJsonFormatHttpMessageConverter(): ProtobufJsonFormatHttpMessageConverter {
         return ProtobufJsonFormatHttpMessageConverter()
     }
+
+    @Bean
+    fun chaosService(): ChaosService = ChaosService(ChaosDataStoreService())
 }
