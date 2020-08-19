@@ -70,6 +70,6 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
             ?.use { objectMapper.readValue(it.byteStream(), NetworkDelayResponse::class.java) }
             ?: throw ChaosFaultInvalidResponseException()
 
-    class ChaosFaultInvalidResponseException :
+    private class ChaosFaultInvalidResponseException :
         RuntimeException("Expected NetworkDelayResponse in response body but got none")
 }
