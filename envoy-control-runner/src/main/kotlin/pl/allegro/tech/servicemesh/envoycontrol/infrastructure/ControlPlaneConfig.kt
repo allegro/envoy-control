@@ -156,9 +156,9 @@ class ControlPlaneConfig {
     }
 
     @Bean
-    @ConditionalOnMissingBean(ChaosDataStore::class)
     fun chaosDataStore(): ChaosDataStore = ChaosDataStoreService()
 
     @Bean
-    fun chaosService(): ChaosService = ChaosService(chaosDataStore())
+    @ConditionalOnMissingBean(ChaosService::class)
+    fun chaosService(chaosDataStore: ChaosDataStore): ChaosService = ChaosService(chaosDataStore = chaosDataStore)
 }
