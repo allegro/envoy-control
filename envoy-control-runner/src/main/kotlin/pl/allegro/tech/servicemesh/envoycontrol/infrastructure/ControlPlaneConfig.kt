@@ -19,6 +19,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.DefaultEnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlProperties
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.domain.ChaosService
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.storage.ChaosDataStore
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.storage.ChaosDataStoreService
 import pl.allegro.tech.servicemesh.envoycontrol.consul.ConsulProperties
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalClusterStateChanges
@@ -155,5 +156,9 @@ class ControlPlaneConfig {
     }
 
     @Bean
-    fun chaosService(): ChaosService = ChaosService(ChaosDataStoreService())
+    @ConditionalOnMissingBean(ChaosDataStore::class)
+    fun chaosDataStore(): ChaosDataStore = ChaosDataStoreService()
+
+    @Bean
+    fun chaosService(): ChaosService = ChaosService(chaosDataStore())
 }
