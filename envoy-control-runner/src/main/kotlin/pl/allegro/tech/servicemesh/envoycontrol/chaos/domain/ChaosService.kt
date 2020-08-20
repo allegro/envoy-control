@@ -3,11 +3,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.chaos.domain
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.storage.ChaosDataStore
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.storage.NetworkDelay as NetworkDelayEntity
 
-class ChaosService(val chaosRepository: ChaosDataStore) {
+class ChaosService(val chaosDataStore: ChaosDataStore) {
 
     fun submitNetworkDelay(
         networkDelay: NetworkDelay
-    ): NetworkDelay = chaosRepository.save(networkDelay.toEntity()).toDomainObject()
+    ): NetworkDelay = chaosDataStore.save(item = networkDelay.toEntity()).toDomainObject()
 }
 
 data class NetworkDelay(
