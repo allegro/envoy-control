@@ -6,8 +6,8 @@ interface ChaosDataStore {
 
 data class NetworkDelay(
     val id: String,
-    val source: String,
+    val affectedService: String,
     val delay: String,
     val duration: String,
-    val target: String
+    val targetService: String
 )
