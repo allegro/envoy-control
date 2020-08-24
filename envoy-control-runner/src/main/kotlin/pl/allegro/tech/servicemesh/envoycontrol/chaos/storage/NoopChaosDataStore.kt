@@ -1,5 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.chaos.storage
 
-class ChaosDataStoreService : ChaosDataStore {
+class NoopChaosDataStore : ChaosDataStore {
     override fun save(item: NetworkDelay): NetworkDelay = item
 }

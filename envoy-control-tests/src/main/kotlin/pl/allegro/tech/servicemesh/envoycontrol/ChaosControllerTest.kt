@@ -15,10 +15,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelayResponse
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 
 private val sampleNetworkDelayRequest = NetworkDelay(
-    source = "sample source",
+    affectedService = "sample-affected-servcie",
     delay = "1m",
     duration = "1s",
-    target = "sample target"
+    targetService = "sample-target"
 )
 
 internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
@@ -39,8 +39,8 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
     fun `should return UNAUTHORIZED for invalid user`() {
         // when
         val response = envoyControl1.postChaosFaultRequest(
-            username = "bad user",
-            password = "wrong pass",
+            username = "bad-user",
+            password = "wrong-pass",
             networkDelay = sampleNetworkDelayRequest
         )
 
@@ -58,10 +58,10 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
         // then
         with(response) {
             assertThat(id).isNotEmpty()
-            assertThat(source).isEqualTo(sampleNetworkDelayRequest.source)
+            assertThat(affectedService).isEqualTo(sampleNetworkDelayRequest.affectedService)
             assertThat(delay).isEqualTo(sampleNetworkDelayRequest.delay)
             assertThat(duration).isEqualTo(sampleNetworkDelayRequest.duration)
-            assertThat(target).isEqualTo(sampleNetworkDelayRequest.target)
+            assertThat(targetService).isEqualTo(sampleNetworkDelayRequest.targetService)
         }
     }
 

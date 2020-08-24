@@ -12,24 +12,24 @@ class ChaosService(val chaosDataStore: ChaosDataStore) {
 
 data class NetworkDelay(
     val id: String,
-    val source: String,
+    val affectedService: String,
     val delay: String,
     val duration: String,
-    val target: String
+    val targetService: String
 ) {
     fun toEntity(): NetworkDelayEntity = NetworkDelayEntity(
         id = id,
-        source = source,
+        affectedService = affectedService,
         delay = delay,
         duration = duration,
-        target = target
+        targetService = targetService
     )
 }
 
 fun NetworkDelayEntity.toDomainObject(): NetworkDelay = NetworkDelay(
     id = id,
-    source = source,
+    affectedService = affectedService,
     delay = delay,
     duration = duration,
-    target = target
+    targetService = targetService
 )

@@ -56,32 +56,32 @@ class ChaosController(val chaosService: ChaosService) {
 }
 
 data class NetworkDelay(
-    val source: String,
+    val affectedService: String,
     val delay: String,
     val duration: String,
-    val target: String
+    val targetService: String
 ) {
     fun toDomainObject(): NetworkDelayDomain = NetworkDelayDomain(
         id = UUID.randomUUID().toString(),
-        source = source,
+        affectedService = affectedService,
         delay = delay,
         duration = duration,
-        target = target
+        targetService = targetService
     )
 }
 
 data class NetworkDelayResponse(
     val id: String,
-    val source: String,
+    val affectedService: String,
     val delay: String,
     val duration: String,
-    val target: String
+    val targetService: String
 )
 
 fun NetworkDelayDomain.toResponseObject(): NetworkDelayResponse = NetworkDelayResponse(
     id = id,
-    source = source,
+    affectedService = affectedService,
     delay = delay,
     duration = duration,
-    target = target
+    targetService = targetService
 )
