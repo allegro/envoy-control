@@ -18,9 +18,9 @@ Linkerd v2 was rewritten in Rust to get better performance. Unfortunately, just 
 ### Consul Connect
 [Consul Connect](https://www.consul.io/docs/connect/index.html) is a simple way to deploy Envoy to current
 Consul based infrastructure.
-The problem with Consul Connect is that it has very limited traffic control capabilities.
+The problem with Consul Connect is that versions prior to 1.6.0 had very limited traffic control capabilities.
 We want to have a fallback to instances from other DCs, canary deployment and other features specific to our
-infrastructure. This is not possible for the current version of Consul Connect (1.5.1).
+infrastructure. This was not possible in the version of Consul (1.5.1) that was available when Envoy Control was developed.
 
 ### Rotor
 [Rotor](https://github.com/turbinelabs/rotor) is a Control Plane built by Turbine Labs.
