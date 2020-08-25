@@ -25,6 +25,7 @@ class ConsulLocalClusterStateChanges(
                     .fold(state.allInstances().asSequence()) { instancesSequence, transformer ->
                         transformer.transform(instancesSequence)
                     }
+                    .sortedBy { it.serviceName }
                     .associateBy { it.serviceName }
                     .let(::ServicesState)
             }

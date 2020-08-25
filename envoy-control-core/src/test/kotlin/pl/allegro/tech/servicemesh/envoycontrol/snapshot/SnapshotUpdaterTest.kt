@@ -238,7 +238,8 @@ class SnapshotUpdaterTest {
         val clusterWithNoInstances = ClusterState(
             ServicesState(
                 serviceNameToInstances = mapOf(
-                    "service" to ServiceInstances("service", setOf())
+                    "service" to ServiceInstances("service", setOf()),
+                    "service2" to ServiceInstances("service2", setOf())
                 )
             ),
             Locality.LOCAL, "cluster"
