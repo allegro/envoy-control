@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.chaos
+package pl.allegro.tech.servicemesh.envoycontrol.chaos.api
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -9,14 +9,20 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.domain.ChaosService
+import java.util.UUID
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.domain.NetworkDelay as NetworkDelayDomain
 
 @RestController
-class ChaosController {
+class ChaosController(val chaosService: ChaosService) {
+
     @PostMapping("/chaos/fault/read-network-delay")
-    fun readNetworkDelay(): HttpStatus {
-        return HttpStatus.OK
-    }
+    @ResponseStatus(HttpStatus.OK)
+    fun readNetworkDelay(@RequestBody requestBody: NetworkDelay): NetworkDelayResponse =
+        chaosService.submitNetworkDelay(requestBody.toDomainObject()).toResponseObject()
 
     @Configuration
     class SecurityConfig : WebSecurityConfigurerAdapter() {
@@ -48,3 +54,34 @@ class ChaosController {
         var password: String = "{noop}password"
     }
 }
+
+data class NetworkDelay(
+    val affectedService: String,
+    val delay: String,
+    val duration: String,
+    val targetService: String
+) {
+    fun toDomainObject(): NetworkDelayDomain = NetworkDelayDomain(
+        id = UUID.randomUUID().toString(),
+        affectedService = affectedService,
+        delay = delay,
+        duration = duration,
+        targetService = targetService
+    )
+}
+
+data class NetworkDelayResponse(
+    val id: String,
+    val affectedService: String,
+    val delay: String,
+    val duration: String,
+    val targetService: String
+)
+
+fun NetworkDelayDomain.toResponseObject(): NetworkDelayResponse = NetworkDelayResponse(
+    id = id,
+    affectedService = affectedService,
+    delay = delay,
+    duration = duration,
+    targetService = targetService
+)
