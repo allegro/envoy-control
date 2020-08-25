@@ -23,6 +23,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEg
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
+import java.util.Comparator
 
 class EnvoySnapshotFactory(
     private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
@@ -89,6 +90,7 @@ class EnvoySnapshotFactory(
         }
 
         return addRemovedClusters(previousClusters, currentClusters)
+            .toSortedMap(Comparator.naturalOrder())
     }
 
     private fun addRemovedClusters(
