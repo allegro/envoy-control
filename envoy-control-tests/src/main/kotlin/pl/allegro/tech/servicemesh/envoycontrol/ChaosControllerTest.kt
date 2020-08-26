@@ -68,7 +68,7 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should accepy delete request and return NO_CONTENT (204)`() {
+    fun `should accept delete request and return NO_CONTENT (204)`() {
         // when
         val response = envoyControl1.deleteChaosFaultRequest(faultId = sampleNetowrkDelayId)
 
