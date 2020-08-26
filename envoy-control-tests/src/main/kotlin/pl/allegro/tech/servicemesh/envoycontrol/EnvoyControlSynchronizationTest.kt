@@ -35,30 +35,6 @@ internal class EnvoyControlSynchronizationRunnerTest : EnvoyControlSynchronizati
         }
     }
 }
-//
-//internal class EnvoyControlSynchronizationRunnerTest : EnvoyControlSynchronizationTest() {
-//    override val pollingInterval: Duration = Companion.pollingInterval
-//    override val stateSampleDuration: Duration = Companion.stateSampleDuration
-//
-//    companion object {
-//        val pollingInterval = Duration.ofSeconds(1)
-//        val stateSampleDuration = Duration.ofSeconds(1)
-//
-//        @BeforeAll
-//        @JvmStatic
-//        fun setupTest() {
-//            val properties = mapOf(
-//                "envoy-control.envoy.snapshot.stateSampleDuration" to stateSampleDuration,
-//                "envoy-control.sync.enabled" to true,
-//                "envoy-control.sync.polling-interval" to pollingInterval.seconds
-//            )
-//            setup(
-//                envoyControls = 2,
-//                appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
-//            )
-//        }
-//    }
-//}
 
 abstract class EnvoyControlSynchronizationTest : EnvoyControlTestConfiguration() {
 
