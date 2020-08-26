@@ -89,6 +89,7 @@ class EnvoySnapshotFactory(
         }
 
         return addRemovedClusters(previousClusters, currentClusters)
+            .toSortedMap(Comparator.naturalOrder())
     }
 
     private fun addRemovedClusters(
