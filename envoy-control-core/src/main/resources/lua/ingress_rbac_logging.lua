@@ -19,15 +19,11 @@ function envoy_on_response(handle)
 
     local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
     local service_name = lua_metadata["request.info.service_name"] or ""
-    local path = lua_metadata["request.info.path"]
-    path = path and "'"..path.."'" or ""
+    local path = lua_metadata["request.info.path"] or ""
     local protocol = handle:connection():ssl() == nil and "http" or "https"
     local method = lua_metadata["request.info.method"] or ""
     local xff_header = lua_metadata["request.info.xff_header"] or ""
     local source_ip = string.match(xff_header, '[^,]+$') or ""
-    local statusCode = handle:headers():get(":status") or ""
-    handle:logInfo("\nUnauthorized request: method = "..method..", path = "..path..", clientIp = "..source_ip..
-      ", clientName = "..service_name..", protocol = "..protocol..", statusCode = "..statusCode)
+    local statusCode = handle:headers():get(":status") or "0"
+    handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method.."\", \"path\": \""..path.."\", \"clientIp\": \""..source_ip.."\", \"clientName\": \""..service_name.."\", \"protocol\": \""..protocol.."\", \"statusCode\": "..statusCode.." }")
 end
-
-
