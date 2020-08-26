@@ -9,6 +9,8 @@ class ChaosService(val chaosDataStore: ChaosDataStore) {
         networkDelay: NetworkDelay
     ): NetworkDelay = chaosDataStore.save(item = networkDelay.toEntity()).toDomainObject()
 
+    fun getExperimentsList(): List<NetworkDelay> = chaosDataStore.get().map { it.toDomainObject() }
+
     fun deleteNetworkDelay(
         networkDelayId: String
     ) {
