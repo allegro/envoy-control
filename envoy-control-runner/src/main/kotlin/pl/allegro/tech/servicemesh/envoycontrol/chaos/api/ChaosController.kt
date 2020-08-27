@@ -8,8 +8,11 @@ import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.domain.ChaosService
@@ -17,12 +20,19 @@ import java.util.UUID
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.domain.NetworkDelay as NetworkDelayDomain
 
 @RestController
+@RequestMapping("/chaos/fault/read-network-delay")
 class ChaosController(val chaosService: ChaosService) {
 
-    @PostMapping("/chaos/fault/read-network-delay")
+    @PostMapping
     @ResponseStatus(HttpStatus.OK)
     fun readNetworkDelay(@RequestBody requestBody: NetworkDelay): NetworkDelayResponse =
         chaosService.submitNetworkDelay(requestBody.toDomainObject()).toResponseObject()
+
+    @DeleteMapping("{networkDelayId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun delete(@PathVariable networkDelayId: String) {
+        chaosService.deleteNetworkDelay(networkDelayId)
+    }
 
     @Configuration
     class SecurityConfig : WebSecurityConfigurerAdapter() {

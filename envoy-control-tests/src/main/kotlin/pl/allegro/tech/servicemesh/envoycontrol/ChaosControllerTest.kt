@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelayResponse
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import java.util.UUID
 
 private val sampleNetworkDelayRequest = NetworkDelay(
     affectedService = "sample-affected-servcie",
@@ -20,6 +21,7 @@ private val sampleNetworkDelayRequest = NetworkDelay(
     duration = "1s",
     targetService = "sample-target"
 )
+private val sampleNetowrkDelayId = UUID.randomUUID().toString()
 
 internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
 
@@ -63,6 +65,15 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
             assertThat(duration).isEqualTo(sampleNetworkDelayRequest.duration)
             assertThat(targetService).isEqualTo(sampleNetworkDelayRequest.targetService)
         }
+    }
+
+    @Test
+    fun `should accept delete request and return NO_CONTENT (204)`() {
+        // when
+        val response = envoyControl1.deleteChaosFaultRequest(faultId = sampleNetowrkDelayId)
+
+        // then
+        assertThat(response.code()).isEqualTo(HttpStatus.NO_CONTENT.value())
     }
 
     private fun convertResponseToNetworkDelayResponse(response: Response): NetworkDelayResponse =

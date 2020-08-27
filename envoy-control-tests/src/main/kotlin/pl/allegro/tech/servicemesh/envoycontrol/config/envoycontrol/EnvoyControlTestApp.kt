@@ -38,6 +38,12 @@ interface EnvoyControlTestApp {
         networkDelay: NetworkDelay
     ): Response
 
+    fun deleteChaosFaultRequest(
+        username: String = "user",
+        password: String = "pass",
+        faultId: String
+    ): Response
+
     fun <T> bean(clazz: Class<T>): T
 }
 
@@ -167,6 +173,23 @@ class EnvoyControlRunnerTestApp(
                     .header("Authorization", credentials)
                     .post(requestBody)
                     .url("http://localhost:$appPort/chaos/fault/read-network-delay")
+                    .build()
+            )
+            .execute()
+    }
+
+    override fun deleteChaosFaultRequest(
+        username: String,
+        password: String,
+        faultId: String
+    ): Response {
+        val credentials = Credentials.basic(username, password)
+        return httpClient
+            .newCall(
+                Request.Builder()
+                    .header("Authorization", credentials)
+                    .delete()
+                    .url("http://localhost:$appPort/chaos/fault/read-network-delay/$faultId")
                     .build()
             )
             .execute()
