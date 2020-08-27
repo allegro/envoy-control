@@ -38,6 +38,11 @@ interface EnvoyControlTestApp {
         networkDelay: NetworkDelay
     ): Response
 
+    fun getExperimentsListRequest(
+        username: String = "user",
+        password: String = "pass"
+    ): Response
+
     fun deleteChaosFaultRequest(
         username: String = "user",
         password: String = "pass",
@@ -172,6 +177,22 @@ class EnvoyControlRunnerTestApp(
                 Request.Builder()
                     .header("Authorization", credentials)
                     .post(requestBody)
+                    .url("http://localhost:$appPort/chaos/fault/read-network-delay")
+                    .build()
+            )
+            .execute()
+    }
+
+    override fun getExperimentsListRequest(
+        username: String,
+        password: String
+    ): Response {
+        val credentials = Credentials.basic(username, password)
+        return httpClient
+            .newCall(
+                Request.Builder()
+                    .header("Authorization", credentials)
+                    .get()
                     .url("http://localhost:$appPort/chaos/fault/read-network-delay")
                     .build()
             )

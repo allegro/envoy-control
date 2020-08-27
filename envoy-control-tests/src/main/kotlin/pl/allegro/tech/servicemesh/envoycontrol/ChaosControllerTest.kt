@@ -10,6 +10,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpStatus
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.ExperimentsListResponse
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelayResponse
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
@@ -76,9 +77,34 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
         assertThat(response.code()).isEqualTo(HttpStatus.NO_CONTENT.value())
     }
 
+    @Test
+    fun `should return experiment list with OK (200) status`() {
+        // when
+        val response = envoyControl1.getExperimentsListRequest()
+
+        // then
+        assertThat(response.code()).isEqualTo(HttpStatus.OK.value())
+    }
+
+    @Test
+    fun `should return empty experiment list when no experiment is running`() {
+        // when
+        val response: ExperimentsListResponse = convertResponseToExperimentsListResponse(
+            envoyControl1.getExperimentsListRequest()
+        )
+
+        // then
+        assertThat(response.experimentList).isEqualTo(emptyList<NetworkDelayResponse>())
+    }
+
     private fun convertResponseToNetworkDelayResponse(response: Response): NetworkDelayResponse =
         response.body()
             ?.use { objectMapper.readValue(it.byteStream(), NetworkDelayResponse::class.java) }
+            ?: throw ChaosFaultInvalidResponseException()
+
+    private fun convertResponseToExperimentsListResponse(response: Response): ExperimentsListResponse =
+        response.body()
+            ?.use { objectMapper.readValue(it.byteStream(), ExperimentsListResponse::class.java) }
             ?: throw ChaosFaultInvalidResponseException()
 
     private class ChaosFaultInvalidResponseException :
