@@ -8,6 +8,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 
 class RBACFilterPermissions {
+    private val paramRegex = Regex("\\{\\w+\\}")
+
     fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
         val permissions = listOfNotNull(
             createPathPermissionForEndpoint(incomingEndpoint),
@@ -44,11 +46,16 @@ class RBACFilterPermissions {
     }
 
     private fun createPathMatcher(path: String, matchingType: PathMatchingType): PathMatcher {
+        val regexPath = if (path.contains("{")) getRegexPath(path) else path
         val matcher = when (matchingType) {
-            PathMatchingType.PATH -> StringMatcher.newBuilder().setExact(path).build()
-            PathMatchingType.PATH_PREFIX -> StringMatcher.newBuilder().setPrefix(path).build()
+            PathMatchingType.PATH -> StringMatcher.newBuilder().setExact(regexPath).build()
+            PathMatchingType.PATH_PREFIX -> StringMatcher.newBuilder().setPrefix(regexPath).build()
         }
         return PathMatcher.newBuilder().setPath(matcher).build()
+    }
+
+    private fun getRegexPath(path: String): String {
+        return path.replace(paramRegex, "\\\\w+")
     }
 }
 
@@ -56,6 +63,7 @@ private fun permission() = Permission.newBuilder()
 private fun not(permission: Permission.Builder) = permission().setNotRule(permission)
 fun anyOf(permissions: Iterable<Permission>): Permission.Builder = permission()
     .setOrRules(Permission.Set.newBuilder().addAllRules(permissions))
+
 fun noneOf(permissions: List<Permission>): Permission.Builder =
     if (permissions.isNotEmpty()) {
         not(anyOf(permissions))
