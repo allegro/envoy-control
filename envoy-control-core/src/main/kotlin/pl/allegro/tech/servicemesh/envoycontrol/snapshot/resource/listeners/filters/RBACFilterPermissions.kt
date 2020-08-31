@@ -3,12 +3,15 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
 import io.envoyproxy.envoy.config.rbac.v2.Permission
 import io.envoyproxy.envoy.type.matcher.PathMatcher
+import io.envoyproxy.envoy.type.matcher.RegexMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 
 class RBACFilterPermissions {
+
     private val paramRegex = Regex("\\{\\w+\\}")
+
 
     fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
         val permissions = listOfNotNull(
@@ -46,16 +49,35 @@ class RBACFilterPermissions {
     }
 
     private fun createPathMatcher(path: String, matchingType: PathMatchingType): PathMatcher {
-        val regexPath = if (path.contains("{")) getRegexPath(path) else path
-        val matcher = when (matchingType) {
-            PathMatchingType.PATH -> StringMatcher.newBuilder().setExact(regexPath).build()
-            PathMatchingType.PATH_PREFIX -> StringMatcher.newBuilder().setPrefix(regexPath).build()
+        val matcher = when (path.contains(paramRegex)) {
+            true -> {
+                val regexPath = getRegexPath(path, matchingType)
+                StringMatcher.newBuilder()
+                    .setSafeRegex(
+                        RegexMatcher.newBuilder()
+                            .setRegex(regexPath)
+                            .setGoogleRe2(
+                                RegexMatcher.GoogleRE2.getDefaultInstance()
+                            )
+                            .build()
+                    )
+                    .build()
+            }
+            false -> when (matchingType) {
+                PathMatchingType.PATH -> StringMatcher.newBuilder().setExact(path).build()
+                PathMatchingType.PATH_PREFIX -> StringMatcher.newBuilder().setPrefix(path).build()
+            }
         }
         return PathMatcher.newBuilder().setPath(matcher).build()
     }
 
-    private fun getRegexPath(path: String): String {
-        return path.replace(paramRegex, "\\\\w+")
+    private fun getRegexPath(path: String, matchingType: PathMatchingType): String {
+        var regexPath = path.replace(paramRegex, "\\\\w+")
+        regexPath = regexPath.replace("/", "\\/")
+        if (matchingType == PathMatchingType.PATH_PREFIX) {
+            regexPath += "*"
+        }
+        return regexPath
     }
 }
 
