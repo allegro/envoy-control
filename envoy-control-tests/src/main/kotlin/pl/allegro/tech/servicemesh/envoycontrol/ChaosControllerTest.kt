@@ -9,24 +9,30 @@ import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.context.annotation.Bean
 import org.springframework.http.HttpStatus
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.ExperimentsListResponse
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelayResponse
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.domain.ChaosService
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.storage.ChaosDataStore
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.storage.SimpleChaosDataStore
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import java.util.UUID
 
 private val sampleNetworkDelayRequest = NetworkDelay(
-    affectedService = "sample-affected-servcie",
+    affectedService = "sample-affected-service",
     delay = "1m",
     duration = "1s",
     targetService = "sample-target"
 )
-private val sampleNetowrkDelayId = UUID.randomUUID().toString()
+private val sampleNetworkDelayId = UUID.randomUUID().toString()
 
 internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
 
-    val objectMapper: ObjectMapper = ObjectMapper()
+    private val objectMapper: ObjectMapper = ObjectMapper()
         .registerModule(KotlinModule())
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
@@ -71,7 +77,7 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should accept delete request and return NO_CONTENT (204)`() {
         // when
-        val response = envoyControl1.deleteChaosFaultRequest(faultId = sampleNetowrkDelayId)
+        val response = envoyControl1.deleteChaosFaultRequest(faultId = sampleNetworkDelayId)
 
         // then
         assertThat(response.code()).isEqualTo(HttpStatus.NO_CONTENT.value())
@@ -100,6 +106,7 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should follow the flow`() {
         // when: initial state - empty data store
+        removeAllFromStorage()
         val response1 = convertResponseToExperimentsListResponse(
             envoyControl1.getExperimentsListRequest()
         )
@@ -149,6 +156,21 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
 
         // then
         assertThat(response5.experimentList).isEqualTo(emptyList<NetworkDelayResponse>())
+    }
+
+    private fun removeAllFromStorage() {
+        var response = convertResponseToExperimentsListResponse(
+            envoyControl1.getExperimentsListRequest()
+        )
+
+        for(item in response.experimentList) {
+            envoyControl1.deleteChaosFaultRequest(faultId = item.id)
+        }
+
+        response = convertResponseToExperimentsListResponse(
+            envoyControl1.getExperimentsListRequest()
+        )
+        assertThat(response.experimentList.size).isEqualTo(0)
     }
 
     private fun convertResponseToNetworkDelayResponse(response: Response): NetworkDelayResponse =
