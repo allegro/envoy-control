@@ -9,16 +9,10 @@ import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.context.annotation.Bean
 import org.springframework.http.HttpStatus
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.ExperimentsListResponse
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelayResponse
-import pl.allegro.tech.servicemesh.envoycontrol.chaos.domain.ChaosService
-import pl.allegro.tech.servicemesh.envoycontrol.chaos.storage.ChaosDataStore
-import pl.allegro.tech.servicemesh.envoycontrol.chaos.storage.SimpleChaosDataStore
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import java.util.UUID
 
@@ -163,7 +157,7 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
             envoyControl1.getExperimentsListRequest()
         )
 
-        for(item in response.experimentList) {
+        for (item in response.experimentList) {
             envoyControl1.deleteChaosFaultRequest(faultId = item.id)
         }
 
