@@ -97,6 +97,60 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
         assertThat(response.experimentList).isEqualTo(emptyList<NetworkDelayResponse>())
     }
 
+    @Test
+    fun `should follow the flow`() {
+        // when: initial state - empty data store
+        val response1 = convertResponseToExperimentsListResponse(
+            envoyControl1.getExperimentsListRequest()
+        )
+
+        // then
+        assertThat(response1.experimentList).isEqualTo(emptyList<NetworkDelayResponse>())
+
+        // when: post one Network Delay item
+        val response2 = convertResponseToNetworkDelayResponse(
+            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+        )
+
+        // then
+        with(response2) {
+            assertThat(id).isNotEmpty()
+            assertThat(affectedService).isEqualTo(sampleNetworkDelayRequest.affectedService)
+            assertThat(delay).isEqualTo(sampleNetworkDelayRequest.delay)
+            assertThat(duration).isEqualTo(sampleNetworkDelayRequest.duration)
+            assertThat(targetService).isEqualTo(sampleNetworkDelayRequest.targetService)
+        }
+
+        // when: get experiment list with one item
+        val response3 = convertResponseToExperimentsListResponse(
+            envoyControl1.getExperimentsListRequest()
+        )
+
+        // then
+        assertThat(response3.experimentList.size).isEqualTo(1)
+        with(response3.experimentList[0]) {
+            assertThat(id).isNotEmpty()
+            assertThat(affectedService).isEqualTo(sampleNetworkDelayRequest.affectedService)
+            assertThat(delay).isEqualTo(sampleNetworkDelayRequest.delay)
+            assertThat(duration).isEqualTo(sampleNetworkDelayRequest.duration)
+            assertThat(targetService).isEqualTo(sampleNetworkDelayRequest.targetService)
+        }
+
+        // when: remove added Network Delay item
+        val response4 = envoyControl1.deleteChaosFaultRequest(faultId = response2.id)
+
+        // then
+        assertThat(response4.code()).isEqualTo(HttpStatus.NO_CONTENT.value())
+
+        // when: data store shoud be empty
+        val response5 = convertResponseToExperimentsListResponse(
+            envoyControl1.getExperimentsListRequest()
+        )
+
+        // then
+        assertThat(response5.experimentList).isEqualTo(emptyList<NetworkDelayResponse>())
+    }
+
     private fun convertResponseToNetworkDelayResponse(response: Response): NetworkDelayResponse =
         response.body()
             ?.use { objectMapper.readValue(it.byteStream(), NetworkDelayResponse::class.java) }
