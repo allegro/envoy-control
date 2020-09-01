@@ -98,58 +98,57 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
     }
 
     @Test
-    fun `should follow the flow`() {
-        // when: initial state - empty data store
+    fun `should response with list of posted Network Delay`() {
+        // given
         removeAllFromStorage()
-        val response1 = convertResponseToExperimentsListResponse(
-            envoyControl1.getExperimentsListRequest()
+        val item1 = convertResponseToNetworkDelayResponse(
+            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
         )
-
-        // then
-        assertThat(response1.experimentList).isEqualTo(emptyList<NetworkDelayResponse>())
-
-        // when: post one Network Delay item
-        val response2 = convertResponseToNetworkDelayResponse(
+        val item2 = convertResponseToNetworkDelayResponse(
             envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
         )
 
-        // then
-        with(response2) {
-            assertThat(id).isNotEmpty()
-            assertThat(affectedService).isEqualTo(sampleNetworkDelayRequest.affectedService)
-            assertThat(delay).isEqualTo(sampleNetworkDelayRequest.delay)
-            assertThat(duration).isEqualTo(sampleNetworkDelayRequest.duration)
-            assertThat(targetService).isEqualTo(sampleNetworkDelayRequest.targetService)
-        }
-
-        // when: get experiment list with one item
-        val response3 = convertResponseToExperimentsListResponse(
+        // when
+        val itemsList = convertResponseToExperimentsListResponse(
             envoyControl1.getExperimentsListRequest()
         )
 
         // then
-        assertThat(response3.experimentList.size).isEqualTo(1)
-        with(response3.experimentList[0]) {
-            assertThat(id).isNotEmpty()
-            assertThat(affectedService).isEqualTo(sampleNetworkDelayRequest.affectedService)
-            assertThat(delay).isEqualTo(sampleNetworkDelayRequest.delay)
-            assertThat(duration).isEqualTo(sampleNetworkDelayRequest.duration)
-            assertThat(targetService).isEqualTo(sampleNetworkDelayRequest.targetService)
+        with(itemsList.experimentList) {
+            assertThat(size).isEqualTo(2)
+            assertThat(this.containsAll(listOf(item1, item2)))
         }
+    }
 
-        // when: remove added Network Delay item
-        val response4 = envoyControl1.deleteChaosFaultRequest(faultId = response2.id)
-
-        // then
-        assertThat(response4.code()).isEqualTo(HttpStatus.NO_CONTENT.value())
-
-        // when: data store shoud be empty
-        val response5 = convertResponseToExperimentsListResponse(
+    @Test
+    fun `should remove correct Network Delay item from storage`() {
+        // given
+        removeAllFromStorage()
+        val item1 = convertResponseToNetworkDelayResponse(
+            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+        )
+        val item2 = convertResponseToNetworkDelayResponse(
+            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+        )
+        val item3 = convertResponseToNetworkDelayResponse(
+            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+        )
+        val itemsList = convertResponseToExperimentsListResponse(
             envoyControl1.getExperimentsListRequest()
         )
+        assertThat(itemsList.experimentList.size).isEqualTo(3)
+
+        // when
+        val response = envoyControl1.deleteChaosFaultRequest(faultId = item2.id)
 
         // then
-        assertThat(response5.experimentList).isEqualTo(emptyList<NetworkDelayResponse>())
+        val resultItemsList = convertResponseToExperimentsListResponse(
+            envoyControl1.getExperimentsListRequest()
+        )
+        with(resultItemsList.experimentList) {
+            assertThat(size).isEqualTo(2)
+            assertThat(this.containsAll(listOf(item1, item3)))
+        }
     }
 
     private fun removeAllFromStorage() {
