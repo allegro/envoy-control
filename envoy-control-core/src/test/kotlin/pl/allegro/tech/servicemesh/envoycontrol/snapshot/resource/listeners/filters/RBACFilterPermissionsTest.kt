@@ -123,7 +123,7 @@ internal class RBACFilterPermissionsTest {
                       "safe_regex": {
                         "google_re2": {
                         },
-                        "regex": "\\/example\\/\\w+\\/rest\\/\\w+\\/end*"
+                        "regex": "\\/example\\/\\w+\\/rest\\/\\w+\\/end.*"
                       }
                     }
                   }

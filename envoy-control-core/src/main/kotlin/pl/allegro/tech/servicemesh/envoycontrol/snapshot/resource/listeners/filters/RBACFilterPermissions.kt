@@ -74,7 +74,7 @@ class RBACFilterPermissions {
         var regexPath = path.replace(paramRegex, "\\\\w+")
         regexPath = regexPath.replace("/", "\\/")
         if (matchingType == PathMatchingType.PATH_PREFIX) {
-            regexPath += "*"
+            regexPath += ".*"
         }
         return regexPath
     }
