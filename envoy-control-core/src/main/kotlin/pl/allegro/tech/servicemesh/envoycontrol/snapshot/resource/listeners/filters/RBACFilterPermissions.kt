@@ -75,6 +75,8 @@ class RBACFilterPermissions {
         regexPath = regexPath.replace("/", "\\/")
         if (matchingType == PathMatchingType.PATH_PREFIX) {
             regexPath += ".*"
+        } else if (matchingType == PathMatchingType.PATH && regexPath.endsWith(".*")) {
+            regexPath = regexPath.removeSuffix(".*")
         }
         return regexPath
     }

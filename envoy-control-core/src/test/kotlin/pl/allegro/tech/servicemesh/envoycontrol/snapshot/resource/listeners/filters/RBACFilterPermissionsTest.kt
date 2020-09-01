@@ -106,6 +106,40 @@ internal class RBACFilterPermissionsTest {
     }
 
     @Test
+    fun `should create permissions with exact path matcher with params in path and wildcard at the end`() {
+        // given
+        val endpoint = IncomingEndpoint(
+            path = "/example/{param1}/rest/{param2}/end.*",
+            pathMatchingType = PathMatchingType.PATH,
+            methods = setOf()
+        )
+        // language=json
+        val expectedPermission = """{
+            "and_rules": {
+              "rules": [
+                {
+                  "url_path": {
+                    "path": {
+                      "safe_regex": {
+                        "google_re2": {
+                        },
+                        "regex": "\\/example\\/\\w+\\/rest\\/\\w+\\/end"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+        }""".asPermission()
+
+        // when
+        val permissions = rbacFilterPermissions.createCombinedPermissions(endpoint).build()
+
+        // then
+        assertThat(permissions).isEqualTo(expectedPermission)
+    }
+
+    @Test
     fun `should create permissions with prefix path matcher with params in path`() {
         // given
         val endpoint = IncomingEndpoint(

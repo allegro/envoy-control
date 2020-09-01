@@ -47,6 +47,9 @@ internal class IncomingPermissionsParamsInEndpointPathTest : EnvoyControlTestCon
                     - pathPrefix: "/example-endpoint/{param}/action2"
                       clients: ["authorized-clients"]
                       unlistedClientsPolicy: blockAndLog
+                    - path: "/example-endpoint/{param}/wildcard.*"
+                      clients: ["authorized-clients"]
+                      unlistedClientsPolicy: blockAndLog
                     roles:
                     - name: authorized-clients
                       clients: ["echo3", "source-ip-client"]
@@ -203,6 +206,23 @@ internal class IncomingPermissionsParamsInEndpointPathTest : EnvoyControlTestCon
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
         assertThat(echoEnvoy.ingressSslRequests).isOne()
         assertThat(echoEnvoy).hasNoRBACDenials()
+    }
+
+    @Test
+    fun `echo should NOT allow echo3 to access 'example-endpoint-wildcard' on extended path with param`() {
+        // when
+        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/1/wildcard/sub-action")
+
+        // then
+        assertThat(echoResponse).isForbidden()
+        assertThat(echoEnvoy.ingressSslRequests).isOne()
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/example-endpoint/1/wildcard/sub-action",
+            method = "GET",
+            clientName = "echo3",
+            clientIp = echo3Envoy.ipAddress()
+        )
     }
 
     @BeforeEach
