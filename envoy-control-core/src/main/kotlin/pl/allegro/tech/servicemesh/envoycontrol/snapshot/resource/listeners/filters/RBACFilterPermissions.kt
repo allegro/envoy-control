@@ -12,7 +12,6 @@ class RBACFilterPermissions {
 
     private val paramRegex = Regex("\\{\\w+\\}")
 
-
     fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
         val permissions = listOfNotNull(
             createPathPermissionForEndpoint(incomingEndpoint),
