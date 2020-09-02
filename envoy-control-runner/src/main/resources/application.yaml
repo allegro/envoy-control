@@ -10,7 +10,7 @@ envoy-control:
 
 chaos:
   username: "user"
-  password: "{noop}pass"
+  password: "pass"
 
 management:
   endpoint:
