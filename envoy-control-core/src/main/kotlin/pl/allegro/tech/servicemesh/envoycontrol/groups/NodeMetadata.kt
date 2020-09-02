@@ -47,8 +47,6 @@ data class ProxySettings(
         outgoing = proto?.field("outgoing").toOutgoing(properties)
     )
 
-    fun isEmpty() = this == ProxySettings()
-
     fun withIncomingPermissionsDisabled(): ProxySettings = copy(
         incoming = incoming.copy(
             permissionsEnabled = false,
@@ -70,42 +68,97 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
 }
 
 fun Value?.toStatusCodeFilter(accessLogFilterFactory: AccessLogFilterFactory):
-        AccessLogFilterSettings.StatusCodeFilterSettings? = this?.stringValue?.let {
-    accessLogFilterFactory.parseStatusCodeFilter(it.toUpperCase())
+    AccessLogFilterSettings.StatusCodeFilterSettings? {
+    return this?.stringValue?.let {
+        accessLogFilterFactory.parseStatusCodeFilter(it.toUpperCase())
+    }
 }
 
-private fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
-    return Outgoing(
-        dependencies = this?.field("dependencies")?.list().orEmpty().map { it.toDependency(properties) }
-    )
-}
+private class RawDependency(val service: String?, val domain: String?, val value: Value)
 
-fun Value.toDependency(properties: SnapshotProperties = SnapshotProperties()): Dependency {
-    val service = this.field("service")?.stringValue
-    val domain = this.field("domain")?.stringValue
-    val handleInternalRedirect = this.field("handleInternalRedirect")?.boolValue
-        ?: properties.egress.handleInternalRedirect
-    val timeoutPolicy = this.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(properties)
-        ?: Outgoing.TimeoutPolicy(
+fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
+    val allServiceDependenciesIdentifier = properties.outgoingPermissions.allServicesDependencies.identifier
+    val rawDependencies = this?.field("dependencies")?.list().orEmpty().map(::toRawDependency)
+    val allServicesDependencies = toAllServiceDependencies(rawDependencies, allServiceDependenciesIdentifier)
+    val defaultSettingsFromProperties = DependencySettings(
+        handleInternalRedirect = properties.egress.handleInternalRedirect,
+        timeoutPolicy = Outgoing.TimeoutPolicy(
             idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
             requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
         )
-    val rewriteHostHeader = this.field("rewriteHostHeader")?.boolValue ?: false
+    )
+    val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
+    val services = rawDependencies.filter { it.service != null && it.service != allServiceDependenciesIdentifier }
+        .map { ServiceDependency(it.service.orEmpty(), it.value.toSettings(allServicesDefaultSettings)) }
+    val domains = rawDependencies.filter { it.domain != null }
+        .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
+        .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
+    return Outgoing(
+        serviceDependencies = services,
+        domainDependencies = domains,
+        defaultServiceSettings = allServicesDefaultSettings,
+        allServicesDependencies = allServicesDependencies != null
+    )
+}
 
-    val settings = DependencySettings(handleInternalRedirect, timeoutPolicy, rewriteHostHeader)
+@Suppress("ComplexCondition")
+private fun toRawDependency(it: Value): RawDependency {
+    val service = it.field("service")?.stringValue
+    val domain = it.field("domain")?.stringValue
+    if (service == null && domain == null || service != null && domain != null) {
+        throw NodeMetadataValidationException(
+            "Define either 'service' or 'domain' as an outgoing dependency"
+        )
+    }
+    return RawDependency(
+        service = service,
+        domain = domain,
+        value = it
+    )
+}
 
-    return when {
-        service == null && domain == null || service != null && domain != null ->
-            throw NodeMetadataValidationException(
-                "Define either 'service' or 'domain' as an outgoing dependency"
-            )
-        service != null -> ServiceDependency(service, settings)
-        domain.orEmpty().startsWith("http://") -> DomainDependency(domain.orEmpty(), settings)
-        domain.orEmpty().startsWith("https://") -> DomainDependency(domain.orEmpty(), settings)
-        else -> throw NodeMetadataValidationException(
+private fun validateDomainFormat(
+    it: RawDependency,
+    allServiceDependenciesIdentifier: String
+) {
+    val domain = it.domain.orEmpty()
+    if (domain == allServiceDependenciesIdentifier) {
+        throw NodeMetadataValidationException(
+            "Unsupported 'all serviceDependencies identifier' for domain dependency: $domain"
+        )
+    }
+    if (!domain.startsWith("http://") && !domain.startsWith("https://")) {
+        throw NodeMetadataValidationException(
             "Unsupported protocol for domain dependency for domain $domain"
         )
     }
+}
+
+private fun toAllServiceDependencies(
+    rawDependencies: List<RawDependency>,
+    allServiceDependenciesIdentifier: String
+): RawDependency? {
+    val allServicesDependencies = rawDependencies.filter { it.service == allServiceDependenciesIdentifier }.toList()
+    if (allServicesDependencies.size > 1) {
+        throw NodeMetadataValidationException(
+            "Define at most one 'all serviceDependencies identifier' as an service dependency"
+        )
+    }
+    return allServicesDependencies.firstOrNull()
+}
+
+private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySettings {
+    val handleInternalRedirect = this?.field("handleInternalRedirect")?.boolValue
+    val timeoutPolicy = this?.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(defaultSettings.timeoutPolicy)
+    val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
+
+    return if (handleInternalRedirect == null && rewriteHostHeader == null && timeoutPolicy == null) {
+        defaultSettings
+    } else DependencySettings(
+        handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
+        timeoutPolicy ?: defaultSettings.timeoutPolicy,
+        rewriteHostHeader ?: defaultSettings.rewriteHostHeader
+    )
 }
 
 fun Value?.toIncoming(): Incoming {
@@ -123,11 +176,13 @@ fun Value?.toIncoming(): Incoming {
 
 fun Value?.toUnlistedPolicy() = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
-    ?.let { when (it) {
-        "log" -> Incoming.UnlistedPolicy.LOG
-        "blockAndLog" -> Incoming.UnlistedPolicy.BLOCKANDLOG
-        else -> throw NodeMetadataValidationException("Invalid UnlistedPolicy value: $it")
-    } }
+    ?.let {
+        when (it) {
+            "log" -> Incoming.UnlistedPolicy.LOG
+            "blockAndLog" -> Incoming.UnlistedPolicy.BLOCKANDLOG
+            else -> throw NodeMetadataValidationException("Invalid UnlistedPolicy value: $it")
+        }
+    }
     ?: Incoming.UnlistedPolicy.BLOCKANDLOG
 
 fun Value?.toHealthCheck(): HealthCheck {
@@ -155,7 +210,7 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy)
         pathPrefix != null -> IncomingEndpoint(
-                pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy
+            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy
         )
         else -> throw NodeMetadataValidationException("One of 'path' or 'pathPrefix' field is required")
     }
@@ -178,20 +233,22 @@ private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
     return Incoming.TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout)
 }
 
-private fun Value?.toOutgoingTimeoutPolicy(properties: SnapshotProperties): Outgoing.TimeoutPolicy {
-    val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
-        ?: Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
-    val requestTimeout: Duration? = this?.field("requestTimeout")?.toDuration()
-        ?: Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-
-    return Outgoing.TimeoutPolicy(idleTimeout, requestTimeout)
+private fun Value.toOutgoingTimeoutPolicy(default: Outgoing.TimeoutPolicy): Outgoing.TimeoutPolicy {
+    val idleTimeout = this.field("idleTimeout")?.toDuration()
+    val requestTimeout = this.field("requestTimeout")?.toDuration()
+    if (idleTimeout == null && requestTimeout == null) {
+        return default
+    }
+    return Outgoing.TimeoutPolicy(idleTimeout ?: default.idleTimeout, requestTimeout ?: default.requestTimeout)
 }
 
 @Suppress("SwallowedException")
 fun Value.toDuration(): Duration? {
     return when (this.kindCase) {
-        Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException("Timeout definition has number format" +
-            " but should be in string format and ends with 's'")
+        Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException(
+            "Timeout definition has number format" +
+                " but should be in string format and ends with 's'"
+        )
         Value.KindCase.STRING_VALUE -> {
             try {
                 this.stringValue?.takeIf { it.isNotBlank() }?.let { Durations.parse(it) }
@@ -226,29 +283,20 @@ data class Incoming(
 }
 
 data class Outgoing(
-    val dependencies: List<Dependency> = emptyList()
+    val serviceDependencies: List<ServiceDependency> = emptyList(),
+    val domainDependencies: List<DomainDependency> = emptyList(),
+    val allServicesDependencies: Boolean = false,
+    val defaultServiceSettings: DependencySettings = DependencySettings()
 ) {
-    fun containsDependencyForService(service: String) = serviceDependencies.containsKey(service)
-
-    // not declared in primary constructor to exclude from equals(), copy(), etc.
-    private val domainDependencies: Map<String, DomainDependency> = dependencies
-        .filterIsInstance<DomainDependency>()
-        .map { it.domain to it }
-        .toMap()
-
-    private val serviceDependencies: Map<String, ServiceDependency> = dependencies
-        .filterIsInstance<ServiceDependency>()
-        .map { it.service to it }
-        .toMap()
-
-    fun getDomainDependencies(): Collection<DomainDependency> = domainDependencies.values
-
-    fun getServiceDependencies(): Collection<ServiceDependency> = serviceDependencies.values
-
     data class TimeoutPolicy(
-        val idleTimeout: Duration?,
-        val requestTimeout: Duration?
-    )
+        val idleTimeout: Duration = DEFAULT_IDLE_TIMEOUT,
+        val requestTimeout: Duration = DEFAULT_REQUEST_TIMEOUT
+    ) {
+        companion object {
+            val DEFAULT_IDLE_TIMEOUT: Duration = Durations.fromSeconds(120)
+            val DEFAULT_REQUEST_TIMEOUT: Duration = Durations.fromSeconds(120)
+        }
+    }
 }
 
 interface Dependency
@@ -280,7 +328,7 @@ data class DomainDependency(
 
 data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
-    val timeoutPolicy: Outgoing.TimeoutPolicy? = null,
+    val timeoutPolicy: Outgoing.TimeoutPolicy = Outgoing.TimeoutPolicy(),
     val rewriteHostHeader: Boolean = false
 )
 

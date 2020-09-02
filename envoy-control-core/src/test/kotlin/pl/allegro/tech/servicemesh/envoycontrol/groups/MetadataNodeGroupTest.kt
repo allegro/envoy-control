@@ -35,7 +35,9 @@ class MetadataNodeGroupTest {
             // because service may define different settings for different dependencies (for example endpoints, which
             // will be implemented in https://github.com/allegro/envoy-control/issues/6
                 communicationMode = XDS,
-                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*", "a", "b", "c"))
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c"),
+                    allServicesDependencies = true
+                )
         ))
     }
 
@@ -87,7 +89,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             AllServicesGroup(
                     communicationMode = ADS,
-                    proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("*"))
+                    proxySettings = ProxySettings().with(allServicesDependencies = true)
             )
         )
     }
@@ -193,7 +195,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(AllServicesGroup(
                 communicationMode = XDS,
                 serviceName = "app1",
-                proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("*"))
+                proxySettings = addedProxySettings.with(allServicesDependencies = true)
         ))
     }
 
