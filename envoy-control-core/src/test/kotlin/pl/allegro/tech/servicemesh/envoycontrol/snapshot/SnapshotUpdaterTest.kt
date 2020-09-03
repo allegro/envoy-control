@@ -593,7 +593,7 @@ class SnapshotUpdaterTest {
     ): GlobalSnapshot {
         val endpoints = this.endpoints.resources()[clusterName]
         assertThat(endpoints).isNotNull
-        assertThat(endpoints!!.endpointsList.map { it.locality.zone }.toSet()).isEqualTo(zones)
+        assertThat(endpoints!!.endpointsList.map { it.locality.zone }.toSet()).containsAll(zones)
         assertThat(endpoints.endpointsList.flatMap { it.lbEndpointsList }).isEmpty()
         return this
     }
