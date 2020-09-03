@@ -6,6 +6,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
@@ -73,6 +74,7 @@ class RemoteServices(
             .getState(instance)
             .checkpoint("cross-dc-service-update-$cluster")
             .name("cross-dc-service-update-$cluster").metrics()
+            .map { ServicesState(it.serviceNameToInstances.filterValues { value -> value.instances.isNotEmpty() }) }
             .map {
                 ClusterState(it, Locality.REMOTE, cluster)
             }
