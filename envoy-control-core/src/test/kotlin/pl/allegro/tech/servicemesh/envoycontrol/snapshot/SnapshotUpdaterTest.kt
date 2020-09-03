@@ -51,6 +51,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
 
+@Suppress("LargeClass")
 class SnapshotUpdaterTest {
 
     companion object {
@@ -593,7 +594,7 @@ class SnapshotUpdaterTest {
         val endpoints = this.endpoints.resources()[clusterName]
         assertThat(endpoints).isNotNull
         assertThat(endpoints!!.endpointsList.map { it.locality.zone }.toSet()).isEqualTo(zones)
-        assertThat(endpoints!!.endpointsList.flatMap { it.lbEndpointsList }).isEmpty()
+        assertThat(endpoints.endpointsList.flatMap { it.lbEndpointsList }).isEmpty()
         return this
     }
 
