@@ -50,7 +50,7 @@ class ChaosController(val chaosService: ChaosService) {
         override fun configure(auth: AuthenticationManagerBuilder) {
             auth.inMemoryAuthentication()
                 .withUser(basicAuthUser().username)
-                .password(basicAuthUser().password)
+                .password("{noop}${basicAuthUser().password}")
                 .roles("CHAOS")
         }
 
@@ -67,7 +67,7 @@ class ChaosController(val chaosService: ChaosService) {
 
     class BasicAuthUser {
         var username: String = "username"
-        var password: String = "{noop}password"
+        var password: String = "password"
     }
 }
 
