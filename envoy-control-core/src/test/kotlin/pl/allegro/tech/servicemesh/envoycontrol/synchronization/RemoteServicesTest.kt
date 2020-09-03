@@ -3,8 +3,8 @@ package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
@@ -39,6 +39,21 @@ class RemoteServicesTest {
 
         assertThat(result).hasSize(1)
         assertThat(result.map { it.cluster }).contains("dc1")
+    }
+
+    @Test
+    fun `should ignore services without instances`() {
+        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1",
+            "dc2/service-no-instances"))
+
+        val result = service
+            .getChanges(1)
+            .blockFirst()
+            ?: MultiClusterState.empty()
+
+        assertThat(result).hasSize(2)
+        assertThat(result.map { it.cluster }).contains("dc1", "dc2/service-c-no-instances")
+        result.doesntHaveServiceWithEmptyInstances("dc2/service-c-no-instances", "service-c")
     }
 
     @Test
@@ -136,6 +151,16 @@ class RemoteServicesTest {
         )
     )
 
+    private val servicesState4 = ServicesState(
+        serviceNameToInstances = mapOf(
+            "service-b" to ServiceInstances(
+                "service-b",
+                setOf(ServiceInstance("3", setOf(), "localhost", 81))
+            ),
+            "service-c" to ServiceInstances("service-c", emptySet())
+        )
+    )
+
     private val expectedSuccessfulState = setOf(
         ClusterState(servicesState1, Locality.REMOTE, "dc1/successful-states"),
         ClusterState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
@@ -154,6 +179,16 @@ class RemoteServicesTest {
         Mono.just(servicesState3), Mono.error(RuntimeException("Error fetching from dc2"))
     ).iterator()
 
+    private fun MultiClusterState.doesntHaveServiceWithEmptyInstances(
+        cluster: String,
+        serviceName: String
+    ): MultiClusterState {
+        val clusterState = this.first { it.cluster == cluster }
+        assertThat(clusterState).isNotNull
+        assertThat(clusterState.servicesState.serviceNameToInstances.keys).doesNotContain(serviceName)
+        return this
+    }
+
     private fun asyncClient(): AsyncControlPlaneClient {
         return object : AsyncControlPlaneClient {
             override fun getState(uri: URI): Mono<ServicesState> = when {
@@ -161,12 +196,13 @@ class RemoteServicesTest {
                 uri.path == "/empty" -> Mono.empty()
                 uri.path == "/successful-states" -> successfulStatesSequence.next()
                 uri.path == "/second-request-failing" -> secondStateFailingSequence.next()
+                uri.path == "/service-c-no-instances" -> Mono.just(servicesState4)
                 else -> Mono.just(
                     ServicesState(
                         serviceNameToInstances = mapOf(
                             uri.authority to ServiceInstances(
                                 uri.authority,
-                                emptySet()
+                                setOf(ServiceInstance("1", setOf(), "localhost", 80))
                             )
                         )
                     )
