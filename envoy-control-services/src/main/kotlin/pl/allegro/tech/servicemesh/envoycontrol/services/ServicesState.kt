@@ -24,7 +24,7 @@ data class ServicesState(
         }
 
     fun change(serviceInstances: ServiceInstances): ServicesState =
-        if (serviceNameToInstances[serviceInstances.serviceName] == serviceInstances) {
+        if (serviceNameToInstances[serviceInstances.serviceName]?.sorted() == serviceInstances) {
             this
         } else {
             copy(serviceNameToInstances = serviceNameToInstances + (serviceInstances.serviceName to serviceInstances))

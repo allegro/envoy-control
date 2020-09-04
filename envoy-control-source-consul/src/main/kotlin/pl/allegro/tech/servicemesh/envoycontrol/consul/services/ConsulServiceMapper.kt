@@ -21,7 +21,7 @@ open class ConsulServiceMapper(
         val actualWeight = getActualWeight(consulInstance)
         return ServiceInstance(
             id = consulInstance.serviceId,
-            tags = consulInstance.serviceTags.toSet(),
+            tags = consulInstance.serviceTags.toSortedSet(),
             address = consulInstance.serviceAddress,
             port = consulInstance.servicePort,
             regular = true, // override this class if in some case canary are not to be included in regular set

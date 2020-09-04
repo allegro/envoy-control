@@ -44,7 +44,7 @@ class RemoteServicesTest {
     @Test
     fun `should ignore services without instances`() {
         val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1",
-            "dc2/service-no-instances"))
+            "dc2/service-c-no-instances"))
 
         val result = service
             .getChanges(1)

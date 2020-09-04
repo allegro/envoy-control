@@ -155,7 +155,7 @@ class ConsulServiceChanges(
                 serviceName,
                 instances.asSequence()
                     .map { serviceMapper.toDomainInstance(it) }
-                    .toSet()
+                    .toSortedSet(compareBy { it.id })
             )
 
         private fun handleServiceRemoval(service: String) = synchronized(stateLock) {

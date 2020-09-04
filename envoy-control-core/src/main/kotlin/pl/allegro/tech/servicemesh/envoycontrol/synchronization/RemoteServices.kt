@@ -74,7 +74,7 @@ class RemoteServices(
             .getState(instance)
             .checkpoint("cross-dc-service-update-$cluster")
             .name("cross-dc-service-update-$cluster").metrics()
-            .map { ServicesState(it.serviceNameToInstances.filterValues { value -> value.instances.isNotEmpty() }) }
+            .map { getServiceState(it) }
             .map {
                 ClusterState(it, Locality.REMOTE, cluster)
             }
@@ -88,6 +88,15 @@ class RemoteServices(
                 logger.warn("Error synchronizing instances ${exception.message}", exception)
                 Mono.justOrEmpty(clusterStateCache[cluster])
             }
+    }
+
+    private fun getServiceState(state: ServicesState): ServicesState {
+        val filterValues = state.serviceNameToInstances.filterValues { value ->
+            value.instances.isNotEmpty()
+        }
+        val sortedInstances = filterValues.mapValues { it.value.sorted() }
+
+        return ServicesState(sortedInstances)
     }
 
     private fun chooseInstance(serviceInstances: List<URI>): URI = serviceInstances.random()

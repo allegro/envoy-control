@@ -20,4 +20,8 @@ data class ServiceInstances(
                 .filter { it.address.isNotBlank() }
                 .toSet())
         } else this
+
+    fun sorted() = copy(instances = instances
+        .map { serviceInstance -> serviceInstance.copy(tags = serviceInstance.tags.toSortedSet()) }
+        .toSortedSet(compareBy { it.id }))
 }
