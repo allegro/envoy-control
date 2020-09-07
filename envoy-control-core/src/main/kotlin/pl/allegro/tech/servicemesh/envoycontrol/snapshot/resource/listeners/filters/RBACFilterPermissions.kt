@@ -10,7 +10,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 
 class RBACFilterPermissions {
 
-    private val paramRegex = Regex("\\{\\w+\\}")
+    private val uriSegmentPattern = "[a-zA-Z0-9-_.!~*'()]+"
+    private val pathParamPattern = "\\{$uriSegmentPattern\\}"
+    private val pathParamRegex = Regex(pathParamPattern)
 
     fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
         val permissions = listOfNotNull(
@@ -48,7 +50,7 @@ class RBACFilterPermissions {
     }
 
     private fun createPathMatcher(path: String, matchingType: PathMatchingType): PathMatcher {
-        val matcher = when (path.contains(paramRegex)) {
+        val matcher = when (path.contains(pathParamRegex)) {
             true -> {
                 val regexPath = getRegexPath(path, matchingType)
                 StringMatcher.newBuilder()
@@ -71,8 +73,8 @@ class RBACFilterPermissions {
     }
 
     private fun getRegexPath(path: String, matchingType: PathMatchingType): String {
-        var regexPath = path.replace(paramRegex, "\\\\w+")
-        regexPath = regexPath.replace("/", "\\/")
+        var regexPath = path.replace(pathParamRegex, uriSegmentPattern)
+        regexPath = regexPath.replace("/", "\\/").replace(".*", "")
         if (matchingType == PathMatchingType.PATH_PREFIX) {
             regexPath += ".*"
         } else if (matchingType == PathMatchingType.PATH && regexPath.endsWith(".*")) {

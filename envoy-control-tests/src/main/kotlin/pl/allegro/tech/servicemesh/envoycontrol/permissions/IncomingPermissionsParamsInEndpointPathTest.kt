@@ -30,6 +30,7 @@ internal class IncomingPermissionsParamsInEndpointPathTest : EnvoyControlTestCon
             )
         }
 
+
         // language=yaml
         private fun proxySettings(unlistedEndpointsPolicy: String) = """
             node: 
@@ -40,16 +41,16 @@ internal class IncomingPermissionsParamsInEndpointPathTest : EnvoyControlTestCon
                     endpoints:
                     - path: "/example-endpoint/{param}/action1"
                       clients: ["authorized-clients"]
-                      unlistedClientsPolicy: blockAndLog
                     - path: "/example-endpoint/{param}/action1/{param2}/action"
                       clients: ["authorized-clients"]
-                      unlistedClientsPolicy: blockAndLog  
                     - pathPrefix: "/example-endpoint/{param}/action2"
                       clients: ["authorized-clients"]
-                      unlistedClientsPolicy: blockAndLog
-                    - path: "/example-endpoint/{param}/wildcard.*"
+                    - path: "/wildcard-endpoint/{param}/wildcard.*"
                       clients: ["authorized-clients"]
-                      unlistedClientsPolicy: blockAndLog
+                    - path: "/wildcard-endpoint/{param}/.*w"
+                      clients: ["authorized-clients"]
+                    - path: "/wildcard-in-the-middle.*/{param}/rest"
+                      clients: ["authorized-clients"]
                     roles:
                     - name: authorized-clients
                       clients: ["echo3", "source-ip-client"]
@@ -58,7 +59,6 @@ internal class IncomingPermissionsParamsInEndpointPathTest : EnvoyControlTestCon
                       - service: "echo"
                       - service: "echo2"
         """.trimIndent()
-
         private val echoConfig = Echo1EnvoyAuthConfig.copy(
             configOverride = proxySettings(unlistedEndpointsPolicy = "blockAndLog"))
 
@@ -116,22 +116,76 @@ internal class IncomingPermissionsParamsInEndpointPathTest : EnvoyControlTestCon
     @Test
     fun `echo should allow echo3 to access 'example-endpoint-action1' on exact path with param`() {
         // when
-        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/1/action1")
+        val echoResponseOne = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/1/action1")
+        val echoResponseTwo = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/2/action1")
+        val echoResponseThree = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/3/action1")
 
         // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
+        assertThat(echoResponseOne).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseTwo).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseThree).isOk().isFrom(echoLocalService)
+        assertThat(echoEnvoy.ingressSslRequests).isEqualTo(3)
+        assertThat(echoEnvoy).hasNoRBACDenials()
+    }
+
+    @Test
+    fun `echo should NOT allow echo3 to access 'example-endpoint-action1' on path with param and with wildcard`() {
+        // when
+        val echoResponseAllowed = call(service = "echo", from = echo3Envoy, path = "/wildcard-in-the-middle/1/rest")
+        val echoResponseNotAllowed = call(service = "echo", from = echo3Envoy, path = "/wildcard-in-the-middles/1/rest")
+
+        // then
+        assertThat(echoResponseAllowed).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseNotAllowed).isForbidden()
+        assertThat(echoEnvoy.ingressSslRequests).isEqualTo(2)
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/wildcard-in-the-middles/1/rest",
+            method = "GET",
+            clientName = "echo3",
+            clientIp = echo3Envoy.ipAddress()
+        )
+    }
+
+    @Test
+    fun `echo should allow echo3 to access 'example-endpoint-action1' on exact path with param with unreserved characters`() {
+        // when
+        val echoResponseHyphens = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/param-with-hyphens/action1")
+        val echoResponseUnderscores = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/param_with_underscores/action1")
+        val echoResponseDots = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/param.with.dots/action1")
+        val echoResponseExclamations = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/param!with!exclamations/action1")
+        val echoResponseTildes = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/param~with~tildes/action1")
+        val echoResponseWildcard = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/param*with*wildcards/action1")
+        val echoResponseQuotes = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/param'with'quotes/action1")
+        val echoResponseParentheses = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/param(with)parentheses/action1")
+        val echoResponseAllSigns = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/p.a'r'am!(with~)-paren*t*hese_s/action1")
+
+        // then
+        assertThat(echoResponseHyphens).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseUnderscores).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseDots).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseExclamations).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseTildes).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseWildcard).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseQuotes).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseParentheses).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseAllSigns).isOk().isFrom(echoLocalService)
+        assertThat(echoEnvoy.ingressSslRequests).isEqualTo(9)
         assertThat(echoEnvoy).hasNoRBACDenials()
     }
 
     @Test
     fun `echo should allow echo3 to access 'example-endpoint-action1-action' on exact path with param`() {
         // when
-        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/1/action1/2/action")
+        val echoResponseOne = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/1/action1/1/action")
+        val echoResponseTwo = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/1/action1/2/action")
+        val echoResponseThree = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/2/action1/1/action")
 
         // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
+        assertThat(echoResponseOne).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseTwo).isOk().isFrom(echoLocalService)
+        assertThat(echoResponseThree).isOk().isFrom(echoLocalService)
+        assertThat(echoEnvoy.ingressSslRequests).isEqualTo(3)
         assertThat(echoEnvoy).hasNoRBACDenials()
     }
 
@@ -210,6 +264,23 @@ internal class IncomingPermissionsParamsInEndpointPathTest : EnvoyControlTestCon
 
     @Test
     fun `echo should NOT allow echo3 to access 'example-endpoint-wildcard' on extended path with param`() {
+        // when
+        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/1/wildcard/sub-action")
+
+        // then
+        assertThat(echoResponse).isForbidden()
+        assertThat(echoEnvoy.ingressSslRequests).isOne()
+        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/example-endpoint/1/wildcard/sub-action",
+            method = "GET",
+            clientName = "echo3",
+            clientIp = echo3Envoy.ipAddress()
+        )
+    }
+
+    @Test
+    fun `echo should NOT allow echo3 to access 'example-endpoint-wildcard-in-the-middle' on extended path with param`() {
         // when
         val echoResponse = call(service = "echo", from = echo3Envoy, path = "/example-endpoint/1/wildcard/sub-action")
 

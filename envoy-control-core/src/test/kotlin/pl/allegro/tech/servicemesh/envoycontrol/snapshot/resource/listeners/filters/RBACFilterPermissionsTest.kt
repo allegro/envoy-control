@@ -89,7 +89,7 @@ internal class RBACFilterPermissionsTest {
                       "safe_regex": {
                         "google_re2": {
                         },
-                        "regex": "\\/example\\/\\w+\\/rest\\/\\w+\\/end"
+                        "regex": "\\/example\\/[a-zA-Z0-9-_.!~*'()]+\\/rest\\/[a-zA-Z0-9-_.!~*'()]+\\/end"
                       }
                     }
                   }
@@ -123,7 +123,7 @@ internal class RBACFilterPermissionsTest {
                       "safe_regex": {
                         "google_re2": {
                         },
-                        "regex": "\\/example\\/\\w+\\/rest\\/\\w+\\/end"
+                        "regex": "\\/example\\/[a-zA-Z0-9-_.!~*'()]+\\/rest\\/[a-zA-Z0-9-_.!~*'()]+\\/end"
                       }
                     }
                   }
@@ -157,7 +157,109 @@ internal class RBACFilterPermissionsTest {
                       "safe_regex": {
                         "google_re2": {
                         },
-                        "regex": "\\/example\\/\\w+\\/rest\\/\\w+\\/end.*"
+                        "regex": "\\/example\\/[a-zA-Z0-9-_.!~*'()]+\\/rest\\/[a-zA-Z0-9-_.!~*'()]+\\/end.*"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+        }""".asPermission()
+
+        // when
+        val permissions = rbacFilterPermissions.createCombinedPermissions(endpoint).build()
+
+        // then
+        assertThat(permissions).isEqualTo(expectedPermission)
+    }
+
+    @Test
+    fun `should create permissions with path prefix matcher with params in path with one wildcard at the end`() {
+        // given
+        val endpoint = IncomingEndpoint(
+            path = "/example/{param1}/rest/{param2}/end.*",
+            pathMatchingType = PathMatchingType.PATH_PREFIX,
+            methods = setOf()
+        )
+        // language=json
+        val expectedPermission = """{
+            "and_rules": {
+              "rules": [
+                {
+                  "url_path": {
+                    "path": {
+                      "safe_regex": {
+                        "google_re2": {
+                        },
+                        "regex": "\\/example\\/[a-zA-Z0-9-_.!~*'()]+\\/rest\\/[a-zA-Z0-9-_.!~*'()]+\\/end.*"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+        }""".asPermission()
+
+        // when
+        val permissions = rbacFilterPermissions.createCombinedPermissions(endpoint).build()
+
+        // then
+        assertThat(permissions).isEqualTo(expectedPermission)
+    }
+
+    @Test
+    fun `should create permissions with exact path matcher with params in path with allowed unreserved characters`() {
+        // given
+        val endpoint = IncomingEndpoint(
+            path = "/example/{p.ar~a~m1-(with)'d!fferent_charac*t*ers}/rest",
+            pathMatchingType = PathMatchingType.PATH,
+            methods = setOf()
+        )
+        // language=json
+        val expectedPermission = """{
+            "and_rules": {
+              "rules": [
+                {
+                  "url_path": {
+                    "path": {
+                      "safe_regex": {
+                        "google_re2": {
+                        },
+                        "regex": "\\/example\\/[a-zA-Z0-9-_.!~*'()]+\\/rest"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+        }""".asPermission()
+
+        // when
+        val permissions = rbacFilterPermissions.createCombinedPermissions(endpoint).build()
+
+        // then
+        assertThat(permissions).isEqualTo(expectedPermission)
+    }
+
+    @Test
+    fun `should NOT create permissions with exact path matcher with params in path with wildcard in it`() {
+        // given
+        val endpoint = IncomingEndpoint(
+            path = "/example.*/{param-name.*}/rest",
+            pathMatchingType = PathMatchingType.PATH,
+            methods = setOf()
+        )
+        // language=json
+        val expectedPermission = """{
+            "and_rules": {
+              "rules": [
+                {
+                  "url_path": {
+                    "path": {
+                      "safe_regex": {
+                        "google_re2": {
+                        },
+                        "regex": "\\/example\\/[a-zA-Z0-9-_.!~*'()]+\\/rest"
                       }
                     }
                   }
