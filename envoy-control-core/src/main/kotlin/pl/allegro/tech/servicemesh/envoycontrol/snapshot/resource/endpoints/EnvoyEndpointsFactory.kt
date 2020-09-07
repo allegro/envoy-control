@@ -33,7 +33,7 @@ class EnvoyEndpointsFactory(
         return clusters
             .map { serviceName ->
                 val localityLbEndpoints = multiClusterState
-                    .mapNotNull {
+                    .map {
                         val locality = it.locality
                         val cluster = it.cluster
 
