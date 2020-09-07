@@ -5,7 +5,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.awaitility.Duration
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulOperations
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.externalEnvoyControl1GrpcPort
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.toxiproxyGrpcPort
@@ -61,7 +61,7 @@ internal class ConsulRpcLimitReachedTest : ReliabilityTest() {
 
     private fun rpcLimitReached() {
         untilAsserted {
-            val limitReached = burstRpcLimit(lowRpcConsulClient.consulOperations)
+            val limitReached = burstRpcLimit(lowRpcConsulClient.operations)
             assertThat(limitReached).isEqualTo(true)
         }
     }

@@ -5,9 +5,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 
 class RetryPolicyTest {
@@ -37,7 +37,7 @@ class RetryPolicyTest {
     @Test
     fun `should retry request 3 times when application is down`() {
         // given
-        service.container.stop()
+        service.container().stop()
 
         // when
         envoy.ingressOperations.callLocalService(

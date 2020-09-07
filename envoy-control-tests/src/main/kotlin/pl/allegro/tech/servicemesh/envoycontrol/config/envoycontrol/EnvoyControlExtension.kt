@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.config
+package pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol
 
 import org.assertj.core.api.Assertions
 import org.awaitility.Awaitility
@@ -18,9 +18,7 @@ class EnvoyControlExtension(private val consul: ConsulExtension, val app: EnvoyC
         ))
 
     override fun beforeAll(context: ExtensionContext) {
-        if (!consul.started) {
-            consul.beforeAll(context)
-        }
+        consul.beforeAll(context)
         app.run()
         waitUntilHealthy()
     }

@@ -1,64 +1,77 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.redirect.RedirectServiceContainer
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.RedirectServiceContainer
 import java.net.UnknownHostException
 
-open class InternalRedirectTest : EnvoyControlTestConfiguration() {
+class InternalRedirectTest {
 
     companion object {
-        private val redirectServiceContainer = RedirectServiceContainer(redirectTo = "service-1")
-        private val properties = mapOf(
-            "envoy-control.envoy.snapshot.egress.handleInternalRedirect" to false
-        )
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(appFactoryForEc1 = { consulPort ->
-                EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            })
-            redirectServiceContainer.start()
-        }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.envoy.snapshot.egress.handleInternalRedirect" to false
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, service)
+
+        @JvmField
+        @RegisterExtension
+        val redirectService = GenericServiceExtension(RedirectServiceContainer(redirectTo = "service-1"))
     }
 
     @Test
     fun `redirect should be handled by envoy and response from service-1 is returned`() {
         // given
-        registerService(name = "service-1")
+        consul.server.operations.registerService(service, name = "service-1")
         // service-redirect has defined in metadata redirect policy
-        registerRedirectService(serviceName = "service-redirect")
+        consul.server.operations.registerService(redirectService, name = "service-redirect")
 
         untilAsserted {
             // when
-            val response = callService(service = "service-redirect")
+            val response = envoy.egressOperations.callService("service-redirect")
 
             // then
-            assertThat(response).isOk().isFrom(echoContainer)
+            assertThat(response).isOk().isFrom(service)
         }
     }
 
     @Test
     fun `envoy should not handle redirects by default`() {
         // given
-        registerService(name = "service-1")
-        registerRedirectService(serviceName = "service-5")
+        consul.server.operations.registerService(service, name = "service-1")
+        consul.server.operations.registerService(redirectService, name = "service-5")
 
         untilAsserted {
             // when
-            val exception = assertThrows<UnknownHostException> { callService(service = "service-5") }
+            val exception = assertThrows<UnknownHostException> {
+                envoy.egressOperations.callService("service-5")
+            }
 
             // then
             assertThat(exception.message).contains("service-1")
         }
-    }
-
-    private fun registerRedirectService(serviceName: String) {
-        registerService(name = serviceName, container = redirectServiceContainer, port = RedirectServiceContainer.PORT)
     }
 }

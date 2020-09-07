@@ -4,11 +4,11 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.HttpsEchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.HttpsEchoResponse
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.hasSNI
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoResponse
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.hasSNI
 
 class EnvoyCurrentVersionHttpsDependencyTest : EnvoyHttpsDependencyTest() {
     companion object {

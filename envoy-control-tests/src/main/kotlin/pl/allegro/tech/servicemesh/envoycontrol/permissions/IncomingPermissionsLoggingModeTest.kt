@@ -8,16 +8,17 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.testcontainers.junit.jupiter.Container
-import pl.allegro.tech.servicemesh.envoycontrol.asssertions.hasNoRBACDenials
-import pl.allegro.tech.servicemesh.envoycontrol.asssertions.hasOneAccessDenialWithActionBlock
-import pl.allegro.tech.servicemesh.envoycontrol.asssertions.hasOneAccessDenialWithActionLog
-import pl.allegro.tech.servicemesh.envoycontrol.asssertions.isRbacAccessLog
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasNoRBACDenials
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionBlock
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionLog
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 
 @SuppressWarnings("LargeClass")
 internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguration() {
@@ -29,7 +30,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             "$prefix.incoming-permissions.source-ip-authentication.ip-from-range.source-ip-client" to
                 "$sourceClientIp/32",
             "$prefix.routes.status.create-virtual-cluster" to true,
-            "$prefix.routes.status.path-prefix" to "/status/",
+            "$prefix.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
             "$prefix.routes.status.enabled" to true
         ) }
 
