@@ -3,10 +3,12 @@ package pl.allegro.tech.servicemesh.envoycontrol.infrastructure
 import com.ecwid.consul.v1.ConsulClient
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.micrometer.core.instrument.MeterRegistry
+import org.springframework.boot.autoconfigure.condition.ConditionMessage
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.OnPropertyListCondition
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.converter.protobuf.ProtobufJsonFormatHttpMessageConverter
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes
@@ -118,7 +120,7 @@ class ControlPlaneConfig {
     fun ipAddressFilter() = IpAddressFilter()
 
     @Bean
-    @ConditionalOnProperty("envoy-control.service-filters.excluded-names-patterns")
+    @Conditional(OnNotEmptyListCondition::class)
     fun excludeServicesFilter(properties: EnvoyControlProperties) =
         RegexServiceInstancesFilter(properties.serviceFilters.excludedNamesPatterns)
 
@@ -162,3 +164,8 @@ class ControlPlaneConfig {
     @ConditionalOnMissingBean(ChaosService::class)
     fun chaosService(chaosDataStore: ChaosDataStore): ChaosService = ChaosService(chaosDataStore = chaosDataStore)
 }
+
+class OnNotEmptyListCondition : OnPropertyListCondition(
+    "envoy-control.service-filters.excluded-names-patterns",
+    { ConditionMessage.forCondition("excluded-names-patterns") }
+)

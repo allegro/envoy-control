@@ -36,7 +36,7 @@ class RegexServicesFilterTest {
     }
 
     @Test
-    fun `should not reach service whose name ends with number from 1 to 4`() {
+    fun `should not reach service whose name ends with number from 1 to 2`() {
         // given
         consul.server.operations.registerService(service, name = "service-1")
         consul.server.operations.registerService(service, name = "service-2")
