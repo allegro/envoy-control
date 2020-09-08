@@ -128,8 +128,8 @@ class NodeMetadataTest {
 
         // then
         // no exception thrown
-        assertThat(result.path).isEqualTo("/prefix")
-        assertThat(result.pathMatchingType).isEqualTo(PathMatchingType.PATH_PREFIX)
+        assertThat(result.path).isEqualTo("/path")
+        assertThat(result.pathMatchingType).isEqualTo(PathMatchingType.PATH)
     }
 
     @Test
@@ -142,8 +142,8 @@ class NodeMetadataTest {
 
         // then
         // no exception thrown
-        assertThat(result.path).isEqualTo("/prefix")
-        assertThat(result.pathMatchingType).isEqualTo(PathMatchingType.PATH_PREFIX)
+        assertThat(result.path).isEqualTo("/regex")
+        assertThat(result.pathMatchingType).isEqualTo(PathMatchingType.PATH_REGEX)
     }
 
     @Test

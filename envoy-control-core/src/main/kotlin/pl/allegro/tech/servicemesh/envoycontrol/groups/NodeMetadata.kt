@@ -157,8 +157,12 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy)
-        pathPrefix != null -> IncomingEndpoint(pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy)
-        pathRegex != null -> IncomingEndpoint(pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy)
+        pathPrefix != null -> IncomingEndpoint(
+            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy
+        )
+        pathRegex != null -> IncomingEndpoint(
+            pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy
+        )
         else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
 }

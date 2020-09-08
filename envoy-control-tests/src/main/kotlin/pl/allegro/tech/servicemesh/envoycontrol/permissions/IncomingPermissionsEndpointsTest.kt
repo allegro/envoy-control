@@ -1,41 +1,28 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.testcontainers.junit.jupiter.Container
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasNoRBACDenials
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionBlock
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isForbidden
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 
-class IncomingPermissionsEndpointsTest : EnvoyControlTestConfiguration() {
+class IncomingPermissionsEndpointsTest {
 
     companion object {
-        private const val prefix = "envoy-control.envoy.snapshot"
-        private val properties = { sourceClientIp: String ->
-            mapOf(
-                "$prefix.incoming-permissions.enabled" to true,
-                "$prefix.incoming-permissions.source-ip-authentication.ip-from-range.source-ip-client" to
-                    "$sourceClientIp/32",
-                "$prefix.routes.status.create-virtual-cluster" to true
-            )
-        }
 
         // language=yaml
-        private fun proxySettings(unlistedEndpointsPolicy: String) = """
+        private val echoYaml = """
             node:
               metadata:
                 proxy_settings:
                   incoming:
-                    unlistedEndpointsPolicy: $unlistedEndpointsPolicy
+                    unlistedEndpointsPolicy: blockAndLog
                     endpoints:
                     - path: "/path"
                       clients: ["echo2"]
@@ -45,140 +32,110 @@ class IncomingPermissionsEndpointsTest : EnvoyControlTestConfiguration() {
                       clients: ["echo2"]
                     roles: []
                   outgoing:
-                    dependencies:
-                      - service: "echo"
-                      - service: "echo2"
+                    dependencies: []
         """.trimIndent()
 
-        private val echoConfig = Echo1EnvoyAuthConfig.copy(
-            configOverride = proxySettings(unlistedEndpointsPolicy = "blockAndLog"))
+        // language=yaml
+        private val echo2Yaml = """
+            node:
+              metadata:
+                proxy_settings:
+                  incoming:
+                    unlistedEndpointsPolicy: blockAndLog
+                    endpoints: []
+                  outgoing:
+                    dependencies:
+                      - service: "echo"
+        """.trimIndent()
 
-        private val echo2Config = Echo2EnvoyAuthConfig.copy(
-            configOverride = proxySettings(unlistedEndpointsPolicy = "blockAndLog"))
+        private val echoConfig = Echo1EnvoyAuthConfig.copy(configOverride = echoYaml)
+        private val echo2Config = Echo2EnvoyAuthConfig.copy(configOverride = echo2Yaml)
 
-        private val echoEnvoy by lazy { envoyContainer1 }
-        private val echo2Envoy by lazy { envoyContainer2 }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
-        @Container
-        private val sourceIpClient = ToxiproxyContainer(exposedPortsCount = 2).withNetwork(network)
-        private val echoLocalService by lazy { localServiceContainer }
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true
+        ))
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(appFactoryForEc1 = { consulPort ->
-                EnvoyControlRunnerTestApp(properties = properties(sourceIpClient.ipAddress()), consulPort = consulPort)
-            },
-                envoys = 2,
-                envoyConfig = echoConfig,
-                secondEnvoyConfig = echo2Config
-            )
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, config = echoConfig)
 
-            registerServiceWithEnvoyOnIngress(name = "echo", envoy = echoEnvoy, tags = listOf("mtls:enabled"))
-            registerServiceWithEnvoyOnIngress(name = "echo2", envoy = echo2Envoy, tags = listOf("mtls:enabled"))
+        @JvmField
+        @RegisterExtension
+        val secondEnvoy = EnvoyExtension(envoyControl, config = echo2Config)
+    }
 
-            waitForEnvoysInitialized()
-        }
+    @Test
+    fun `echo should allow echo2 to access 'path' endpoint on exact path`() {
+        // when
+        consul.server.operations.registerServiceWithEnvoyOnIngress(envoy, name = "echo", tags = listOf("mtls:enabled"))
+        consul.server.operations.registerServiceWithEnvoyOnIngress(secondEnvoy, name = "echo2", tags = listOf("mtls:enabled"))
 
-        private fun waitForEnvoysInitialized() {
-            untilAsserted {
-                assertThat(echoEnvoy.admin().isEndpointHealthy("echo2", echo2Envoy.ipAddress())).isTrue()
-                assertThat(echo2Envoy.admin().isEndpointHealthy("echo", echoEnvoy.ipAddress())).isTrue()
+        // then
+        untilAsserted {
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path").also {
+                assertThat(it).isOk()
+            }
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path/segment").also {
+                assertThat(it).isForbidden()
             }
         }
     }
 
     @Test
-    fun `echo should allow echo2 to access 'path' endpoint`() {
+    fun `echo should allow echo2 to access 'prefix' endpoint on correct prefix path`() {
         // when
-        val echoResponse = call(service = "echo", from = echo2Envoy, path = "/path")
+        consul.server.operations.registerServiceWithEnvoyOnIngress(envoy, name = "echo", tags = listOf("mtls:enabled"))
+        consul.server.operations.registerServiceWithEnvoyOnIngress(secondEnvoy, name = "echo2", tags = listOf("mtls:enabled"))
 
         // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasNoRBACDenials()
+        untilAsserted {
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/prefix").also {
+                assertThat(it).isOk()
+            }
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/prefixes").also {
+                assertThat(it).isOk()
+            }
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/prefix/segment").also {
+                assertThat(it).isOk()
+            }
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/wrong-prefix").also {
+                assertThat(it).isForbidden()
+            }
+        }
     }
 
     @Test
-    fun `echo should NOT allow echo2 to access 'path' endpoint with following segments`() {
+    fun `echo should allow echo2 to access 'regex' endpoint on correct regex path`() {
         // when
-        val echoResponse = call(service = "echo", from = echo2Envoy, path = "/path/sub-segment")
+        consul.server.operations.registerServiceWithEnvoyOnIngress(envoy, name = "echo", tags = listOf("mtls:enabled"))
+        consul.server.operations.registerServiceWithEnvoyOnIngress(secondEnvoy, name = "echo2", tags = listOf("mtls:enabled"))
 
         // then
-        assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
-            protocol = "https",
-            path = "/path/sub-segment",
-            method = "GET",
-            clientName = "echo2",
-            clientIp = echo2Envoy.ipAddress()
-        )
-    }
-
-    @Test
-    fun `echo should allow echo2 to access 'prefix' endpoint`() {
-        // when
-        val echoResponseOne = call(service = "echo", from = echo2Envoy, path = "/prefix")
-        val echoResponseTwo = call(service = "echo", from = echo2Envoy, path = "/prefixes")
-        val echoResponseThree = call(service = "echo", from = echo2Envoy, path = "/prefix/segment")
-
-        // then
-        assertThat(echoResponseOne).isOk().isFrom(echoLocalService)
-        assertThat(echoResponseTwo).isOk().isFrom(echoLocalService)
-        assertThat(echoResponseThree).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isEqualTo(3)
-        assertThat(echoEnvoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo should allow echo2 to access 'regex' endpoint`() {
-        // when
-        val echoResponseOne = call(service = "echo", from = echo2Envoy, path = "/regex/1/segment")
-        val echoResponseTwo = call(service = "echo", from = echo2Envoy, path = "/regex/param-1/segment")
-
-        // then
-        assertThat(echoResponseOne).isOk().isFrom(echoLocalService)
-        assertThat(echoResponseTwo).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isEqualTo(2)
-        assertThat(echoEnvoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo should allow echo2 to access 'regex' endpoint without valid segments`() {
-        // when
-        val echoResponseOne = call(service = "echo", from = echo2Envoy, path = "/regex/1")
-        val echoResponseTwo = call(service = "echo", from = echo2Envoy, path = "/regex/param/seg")
-        val echoResponseThree = call(service = "echo", from = echo2Envoy, path = "/regex/param/segment/last-segment")
-
-        // then
-        assertThat(echoResponseOne).isForbidden()
-        assertThat(echoResponseTwo).isForbidden()
-        assertThat(echoResponseThree).isForbidden()
-        assertThat(echoEnvoy.ingressSslRequests).isEqualTo(3)
-    }
-
-    @BeforeEach
-    fun startRecordingRBACLogs() {
-        echoEnvoy.recordRBACLogs()
-        echo2Envoy.recordRBACLogs()
-    }
-
-    fun stopRecordingRBACLogs() {
-        echoEnvoy.logRecorder.stopRecording()
-        echo2Envoy.logRecorder.stopRecording()
-    }
-
-    @AfterEach
-    override fun cleanupTest() {
-        listOf(echoEnvoy, echo2Envoy).forEach { it.admin().resetCounters() }
-        stopRecordingRBACLogs()
-    }
-
-    private val EnvoyContainer.ingressSslRequests: Int?
-        get() = this.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()
-
-    private fun EnvoyContainer.recordRBACLogs() {
-        logRecorder.recordLogs(::isRbacAccessLog)
+        untilAsserted {
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/regex/1/segment").also {
+                assertThat(it).isOk()
+            }
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/regex/param-1/segment").also {
+                assertThat(it).isOk()
+            }
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/regex/1").also {
+                assertThat(it).isForbidden()
+            }
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/regex/param/seg").also {
+                assertThat(it).isForbidden()
+            }
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/regex/param/bad-segment").also {
+                assertThat(it).isForbidden()
+            }
+            secondEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/regex/param/segment/last-segment").also {
+                assertThat(it).isForbidden()
+            }
+        }
     }
 }

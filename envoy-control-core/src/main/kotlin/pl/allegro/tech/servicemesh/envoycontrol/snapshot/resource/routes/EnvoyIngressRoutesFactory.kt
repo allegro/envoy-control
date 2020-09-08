@@ -46,11 +46,11 @@ class EnvoyIngressRoutesFactory(
         when (it.matchingType) {
             PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder().setName(":path").setPrefixMatch(it.path).build()
             PathMatchingType.PATH -> HeaderMatcher.newBuilder().setName(":path").setExactMatch(it.path).build()
-            PathMatchingType.PATH_REGEX -> HeaderMatcher.newBuilder().setName(":path").setSafeRegexMatch(it.path).build()
+            PathMatchingType.PATH_REGEX -> HeaderMatcher.newBuilder().setName(":path").setRe2Match(it.path).build()
         }
     }
 
-    private fun HeaderMatcher.Builder.setSafeRegexMatch(regexPattern: String) = this
+    private fun HeaderMatcher.Builder.setRe2Match(regexPattern: String) = this
         .setSafeRegexMatch(
             RegexMatcher.newBuilder()
                 .setRegex(regexPattern)
