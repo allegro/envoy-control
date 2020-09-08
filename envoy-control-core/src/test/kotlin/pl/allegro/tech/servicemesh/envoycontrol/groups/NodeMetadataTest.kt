@@ -42,18 +42,51 @@ class NodeMetadataTest {
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
-        assertThat(exception.status.description).isEqualTo("Precisely one of 'path' and 'pathPrefix' field is allowed")
+        assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test
-    fun `should reject endpoint with no path or pathPrefix defined`() {
+    fun `should reject endpoint with both path and pathRegex defined`() {
         // given
-        val proto = incomingEndpointProto(path = null, pathPrefix = null)
+        val proto = incomingEndpointProto(path = "/path", pathRegex = "/regex")
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
-        assertThat(exception.status.description).isEqualTo("One of 'path' or 'pathPrefix' field is required")
+        assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should reject endpoint with path, pathPrefix and pathRegex defined`() {
+        // given
+        val proto = incomingEndpointProto(path = "/path", pathPrefix = "/prefix", pathRegex = "/regex")
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
+        assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should reject endpoint with both pathPrefix and pathRegex defined`() {
+        // given
+        val proto = incomingEndpointProto(pathPrefix = "/prefix", pathRegex = "/regex")
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
+        assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should reject endpoint with no path or pathPrefix or pathRegex defined`() {
+        // given
+        val proto = incomingEndpointProto(path = null, pathPrefix = null, pathRegex = null)
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
+        assertThat(exception.status.description).isEqualTo("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -75,6 +108,34 @@ class NodeMetadataTest {
     fun `should accept endpoint with both path and pathPrefix defined but path is null`() {
         // given
         val proto = incomingEndpointProto(path = null, pathPrefix = "/prefix", includeNullFields = true)
+
+        // when
+        val result = proto.toIncomingEndpoint()
+
+        // then
+        // no exception thrown
+        assertThat(result.path).isEqualTo("/prefix")
+        assertThat(result.pathMatchingType).isEqualTo(PathMatchingType.PATH_PREFIX)
+    }
+
+    @Test
+    fun `should accept endpoint with both path and pathRegex defined but pathRegex is null`() {
+        // given
+        val proto = incomingEndpointProto(path = "/path", pathRegex = null, includeNullFields = true)
+
+        // when
+        val result = proto.toIncomingEndpoint()
+
+        // then
+        // no exception thrown
+        assertThat(result.path).isEqualTo("/prefix")
+        assertThat(result.pathMatchingType).isEqualTo(PathMatchingType.PATH_PREFIX)
+    }
+
+    @Test
+    fun `should accept endpoint with both path and pathRegex defined but path is null`() {
+        // given
+        val proto = incomingEndpointProto(path = null, pathRegex = "/regex", includeNullFields = true)
 
         // when
         val result = proto.toIncomingEndpoint()

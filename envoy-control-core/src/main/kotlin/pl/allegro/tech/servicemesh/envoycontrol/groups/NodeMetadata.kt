@@ -70,7 +70,7 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
 }
 
 fun Value?.toStatusCodeFilter(accessLogFilterFactory: AccessLogFilterFactory):
-        AccessLogFilterSettings.StatusCodeFilterSettings? = this?.stringValue?.let {
+    AccessLogFilterSettings.StatusCodeFilterSettings? = this?.stringValue?.let {
     accessLogFilterFactory.parseStatusCodeFilter(it.toUpperCase())
 }
 
@@ -123,11 +123,13 @@ fun Value?.toIncoming(): Incoming {
 
 fun Value?.toUnlistedPolicy() = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
-    ?.let { when (it) {
-        "log" -> Incoming.UnlistedPolicy.LOG
-        "blockAndLog" -> Incoming.UnlistedPolicy.BLOCKANDLOG
-        else -> throw NodeMetadataValidationException("Invalid UnlistedPolicy value: $it")
-    } }
+    ?.let {
+        when (it) {
+            "log" -> Incoming.UnlistedPolicy.LOG
+            "blockAndLog" -> Incoming.UnlistedPolicy.BLOCKANDLOG
+            else -> throw NodeMetadataValidationException("Invalid UnlistedPolicy value: $it")
+        }
+    }
     ?: Incoming.UnlistedPolicy.BLOCKANDLOG
 
 fun Value?.toHealthCheck(): HealthCheck {
@@ -143,9 +145,10 @@ fun Value?.toHealthCheck(): HealthCheck {
 fun Value.toIncomingEndpoint(): IncomingEndpoint {
     val pathPrefix = this.field("pathPrefix")?.stringValue
     val path = this.field("path")?.stringValue
+    val pathRegex = this.field("pathRegex")?.stringValue
 
-    if (pathPrefix != null && path != null) {
-        throw NodeMetadataValidationException("Precisely one of 'path' and 'pathPrefix' field is allowed")
+    if (isInvalidNumberOfPropertiesDefined(path, pathPrefix, pathRegex)) {
+        throw NodeMetadataValidationException("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
     }
 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
@@ -154,11 +157,14 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy)
-        pathPrefix != null -> IncomingEndpoint(
-                pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy
-        )
-        else -> throw NodeMetadataValidationException("One of 'path' or 'pathPrefix' field is required")
+        pathPrefix != null -> IncomingEndpoint(pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy)
+        pathRegex != null -> IncomingEndpoint(pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy)
+        else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
+}
+
+fun isInvalidNumberOfPropertiesDefined(first: String?, second: String?, third: String?): Boolean {
+    return first != null && second != null || first != null && third != null || second != null && third != null
 }
 
 private fun decomposeClient(client: ClientComposite): ClientWithSelector {
@@ -329,7 +335,7 @@ data class IncomingEndpoint(
 ) : EndpointBase
 
 enum class PathMatchingType {
-    PATH, PATH_PREFIX
+    PATH, PATH_PREFIX, PATH_REGEX
 }
 
 enum class CommunicationMode {
