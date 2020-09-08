@@ -13,13 +13,13 @@ import com.google.protobuf.util.JsonFormat
 import com.google.protobuf.util.JsonFormat.TypeRegistry
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SnapshotCache
+import io.envoyproxy.controlplane.cache.v2.Snapshot
 import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
 import io.envoyproxy.envoy.api.v2.core.Node
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config
 import io.envoyproxy.envoy.config.filter.http.lua.v2.Lua
-import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as FilterRBAC
-import io.envoyproxy.envoy.config.rbac.v2.RBAC
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
+import io.envoyproxy.envoy.config.rbac.v2.RBAC
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
 import org.springframework.boot.jackson.JsonComponent
@@ -35,19 +35,20 @@ import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
+import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as FilterRBAC
 
 @RestController
 class SnapshotDebugController(controlPlane: ControlPlane) {
-    val cache: SnapshotCache<Group> = controlPlane.cache
+    val cache: SnapshotCache<Group, Snapshot> = controlPlane.cache
     val nodeGroup: NodeGroup<Group> = controlPlane.nodeGroup
     val snapshotUpdater: SnapshotUpdater = controlPlane.snapshotUpdater
 
     /**
-     * Returns a textual representation of the snapshot for debugging purposes.
+     * Returns a textual representation of the v2 snapshot for debugging purposes.
      * It contains the versions of XDS resources and the contents for a provided node JSON
      * extracted from Envoy's config_dump endpoint.
      */
-    @PostMapping("/snapshot")
+    @PostMapping(value = arrayOf("/v2/snapshot", "/snapshot"))
     fun snapshot(@RequestBody node: Node): ResponseEntity<SnapshotDebugInfo> {
         val nodeHash = nodeGroup.hash(node)
         val snapshot = cache.getSnapshot(nodeHash)
@@ -55,7 +56,26 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             throw SnapshotNotFoundException()
         } else {
             ResponseEntity(
-                SnapshotDebugInfo(snapshot),
+                SnapshotDebugInfo(snapshot as Snapshot),
+                HttpStatus.OK
+            )
+        }
+    }
+
+    /**
+     * Returns a textual representation of the v3 snapshot for debugging purposes.
+     * It contains the versions of XDS resources and the contents for a provided node JSON
+     * extracted from Envoy's config_dump endpoint.
+     */
+    @PostMapping("/v3/snapshot")
+    fun snapshot(@RequestBody node: io.envoyproxy.envoy.config.core.v3.Node): ResponseEntity<SnapshotDebugInfo> {
+        val nodeHash = nodeGroup.hash(node)
+        val snapshot = cache.getSnapshot(nodeHash)
+        return if (snapshot == null) {
+            throw SnapshotNotFoundException()
+        } else {
+            ResponseEntity(
+                SnapshotDebugInfo(snapshot as io.envoyproxy.controlplane.cache.v3.Snapshot),
                 HttpStatus.OK
             )
         }
