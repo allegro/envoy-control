@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.pszymczyk.consul.infrastructure.Ports
+import okhttp3.Credentials
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -14,6 +15,7 @@ import org.springframework.boot.actuate.health.Status
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.http.HttpStatus
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControl
+import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.debug.Versions
@@ -30,6 +32,23 @@ interface EnvoyControlTestApp {
     fun getSnapshot(nodeJson: String): SnapshotDebugResponse
     fun getGlobalSnapshot(xds: Boolean?): SnapshotDebugResponse
     fun getHealthStatus(): Health
+    fun postChaosFaultRequest(
+        username: String = "user",
+        password: String = "pass",
+        networkDelay: NetworkDelay
+    ): Response
+
+    fun getExperimentsListRequest(
+        username: String = "user",
+        password: String = "pass"
+    ): Response
+
+    fun deleteChaosFaultRequest(
+        username: String = "user",
+        password: String = "pass",
+        faultId: String
+    ): Response
+
     fun <T> bean(clazz: Class<T>): T
 }
 
@@ -144,6 +163,58 @@ class EnvoyControlRunnerTestApp(
                     .build()
             )
             .execute()
+
+    override fun postChaosFaultRequest(
+        username: String,
+        password: String,
+        networkDelay: NetworkDelay
+    ): Response {
+        val credentials = Credentials.basic(username, password)
+        val request = objectMapper.writeValueAsString(networkDelay)
+        val requestBody = RequestBody.create(MediaType.get("application/json"), request)
+        return httpClient
+            .newCall(
+                Request.Builder()
+                    .header("Authorization", credentials)
+                    .post(requestBody)
+                    .url("http://localhost:$appPort/chaos/fault/read-network-delay")
+                    .build()
+            )
+            .execute()
+    }
+
+    override fun getExperimentsListRequest(
+        username: String,
+        password: String
+    ): Response {
+        val credentials = Credentials.basic(username, password)
+        return httpClient
+            .newCall(
+                Request.Builder()
+                    .header("Authorization", credentials)
+                    .get()
+                    .url("http://localhost:$appPort/chaos/fault/read-network-delay")
+                    .build()
+            )
+            .execute()
+    }
+
+    override fun deleteChaosFaultRequest(
+        username: String,
+        password: String,
+        faultId: String
+    ): Response {
+        val credentials = Credentials.basic(username, password)
+        return httpClient
+            .newCall(
+                Request.Builder()
+                    .header("Authorization", credentials)
+                    .delete()
+                    .url("http://localhost:$appPort/chaos/fault/read-network-delay/$faultId")
+                    .build()
+            )
+            .execute()
+    }
 
     override fun <T> bean(clazz: Class<T>): T = app.context().getBean(clazz)
         ?: throw IllegalStateException("Bean of type ${clazz.simpleName} not found in the context")

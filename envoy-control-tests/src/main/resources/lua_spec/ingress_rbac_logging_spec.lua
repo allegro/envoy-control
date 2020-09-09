@@ -2,6 +2,9 @@ require("ingress_rbac_logging")
 
 local _ = match._
 local contains = function(substring) return match.matches(substring, nil, true) end
+local function formatLog(method, path, source_ip, service_name, protocol, statusCode)
+    return "\nINCOMING_PERMISSIONS { \"method\": \""..method.."\", \"path\": \""..path.."\", \"clientIp\": \""..source_ip.."\", \"clientName\": \""..service_name.."\", \"protocol\": \""..protocol.."\", \"statusCode\": "..statusCode.." }"
+end
 
 local function handlerMock(headers, metadata, https)
     local metadataMock = mock({
@@ -22,6 +25,7 @@ local function handlerMock(headers, metadata, https)
         logInfo = logInfoMock
     }
 end
+
 
 describe("envoy_on_request:", function()
     it("should set dynamic metadata", function()
@@ -81,9 +85,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_,
-              "\nUnauthorized request: method = POST, path = '/path?query=val', "..
-              "clientIp = 127.1.1.3, clientName = service-first, protocol = https, statusCode = 403")
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "403"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -96,9 +98,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_,
-              "\nUnauthorized request: method = POST, path = '/path?query=val', "..
-                "clientIp = 127.1.1.3, clientName = service-first, protocol = http, statusCode = 403")
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "http", "403"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -111,9 +111,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_,
-              "\nUnauthorized request: method = POST, path = '/path?query=val', "..
-                "clientIp = 127.1.1.3, clientName = service-first, protocol = https, statusCode = 200")
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "200"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -127,8 +125,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_,
-              "\nUnauthorized request: method = , path = , clientIp = , clientName = , protocol = https, statusCode = ")
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "0"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -142,8 +139,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_,
-              "\nUnauthorized request: method = , path = , clientIp = , clientName = , protocol = https, statusCode = ")
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "0"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -156,9 +152,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_,
-              "\nUnauthorized request: method = POST, path = '', "..
-                "clientIp = 127.1.1.3, clientName = service-first, protocol = https, statusCode = 403")
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "", "127.1.1.3", "service-first", "https", "403"))
             assert.spy(handle.logInfo).was_called(1)
         end)
     end)
@@ -216,7 +210,7 @@ describe("envoy_on_response:", function()
                 envoy_on_response(handle)
 
                 -- then
-                assert.spy(handle.logInfo).was_called_with(_, contains("clientIp = "..expected_client_ip..","))
+                assert.spy(handle.logInfo).was_called_with(_, contains("\"clientIp\": \""..expected_client_ip.."\""))
             end)
         end
     end)
