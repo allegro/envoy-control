@@ -5,7 +5,7 @@ Data Plane that is platform agnostic.
 
 ## Features
 
-* Exposing data from Service Discovery to [Envoy via gRPC xDS v2 API](integrations/envoy.md)
+* Exposing data from Service Discovery to [Envoy via gRPC xDS v3 API](integrations/envoy.md)
 * Scalable [integration with Consul](integrations/consul.md)
 * [Multi-DC support](features/multi_dc_support.md)
 * [Permission management](features/permissions.md)

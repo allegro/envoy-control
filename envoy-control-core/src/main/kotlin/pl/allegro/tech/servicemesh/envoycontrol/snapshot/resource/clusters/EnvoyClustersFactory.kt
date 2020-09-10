@@ -11,6 +11,7 @@ import io.envoyproxy.envoy.config.cluster.v3.OutlierDetection
 import io.envoyproxy.envoy.config.core.v3.Address
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ApiConfigSource
+import io.envoyproxy.envoy.config.core.v3.ApiVersion
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.DataSource
 import io.envoyproxy.envoy.config.core.v3.GrpcService
@@ -233,8 +234,11 @@ class EnvoyClustersFactory(
                     when (communicationMode) {
                         ADS -> ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
                         XDS ->
-                        ConfigSource.newBuilder().setApiConfigSource(
+                        ConfigSource.newBuilder()
+                                .setResourceApiVersion(ApiVersion.V3)
+                                .setApiConfigSource(
                             ApiConfigSource.newBuilder().setApiType(ApiConfigSource.ApiType.GRPC)
+                                .setTransportApiVersion(ApiVersion.V3)
                                 .addGrpcServices(0, GrpcService.newBuilder().setEnvoyGrpc(
                                     GrpcService.EnvoyGrpc.newBuilder()
                                         .setClusterName(properties.xdsClusterName)

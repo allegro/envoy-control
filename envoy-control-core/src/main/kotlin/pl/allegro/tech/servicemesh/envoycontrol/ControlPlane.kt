@@ -5,7 +5,6 @@ import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.envoyproxy.controlplane.server.DefaultExecutorGroup
 import io.envoyproxy.controlplane.server.ExecutorGroup
-import io.envoyproxy.controlplane.server.V2DiscoveryServer
 import io.envoyproxy.controlplane.server.V3DiscoveryServer
 import io.envoyproxy.controlplane.server.callback.SnapshotCollectingCallback
 import io.grpc.Server
@@ -162,12 +161,7 @@ class ControlPlane private constructor(
                             NodeMetadataValidator(properties.envoy.snapshot)
                     )
             )
-            val v2discoveryServer = V2DiscoveryServer(
-                compositeDiscoveryCallbacksV2,
-                groupChangeWatcher,
-                executorGroup,
-                cachedProtoResourcesSerializer
-            )
+
             val v3discoveryServer = V3DiscoveryServer(
                     compositeDiscoveryCallbacksV3,
                     groupChangeWatcher,
@@ -195,7 +189,6 @@ class ControlPlane private constructor(
             return ControlPlane(
                 grpcServer(
                         properties.server,
-                        v2discoveryServer,
                         v3discoveryServer,
                         nioEventLoopExecutor!!,
                         grpcServerExecutor!!
@@ -312,14 +305,6 @@ class ControlPlane private constructor(
             return this
         }
 
-        private fun NettyServerBuilder.withV2EnvoyServices(discoveryServer: V2DiscoveryServer): NettyServerBuilder {
-            return this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
-                    .addService(discoveryServer.clusterDiscoveryServiceImpl)
-                    .addService(discoveryServer.endpointDiscoveryServiceImpl)
-                    .addService(discoveryServer.listenerDiscoveryServiceImpl)
-                    .addService(discoveryServer.routeDiscoveryServiceImpl)
-        }
-
         private fun NettyServerBuilder.withV3EnvoyServices(discoveryServer: V3DiscoveryServer): NettyServerBuilder {
             return this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
                 .addService(discoveryServer.clusterDiscoveryServiceImpl)
@@ -335,7 +320,6 @@ class ControlPlane private constructor(
 
         private fun grpcServer(
             config: ServerProperties,
-            v2discoveryServer: V2DiscoveryServer,
             v3discoveryServer: V3DiscoveryServer,
             nioEventLoopExecutor: Executor,
             grpcServerExecutor: Executor
@@ -350,7 +334,6 @@ class ControlPlane private constructor(
             .keepAliveTime(config.netty.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
             .permitKeepAliveTime(config.netty.permitKeepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
             .permitKeepAliveWithoutCalls(config.netty.permitKeepAliveWithoutCalls)
-            .withV2EnvoyServices(v2discoveryServer)
             .withV3EnvoyServices(v3discoveryServer)
             .build()
     }

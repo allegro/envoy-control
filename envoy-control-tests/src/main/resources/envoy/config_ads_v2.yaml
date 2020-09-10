@@ -4,13 +4,13 @@ admin:
     socket_address: { address: 0.0.0.0, port_value: 10000 }
 dynamic_resources:
   lds_config:
-    resource_api_version: V3
+    resource_api_version: V2
     ads: {}
   cds_config:
-    resource_api_version: V3
+    resource_api_version: V2
     ads: {}
   ads_config:
-    transport_api_version: V3
+    transport_api_version: V2
     api_type: GRPC
     grpc_services:
       envoy_grpc:

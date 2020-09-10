@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.api.v2.core.Node
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -11,6 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
+import io.envoyproxy.envoy.config.core.v3.Node
 import io.grpc.Status
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
