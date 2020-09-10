@@ -15,7 +15,7 @@ class EnvoyContainer(
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
     private val logLevel: String = "info",
-    image: String = "envoyproxy/envoy-alpine-dev:5b1723ff54b1a51e104c514ee6363234aaa44366" // We use envoy version from master. This is 1.14.0-dev.
+    image: String = DEFAULT_IMAGE
 ) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
         .run("apk --no-cache add curl iproute2")
@@ -32,6 +32,7 @@ class EnvoyContainer(
 
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
+        const val DEFAULT_IMAGE = "envoyproxy/envoy-alpine:v1.14.3"
         private const val ADMIN_PORT = 10000
     }
 
