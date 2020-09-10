@@ -188,7 +188,7 @@ class ControlPlane private constructor(
                     properties.server.reportProtobufCacheMetrics
             )
 
-            val compositeCollectingCallbacks = listOf(
+            val compositeDiscoveryCallbacksV2 = listOf(
                     CompositeDiscoveryServerCallbacks(
                             meterRegistry,
                             snapshotCollectingCallback,
@@ -198,15 +198,24 @@ class ControlPlane private constructor(
                     )
             )
 
+            val compositeDiscoveryCallbacksV3 = listOf(
+                    CompositeDiscoveryServerCallbacks(
+                            meterRegistry,
+                            loggingDiscoveryServerCallbacks,
+                            meteredConnectionsCallbacks,
+                            NodeMetadataValidator(properties.envoy.snapshot)
+                    )
+            )
+
             val v2discoveryServer = V2DiscoveryServer(
-                compositeCollectingCallbacks,
+                compositeDiscoveryCallbacksV2,
                 groupChangeWatcher,
                 executorGroup,
                 cachedProtoResourcesSerializer
             )
 
             val v3discoveryServer = V3DiscoveryServer(
-                    compositeCollectingCallbacks,
+                    compositeDiscoveryCallbacksV3,
                     groupChangeWatcher,
                     executorGroup,
                     cachedProtoResourcesSerializer
