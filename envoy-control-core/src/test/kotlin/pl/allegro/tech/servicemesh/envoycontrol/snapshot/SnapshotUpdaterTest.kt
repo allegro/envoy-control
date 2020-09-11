@@ -286,23 +286,23 @@ class SnapshotUpdaterTest {
                         address = "127.0.0.3",
                         port = 4444
                     ))),
-                    "service2" to ServiceInstances("service2", setOf())
+                    "servicePresentInJustOneRemote" to ServiceInstances("servicePresentInJustOneRemote", setOf())
                 )
             ),
             Locality.LOCAL, "cluster"
         ).toMultiClusterState()
 
-        val clusterRemote1 = ClusterState(
+        val remoteClusterWithBothServices = ClusterState(
             ServicesState(
                 serviceNameToInstances = mapOf(
                     "service" to ServiceInstances("service", setOf()),
-                    "service2" to ServiceInstances("service2", setOf())
+                    "servicePresentInJustOneRemote" to ServiceInstances("servicePresentInJustOneRemote", setOf())
                 )
             ),
             Locality.REMOTE, "cluster2"
         ).toMultiClusterState()
 
-        val clusterRemote2 = ClusterState(
+        val remoteClusterWithJustOneService = ClusterState(
             ServicesState(
                 serviceNameToInstances = mapOf(
                     "service" to ServiceInstances("service", setOf())
@@ -312,42 +312,42 @@ class SnapshotUpdaterTest {
         ).toMultiClusterState()
 
         // when
-        val results = updater
+        val resultsRemoteWithBothServices = updater
             .services(Flux
                 .just(
                     clusterLocal,
-                    clusterRemote1)
+                    remoteClusterWithBothServices)
                 .delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
         // when
-        val results2 = updater
+        val resultsRemoteWithJustOneService = updater
             .services(Flux
                 .just(
                     clusterLocal,
-                    clusterRemote2)
+                    remoteClusterWithJustOneService)
                 .delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
         // then
-        results[0].adsSnapshot!!
-            .hasTheSameClusters(results2[0].adsSnapshot!!)
-            .hasTheSameEndpoints(results2[0].adsSnapshot!!)
-            .hasTheSameSecuredClusters(results2[0].adsSnapshot!!)
-        results[0].xdsSnapshot!!
-            .hasTheSameClusters(results2[0].xdsSnapshot!!)
-            .hasTheSameEndpoints(results2[0].xdsSnapshot!!)
-            .hasTheSameSecuredClusters(results2[0].xdsSnapshot!!)
-        results[1].adsSnapshot!!
-            .hasTheSameClusters(results2[1].adsSnapshot!!)
-            .hasTheSameEndpoints(results2[1].adsSnapshot!!)
-            .hasTheSameSecuredClusters(results2[1].adsSnapshot!!)
-        results[1].xdsSnapshot!!
-            .hasTheSameClusters(results2[1].xdsSnapshot!!)
-            .hasTheSameEndpoints(results2[1].xdsSnapshot!!)
-            .hasTheSameSecuredClusters(results2[1].xdsSnapshot!!)
+        resultsRemoteWithBothServices[0].adsSnapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[0].adsSnapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[0].adsSnapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[0].adsSnapshot!!)
+        resultsRemoteWithBothServices[0].xdsSnapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[0].xdsSnapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[0].xdsSnapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[0].xdsSnapshot!!)
+        resultsRemoteWithBothServices[1].adsSnapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[1].adsSnapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[1].adsSnapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[1].adsSnapshot!!)
+        resultsRemoteWithBothServices[1].xdsSnapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[1].xdsSnapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[1].xdsSnapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[1].xdsSnapshot!!)
     }
 
     @Test
