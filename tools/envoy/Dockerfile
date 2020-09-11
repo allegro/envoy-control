@@ -1,5 +1,4 @@
-# We use envoy version from master. This is 1.14.0-dev.
-FROM envoyproxy/envoy-alpine-dev:6c2137468c25d167dbbe4719b0ecaf343bfb4233
+FROM envoyproxy/envoy-alpine:v1.14.3
 
 ENV PORT=9999:9999
 ENV PORT=80:80
