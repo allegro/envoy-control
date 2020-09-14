@@ -134,5 +134,8 @@ class IncomingPermissionsPathMatchingTest {
         echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/regex/param/segment/last-segment").also {
             assertThat(it).isForbidden()
         }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/abc/regex/1/segment").also {
+            assertThat(it).isForbidden()
+        }
     }
 }
