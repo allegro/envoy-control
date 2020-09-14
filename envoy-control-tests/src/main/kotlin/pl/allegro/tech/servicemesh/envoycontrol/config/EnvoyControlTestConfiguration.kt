@@ -71,14 +71,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         var envoyControls: Int = 1
         var envoys: Int = 1
 
-        // We use envoy version from master. This is 1.14.0-dev.
-        const val defaultEnvoyImage = "envoyproxy/envoy-alpine-dev:5b1723ff54b1a51e104c514ee6363234aaa44366"
-
         @JvmStatic
         fun setup(
             envoyConfig: EnvoyConfig = RandomConfigFile,
             secondEnvoyConfig: EnvoyConfig = envoyConfig,
-            envoyImage: String = defaultEnvoyImage,
+            envoyImage: String = EnvoyContainer.DEFAULT_IMAGE,
             appFactoryForEc1: (Int) -> EnvoyControlTestApp = defaultAppFactory(),
             appFactoryForEc2: (Int) -> EnvoyControlTestApp = appFactoryForEc1,
             envoyControls: Int = 1,
@@ -156,7 +153,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             envoyConnectGrpcPort: Int? = null,
             envoyConnectGrpcPort2: Int? = null,
             localServiceIp: String = localServiceContainer.ipAddress(),
-            envoyImage: String = defaultEnvoyImage
+            envoyImage: String = EnvoyContainer.DEFAULT_IMAGE
         ): EnvoyContainer {
             val envoyControl1XdsPort = envoyConnectGrpcPort ?: envoyControl1.grpcPort
             val envoyControl2XdsPort = if (envoyControls == 2 && instancesInSameDc) {
@@ -185,8 +182,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             return EnvoyContainer(
                 echo3EnvoyConfig,
                 { localServiceContainer.ipAddress() },
-                envoyControl1.grpcPort,
-                image = defaultEnvoyImage
+                envoyControl1.grpcPort
             ).withNetwork(network)
         }
 
