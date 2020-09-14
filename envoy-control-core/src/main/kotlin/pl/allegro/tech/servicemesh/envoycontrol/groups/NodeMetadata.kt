@@ -147,7 +147,7 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     val path = this.field("path")?.stringValue
     val pathRegex = this.field("pathRegex")?.stringValue
 
-    if (isInvalidNumberOfPropertiesDefined(path, pathPrefix, pathRegex)) {
+    if (isMoreThanPropertyDefined(path, pathPrefix, pathRegex)) {
         throw NodeMetadataValidationException("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
     }
 
@@ -167,9 +167,7 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     }
 }
 
-fun isInvalidNumberOfPropertiesDefined(first: String?, second: String?, third: String?): Boolean {
-    return first != null && second != null || first != null && third != null || second != null && third != null
-}
+fun isMoreThanPropertyDefined(vararg properties: String?): Boolean = properties.filterNotNull().count() > 1
 
 private fun decomposeClient(client: ClientComposite): ClientWithSelector {
     val parts = client.split(":", ignoreCase = false, limit = 2)

@@ -3,8 +3,8 @@ package pl.allegro.tech.servicemesh.envoycontrol.permissions
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
@@ -39,7 +39,7 @@ class TlsClientCertRequiredTest {
     @Test
     @SuppressWarnings("SwallowedException")
     fun `should reject client without a certificate during TLS handshake`() {
-        EnvoyControlTestConfiguration.untilAsserted {
+        untilAsserted {
             // when
             val invalidResponse = kotlin.runCatching {
                 envoy.ingressOperations.callLocalServiceInsecure("/status/", useTls = true)
