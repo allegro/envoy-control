@@ -33,7 +33,7 @@ class ConsulServiceChanges(
         val watcher = StateWatcher(watcher, serviceMapper, objectMapper, metrics, subscriptionDelay)
         return Flux.create<ServicesState>(
             { sink ->
-                watcher.stateReceiver = { sink.next(it) }
+                watcher.start { state: ServicesState -> sink.next(state) }
             },
             FluxSink.OverflowStrategy.LATEST
         )
@@ -43,7 +43,6 @@ class ConsulServiceChanges(
             .distinctUntilChanged()
             .checkpoint("consul-service-changes-emitted-distinct")
             .name("consul-service-changes-emitted-distinct").metrics()
-            .doOnSubscribe { watcher.start() }
             .doOnCancel {
                 logger.warn("Cancelling watching consul service changes")
                 watcher.close()
@@ -75,10 +74,11 @@ class ConsulServiceChanges(
 
         private val initialLoader = InitialLoader()
 
-        fun start() {
+        fun start(stateReceiver: (ServicesState) -> Unit) {
             if (canceller == null) {
                 synchronized(StateWatcher::class.java) {
                     if (canceller == null) {
+                        this.stateReceiver = stateReceiver
                         canceller = ServicesWatcher(watcher, JacksonJsonDeserializer(objectMapper))
                             .watch(
                                 { servicesResult -> handleServicesChange(servicesResult.body) },
