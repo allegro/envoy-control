@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
@@ -40,14 +41,10 @@ class TlsClientCertRequiredTest {
     @SuppressWarnings("SwallowedException")
     fun `should reject client without a certificate during TLS handshake`() {
         untilAsserted {
-            // when
-            val invalidResponse = kotlin.runCatching {
+            // expects
+            assertThrows<SSLHandshakeException> {
                 envoy.ingressOperations.callLocalServiceInsecure("/status/", useTls = true)
             }
-
-            // then
-            assertThat(invalidResponse.isFailure).isTrue()
-            assertThat(invalidResponse.exceptionOrNull()).isInstanceOf(SSLHandshakeException::class.java)
             envoy.assertReportedPeerCertificateNotFoundError()
         }
     }

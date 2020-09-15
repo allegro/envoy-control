@@ -8,7 +8,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
 
@@ -18,20 +18,28 @@ class NodeMetadataTest {
     companion object {
         @JvmStatic
         fun validStatusCodeFilterData() = listOf(
-            Arguments.of("Le:123", ComparisonFilter.Op.LE, 123),
-            Arguments.of("EQ:400", ComparisonFilter.Op.EQ, 400),
-            Arguments.of("gE:324", ComparisonFilter.Op.GE, 324),
-            Arguments.of("LE:200", ComparisonFilter.Op.LE, 200)
+            arguments("Le:123", ComparisonFilter.Op.LE, 123),
+            arguments("EQ:400", ComparisonFilter.Op.EQ, 400),
+            arguments("gE:324", ComparisonFilter.Op.GE, 324),
+            arguments("LE:200", ComparisonFilter.Op.LE, 200)
         )
 
         @JvmStatic
         fun invalidStatusCodeFilterData() = listOf(
-                Arguments.of("LT:123"),
-                Arguments.of("equal:400"),
-                Arguments.of("eq:24"),
-                Arguments.of("GT:200"),
-                Arguments.of("testeq:400test"),
-                Arguments.of("")
+            arguments("LT:123"),
+            arguments("equal:400"),
+            arguments("eq:24"),
+            arguments("GT:200"),
+            arguments("testeq:400test"),
+            arguments("")
+        )
+
+        @JvmStatic
+        fun invalidPathMatchingTypeCombinations() = listOf(
+            arguments("/path", "/prefix", null),
+            arguments("/path", null, "/regex"),
+            arguments(null, "/prefix", "/regex"),
+            arguments("/path", "/prefix", "/regex")
         )
     }
 
@@ -46,32 +54,15 @@ class NodeMetadataTest {
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
-    @Test
-    fun `should reject endpoint with both path and pathRegex defined`() {
+    @ParameterizedTest
+    @MethodSource("invalidPathMatchingTypeCombinations")
+    fun `should reject endpoint with invalid combination of path, pathPrefix and pathRegex`(
+        path: String?,
+        pathPrefix: String?,
+        pathRegex: String?
+    ) {
         // given
-        val proto = incomingEndpointProto(path = "/path", pathRegex = "/regex")
-
-        // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
-        assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
-        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-    }
-
-    @Test
-    fun `should reject endpoint with path, pathPrefix and pathRegex defined`() {
-        // given
-        val proto = incomingEndpointProto(path = "/path", pathPrefix = "/prefix", pathRegex = "/regex")
-
-        // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
-        assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
-        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-    }
-
-    @Test
-    fun `should reject endpoint with both pathPrefix and pathRegex defined`() {
-        // given
-        val proto = incomingEndpointProto(pathPrefix = "/prefix", pathRegex = "/regex")
+        val proto = incomingEndpointProto(path = path, pathPrefix = pathPrefix, pathRegex = pathRegex)
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
