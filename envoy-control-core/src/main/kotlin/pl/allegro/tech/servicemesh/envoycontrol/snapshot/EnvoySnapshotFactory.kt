@@ -21,6 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.Envo
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
+import java.util.SortedMap
 
 class EnvoySnapshotFactory(
     private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
@@ -62,7 +63,7 @@ class EnvoySnapshotFactory(
     fun clusterConfigurations(
         servicesStates: MultiClusterState,
         previousClusters: Map<String, ClusterConfiguration>
-    ): Map<String, ClusterConfiguration> {
+    ): SortedMap<String, ClusterConfiguration> {
         val currentClusters = if (properties.egress.http2.enabled) {
             servicesStates.flatMap {
                 it.servicesState.serviceNameToInstances.values
@@ -78,7 +79,10 @@ class EnvoySnapshotFactory(
                 .associateWith { ClusterConfiguration(serviceName = it, http2Enabled = false) }
         }
 
+        // Clusters need to be sorted because if clusters are in different order to previous snapshot then CDS version
+        // is changed and that causes unnecessary CDS responses.
         return addRemovedClusters(previousClusters, currentClusters)
+            .toSortedMap()
     }
 
     private fun addRemovedClusters(
