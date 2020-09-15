@@ -15,8 +15,8 @@ class IngressOperations(val envoy: EnvoyContainer) {
     fun callLocalService(endpoint: String, headers: Headers = Headers.of()): Response =
         callLocalService(endpoint, headers, client)
 
-    fun callLocalServiceInsecure(endpoint: String, headers: Headers = Headers.of()): Response =
-        callLocalService(endpoint, headers, insecureClient)
+    fun callLocalServiceInsecure(endpoint: String, headers: Headers = Headers.of(), useTls: Boolean = false): Response =
+        callLocalService(endpoint, headers, insecureClient, useTls)
 
     fun callPostLocalService(endpoint: String, headers: Headers, body: RequestBody): Response =
             client.newCall(
@@ -28,12 +28,17 @@ class IngressOperations(val envoy: EnvoyContainer) {
             )
                     .execute()
 
-    private fun callLocalService(endpoint: String, headers: Headers, client: OkHttpClient): Response =
+    private fun callLocalService(
+        endpoint: String,
+        headers: Headers,
+        client: OkHttpClient,
+        useTls: Boolean = false
+    ): Response =
         client.newCall(
             Request.Builder()
                 .get()
                 .headers(headers)
-                .url(envoy.ingressListenerUrl() + endpoint)
+                .url(envoy.ingressListenerUrl(useTls) + endpoint)
                 .build()
         )
             .execute()

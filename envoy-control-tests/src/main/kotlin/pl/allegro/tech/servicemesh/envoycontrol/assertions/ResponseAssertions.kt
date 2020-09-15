@@ -9,6 +9,14 @@ fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
     return this
 }
 
+fun ObjectAssert<Response>.isForbidden(): ObjectAssert<Response> {
+    matches({
+        it.body()?.close()
+        it.code() == 403
+    }, "is forbidden")
+    return this
+}
+
 fun ObjectAssert<Response>.isUnreachable(): ObjectAssert<Response> {
     matches({
         it.body()?.close()
