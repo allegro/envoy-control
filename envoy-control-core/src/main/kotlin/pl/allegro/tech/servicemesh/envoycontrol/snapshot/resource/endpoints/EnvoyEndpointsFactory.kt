@@ -33,13 +33,11 @@ class EnvoyEndpointsFactory(
         return clusters
             .map { serviceName ->
                 val localityLbEndpoints = multiClusterState
-                    .mapNotNull {
+                    .map {
                         val locality = it.locality
                         val cluster = it.cluster
 
-                        it.servicesState.get(serviceName)?.let {
-                            createEndpointsGroup(it, cluster, toEnvoyPriority(locality))
-                        }
+                        createEndpointsGroup(it.servicesState[serviceName], cluster, toEnvoyPriority(locality))
                     }
 
                 ClusterLoadAssignment.newBuilder()
@@ -50,13 +48,15 @@ class EnvoyEndpointsFactory(
     }
 
     private fun createEndpointsGroup(
-        serviceInstances: ServiceInstances,
+        serviceInstances: ServiceInstances?,
         zone: String,
         priority: Int
     ): LocalityLbEndpoints =
         LocalityLbEndpoints.newBuilder()
             .setLocality(Locality.newBuilder().setZone(zone).build())
-            .addAllLbEndpoints(serviceInstances.instances.map { createLbEndpoint(it, serviceInstances.serviceName) })
+            .addAllLbEndpoints(serviceInstances?.instances?.map {
+                createLbEndpoint(it, serviceInstances.serviceName)
+            } ?: emptyList())
             .setPriority(priority)
             .build()
 
