@@ -26,19 +26,19 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
-import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
@@ -261,6 +261,56 @@ class SnapshotUpdaterTest {
         results[0].xdsSnapshot!!.hasHttp2Cluster("service")
         results[1].adsSnapshot!!.hasHttp2Cluster("service")
         results[1].xdsSnapshot!!.hasHttp2Cluster("service")
+    }
+
+    @Test
+    fun `should not change CDS version when service order in remote cluster is different`() {
+        // given
+        val cache = MockCache()
+        val allServicesGroup = AllServicesGroup(communicationMode = ADS)
+        val groups = listOf(allServicesGroup)
+        val updater = snapshotUpdater(
+            cache = cache,
+            properties = SnapshotProperties().apply {
+                stateSampleDuration = Duration.ZERO
+            },
+            groups = groups
+        )
+
+        val clusterWithOrder = ClusterState(
+            ServicesState(
+                serviceNameToInstances = mapOf(
+                    "service" to ServiceInstances("service", setOf()),
+                    "service2" to ServiceInstances("service2", setOf())
+                )
+            ),
+            Locality.LOCAL, "cluster"
+        ).toMultiClusterState()
+        val clusterWithoutOrder = ClusterState(
+            ServicesState(
+                serviceNameToInstances = mapOf(
+                    "service2" to ServiceInstances("service2", setOf()),
+                    "service" to ServiceInstances("service", setOf())
+                )
+            ),
+            Locality.REMOTE, "cluster2"
+        ).toMultiClusterState()
+
+        // when
+        updater.start(
+            Flux.just(clusterWithoutOrder, clusterWithOrder)
+        ).collectList().block()
+        val previousClusters = cache.getSnapshot(allServicesGroup)!!.clusters()
+
+        // when
+        updater.start(
+            Flux.just(clusterWithOrder, clusterWithoutOrder)
+        ).collectList().block()
+        val currentClusters = cache.getSnapshot(allServicesGroup)!!.clusters()
+
+        // then
+        assertThat(previousClusters.version()).isEqualTo(currentClusters.version())
+        assertThat(previousClusters.resources()).isEqualTo(currentClusters.resources())
     }
 
     @Test
