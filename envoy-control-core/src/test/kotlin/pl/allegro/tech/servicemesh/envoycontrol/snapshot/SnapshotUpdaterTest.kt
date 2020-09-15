@@ -51,6 +51,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
 
+@Suppress("LargeClass")
 class SnapshotUpdaterTest {
 
     companion object {
@@ -94,8 +95,8 @@ class SnapshotUpdaterTest {
         // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
         val groups = listOf(
             AllServicesGroup(communicationMode = XDS), groupWithProxy, groupWithServiceName,
-                groupOf(services = serviceDependencies("existingService1")),
-                groupOf(services = serviceDependencies("existingService2"))
+            groupOf(services = serviceDependencies("existingService1")),
+            groupOf(services = serviceDependencies("existingService2"))
         )
         groups.forEach {
             cache.setSnapshot(it, uninitializedSnapshot)
@@ -205,8 +206,8 @@ class SnapshotUpdaterTest {
     fun `should not crash on bad snapshot generation`() {
         // given
         val servicesGroup = AllServicesGroup(
-                communicationMode = ADS,
-                serviceName = "example-service"
+            communicationMode = ADS,
+            serviceName = "example-service"
         )
         val cache = FailingMockCache()
         cache.setSnapshot(servicesGroup, null)
@@ -214,14 +215,14 @@ class SnapshotUpdaterTest {
 
         // when
         updater.start(
-                Flux.just(MultiClusterState.empty())
+            Flux.just(MultiClusterState.empty())
         ).blockFirst()
 
         // then
         val snapshot = cache.getSnapshot(servicesGroup)
         assertThat(snapshot).isEqualTo(null)
         assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
-                .counter()?.count()).isEqualTo(1.0)
+            .counter()?.count()).isEqualTo(1.0)
     }
 
     @Test
@@ -263,6 +264,93 @@ class SnapshotUpdaterTest {
     }
 
     @Test
+    fun `should not change EDS when remote doesn't have state of service`() {
+        // given
+        val cache = MockCache()
+        val allServicesGroup = AllServicesGroup(communicationMode = ADS)
+        val groups = listOf(allServicesGroup)
+        val updater = snapshotUpdater(
+            cache = cache,
+            properties = SnapshotProperties().apply {
+                stateSampleDuration = Duration.ZERO
+            },
+            groups = groups
+        )
+
+        val clusterLocal = ClusterState(
+            ServicesState(
+                serviceNameToInstances = mapOf(
+                    "service" to ServiceInstances("service", setOf(ServiceInstance(
+                        id = "id",
+                        tags = setOf("envoy"),
+                        address = "127.0.0.3",
+                        port = 4444
+                    ))),
+                    "servicePresentInJustOneRemote" to ServiceInstances("servicePresentInJustOneRemote", setOf())
+                )
+            ),
+            Locality.LOCAL, "cluster"
+        ).toMultiClusterState()
+
+        val remoteClusterWithBothServices = ClusterState(
+            ServicesState(
+                serviceNameToInstances = mapOf(
+                    "service" to ServiceInstances("service", setOf()),
+                    "servicePresentInJustOneRemote" to ServiceInstances("servicePresentInJustOneRemote", setOf())
+                )
+            ),
+            Locality.REMOTE, "cluster2"
+        ).toMultiClusterState()
+
+        val remoteClusterWithJustOneService = ClusterState(
+            ServicesState(
+                serviceNameToInstances = mapOf(
+                    "service" to ServiceInstances("service", setOf())
+                )
+            ),
+            Locality.REMOTE, "cluster2"
+        ).toMultiClusterState()
+
+        // when
+        val resultsRemoteWithBothServices = updater
+            .services(Flux
+                .just(
+                    clusterLocal,
+                    remoteClusterWithBothServices)
+                .delayElements(Duration.ofMillis(10))
+            )
+            .collectList().block()!!
+
+        // when
+        val resultsRemoteWithJustOneService = updater
+            .services(Flux
+                .just(
+                    clusterLocal,
+                    remoteClusterWithJustOneService)
+                .delayElements(Duration.ofMillis(10))
+            )
+            .collectList().block()!!
+
+        // then
+        resultsRemoteWithBothServices[0].adsSnapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[0].adsSnapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[0].adsSnapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[0].adsSnapshot!!)
+        resultsRemoteWithBothServices[0].xdsSnapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[0].xdsSnapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[0].xdsSnapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[0].xdsSnapshot!!)
+        resultsRemoteWithBothServices[1].adsSnapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[1].adsSnapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[1].adsSnapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[1].adsSnapshot!!)
+        resultsRemoteWithBothServices[1].xdsSnapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[1].xdsSnapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[1].xdsSnapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[1].xdsSnapshot!!)
+    }
+
+    @Test
     fun `should not remove clusters`() {
         // given
         val cache = MockCache()
@@ -300,10 +388,10 @@ class SnapshotUpdaterTest {
 
         results[1].adsSnapshot!!
             .hasHttp2Cluster("service")
-            .hasEmptyEndpoints("service")
+            .hasAnEmptyLocalityEndpointsList("service", setOf("cluster"))
         results[1].xdsSnapshot!!
             .hasHttp2Cluster("service")
-            .hasEmptyEndpoints("service")
+            .hasAnEmptyLocalityEndpointsList("service", setOf("cluster"))
     }
 
     @Test
@@ -499,6 +587,17 @@ class SnapshotUpdaterTest {
         return this
     }
 
+    private fun GlobalSnapshot.hasAnEmptyLocalityEndpointsList(
+        clusterName: String,
+        zones: Set<String>
+    ): GlobalSnapshot {
+        val endpoints = this.endpoints.resources()[clusterName]
+        assertThat(endpoints).isNotNull
+        assertThat(endpoints!!.endpointsList.map { it.locality.zone }.toSet()).containsAll(zones)
+        assertThat(endpoints.endpointsList.flatMap { it.lbEndpointsList }).isEmpty()
+        return this
+    }
+
     private fun GlobalSnapshot.hasAnEndpoint(clusterName: String, ip: String, port: Int): GlobalSnapshot {
         val endpoints = this.endpoints.resources()[clusterName]
         assertThat(endpoints).isNotNull
@@ -507,10 +606,21 @@ class SnapshotUpdaterTest {
         return this
     }
 
-    private fun GlobalSnapshot.hasEmptyEndpoints(clusterName: String): GlobalSnapshot {
-        val endpoints = this.endpoints.resources()[clusterName]
-        assertThat(endpoints).isNotNull
-        assertThat(endpoints!!.endpointsList).isEmpty()
+    private fun GlobalSnapshot.hasTheSameClusters(other: GlobalSnapshot): GlobalSnapshot {
+        val clusters = this.clusters.resources()
+        assertThat(clusters).isEqualTo(other.clusters.resources())
+        return this
+    }
+
+    private fun GlobalSnapshot.hasTheSameEndpoints(other: GlobalSnapshot): GlobalSnapshot {
+        val endpoints = this.endpoints.resources()
+        assertThat(endpoints).isEqualTo(other.endpoints.resources())
+        return this
+    }
+
+    private fun GlobalSnapshot.hasTheSameSecuredClusters(other: GlobalSnapshot): GlobalSnapshot {
+        val securedClusters = this.securedClusters.resources()
+        assertThat(securedClusters).isEqualTo(other.securedClusters.resources())
         return this
     }
 
