@@ -10,7 +10,10 @@ fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
 }
 
 fun ObjectAssert<Response>.isForbidden(): ObjectAssert<Response> {
-    matches { it.code() == 403 }
+    matches({
+        it.body()?.close()
+        it.code() == 403
+    }, "is forbidden")
     return this
 }
 
