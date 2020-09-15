@@ -212,9 +212,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         private fun waitForEnvoyControlsHealthy() {
             await().atMost(30, TimeUnit.SECONDS).untilAsserted {
-                assertThat(envoyControl1.isHealthy()).isTrue()
+                assertThat(envoyControl1.isHealthy()).overridingErrorMessage(
+                    "Expecting first instance of EC to be healthy"
+                ).isTrue()
                 if (envoyControls == 2) {
-                    assertThat(envoyControl2.isHealthy()).isTrue()
+                    assertThat(envoyControl2.isHealthy()).overridingErrorMessage(
+                        "Expecting second instance of EC to be healthy"
+                    ).isTrue()
                 }
             }
         }
