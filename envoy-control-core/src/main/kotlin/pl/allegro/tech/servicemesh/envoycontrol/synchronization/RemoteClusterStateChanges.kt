@@ -1,8 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlProperties
-import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import reactor.core.publisher.Flux
 
 class RemoteClusterStateChanges(
