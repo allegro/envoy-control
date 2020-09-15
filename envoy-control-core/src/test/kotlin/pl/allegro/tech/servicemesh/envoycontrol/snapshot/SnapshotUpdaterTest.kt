@@ -312,7 +312,7 @@ class SnapshotUpdaterTest {
         assertThat(previousClusters.version()).isEqualTo(currentClusters.version())
         assertThat(previousClusters.resources()).isEqualTo(currentClusters.resources())
     }
-  
+
     @Test
     fun `should not change EDS when remote doesn't have state of service`() {
         // given
