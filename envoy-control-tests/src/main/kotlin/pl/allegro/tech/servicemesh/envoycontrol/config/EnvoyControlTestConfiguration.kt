@@ -55,8 +55,7 @@ val AdsWithDisabledEndpointPermissions = EnvoyConfig("envoy/config_ads_disabled_
 val AdsWithStaticListeners = EnvoyConfig("envoy/config_ads_static_listeners.yaml")
 val AdsWithNoDependencies = EnvoyConfig("envoy/config_ads_no_dependencies.yaml")
 val Xds = EnvoyConfig("envoy/config_xds.yaml")
-val RandomConfigFile =
-    EnvoyConfig(filePath = if (Random.nextBoolean()) Ads.filePath else Xds.filePath)
+val RandomConfigFile = if (Random.nextBoolean()) Ads else Xds
 
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {

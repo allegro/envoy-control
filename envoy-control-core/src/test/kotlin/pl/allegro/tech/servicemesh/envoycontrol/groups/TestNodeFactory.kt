@@ -139,25 +139,25 @@ fun outgoingTimeoutPolicy(idleTimeout: String? = null, requestTimeout: String? =
 fun incomingEndpointProto(
     path: String? = null,
     pathPrefix: String? = null,
+    pathRegex: String? = null,
     includeNullFields: Boolean = false
 ): Value = struct {
+
+    this.putPathFields(path, "path", includeNullFields)
+    this.putPathFields(pathPrefix, "pathPrefix", includeNullFields)
+    this.putPathFields(pathRegex, "pathRegex", includeNullFields)
+
+    putFields("clients", list { addValues(string("client1")) })
+}
+
+fun Struct.Builder.putPathFields(path: String?, fieldName: String, includeNullFields: Boolean) {
     when {
         path != null -> string(path)
         includeNullFields -> nullValue
         else -> null
     }?.also {
-        putFields("path", it)
+        this.putFields(fieldName, it)
     }
-
-    when {
-        pathPrefix != null -> string(pathPrefix)
-        includeNullFields -> nullValue
-        else -> null
-    }?.also {
-        putFields("pathPrefix", it)
-    }
-
-    putFields("clients", list { addValues(string("client1")) })
 }
 
 fun struct(fields: Struct.Builder.() -> Unit): Value {
