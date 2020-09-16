@@ -5,6 +5,7 @@ import com.google.protobuf.ListValue
 import com.google.protobuf.NullValue
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
+import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.core.Node
 
 fun node(
@@ -65,7 +66,10 @@ fun ProxySettings.with(
     serviceDependencies: Set<ServiceDependency> = emptySet(),
     domainDependencies: Set<DomainDependency> = emptySet(),
     allServicesDependencies: Boolean = false,
-    defaultServiceSettings: DependencySettings = DependencySettings()
+    defaultServiceSettings: DependencySettings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
+        Durations.fromSeconds(120),
+        Durations.fromSeconds(120)
+    ))
 ): ProxySettings {
     return copy(
         outgoing = Outgoing(

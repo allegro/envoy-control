@@ -295,14 +295,9 @@ data class Outgoing(
     val defaultServiceSettings: DependencySettings = DependencySettings()
 ) {
     data class TimeoutPolicy(
-        val idleTimeout: Duration = DEFAULT_IDLE_TIMEOUT,
-        val requestTimeout: Duration = DEFAULT_REQUEST_TIMEOUT
-    ) {
-        companion object {
-            val DEFAULT_IDLE_TIMEOUT: Duration = Durations.fromSeconds(120)
-            val DEFAULT_REQUEST_TIMEOUT: Duration = Durations.fromSeconds(120)
-        }
-    }
+        val idleTimeout: Duration? = null,
+        val requestTimeout: Duration? = null
+    )
 }
 
 interface Dependency
