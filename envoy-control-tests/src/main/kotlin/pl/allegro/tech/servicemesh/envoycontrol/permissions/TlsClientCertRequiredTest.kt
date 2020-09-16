@@ -2,15 +2,15 @@ package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.RegisterExtension
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnreachable
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import javax.net.ssl.SSLHandshakeException
-import javax.net.ssl.SSLPeerUnverifiedException
 
 class TlsClientCertRequiredTest {
 
@@ -30,28 +30,26 @@ class TlsClientCertRequiredTest {
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, config = Echo1EnvoyAuthConfig)
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, config = Echo1EnvoyAuthConfig, localService = service)
     }
 
     @Test
     @SuppressWarnings("SwallowedException")
     fun `should reject client without a certificate during TLS handshake`() {
-        EnvoyControlTestConfiguration.untilAsserted {
-            try {
-                // when
-                val invalidResponse = envoy.ingressOperations.callLocalServiceInsecure("/status/")
-
-                // then
-                assertThat(invalidResponse).isUnreachable()
-            } catch (_: SSLPeerUnverifiedException) {
-                envoy.assertReportedNoPeerCertificateError()
-            } catch (_: SSLHandshakeException) {
-                envoy.assertReportedNoPeerCertificateError()
+        untilAsserted {
+            // expects
+            assertThrows<SSLHandshakeException> {
+                envoy.ingressOperations.callLocalServiceInsecure("/status/", useTls = true)
             }
+            envoy.assertReportedPeerCertificateNotFoundError()
         }
     }
 
-    private fun EnvoyExtension.assertReportedNoPeerCertificateError() {
+    private fun EnvoyExtension.assertReportedPeerCertificateNotFoundError() {
         val sslHandshakeErrors = this.container.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_no_cert")?.toInt()
         assertThat(sslHandshakeErrors).isGreaterThan(0)
     }
