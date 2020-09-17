@@ -157,7 +157,7 @@ internal class SnapshotsVersionsTest {
                             )
                         )
                     ),
-                    outgoing = Outgoing(listOf())
+                    outgoing = Outgoing()
                 )
         )
     }
