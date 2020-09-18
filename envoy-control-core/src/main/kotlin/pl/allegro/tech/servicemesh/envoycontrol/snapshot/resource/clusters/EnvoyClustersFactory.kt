@@ -99,7 +99,7 @@ class EnvoyClustersFactory(
         }
 
         return when (group) {
-            is ServicesGroup -> group.proxySettings.outgoing.serviceDependencies.mapNotNull {
+            is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().mapNotNull {
                 clusters.get(it.service)
             }
             is AllServicesGroup -> globalSnapshot.allServicesNames.mapNotNull {
@@ -145,7 +145,7 @@ class EnvoyClustersFactory(
     }
 
     private fun getStrictDnsClustersForGroup(group: Group): List<Cluster> {
-        return group.proxySettings.outgoing.domainDependencies.map {
+        return group.proxySettings.outgoing.getDomainDependencies().map {
             strictDnsCluster(it.getClusterName(), it.getHost(), it.getPort(), it.useSsl())
         }
     }

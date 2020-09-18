@@ -227,7 +227,7 @@ class NodeMetadataTest {
         val outgoing = proto.toOutgoing(snapshotProperties())
 
         // expects
-        val dependency = outgoing.domainDependencies.single()
+        val dependency = outgoing.getDomainDependencies().single()
         assertThat(dependency.domain).isEqualTo("http://domain")
     }
 
@@ -242,9 +242,51 @@ class NodeMetadataTest {
         val outgoing = proto.toOutgoing(snapshotProperties())
 
         // expects
-        val dependency = outgoing.domainDependencies.single()
+        val dependency = outgoing.getDomainDependencies().single()
         assertThat(dependency.getHost()).isEqualTo("domain")
         assertThat(dependency.getPort()).isEqualTo(80)
+    }
+
+    @Test
+    fun `should deduplicate domains dependencies based on url`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "http://domain", requestTimeout = "8s", idleTimeout = "8s")
+            withDomain(url = "http://domain", requestTimeout = "10s", idleTimeout = "10s")
+            withDomain(url = "http://domain2")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependencies = outgoing.getDomainDependencies()
+        assertThat(dependencies).hasSize(2)
+        assertThat(dependencies[0].getHost()).isEqualTo("domain")
+        assertThat(dependencies[0].getPort()).isEqualTo(80)
+        assertThat(dependencies[0].settings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s")
+        assertThat(dependencies[1].getHost()).isEqualTo("domain2")
+        assertThat(dependencies[1].getPort()).isEqualTo(80)
+    }
+
+    @Test
+    fun `should deduplicate services dependencies based on serviceName`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "service-1", requestTimeout = "8s",idleTimeout = "8s")
+            withService(serviceName = "service-1", requestTimeout = "10s",idleTimeout = "10s")
+            withService(serviceName = "service-2")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expect
+        val dependencies = outgoing.getServiceDependencies()
+        assertThat(dependencies).hasSize(2)
+        assertThat(dependencies[0].service).isEqualTo("service-1")
+        assertThat(dependencies[0].settings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s")
+        assertThat(dependencies[1].service).isEqualTo("service-2")
     }
 
     @Test
@@ -258,7 +300,7 @@ class NodeMetadataTest {
         val outgoing = proto.toOutgoing(snapshotProperties())
 
         // expects
-        val dependency = outgoing.domainDependencies.single()
+        val dependency = outgoing.getDomainDependencies().single()
         assertThat(dependency.getPort()).isEqualTo(1234)
     }
 
@@ -273,7 +315,7 @@ class NodeMetadataTest {
         val outgoing = proto.toOutgoing(snapshotProperties())
 
         // expects
-        val dependency = outgoing.domainDependencies.single()
+        val dependency = outgoing.getDomainDependencies().single()
         assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
         assertThat(dependency.getRouteDomain()).isEqualTo("domain.pl")
     }
@@ -289,7 +331,7 @@ class NodeMetadataTest {
         val outgoing = proto.toOutgoing(snapshotProperties())
 
         // expects
-        val dependency = outgoing.domainDependencies.single()
+        val dependency = outgoing.getDomainDependencies().single()
         assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
         assertThat(dependency.getRouteDomain()).isEqualTo("domain.pl:80")
     }
@@ -305,7 +347,7 @@ class NodeMetadataTest {
         val outgoing = proto.toOutgoing(snapshotProperties())
 
         // expect
-        val dependency = outgoing.serviceDependencies.single()
+        val dependency = outgoing.getServiceDependencies().single()
         assertThat(dependency.service).isEqualTo("service-1")
         assertThat(dependency.settings.handleInternalRedirect).isEqualTo(true)
     }
@@ -339,7 +381,7 @@ class NodeMetadataTest {
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
         assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s")
-        assertThat(outgoing.serviceDependencies).isEmpty()
+        assertThat(outgoing.getServiceDependencies()).isEmpty()
     }
 
     @Test
@@ -356,7 +398,7 @@ class NodeMetadataTest {
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
         assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "10s", requestTimeout = "5s")
-        assertThat(outgoing.serviceDependencies).isEmpty()
+        assertThat(outgoing.getServiceDependencies()).isEmpty()
     }
 
     @Test
@@ -373,7 +415,7 @@ class NodeMetadataTest {
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
         assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "5s", requestTimeout = "10s")
-        assertThat(outgoing.serviceDependencies).isEmpty()
+        assertThat(outgoing.getServiceDependencies()).isEmpty()
     }
 
     @Test
@@ -391,7 +433,7 @@ class NodeMetadataTest {
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
         assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "5s", requestTimeout = "5s")
-        assertThat(outgoing.serviceDependencies).isEmpty()
+        assertThat(outgoing.getServiceDependencies()).isEmpty()
     }
 
     @Test
@@ -412,11 +454,11 @@ class NodeMetadataTest {
         assertThat(outgoing.allServicesDependencies).isTrue()
         assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s")
 
-        outgoing.serviceDependencies.assertServiceDependency("service-name-1")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-1")
             .hasTimeouts(idleTimeout = "5s", requestTimeout = "10s")
-        outgoing.serviceDependencies.assertServiceDependency("service-name-2")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-2")
             .hasTimeouts(idleTimeout = "10s", requestTimeout = "4s")
-        outgoing.serviceDependencies.assertServiceDependency("service-name-3")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-3")
             .hasTimeouts(idleTimeout = "10s", requestTimeout = "10s")
     }
 
@@ -437,11 +479,11 @@ class NodeMetadataTest {
         assertThat(outgoing.allServicesDependencies).isFalse()
         assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "12s", requestTimeout = "12s")
 
-        outgoing.serviceDependencies.assertServiceDependency("service-name-1")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-1")
             .hasTimeouts(idleTimeout = "5s", requestTimeout = "12s")
-        outgoing.serviceDependencies.assertServiceDependency("service-name-2")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-2")
             .hasTimeouts(idleTimeout = "12s", requestTimeout = "4s")
-        outgoing.serviceDependencies.assertServiceDependency("service-name-3")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-3")
             .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s")
     }
 
@@ -463,11 +505,11 @@ class NodeMetadataTest {
         assertThat(outgoing.allServicesDependencies).isTrue()
         assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s")
 
-        outgoing.domainDependencies.assertDomainDependency("http://domain-name-1")
+        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-1")
             .hasTimeouts(idleTimeout = "5s", requestTimeout = "12s")
-        outgoing.domainDependencies.assertDomainDependency("http://domain-name-2")
+        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-2")
             .hasTimeouts(idleTimeout = "12s", requestTimeout = "4s")
-        outgoing.domainDependencies.assertDomainDependency("http://domain-name-3")
+        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-3")
             .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s")
     }
 
