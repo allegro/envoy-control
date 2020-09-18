@@ -273,8 +273,8 @@ class NodeMetadataTest {
     fun `should deduplicate services dependencies based on serviceName`() {
         // given
         val proto = outgoingDependenciesProto {
-            withService(serviceName = "service-1", requestTimeout = "8s",idleTimeout = "8s")
-            withService(serviceName = "service-1", requestTimeout = "10s",idleTimeout = "10s")
+            withService(serviceName = "service-1", requestTimeout = "8s", idleTimeout = "8s")
+            withService(serviceName = "service-1", requestTimeout = "10s", idleTimeout = "10s")
             withService(serviceName = "service-2")
         }
 
