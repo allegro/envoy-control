@@ -89,6 +89,43 @@ class SnapshotUpdaterTest {
     ).toMultiClusterState()
 
     @Test
+    fun `should generate allServicesGroup snapshots with timeouts from proxySettings`() {
+        val cache = MockCache()
+
+        val allServicesGroup = AllServicesGroup(communicationMode = XDS, proxySettings = ProxySettings(outgoing = Outgoing(
+            serviceDependencies = listOf(ServiceDependency(
+                service = "existingService1",
+                settings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
+                    idleTimeout = Durations.parse("10s"),
+                    requestTimeout = Durations.parse("9s")
+                ))
+            )),
+            defaultServiceSettings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
+                idleTimeout = Durations.parse("8s"),
+                requestTimeout = Durations.parse("7s")
+            )),
+            allServicesDependencies = true
+        )))
+
+        cache.setSnapshot(allServicesGroup, uninitializedSnapshot)
+
+        val updater = snapshotUpdater(
+            cache = cache,
+            properties = SnapshotProperties().apply {
+                incomingPermissions.enabled = true
+            },
+            groups = listOf(allServicesGroup)
+        )
+
+        updater.startWithServices("existingService1", "existingService2")
+
+        hasSnapshot(cache, allServicesGroup)
+            .hasOnlyClustersFor("existingService1", "existingService2")
+            .hasVirtualHostConfig(name = "existingService1", idleTimeout = "10s", requestTimeout = "9s")
+            .hasVirtualHostConfig(name = "existingService2", idleTimeout = "8s", requestTimeout = "7s")
+    }
+
+    @Test
     fun `should generate group snapshots`() {
         val cache = MockCache()
 
@@ -618,6 +655,16 @@ class SnapshotUpdaterTest {
 
     private fun Snapshot.withoutClusters() {
         assertThat(this.clusters().resources().keys).isEmpty()
+    }
+
+    private fun Snapshot.hasVirtualHostConfig(name: String, idleTimeout: String, requestTimeout: String): Snapshot {
+        val routeAction = this.routes()
+            .resources()["default_routes"]!!.virtualHostsList.singleOrNull { it.name == name }?.routesList?.map { it.route }
+            ?.singleOrNull()
+        assertThat(routeAction).overridingErrorMessage("Expecting virtualHost for $name").isNotNull
+        assertThat(routeAction?.timeout).isEqualTo(Durations.parse(requestTimeout))
+        assertThat(routeAction?.idleTimeout).isEqualTo(Durations.parse(idleTimeout))
+        return this
     }
 
     private fun groupOf(
