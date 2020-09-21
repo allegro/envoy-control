@@ -3,14 +3,14 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 import com.google.protobuf.Any
 import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.controlplane.cache.SnapshotResources
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
-import io.envoyproxy.envoy.api.v2.core.Address
-import io.envoyproxy.envoy.api.v2.core.SocketAddress
-import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
-import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
-import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
-import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
-import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
+import io.envoyproxy.envoy.config.core.v3.Address
+import io.envoyproxy.envoy.config.core.v3.SocketAddress
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.endpoint.v3.Endpoint
+import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
+import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector

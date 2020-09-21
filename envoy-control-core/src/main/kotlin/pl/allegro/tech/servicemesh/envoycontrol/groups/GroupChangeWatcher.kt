@@ -11,7 +11,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.util.function.Consumer
-import pl.allegro.tech.servicemesh.envoycontrol.v2.SimpleCache as SimpleCache
+import pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache as SimpleCache
 
 /**
  * This class is needed to force snapshot creation in SnapshotUpdater when new group is added.

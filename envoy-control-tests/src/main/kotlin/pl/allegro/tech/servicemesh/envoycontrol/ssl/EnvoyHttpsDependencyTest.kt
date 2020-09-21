@@ -21,22 +21,6 @@ class EnvoyCurrentVersionHttpsDependencyTest : EnvoyHttpsDependencyTest() {
     }
 }
 
-// TODO(https://github.com/allegro/envoy-control/issues/97) - remove when envoy < 1.14.0-dev will be not supported
-class EnvoyCompatibleVersionHttpsDependencyTest : EnvoyHttpsDependencyTest() {
-    companion object {
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(
-                appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) },
-                // 1.13.0-dev
-                envoyImage = "envoyproxy/envoy-alpine-dev:b7bef67c256090919a4585a1a06c42f15d640a09"
-            )
-            setupTestCommon()
-        }
-    }
-}
-
 abstract class EnvoyHttpsDependencyTest : EnvoyControlTestConfiguration() {
     companion object {
         @JvmStatic

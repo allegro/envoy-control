@@ -2,14 +2,14 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 
 import com.google.protobuf.Any
 import com.google.protobuf.UInt32Value
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
-import io.envoyproxy.envoy.api.v2.core.CidrRange
-import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
-import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
-import io.envoyproxy.envoy.config.rbac.v2.Policy
-import io.envoyproxy.envoy.config.rbac.v2.Principal
-import io.envoyproxy.envoy.config.rbac.v2.RBAC
-import io.envoyproxy.envoy.type.matcher.StringMatcher
+import io.envoyproxy.envoy.config.core.v3.CidrRange
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.rbac.v3.Policy
+import io.envoyproxy.envoy.config.rbac.v3.Principal
+import io.envoyproxy.envoy.config.rbac.v3.RBAC
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
@@ -23,7 +23,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
-import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
+import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 
 class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,

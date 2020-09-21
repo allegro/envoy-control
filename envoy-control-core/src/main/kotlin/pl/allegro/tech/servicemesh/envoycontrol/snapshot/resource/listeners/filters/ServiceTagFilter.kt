@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
-import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config
+import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 
 class ServiceTagFilter {
     companion object {
