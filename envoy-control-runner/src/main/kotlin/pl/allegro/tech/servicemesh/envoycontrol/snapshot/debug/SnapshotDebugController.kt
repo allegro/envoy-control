@@ -48,7 +48,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
      * It contains the versions of XDS resources and the contents for a provided node JSON
      * extracted from Envoy's config_dump endpoint.
      */
-    @PostMapping(value = arrayOf("/v2/snapshot", "/snapshot"))
+    @PostMapping("/snapshot")
     fun snapshot(@RequestBody node: Node): ResponseEntity<SnapshotDebugInfo> {
         val nodeHash = nodeGroup.hash(node)
         val snapshot = cache.getSnapshot(nodeHash)
@@ -57,25 +57,6 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         } else {
             ResponseEntity(
                 SnapshotDebugInfo(snapshot as Snapshot),
-                HttpStatus.OK
-            )
-        }
-    }
-
-    /**
-     * Returns a textual representation of the v3 snapshot for debugging purposes.
-     * It contains the versions of XDS resources and the contents for a provided node JSON
-     * extracted from Envoy's config_dump endpoint.
-     */
-    @PostMapping("/v3/snapshot")
-    fun snapshot(@RequestBody node: io.envoyproxy.envoy.config.core.v3.Node): ResponseEntity<SnapshotDebugInfo> {
-        val nodeHash = nodeGroup.hash(node)
-        val snapshot = cache.getSnapshot(nodeHash)
-        return if (snapshot == null) {
-            throw SnapshotNotFoundException()
-        } else {
-            ResponseEntity(
-                SnapshotDebugInfo(snapshot as io.envoyproxy.controlplane.cache.v3.Snapshot),
                 HttpStatus.OK
             )
         }

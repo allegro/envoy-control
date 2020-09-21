@@ -11,6 +11,7 @@ import io.envoyproxy.envoy.api.v2.route.RouteAction
 import io.envoyproxy.envoy.api.v2.route.RouteMatch
 import io.envoyproxy.envoy.api.v2.route.VirtualCluster
 import io.envoyproxy.envoy.api.v2.route.VirtualHost
+import io.envoyproxy.envoy.type.matcher.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
@@ -39,14 +40,25 @@ class EnvoyIngressRoutesFactory(
     private val statusEndpointsMatch: List<EndpointMatch> = properties.routes.status.endpoints
 
     private val endpointsPrefixMatcher = HeaderMatcher.newBuilder()
-            .setName(":path").setPrefixMatch("/").build()
+        .setName(":path").setPrefixMatch("/").build()
 
     private val statusMatcher: List<HeaderMatcher> = statusEndpointsMatch.map {
         when (it.matchingType) {
             PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder().setName(":path").setPrefixMatch(it.path).build()
             PathMatchingType.PATH -> HeaderMatcher.newBuilder().setName(":path").setExactMatch(it.path).build()
+            PathMatchingType.PATH_REGEX -> HeaderMatcher.newBuilder().setName(":path").setRe2Match(it.path).build()
         }
     }
+
+    private fun HeaderMatcher.Builder.setRe2Match(regexPattern: String) = this
+        .setSafeRegexMatch(
+            RegexMatcher.newBuilder()
+                .setRegex(regexPattern)
+                .setGoogleRe2(
+                    RegexMatcher.GoogleRE2.getDefaultInstance()
+                )
+                .build()
+        )
 
     private val endpoints = listOf(
         VirtualCluster.newBuilder()

@@ -2,6 +2,8 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.consul
 
 import com.ecwid.consul.v1.ConsulClient
 import com.ecwid.consul.v1.agent.model.NewService
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import java.util.UUID
 
@@ -39,6 +41,14 @@ class ConsulOperations(port: Int) {
         registerDefaultCheck: Boolean = false,
         tags: List<String> = listOf("a")
     ) = registerService(id, name, extension.container().ipAddress(), extension.container().port(), registerDefaultCheck, tags)
+
+    fun registerServiceWithEnvoyOnIngress(
+        extension: EnvoyExtension,
+        id: String = UUID.randomUUID().toString(),
+        name: String,
+        registerDefaultCheck: Boolean = false,
+        tags: List<String> = listOf("a")
+    ) = registerService(id, name, extension.container.ipAddress(), EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT, registerDefaultCheck, tags)
 
     fun deregisterService(id: String) {
         client.agentServiceDeregister(id)

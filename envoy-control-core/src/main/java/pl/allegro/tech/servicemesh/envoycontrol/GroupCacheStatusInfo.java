@@ -8,6 +8,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * {@code GroupCacheStatusInfo} provides an implementation of {@link StatusInfo} for a group of {@link CacheStatusInfo}.
+ * This class is copy of {@link io.envoyproxy.controlplane.cache.GroupCacheStatusInfo}
  */
 @ThreadSafe
 class GroupCacheStatusInfo<T> implements StatusInfo<T> {

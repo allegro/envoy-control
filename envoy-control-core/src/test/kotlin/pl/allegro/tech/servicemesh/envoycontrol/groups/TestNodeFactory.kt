@@ -1,9 +1,11 @@
+@file:Suppress("MatchingDeclarationName")
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import com.google.protobuf.ListValue
 import com.google.protobuf.NullValue
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
+import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.api.v2.core.Node
 
 fun node(
@@ -48,19 +50,36 @@ fun node(
         .build()
 }
 
-val addedProxySettings = ProxySettings(Incoming(
-    endpoints = listOf(IncomingEndpoint(
-        path = "/endpoint",
-        clients = setOf(ClientWithSelector("client1"))
-    )),
-    permissionsEnabled = true
-))
-
-fun ProxySettings.with(serviceDependencies: Set<ServiceDependency> = emptySet(), domainDependencies: Set<DomainDependency> = emptySet()) = copy(
-    outgoing = Outgoing(
-        dependencies = serviceDependencies.toList() + domainDependencies.toList()
+val addedProxySettings = ProxySettings(
+    Incoming(
+        endpoints = listOf(
+            IncomingEndpoint(
+                path = "/endpoint",
+                clients = setOf(ClientWithSelector("client1"))
+            )
+        ),
+        permissionsEnabled = true
     )
 )
+
+fun ProxySettings.with(
+    serviceDependencies: Set<ServiceDependency> = emptySet(),
+    domainDependencies: Set<DomainDependency> = emptySet(),
+    allServicesDependencies: Boolean = false,
+    defaultServiceSettings: DependencySettings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
+        Durations.fromSeconds(120),
+        Durations.fromSeconds(120)
+    ))
+): ProxySettings {
+    return copy(
+        outgoing = Outgoing(
+            serviceDependencies = serviceDependencies.toList(),
+            domainDependencies = domainDependencies.toList(),
+            allServicesDependencies = allServicesDependencies,
+            defaultServiceSettings = defaultServiceSettings
+        )
+    )
+}
 
 fun accessLogFilterProto(statusCodeFilter: String? = null): Value = struct {
     when {
@@ -106,12 +125,74 @@ fun proxySettingsProto(
         })
     }
     if (serviceDependencies.isNotEmpty()) {
-        putFields("outgoing", struct {
-            putFields("dependencies", list {
-                serviceDependencies.forEach {
-                    addValues(outgoingDependencyProto(service = it, idleTimeout = idleTimeout, requestTimeout = responseTimeout))
-                }
-            })
+        putFields("outgoing", outgoingDependenciesProto {
+            withServices(serviceDependencies.toList(), idleTimeout, responseTimeout)
+        })
+    }
+}
+
+class OutgoingDependenciesProtoScope {
+    class Dependency(val service: String? = null, val domain: String? = null, val idleTimeout: String? = null, val requestTimeout: String? = null, val handleInternalRedirect: Boolean? = null)
+
+    val dependencies = mutableListOf<Dependency>()
+
+    fun withServices(
+        serviceDependencies: List<String> = emptyList(),
+        idleTimeout: String? = null,
+        responseTimeout: String? = null
+    ) = serviceDependencies.forEach { withService(it, idleTimeout, responseTimeout) }
+
+    fun withService(
+        serviceName: String,
+        idleTimeout: String? = null,
+        requestTimeout: String? = null,
+        handleInternalRedirect: Boolean? = null
+    ) = dependencies.add(
+        Dependency(
+            service = serviceName,
+            idleTimeout = idleTimeout,
+            requestTimeout = requestTimeout,
+            handleInternalRedirect = handleInternalRedirect
+        )
+    )
+
+    fun withDomain(
+        url: String,
+        idleTimeout: String? = null,
+        requestTimeout: String? = null
+    ) = dependencies.add(
+        Dependency(
+            domain = url,
+            idleTimeout = idleTimeout,
+            requestTimeout = requestTimeout
+        )
+    )
+
+    fun withInvalid(service: String? = null, domain: String? = null) = dependencies.add(
+        Dependency(
+            service = service,
+            domain = domain
+        )
+    )
+}
+
+fun outgoingDependenciesProto(
+    closure: OutgoingDependenciesProtoScope.() -> Unit
+): Value {
+    val scope = OutgoingDependenciesProtoScope().apply(closure)
+    return struct {
+        putFields("dependencies", list {
+            scope.dependencies.forEach {
+                addValues(
+                    outgoingDependencyProto(
+                        service = it.service,
+                        domain = it.domain,
+                        idleTimeout = it.idleTimeout,
+                        requestTimeout = it.requestTimeout,
+                        handleInternalRedirect = it.handleInternalRedirect
+                    )
+                )
+            }
         })
     }
 }
@@ -139,25 +220,25 @@ fun outgoingTimeoutPolicy(idleTimeout: String? = null, requestTimeout: String? =
 fun incomingEndpointProto(
     path: String? = null,
     pathPrefix: String? = null,
+    pathRegex: String? = null,
     includeNullFields: Boolean = false
 ): Value = struct {
+
+    this.putPathFields(path, "path", includeNullFields)
+    this.putPathFields(pathPrefix, "pathPrefix", includeNullFields)
+    this.putPathFields(pathRegex, "pathRegex", includeNullFields)
+
+    putFields("clients", list { addValues(string("client1")) })
+}
+
+fun Struct.Builder.putPathFields(path: String?, fieldName: String, includeNullFields: Boolean) {
     when {
         path != null -> string(path)
         includeNullFields -> nullValue
         else -> null
     }?.also {
-        putFields("path", it)
+        this.putFields(fieldName, it)
     }
-
-    when {
-        pathPrefix != null -> string(pathPrefix)
-        includeNullFields -> nullValue
-        else -> null
-    }?.also {
-        putFields("pathPrefix", it)
-    }
-
-    putFields("clients", list { addValues(string("client1")) })
 }
 
 fun struct(fields: Struct.Builder.() -> Unit): Value {

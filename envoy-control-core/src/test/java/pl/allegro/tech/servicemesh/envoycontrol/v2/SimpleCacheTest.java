@@ -28,9 +28,11 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
+/**
+ * This class is copy of {@link io.envoyproxy.controlplane.cache.v2.SimpleCacheTest}
+ */
 public class SimpleCacheTest {
 
     private static final boolean ADS = ThreadLocalRandom.current().nextBoolean();
@@ -115,7 +117,7 @@ public class SimpleCacheTest {
                 false);
 
         assertThat(watch.isCancelled()).isFalse();
-        Assertions.assertThat(responseTracker.responses).isNotEmpty();
+        assertThat(responseTracker.responses).isNotEmpty();
     }
 
     @Test
@@ -507,7 +509,7 @@ public class SimpleCacheTest {
 
     private static void assertThatWatchIsOpenWithNoResponses(WatchAndTracker watchAndTracker) {
         assertThat(watchAndTracker.watch.isCancelled()).isFalse();
-        Assertions.assertThat(watchAndTracker.tracker.responses).isEmpty();
+        assertThat(watchAndTracker.tracker.responses).isEmpty();
     }
 
     protected static void assertThatWatchReceivesSnapshot(WatchAndTracker watchAndTracker, Snapshot snapshot) {

@@ -253,8 +253,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                 trustedCa = "/app/root-ca2.crt"
             ),
             { localServiceContainer.ipAddress() },
-            envoyControl1.grpcPort,
-            image = defaultEnvoyImage
+            envoyControl1.grpcPort
         ).withNetwork(network)
         envoy.start()
         return envoy
@@ -267,8 +266,7 @@ internal class TlsBasedAuthenticationTest : EnvoyControlTestConfiguration() {
                 certificateChain = "/app/fullchain_echo_root-ca2.pem"
             ),
             { localServiceContainer.ipAddress() },
-            envoyControl1.grpcPort,
-            image = defaultEnvoyImage
+            envoyControl1.grpcPort
         ).withNetwork(network)
         envoy.start()
         return envoy

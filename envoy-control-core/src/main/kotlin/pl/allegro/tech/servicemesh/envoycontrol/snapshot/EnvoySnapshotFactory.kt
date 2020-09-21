@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.v2.Snapshot
 import io.envoyproxy.envoy.api.v2.Cluster
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
@@ -13,16 +12,16 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
+import java.util.SortedMap
 
 class EnvoySnapshotFactory(
     private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
@@ -32,14 +31,6 @@ class EnvoySnapshotFactory(
     private val listenersFactory: EnvoyListenersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
-    private val defaultDependencySettings: DependencySettings =
-        DependencySettings(
-            handleInternalRedirect = properties.egress.handleInternalRedirect,
-            timeoutPolicy = Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
-                requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-            )
-        ),
     private val meterRegistry: MeterRegistry
 ) {
     fun newSnapshot(
@@ -72,7 +63,7 @@ class EnvoySnapshotFactory(
     fun clusterConfigurations(
         servicesStates: MultiClusterState,
         previousClusters: Map<String, ClusterConfiguration>
-    ): Map<String, ClusterConfiguration> {
+    ): SortedMap<String, ClusterConfiguration> {
         val currentClusters = if (properties.egress.http2.enabled) {
             servicesStates.flatMap {
                 it.servicesState.serviceNameToInstances.values
@@ -88,7 +79,10 @@ class EnvoySnapshotFactory(
                 .associateWith { ClusterConfiguration(serviceName = it, http2Enabled = false) }
         }
 
+        // Clusters need to be sorted because if clusters are in different order to previous snapshot then CDS version
+        // is changed and that causes unnecessary CDS responses.
         return addRemovedClusters(previousClusters, currentClusters)
+            .toSortedMap()
     }
 
     private fun addRemovedClusters(
@@ -161,7 +155,7 @@ class EnvoySnapshotFactory(
     }
 
     private fun getDomainRouteSpecifications(group: Group): List<RouteSpecification> {
-        return group.proxySettings.outgoing.getDomainDependencies().map {
+        return group.proxySettings.outgoing.domainDependencies.map {
             RouteSpecification(
                 clusterName = it.getClusterName(),
                 routeDomain = it.getRouteDomain(),
@@ -174,20 +168,27 @@ class EnvoySnapshotFactory(
         group: Group,
         globalSnapshot: GlobalSnapshot
     ): Collection<RouteSpecification> {
+        val definedServicesRoutes = group.proxySettings.outgoing.serviceDependencies.map {
+            RouteSpecification(
+                clusterName = it.service,
+                routeDomain = it.service,
+                settings = it.settings
+            )
+        }
         return when (group) {
-            is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().map {
-                RouteSpecification(
-                    clusterName = it.service,
-                    routeDomain = it.service,
-                    settings = it.settings
-                )
+            is ServicesGroup -> {
+                definedServicesRoutes
             }
-            is AllServicesGroup -> globalSnapshot.allServicesNames.map {
-                RouteSpecification(
-                    clusterName = it,
-                    routeDomain = it,
-                    settings = defaultDependencySettings
-                )
+            is AllServicesGroup -> {
+                val servicesNames = group.proxySettings.outgoing.serviceDependencies.map { it.service }.toSet()
+                val allServicesRoutes = globalSnapshot.allServicesNames.subtract(servicesNames).map {
+                    RouteSpecification(
+                        clusterName = it,
+                        routeDomain = it,
+                        settings = group.proxySettings.outgoing.defaultServiceSettings
+                    )
+                }
+                allServicesRoutes + definedServicesRoutes
             }
         }
     }

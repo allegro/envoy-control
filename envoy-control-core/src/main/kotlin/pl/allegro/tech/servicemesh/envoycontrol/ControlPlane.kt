@@ -156,6 +156,7 @@ class ControlPlane private constructor(
             val compositeDiscoveryCallbacksV3 = listOf(
                     CompositeDiscoveryServerCallbacks(
                             meterRegistry,
+                            snapshotCollectingCallback,
                             loggingDiscoveryServerCallbacks,
                             meteredConnectionsCallbacks,
                             NodeMetadataValidator(properties.envoy.snapshot)

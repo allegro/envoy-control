@@ -43,7 +43,7 @@ internal class IncomingPermissionsEmptyEndpointsTest : EnvoyControlTestConfigura
 
         private fun waitForEnvoysInitialized() {
             untilAsserted {
-                assertThat(echoEnvoy.admin().statValue("http.ingress_http.rq_total")).isNotEqualTo("-1")
+                assertThat(echoEnvoy.admin().isIngressReady()).isTrue()
             }
         }
     }
