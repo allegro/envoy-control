@@ -289,11 +289,24 @@ data class Incoming(
 }
 
 data class Outgoing(
-    val serviceDependencies: List<ServiceDependency> = emptyList(),
-    val domainDependencies: List<DomainDependency> = emptyList(),
+    private val serviceDependencies: List<ServiceDependency> = emptyList(),
+    private val domainDependencies: List<DomainDependency> = emptyList(),
     val allServicesDependencies: Boolean = false,
     val defaultServiceSettings: DependencySettings = DependencySettings()
 ) {
+
+    // not declared in primary constructor to exclude from equals(), copy(), etc.
+    private val deduplicatedDomainDependencies: List<DomainDependency> = domainDependencies
+        .map { it.domain to it }
+        .toMap().values.toList()
+
+    private val deduplicatedServiceDependencies: List<ServiceDependency> = serviceDependencies
+        .map { it.service to it }
+        .toMap().values.toList()
+
+    fun getDomainDependencies(): List<DomainDependency> = deduplicatedDomainDependencies
+    fun getServiceDependencies(): List<ServiceDependency> = deduplicatedServiceDependencies
+
     data class TimeoutPolicy(
         val idleTimeout: Duration? = null,
         val requestTimeout: Duration? = null
