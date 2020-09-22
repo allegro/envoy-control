@@ -11,13 +11,11 @@ buildscript {
 
 plugins {
     id 'pl.allegro.tech.build.axion-release' version '1.10.2'
-    // TODO(https://github.com/allegro/envoy-control/issues/102):
-    //   upgrade to latest 1.3.x for bugfixes and performance improvements
     id 'org.jetbrains.kotlin.jvm' version '1.3.72'
     id 'org.jetbrains.kotlin.plugin.spring' version '1.3.72'
     id 'org.jetbrains.kotlin.plugin.allopen' version '1.3.72'
-    id "org.jlleitschuh.gradle.ktlint" version "6.3.1"
-    id "org.jlleitschuh.gradle.ktlint-idea" version "6.3.1"
+    id "org.jlleitschuh.gradle.ktlint" version "9.4.0"
+    id "org.jlleitschuh.gradle.ktlint-idea" version "9.4.0"
     id "io.gitlab.arturbosch.detekt" version "1.0.0"
 }
 
@@ -84,6 +82,12 @@ subprojects {
     sourceCompatibility = 1.8
     [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 
+    ktlint {
+        enableExperimentalRules = false
+        verbose = true
+        disabledRules = ["parameter-list-wrapping", "indent", "colon-spacing", "import-ordering"]
+    }
+
     test {
         useJUnitPlatform()
         testLogging {
@@ -127,9 +131,8 @@ subprojects {
     }
 
     detekt {
-        toolVersion = "1.0.0-RC11"
+        toolVersion = "1.0.0"
         input = files("src/main/kotlin", "src/test/kotlin")
-        filters = ".*/resources/.*,.*/build/.*"
         config = files("$rootDir/config/detekt/default-detekt-config.yml", "$rootDir/config/detekt/detekt-config.yml")
     }
 }
