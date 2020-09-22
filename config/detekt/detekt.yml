@@ -6,6 +6,9 @@ complexity:
     active: false
   LongParameterList:
     ignoreDefaultParameters: true
+    constructorThreshold: 9
+  LongMethod:
+    threshold: 120
 
 exceptions:
   active: true
@@ -47,23 +50,12 @@ potential-bugs:
     active: true
 
 style:
-  excludes:
-    - "**/resources/**"
-    - "**/build/**"
-    - '**/test/**'
-    - '**Test.kt'
-    - '**TestBase.kt'
-    - '**TestConfiguration.kt'
-    - '**Spec.kt'
-    - '**Container.kt'
-    - '**Assertions.kt'
-    - '**Extension.kt'
-    - '**Operations.kt'
   ForbiddenComment:
     active: false # we want to be able to write todo comments
   MagicNumber:
     ignoreAnnotation: true
     ignoreNumbers: '-1,0,1,2,3'
+    excludes: [ "**/resources/**","**/build/**", '**/test/**', '**/**Test.kt', '**TestBase.kt', '**TestConfiguration.kt','**/**Spec.kt','**Container.kt', '**Assertions.kt', '**Extension.kt', '**Operations.kt' ]
   FunctionOnlyReturningConstant:
     active: true
   PreferToOverPairSyntax:
@@ -88,3 +80,16 @@ style:
     active: true
   MandatoryBracesIfStatements:
     active: true
+    excludes: [ "**/resources/**","**/build/**", '**/test/**', '**/**Test.kt', '**TestBase.kt', '**TestConfiguration.kt','**/**Spec.kt','**Container.kt', '**Assertions.kt', '**Extension.kt', '**Operations.kt' ]
+  MaxLineLength:
+    excludes: [ "**/resources/**","**/build/**", '**/test/**', '**/**Test.kt', '**TestBase.kt', '**TestConfiguration.kt','**/**Spec.kt','**Container.kt', '**Assertions.kt', '**Extension.kt', '**Operations.kt' ]
+  UtilityClassWithPublicConstructor:
+    excludes: [ "**/resources/**","**/build/**", '**/test/**', '**/**Test.kt', '**TestBase.kt', '**TestConfiguration.kt','**/**Spec.kt','**Container.kt', '**Assertions.kt', '**Extension.kt', '**Operations.kt' ]
+
+empty-blocks:
+  EmptyFunctionBlock:
+    excludes: [ "**/resources/**","**/build/**", '**/test/**', '**/**Test.kt', '**TestBase.kt', '**TestConfiguration.kt','**/**Spec.kt','**Container.kt', '**Assertions.kt', '**Extension.kt', '**Operations.kt', "**/NodeMetadataValidator.kt" ]
+
+naming:
+  VariableNaming:
+    excludes: [ "**/envoy-control-tests/**" ]
