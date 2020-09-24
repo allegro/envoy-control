@@ -1,9 +1,10 @@
-package pl.allegro.tech.servicemesh.envoycontrol;
+package pl.allegro.tech.servicemesh.envoycontrol.v2;
 
 import com.google.common.collect.ImmutableList;
 import io.envoyproxy.controlplane.cache.Resources;
-import io.envoyproxy.controlplane.cache.Snapshot;
 import io.envoyproxy.controlplane.cache.Watch;
+import io.envoyproxy.controlplane.cache.XdsRequest;
+import io.envoyproxy.controlplane.cache.v2.Snapshot;
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment;
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest;
 import io.envoyproxy.envoy.api.v2.core.Node;
@@ -14,7 +15,7 @@ import java.util.Collections;
 
 import static java.util.Collections.emptyList;
 
-public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
+public class SimpleCacheWithMissingEndpointsTest extends pl.allegro.tech.servicemesh.envoycontrol.v2.SimpleCacheTest {
 
     @Override
     protected boolean shouldSendMissingEndpoints() {
@@ -40,7 +41,7 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
 
     @Test
     public void missingNamesListShouldReturnWatcherWithResponseInAdsMode() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        pl.allegro.tech.servicemesh.envoycontrol.v2.SimpleCache<String> cache = new pl.allegro.tech.servicemesh.envoycontrol.v2.SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
 
@@ -48,12 +49,12 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
 
         Watch watch = cache.createWatch(
                 true,
-                DiscoveryRequest.newBuilder()
+                XdsRequest.create(DiscoveryRequest.newBuilder()
                         .setNode(Node.getDefaultInstance())
-                        .setTypeUrl(Resources.ENDPOINT_TYPE_URL)
+                        .setTypeUrl(Resources.V2.ENDPOINT_TYPE_URL)
                         .addResourceNames("none")
                         .addResourceNames(CLUSTER_NAME)
-                        .build(),
+                        .build()),
                 Collections.emptySet(),
                 responseTracker,
                 false);
