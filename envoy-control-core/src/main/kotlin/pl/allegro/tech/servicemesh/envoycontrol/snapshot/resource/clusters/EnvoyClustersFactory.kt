@@ -192,12 +192,7 @@ class EnvoyClustersFactory(
                                     ).build()
                     ).build()
 
-            val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext)
-                // for envoy >= 1.14.0-dev it will be overridden by setAutoSni below
-                // TODO(https://github.com/allegro/envoy-control/issues/97)
-                //     remove when envoy < 1.14.0-dev will be not supported
-                .setSni(host)
-                .build()
+            val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext).build()
             val transportSocket = TransportSocket.newBuilder()
                     .setTypedConfig(Any.pack(
                             upstreamTlsContext
