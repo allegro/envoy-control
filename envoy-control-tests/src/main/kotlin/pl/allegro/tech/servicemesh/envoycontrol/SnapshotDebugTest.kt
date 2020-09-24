@@ -84,8 +84,7 @@ open class SnapshotDebugTest : EnvoyControlTestConfiguration() {
      },
      "locality": {
       "zone": "dev-dc4"
-     },
-     "build_version": "b7bef67c256090919a4585a1a06c42f15d640a09/1.13.0-dev/Clean/RELEASE/BoringSSL"
+     }
     }
 """.trim()
 

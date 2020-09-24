@@ -20,6 +20,8 @@ import io.envoyproxy.envoy.api.v2.Listener;
 import io.envoyproxy.envoy.api.v2.RouteConfiguration;
 import io.envoyproxy.envoy.api.v2.auth.Secret;
 import io.envoyproxy.envoy.api.v2.core.Node;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -519,8 +521,13 @@ public class SimpleCacheTest {
 
         assertThat(response).isNotNull();
         assertThat(response.version()).isEqualTo(snapshot.version(watchAndTracker.watch.request().getTypeUrl()));
-        assertThat(response.resources().toArray(new Message[0]))
-                .containsExactlyElementsOf(snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values());
+        Message[] responseValues = response.resources().toArray(new Message[0]);
+        Message[] snapshotValues = snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values().toArray(new Message[0]);
+
+        assertThat(responseValues.length).isEqualTo(2);
+        assertThat(responseValues.length).isEqualTo(snapshotValues.length);
+        assertThat(responseValues[0]).isEqualToComparingFieldByFieldRecursively(snapshotValues[0]);
+        assertThat(responseValues[1]).isEqualToComparingFieldByFieldRecursively(snapshotValues[1]);
     }
 
     protected static class ResponseTracker implements Consumer<Response> {

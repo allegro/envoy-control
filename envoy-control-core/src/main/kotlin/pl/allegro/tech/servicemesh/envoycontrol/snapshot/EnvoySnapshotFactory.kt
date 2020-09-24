@@ -1,11 +1,11 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import io.envoyproxy.controlplane.cache.v2.Snapshot
-import io.envoyproxy.envoy.api.v2.Cluster
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
-import io.envoyproxy.envoy.api.v2.Listener
-import io.envoyproxy.envoy.api.v2.RouteConfiguration
-import io.envoyproxy.envoy.api.v2.auth.Secret
+import io.envoyproxy.controlplane.cache.v3.Snapshot
+import io.envoyproxy.envoy.config.cluster.v3.Cluster
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.listener.v3.Listener
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup

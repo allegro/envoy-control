@@ -5,32 +5,33 @@ import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.api.v2.Listener
-import io.envoyproxy.envoy.api.v2.auth.CommonTlsContext
-import io.envoyproxy.envoy.api.v2.auth.DownstreamTlsContext
-import io.envoyproxy.envoy.api.v2.auth.SdsSecretConfig
-import io.envoyproxy.envoy.api.v2.auth.TlsParameters
-import io.envoyproxy.envoy.api.v2.core.RuntimeUInt32
-import io.envoyproxy.envoy.api.v2.core.Address
-import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
-import io.envoyproxy.envoy.api.v2.core.ApiConfigSource
-import io.envoyproxy.envoy.api.v2.core.ConfigSource
-import io.envoyproxy.envoy.api.v2.core.GrpcService
-import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
-import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
-import io.envoyproxy.envoy.api.v2.core.SocketAddress
-import io.envoyproxy.envoy.api.v2.core.TransportSocket
-import io.envoyproxy.envoy.api.v2.listener.Filter
-import io.envoyproxy.envoy.api.v2.listener.FilterChain
-import io.envoyproxy.envoy.api.v2.listener.FilterChainMatch
-import io.envoyproxy.envoy.config.accesslog.v2.FileAccessLog
-import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLog
-import io.envoyproxy.envoy.config.filter.accesslog.v2.AccessLogFilter
-import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
-import io.envoyproxy.envoy.config.filter.accesslog.v2.StatusCodeFilter
-import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
-import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
-import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.Rds
+import io.envoyproxy.envoy.config.accesslog.v3.AccessLog
+import io.envoyproxy.envoy.config.accesslog.v3.AccessLogFilter
+import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
+import io.envoyproxy.envoy.config.accesslog.v3.StatusCodeFilter
+import io.envoyproxy.envoy.config.core.v3.Address
+import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
+import io.envoyproxy.envoy.config.core.v3.ApiConfigSource
+import io.envoyproxy.envoy.config.core.v3.ApiVersion
+import io.envoyproxy.envoy.config.core.v3.ConfigSource
+import io.envoyproxy.envoy.config.core.v3.GrpcService
+import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
+import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
+import io.envoyproxy.envoy.config.core.v3.RuntimeUInt32
+import io.envoyproxy.envoy.config.core.v3.SocketAddress
+import io.envoyproxy.envoy.config.core.v3.TransportSocket
+import io.envoyproxy.envoy.config.listener.v3.Filter
+import io.envoyproxy.envoy.config.listener.v3.FilterChain
+import io.envoyproxy.envoy.config.listener.v3.FilterChainMatch
+import io.envoyproxy.envoy.config.listener.v3.Listener
+import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -254,6 +255,7 @@ class EnvoyListenersFactory(
 
     private fun egressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
+                .setResourceApiVersion(ApiVersion.V3)
                 .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
 
         when (communicationMode) {
@@ -307,6 +309,7 @@ class EnvoyListenersFactory(
 
     private fun ingressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
+                .setResourceApiVersion(ApiVersion.V3)
                 .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
 
         when (communicationMode) {

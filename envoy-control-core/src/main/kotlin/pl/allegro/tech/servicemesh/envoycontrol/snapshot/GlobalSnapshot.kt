@@ -1,8 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.controlplane.cache.SnapshotResources
-import io.envoyproxy.envoy.api.v2.Cluster
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.cluster.v3.Cluster
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 
 data class GlobalSnapshot(
     val clusters: SnapshotResources<Cluster>,

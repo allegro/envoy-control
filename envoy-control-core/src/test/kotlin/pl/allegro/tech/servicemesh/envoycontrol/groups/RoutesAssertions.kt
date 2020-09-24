@@ -1,15 +1,15 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import com.google.protobuf.Duration
-import io.envoyproxy.envoy.api.v2.RouteConfiguration
-import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
-import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
-import io.envoyproxy.envoy.api.v2.route.RedirectAction
-import io.envoyproxy.envoy.api.v2.route.RetryPolicy
-import io.envoyproxy.envoy.api.v2.route.Route
-import io.envoyproxy.envoy.api.v2.route.RouteAction
-import io.envoyproxy.envoy.api.v2.route.VirtualCluster
-import io.envoyproxy.envoy.api.v2.route.VirtualHost
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
+import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
+import io.envoyproxy.envoy.config.route.v3.RedirectAction
+import io.envoyproxy.envoy.config.route.v3.RetryPolicy
+import io.envoyproxy.envoy.config.route.v3.Route
+import io.envoyproxy.envoy.config.route.v3.RouteAction
+import io.envoyproxy.envoy.config.route.v3.VirtualCluster
+import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 
@@ -45,13 +45,13 @@ fun RouteAction.hasCustomRequestTimeout(requestTimeout: Duration): RouteAction {
     return this
 }
 
-fun RouteAction.autoHostRewriteHeaderIsEmpty(): RouteAction {
-    assertThat(this.autoHostRewriteHeader).isEmpty()
+fun RouteAction.hostRewriteHeaderIsEmpty(): RouteAction {
+    assertThat(this.hostRewriteHeader).isEmpty()
     return this
 }
 
-fun RouteAction.hasAutoHostRewriteHeader(header: String): RouteAction {
-    assertThat(this.autoHostRewriteHeader).isEqualTo(header)
+fun RouteAction.hasHostRewriteHeader(header: String): RouteAction {
+    assertThat(this.hostRewriteHeader).isEqualTo(header)
     return this
 }
 
