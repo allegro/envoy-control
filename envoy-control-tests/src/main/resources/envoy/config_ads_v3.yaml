@@ -1,0 +1,116 @@
+admin:
+  access_log_path: /dev/null
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 10000 }
+dynamic_resources:
+  lds_config:
+    resource_api_version: V3
+    ads: {}
+  cds_config:
+    resource_api_version: V3
+    ads: {}
+  ads_config:
+    transport_api_version: V3
+    api_type: GRPC
+    grpc_services:
+      envoy_grpc:
+        cluster_name: envoy-control-xds
+node:
+  cluster: test-cluster
+  id: test-id
+  metadata:
+    service_name: "echo2"
+    ads: true
+    ingress_host: "0.0.0.0"
+    ingress_port: 5001
+    egress_host: "0.0.0.0"
+    egress_port: 5000
+    use_remote_address: true
+    access_log_enabled: false
+    add_upstream_external_address_header: true
+    resources_dir: "/etc/envoy/extra"
+    proxy_settings:
+      incoming:
+        endpoints:
+          - path: "/endpoint"
+            clients: ["authorizedClient"]
+          - path: "/secured_endpoint"
+            clients: ["echo"]
+      outgoing:
+        dependencies:
+          - service: "service-1"
+          - service: "service-2"
+          - service: "service-3"
+          - service: "service-4"
+          - service: "service-5"
+          - service: "echo"
+            timeoutPolicy:
+              requestTimeout: "15s"
+          - service: "consul"
+            timeoutPolicy:
+              requestTimeout: "15s"
+          - service: "proxy1"
+          - service: "proxy2"
+          - service: "service-redirect"
+            handleInternalRedirect: true
+          - service: "host-rewrite-service"
+            rewriteHostHeader: true
+          - domain: "https://my.example.com"
+          - domain: "https://bad.host.example.com"
+          - domain: "https://www.example.com"
+          - domain: "https://www.example-redirect.com"
+            handleInternalRedirect: true
+
+static_resources:
+  clusters:
+    - connect_timeout: 1s
+      load_assignment:
+        cluster_name: envoy-control-xds
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: HOST_IP
+                      port_value: HOST_PORT
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: HOST_IP
+                      port_value: HOST2_PORT
+      http2_protocol_options: {}
+      name: envoy-control-xds
+    - name: envoy-original-destination
+      type: ORIGINAL_DST
+      lb_policy: CLUSTER_PROVIDED
+      original_dst_lb_config:
+        use_http_header: true
+      connect_timeout:
+        seconds: 1
+      http_protocol_options:
+        allow_absolute_url: true
+    - name: local_service
+      type: STATIC
+      load_assignment:
+        cluster_name: local_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: LOCAL_SERVICE_IP
+                      port_value: 5678
+      connect_timeout: 1s
+    - name: this_admin
+      type: STATIC
+      load_assignment:
+        cluster_name: this_admin
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 10000
+      connect_timeout:
+        seconds: 1

@@ -2,9 +2,11 @@ package pl.allegro.tech.servicemesh.envoycontrol
 
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SnapshotCache
+import io.envoyproxy.controlplane.cache.v2.Snapshot
 import io.envoyproxy.controlplane.server.DefaultExecutorGroup
-import io.envoyproxy.controlplane.server.DiscoveryServer
 import io.envoyproxy.controlplane.server.ExecutorGroup
+import io.envoyproxy.controlplane.server.V2DiscoveryServer
+import io.envoyproxy.controlplane.server.V3DiscoveryServer
 import io.envoyproxy.controlplane.server.callback.SnapshotCollectingCallback
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
@@ -15,6 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.GroupChangeWatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.MetadataNodeGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.NodeMetadataValidator
 import pl.allegro.tech.servicemesh.envoycontrol.server.CachedProtoResourcesSerializer
+import pl.allegro.tech.servicemesh.envoycontrol.server.ExecutorProperties
 import pl.allegro.tech.servicemesh.envoycontrol.server.ExecutorType
 import pl.allegro.tech.servicemesh.envoycontrol.server.ServerProperties
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.CompositeDiscoveryServerCallbacks
@@ -34,6 +37,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filt
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.v2.SimpleCache
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
@@ -50,7 +55,7 @@ class ControlPlane private constructor(
     val grpcServer: Server,
     val snapshotUpdater: SnapshotUpdater,
     val nodeGroup: NodeGroup<Group>,
-    val cache: SnapshotCache<Group>,
+    val cache: SnapshotCache<Group, Snapshot>,
     private val changes: Flux<MultiClusterState>
 ) : AutoCloseable {
 
@@ -97,13 +102,7 @@ class ControlPlane private constructor(
 
         fun build(changes: Flux<MultiClusterState>): ControlPlane {
             if (grpcServerExecutor == null) {
-                grpcServerExecutor = ThreadPoolExecutor(
-                    properties.server.serverPoolSize,
-                    properties.server.serverPoolSize,
-                    properties.server.serverPoolKeepAlive.toMillis(), TimeUnit.MILLISECONDS,
-                    LinkedBlockingQueue<Runnable>(),
-                    ThreadNamingThreadFactory("grpc-server-worker")
-                )
+                grpcServerExecutor = buildThreadPoolExecutor()
             }
 
             if (nioEventLoopExecutor == null) {
@@ -115,20 +114,7 @@ class ControlPlane private constructor(
             }
 
             if (executorGroup == null) {
-                executorGroup = when (properties.server.executorGroup.type) {
-                    ExecutorType.DIRECT -> DefaultExecutorGroup()
-                    ExecutorType.PARALLEL -> {
-                        // TODO(https://github.com/allegro/envoy-control/issues/103) this implementation of parallel
-                        //   executor group is invalid, because it may lead to sending XDS responses out of order for
-                        //   given DiscoveryRequestStreamObserver. We should switch to multiple, single-threaded
-                        //   ThreadPoolExecutors. More info in linked task.
-                        val executor = Executors.newFixedThreadPool(
-                            properties.server.executorGroup.parallelPoolSize,
-                            ThreadNamingThreadFactory("discovery-responses-executor")
-                        )
-                        ExecutorGroup { executor }
-                    }
-                }
+                executorGroup = buildExecutorGroup()
             }
 
             if (globalSnapshotExecutor == null) {
@@ -140,56 +126,53 @@ class ControlPlane private constructor(
 
             val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
 
-            val groupSnapshotScheduler = when (groupSnapshotProperties.type) {
-                ExecutorType.DIRECT -> DirectScheduler
-                ExecutorType.PARALLEL -> ParallelScheduler(
-                    scheduler = Schedulers.fromExecutor(
-                        groupSnapshotParallelExecutorSupplier()
-                            ?: Executors.newFixedThreadPool(
-                                groupSnapshotProperties.parallelPoolSize,
-                                ThreadNamingThreadFactory("group-snapshot")
-                            )
-                    ),
-                    parallelism = groupSnapshotProperties.parallelPoolSize
-                )
-            }
-
+            val groupSnapshotScheduler = buildGroupSnapshotScheduler(groupSnapshotProperties)
             val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
-
-            val cleanupProperties = properties.server.snapshotCleanup
-
             val groupChangeWatcher = GroupChangeWatcher(cache, metrics, meterRegistry)
-
-            val discoveryServer = DiscoveryServer(
-                listOf(
+            val meteredConnectionsCallbacks = MeteredConnectionsCallbacks().also {
+                meterRegistry.gauge("grpc.all-connections", it.connections)
+                MeteredConnectionsCallbacks.MetricsStreamType.values().map { type ->
+                    meterRegistry.gauge("grpc.connections.${type.name.toLowerCase()}", it.connections(type))
+                }
+            }
+            val loggingDiscoveryServerCallbacks = LoggingDiscoveryServerCallbacks(
+                    properties.server.logFullRequest,
+                    properties.server.logFullResponse
+            )
+            val snapshotCollectingCallback = buildSnapshotCollectingCallback(cache)
+            val cachedProtoResourcesSerializer = CachedProtoResourcesSerializer(
+                    meterRegistry,
+                    properties.server.reportProtobufCacheMetrics
+            )
+            val compositeDiscoveryCallbacksV2 = listOf(
                     CompositeDiscoveryServerCallbacks(
-                        meterRegistry,
-                        SnapshotCollectingCallback(
-                            cache,
-                            nodeGroup,
-                            Clock.systemDefaultZone(),
-                            emptySet(),
-                            cleanupProperties.collectAfterMillis.toMillis(),
-                            cleanupProperties.collectionIntervalMillis.toMillis()
-                        ),
-                        LoggingDiscoveryServerCallbacks(
-                            properties.server.logFullRequest,
-                            properties.server.logFullResponse
-                        ),
-                        MeteredConnectionsCallbacks().also {
-                            meterRegistry.gauge("grpc.all-connections", it.connections)
-                            MeteredConnectionsCallbacks.MetricsStreamType.values().map { type ->
-                                meterRegistry.gauge("grpc.connections.${type.name.toLowerCase()}", it.connections(type))
-                            }
-                        },
-                        NodeMetadataValidator(properties.envoy.snapshot)
+                            meterRegistry,
+                            loggingDiscoveryServerCallbacks,
+                            meteredConnectionsCallbacks,
+                            NodeMetadataValidator(properties.envoy.snapshot)
                     )
-                ),
+            )
+            val compositeDiscoveryCallbacksV3 = listOf(
+                    CompositeDiscoveryServerCallbacks(
+                            meterRegistry,
+                            snapshotCollectingCallback,
+                            loggingDiscoveryServerCallbacks,
+                            meteredConnectionsCallbacks,
+                            NodeMetadataValidator(properties.envoy.snapshot)
+                    )
+            )
+            val v2discoveryServer = V2DiscoveryServer(
+                compositeDiscoveryCallbacksV2,
                 groupChangeWatcher,
                 executorGroup,
-                CachedProtoResourcesSerializer(meterRegistry, properties.server.reportProtobufCacheMetrics)
+                cachedProtoResourcesSerializer
             )
-
+            val v3discoveryServer = V3DiscoveryServer(
+                    compositeDiscoveryCallbacksV3,
+                    groupChangeWatcher,
+                    executorGroup,
+                    cachedProtoResourcesSerializer
+            )
             val snapshotProperties = properties.envoy.snapshot
             val envoySnapshotFactory = EnvoySnapshotFactory(
                 ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties),
@@ -209,20 +192,82 @@ class ControlPlane private constructor(
             )
 
             return ControlPlane(
-                grpcServer(properties.server, discoveryServer, nioEventLoopExecutor!!, grpcServerExecutor!!),
+                grpcServer(
+                        properties.server,
+                        v2discoveryServer,
+                        v3discoveryServer,
+                        nioEventLoopExecutor!!,
+                        grpcServerExecutor!!
+                ),
                 SnapshotUpdater(
-                    cache,
-                    properties.envoy.snapshot,
-                    envoySnapshotFactory,
-                    Schedulers.fromExecutor(globalSnapshotExecutor!!),
-                    groupSnapshotScheduler,
-                    groupChangeWatcher.onGroupAdded(),
-                    meterRegistry,
-                    envoyHttpFilters
+                        cache,
+                        properties.envoy.snapshot,
+                        envoySnapshotFactory,
+                        Schedulers.fromExecutor(globalSnapshotExecutor!!),
+                        groupSnapshotScheduler,
+                        groupChangeWatcher.onGroupAdded(),
+                        meterRegistry
                 ),
                 nodeGroup,
                 cache,
                 changes
+            )
+        }
+
+        private fun buildSnapshotCollectingCallback(
+            cache: SimpleCache<Group>
+        ): SnapshotCollectingCallback<Group, Snapshot> {
+            val cleanupProperties = properties.server.snapshotCleanup
+            return SnapshotCollectingCallback(
+                    cache,
+                    nodeGroup,
+                    Clock.systemDefaultZone(),
+                    emptySet(),
+                    cleanupProperties.collectAfterMillis.toMillis(),
+                    cleanupProperties.collectionIntervalMillis.toMillis()
+            )
+        }
+
+        private fun buildGroupSnapshotScheduler(groupSnapshotProperties: ExecutorProperties): ParallelizableScheduler {
+            return when (groupSnapshotProperties.type) {
+                ExecutorType.DIRECT -> DirectScheduler
+                ExecutorType.PARALLEL -> ParallelScheduler(
+                        scheduler = Schedulers.fromExecutor(
+                                groupSnapshotParallelExecutorSupplier()
+                                        ?: Executors.newFixedThreadPool(
+                                                groupSnapshotProperties.parallelPoolSize,
+                                                ThreadNamingThreadFactory("group-snapshot")
+                                        )
+                        ),
+                        parallelism = groupSnapshotProperties.parallelPoolSize
+                )
+            }
+        }
+
+        private fun buildExecutorGroup(): ExecutorGroup? {
+            return when (properties.server.executorGroup.type) {
+                ExecutorType.DIRECT -> DefaultExecutorGroup()
+                ExecutorType.PARALLEL -> {
+                    // TODO(https://github.com/allegro/envoy-control/issues/103) this implementation of parallel
+                    //   executor group is invalid, because it may lead to sending XDS responses out of order for
+                    //   given DiscoveryRequestStreamObserver. We should switch to multiple, single-threaded
+                    //   ThreadPoolExecutors. More info in linked task.
+                    val executor = Executors.newFixedThreadPool(
+                            properties.server.executorGroup.parallelPoolSize,
+                            ThreadNamingThreadFactory("discovery-responses-executor")
+                    )
+                    ExecutorGroup { executor }
+                }
+            }
+        }
+
+        private fun buildThreadPoolExecutor(): ThreadPoolExecutor {
+            return ThreadPoolExecutor(
+                    properties.server.serverPoolSize,
+                    properties.server.serverPoolSize,
+                    properties.server.serverPoolKeepAlive.toMillis(), TimeUnit.MILLISECONDS,
+                    LinkedBlockingQueue<Runnable>(),
+                    ThreadNamingThreadFactory("grpc-server-worker")
             )
         }
 
@@ -266,12 +311,21 @@ class ControlPlane private constructor(
             return this
         }
 
-        private fun NettyServerBuilder.withEnvoyServices(discoveryServer: DiscoveryServer): NettyServerBuilder =
-            this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
+        private fun NettyServerBuilder.withV2EnvoyServices(discoveryServer: V2DiscoveryServer): NettyServerBuilder {
+            return this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
+                    .addService(discoveryServer.clusterDiscoveryServiceImpl)
+                    .addService(discoveryServer.endpointDiscoveryServiceImpl)
+                    .addService(discoveryServer.listenerDiscoveryServiceImpl)
+                    .addService(discoveryServer.routeDiscoveryServiceImpl)
+        }
+
+        private fun NettyServerBuilder.withV3EnvoyServices(discoveryServer: V3DiscoveryServer): NettyServerBuilder {
+            return this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
                 .addService(discoveryServer.clusterDiscoveryServiceImpl)
                 .addService(discoveryServer.endpointDiscoveryServiceImpl)
                 .addService(discoveryServer.listenerDiscoveryServiceImpl)
                 .addService(discoveryServer.routeDiscoveryServiceImpl)
+        }
 
         private class ThreadNamingThreadFactory(val threadNamePrefix: String) : ThreadFactory {
             private val counter = AtomicInteger()
@@ -280,7 +334,8 @@ class ControlPlane private constructor(
 
         private fun grpcServer(
             config: ServerProperties,
-            discoveryServer: DiscoveryServer,
+            v2discoveryServer: V2DiscoveryServer,
+            v3discoveryServer: V3DiscoveryServer,
             nioEventLoopExecutor: Executor,
             grpcServerExecutor: Executor
         ): Server = NettyServerBuilder.forPort(config.port)
@@ -294,7 +349,8 @@ class ControlPlane private constructor(
             .keepAliveTime(config.netty.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
             .permitKeepAliveTime(config.netty.permitKeepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
             .permitKeepAliveWithoutCalls(config.netty.permitKeepAliveWithoutCalls)
-            .withEnvoyServices(discoveryServer)
+            .withV2EnvoyServices(v2discoveryServer)
+            .withV3EnvoyServices(v3discoveryServer)
             .build()
     }
 }
