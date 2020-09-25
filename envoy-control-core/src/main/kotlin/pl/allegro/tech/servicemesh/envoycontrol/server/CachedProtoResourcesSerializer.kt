@@ -55,7 +55,7 @@ internal class CachedProtoResourcesSerializer(
         resources: MutableCollection<out Message>,
         apiVersion: Resources.ApiVersion
     ): MutableCollection<Any> {
-        return if (apiVersion == V3) {
+        return if (apiVersion == V2) {
             v2Timer.record(Supplier { getResources(resources, apiVersion) })
         } else {
             v3Timer.record(Supplier { getResources(resources, apiVersion) })
