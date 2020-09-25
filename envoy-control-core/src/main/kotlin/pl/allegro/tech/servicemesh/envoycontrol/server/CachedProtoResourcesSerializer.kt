@@ -39,13 +39,13 @@ internal class CachedProtoResourcesSerializer(
     }
 
     override fun serialize(
-            resources: MutableCollection<out Message>,
-            apiVersion: Resources.ApiVersion
+        resources: MutableCollection<out Message>,
+        apiVersion: Resources.ApiVersion
     ): MutableCollection<Any> = serializeTimer.record(Supplier { getResources(resources, apiVersion) })
 
     private fun getResources(
-            resources: MutableCollection<out Message>,
-            apiVersion: Resources.ApiVersion
+        resources: MutableCollection<out Message>,
+        apiVersion: Resources.ApiVersion
     ): MutableCollection<Any> {
         return cache.get(resources) {
             resources.asSequence()

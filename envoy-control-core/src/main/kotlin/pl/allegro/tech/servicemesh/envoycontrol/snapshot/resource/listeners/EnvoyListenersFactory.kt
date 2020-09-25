@@ -12,7 +12,6 @@ import io.envoyproxy.envoy.config.accesslog.v3.StatusCodeFilter
 import io.envoyproxy.envoy.config.core.v3.Address
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ApiConfigSource
-import io.envoyproxy.envoy.config.core.v3.ApiVersion
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.GrpcService
 import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
@@ -255,7 +254,6 @@ class EnvoyListenersFactory(
 
     private fun egressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
-                .setResourceApiVersion(ApiVersion.V3)
                 .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
 
         when (communicationMode) {
@@ -309,7 +307,6 @@ class EnvoyListenersFactory(
 
     private fun ingressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
-                .setResourceApiVersion(ApiVersion.V3)
                 .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
 
         when (communicationMode) {
