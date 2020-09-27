@@ -98,6 +98,8 @@ class EnvoyClustersFactory(
             globalSnapshot.clusters.resources()
         }
 
+        // here we need clusters per group which breaks our optimization with globalSnapshot
+
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().mapNotNull {
                 clusters.get(it.service)
@@ -226,6 +228,7 @@ class EnvoyClustersFactory(
             .setEdsClusterConfig(
                 Cluster.EdsClusterConfig.newBuilder().setEdsConfig(
                     when (communicationMode) {
+                        // here we do not have group information
                         ADS -> ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
                         XDS ->
                         ConfigSource.newBuilder().setApiConfigSource(
