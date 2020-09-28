@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.controlplane.cache.SnapshotCache
-import io.envoyproxy.controlplane.cache.v2.Snapshot
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -9,6 +8,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
@@ -19,13 +20,15 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 
 class SnapshotUpdater(
-    private val cache: SnapshotCache<Group, Snapshot>,
+    private val cache: SnapshotCache<Group>,
     private val properties: SnapshotProperties,
     private val snapshotFactory: EnvoySnapshotFactory,
     private val globalSnapshotScheduler: Scheduler,
     private val groupSnapshotScheduler: ParallelizableScheduler,
     private val onGroupAdded: Flux<out List<Group>>,
-    private val meterRegistry: MeterRegistry
+    private val meterRegistry: MeterRegistry,
+    envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters,
+    serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(properties.routing.serviceTags)
 ) {
     companion object {
         private val logger by logger()

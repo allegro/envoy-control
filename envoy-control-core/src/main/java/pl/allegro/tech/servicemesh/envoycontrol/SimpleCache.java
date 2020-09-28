@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
@@ -14,8 +13,8 @@ import io.envoyproxy.controlplane.cache.SnapshotCache;
 import io.envoyproxy.controlplane.cache.StatusInfo;
 import io.envoyproxy.controlplane.cache.Watch;
 import io.envoyproxy.controlplane.cache.WatchCancelledException;
-import io.envoyproxy.controlplane.cache.XdsRequest;
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment;
+import io.envoyproxy.envoy.api.v2.DiscoveryRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,12 +34,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static io.envoyproxy.controlplane.cache.Resources.RESOURCE_TYPES_IN_ORDER;
-
 /**
  * This class is copy of {@link io.envoyproxy.controlplane.cache.SimpleCache}
  */
-public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
+public class SimpleCache<T> implements SnapshotCache<T> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SimpleCache.class);
 
@@ -52,8 +49,8 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
     private final Lock writeLock = lock.writeLock();
 
     @GuardedBy("lock")
-    private final Map<T, U> snapshots = new HashMap<>();
-    private final ConcurrentMap<T, ConcurrentMap<Resources.ResourceType, CacheStatusInfo<T>>> statuses = new ConcurrentHashMap<>();
+    private final Map<T, Snapshot> snapshots = new HashMap<>();
+    private final ConcurrentMap<T, CacheStatusInfo<T>> statuses = new ConcurrentHashMap<>();
 
     private AtomicLong watchCount = new AtomicLong();
 
@@ -76,10 +73,10 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         // we take a writeLock to prevent watches from being created
         writeLock.lock();
         try {
-            Map<Resources.ResourceType, CacheStatusInfo<T>>  status = statuses.get(group);
+            CacheStatusInfo<T> status = statuses.get(group);
 
             // If we don't know about this group, do nothing.
-            if (status != null && status.values().stream().mapToLong(CacheStatusInfo::numWatches).sum() > 0) {
+            if (status != null && status.numWatches() > 0) {
                 LOGGER.warn("tried to clear snapshot for group with existing watches, group={}", group);
 
                 return false;
@@ -100,30 +97,21 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
     @Override
     public Watch createWatch(
             boolean ads,
-            XdsRequest request,
+            DiscoveryRequest request,
             Set<String> knownResourceNames,
             Consumer<Response> responseConsumer,
             boolean hasClusterChanged) {
-        Resources.ResourceType requestResourceType = request.getResourceType();
-        Preconditions.checkNotNull(requestResourceType, "unsupported type URL %s",
-                request.getTypeUrl());
-        T group;
-        if (request.v3Request() != null) {
-            group = groups.hash(request.v3Request().getNode());
-        } else {
-            group = groups.hash(request.v2Request().getNode());
-        }
 
+        T group = groups.hash(request.getNode());
         // even though we're modifying, we take a readLock to allow multiple watches to be created in parallel since it
         // doesn't conflict
         readLock.lock();
         try {
-            CacheStatusInfo<T> status = statuses.computeIfAbsent(group, g -> new ConcurrentHashMap<>())
-                    .computeIfAbsent(requestResourceType, s -> new CacheStatusInfo<>(group));
+            CacheStatusInfo<T> status = statuses.computeIfAbsent(group, g -> new CacheStatusInfo<>(group));
             status.setLastWatchRequestTime(System.currentTimeMillis());
 
-            U snapshot = snapshots.get(group);
-            String version = snapshot == null ? "" : snapshot.version(requestResourceType, request.getResourceNamesList());
+            Snapshot snapshot = snapshots.get(group);
+            String version = snapshot == null ? "" : snapshot.version(request.getTypeUrl(), request.getResourceNamesList());
 
             Watch watch = new Watch(ads, request, responseConsumer);
 
@@ -136,7 +124,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
                     // If any of the newly requested resources are in the snapshot respond immediately. If not we'll fall back to
                     // version comparisons.
-                    if (snapshot.resources(requestResourceType)
+                    if (snapshot.resources(request.getTypeUrl())
                             .keySet()
                             .stream()
                             .anyMatch(newResourceHints::contains)) {
@@ -144,7 +132,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
                         return watch;
                     }
-                } else if (hasClusterChanged && requestResourceType.equals(Resources.ResourceType.ENDPOINT)) {
+                } else if (hasClusterChanged && request.getTypeUrl().equals(Resources.ENDPOINT_TYPE_URL)) {
                     respond(watch, snapshot, group);
 
                     return watch;
@@ -199,10 +187,9 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
     /**
      * {@inheritDoc}
-     * @return
      */
     @Override
-    public U getSnapshot(T group) {
+    public Snapshot getSnapshot(T group) {
         readLock.lock();
 
         try {
@@ -227,9 +214,9 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
      * It can be called concurrently for different groups.
      */
     @Override
-    public void setSnapshot(T group, U snapshot) {
+    public void setSnapshot(T group, Snapshot snapshot) {
         // we take a writeLock to prevent watches from being created while we update the snapshot
-        ConcurrentMap<Resources.ResourceType, CacheStatusInfo<T>> status;
+        CacheStatusInfo<T> status;
         writeLock.lock();
         try {
             // Update the existing snapshot entry.
@@ -255,27 +242,20 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         readLock.lock();
 
         try {
-            ConcurrentMap<Resources.ResourceType, CacheStatusInfo<T>> statusMap = statuses.get(group);
-            if (statusMap == null || statusMap.isEmpty()) {
-                return null;
-            }
-
-            return new GroupCacheStatusInfo<>(statusMap.values());
+            return statuses.get(group);
         } finally {
             readLock.unlock();
         }
     }
 
     @VisibleForTesting
-    protected void respondWithSpecificOrder(T group, U snapshot, ConcurrentMap<Resources.ResourceType, CacheStatusInfo<T>> statusMap) {
-        for (Resources.ResourceType resourceType : RESOURCE_TYPES_IN_ORDER) {
-            CacheStatusInfo<T> status = statusMap.get(resourceType);
-            if (status == null) continue; // todo: why this happens?
+    protected void respondWithSpecificOrder(T group, Snapshot snapshot, CacheStatusInfo<T> status) {
+        for (String typeUrl : Resources.TYPE_URLS) {
             status.watchesRemoveIf((id, watch) -> {
-                if (!watch.request().getResourceType().equals(resourceType)) {
+                if (!watch.request().getTypeUrl().equals(typeUrl)) {
                     return false;
                 }
-                String version = snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList());
+                String version = snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList());
 
                 if (!watch.request().getVersionInfo().equals(version)) {
                     if (LOGGER.isDebugEnabled()) {
@@ -297,7 +277,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         }
     }
 
-    private Response createResponse(XdsRequest request, Map<String, ? extends Message> resources, String version) {
+    private Response createResponse(DiscoveryRequest request, Map<String, ? extends Message> resources, String version) {
         Collection<? extends Message> filtered = request.getResourceNamesList().isEmpty()
                 ? resources.values()
                 : request.getResourceNamesList().stream()
@@ -308,8 +288,8 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         return Response.create(request, filtered, version);
     }
 
-    private boolean respond(Watch watch, U snapshot, T group) {
-        Map<String, ? extends Message> snapshotResources = snapshot.resources(watch.request().getResourceType());
+    private boolean respond(Watch watch, Snapshot snapshot, T group) {
+        Map<String, ? extends Message> snapshotResources = snapshot.resources(watch.request().getTypeUrl());
         Map<String, ClusterLoadAssignment> snapshotForMissingResources = Collections.emptyMap();
 
         if (!watch.request().getResourceNamesList().isEmpty() && watch.ads()) {
@@ -329,12 +309,12 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 // If shouldSendMissingEndpoints is set to true, we will respond to such request anyway, to prevent
                 // such problems with Envoy.
                 if (shouldSendMissingEndpoints
-                        && watch.request().getResourceType().equals(Resources.ResourceType.ENDPOINT)) {
+                        && watch.request().getTypeUrl().equals(Resources.ENDPOINT_TYPE_URL)) {
                     LOGGER.info("adding missing resources [{}] to response for {} in ADS mode from node {} at version {}",
                             String.join(", ", missingNames),
                             watch.request().getTypeUrl(),
                             group,
-                            snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList())
+                            snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList())
                     );
                     snapshotForMissingResources = new HashMap<>(missingNames.size());
                     for (String missingName : missingNames) {
@@ -348,7 +328,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                             "not responding in ADS mode for {} from node {} at version {} for request [{}] since [{}] not in snapshot",
                             watch.request().getTypeUrl(),
                             group,
-                            snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList()),
+                            snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList()),
                             String.join(", ", watch.request().getResourceNamesList()),
                             String.join(", ", missingNames));
 
@@ -357,7 +337,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             }
         }
 
-        String version = snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList());
+        String version = snapshot.version(watch.request().getTypeUrl(), watch.request().getResourceNamesList());
 
         LOGGER.debug("responding for {} from node {} at version {} with version {}",
                 watch.request().getTypeUrl(),

@@ -28,8 +28,8 @@ data class Versions(
 )
 
 data class Snapshot(
-    val clusters: Map<String, Cluster> = emptyMap(),
-    val endpoints: Map<String, ClusterLoadAssignment> = emptyMap(),
+    val clusters: Map<String, Cluster>,
+    val endpoints: Map<String, ClusterLoadAssignment>,
     val listeners: Map<String, Listener> = emptyMap(),
     val routes: Map<String, RouteConfiguration> = emptyMap()
 )
@@ -38,7 +38,7 @@ data class SnapshotDebugInfo(
     val snapshot: Snapshot,
     val versions: Versions
 ) {
-    constructor(snapshot: io.envoyproxy.controlplane.cache.v2.Snapshot) : this(
+    constructor(snapshot: io.envoyproxy.controlplane.cache.Snapshot) : this(
         snapshot = Snapshot(
             clusters = snapshot.clusters().resources(),
             endpoints = snapshot.endpoints().resources(),
