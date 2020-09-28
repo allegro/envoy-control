@@ -96,7 +96,7 @@ class EnvoyEgressRoutesFactory(
                         HeaderValueOption.newBuilder()
                             .setHeader(
                                 HeaderValue.newBuilder()
-                                    .setKey(properties.incomingPermissions.clientIdentityHeader)
+                                    .setKey(properties.incomingPermissions.serviceNameHeader)
                                     .setValue(serviceName)
                             )
                     )
@@ -113,7 +113,7 @@ class EnvoyEgressRoutesFactory(
         val routeAction = RouteAction.newBuilder()
             .setCluster(routeSpecification.clusterName)
 
-        routeSpecification.settings.timeoutPolicy?.let { timeoutPolicy ->
+        routeSpecification.settings.timeoutPolicy.let { timeoutPolicy ->
             timeoutPolicy.idleTimeout?.let { routeAction.setIdleTimeout(it) }
             timeoutPolicy.requestTimeout?.let { routeAction.setTimeout(it) }
         }

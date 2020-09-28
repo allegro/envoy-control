@@ -1,13 +1,19 @@
 function envoy_on_request(handle)
     local path = handle:headers():get(":path")
     local method = handle:headers():get(":method")
-    local service_name = handle:headers():get("x-service-name")
     local xff_header = handle:headers():get("x-forwarded-for")
     local metadata = handle:streamInfo():dynamicMetadata()
+    local lua_metadata = metadata:get("envoy.filters.http.lua") or {}
+    local client_identity_header_names = lua_metadata["client_identity_headers"] or {}
+    local service_name
+    for i,h in ipairs(client_identity_header_names) do
+        service_name = handle:headers():get(h) or ""
+        if service_name ~= "" then break end
+    end
     metadata:set("envoy.filters.http.lua", "request.info.path", path)
     metadata:set("envoy.filters.http.lua", "request.info.method", method)
-    metadata:set("envoy.filters.http.lua", "request.info.service_name", service_name)
     metadata:set("envoy.filters.http.lua", "request.info.xff_header", xff_header)
+    metadata:set("envoy.filters.http.lua", "request.info.service_name", service_name)
 end
 
 function envoy_on_response(handle)

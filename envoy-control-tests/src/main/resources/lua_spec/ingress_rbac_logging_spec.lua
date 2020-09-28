@@ -36,8 +36,14 @@ describe("envoy_on_request:", function()
             ['x-service-name'] = 'lorem-service',
             ['x-forwarded-for'] = "127.0.4.3"
         }
+        local initialMetadata = {
+            ['envoy.filters.http.lua'] = {
+                ['client_identity_headers'] = {'x-service-name'}
+            }
+        }
 
-        local handle = handlerMock(headers)
+
+        local handle = handlerMock(headers, initialMetadata)
         local metadata = handle:streamInfo():dynamicMetadata()
 
         -- when
@@ -48,6 +54,50 @@ describe("envoy_on_request:", function()
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.method", "GET")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "lorem-service")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.xff_header", "127.0.4.3")
+    end)
+    it("should set service_name metadata using data from configured headers", function()
+        -- given
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+            ['x-service-name'] = 'lorem-service',
+            ['x-forwarded-for'] = "127.0.4.3"
+        }
+        local initialMetadata = {
+            ['envoy.filters.http.lua'] = {
+                ['client_identity_headers'] = {"x-service-name", "x-forwarded-for"}
+            }
+        }
+        local handle = handlerMock(headers, initialMetadata)
+        local metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "lorem-service")
+    end)
+
+    it("should set service_name metadata using second configured header when first one is missing", function()
+        -- given
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+            ['x-forwarded-for'] = "127.0.4.3"
+        }
+        local initialMetadata = {
+            ['envoy.filters.http.lua'] = {
+                ['client_identity_headers'] = {"x-service-name", "x-forwarded-for"}
+            }
+        }
+        local handle = handlerMock(headers, initialMetadata)
+        local metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "127.0.4.3")
     end)
 end)
 
@@ -221,4 +271,3 @@ tools:
   show spy calls:
     require 'pl.pretty'.dump(handle.logInfo.calls, "/dev/stderr")
 ]]--
-

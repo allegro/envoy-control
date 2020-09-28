@@ -18,6 +18,7 @@ import io.envoyproxy.envoy.api.v2.core.ConfigSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
+import io.envoyproxy.envoy.api.v2.core.Metadata
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.core.TransportSocket
 import io.envoyproxy.envoy.api.v2.listener.Filter
@@ -51,6 +52,7 @@ class EnvoyListenersFactory(
 ) {
     private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters
     private val egressFilters: List<HttpFilterFactory> = envoyHttpFilters.egressFilters
+    private val ingressMetadata: Metadata? = envoyHttpFilters.ingressMetadata
     private val listenersFactoryProperties = snapshotProperties.dynamicListeners
     private val localServiceProperties = snapshotProperties.localService
     private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
@@ -94,9 +96,9 @@ class EnvoyListenersFactory(
         TLS("tls")
     }
 
-    val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
+    private val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
 
-    fun apiConfigSource(): ApiConfigSource {
+    private fun apiConfigSource(): ApiConfigSource {
         return ApiConfigSource.newBuilder()
                 .setApiType(ApiConfigSource.ApiType.GRPC)
                 .addGrpcServices(GrpcService.newBuilder()
@@ -156,11 +158,21 @@ class EnvoyListenersFactory(
                         )
                 )
 
+        addIngressMetadata(listener)
+
         listOfNotNull(securedIngressChain, insecureIngressChain).forEach {
             listener.addFilterChains(it.build())
         }
 
         return listener.build()
+    }
+
+    private fun addIngressMetadata(listener: Listener.Builder) {
+        if (ingressMetadata != null) {
+            listener.metadata = Metadata.newBuilder(listener.metadata)
+                .mergeFrom(ingressMetadata)
+                .build()
+        }
     }
 
     private fun createIngressFilterChain(
@@ -320,7 +332,7 @@ class EnvoyListenersFactory(
                 .build()
     }
 
-    fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings.StatusCodeFilterSettings) {
+    private fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings.StatusCodeFilterSettings) {
         this.setFilter(
                 AccessLogFilter.newBuilder().setStatusCodeFilter(
                         StatusCodeFilter.newBuilder()
