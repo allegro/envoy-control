@@ -25,13 +25,12 @@ class SnapshotUpdater(
     private val globalSnapshotScheduler: Scheduler,
     private val groupSnapshotScheduler: ParallelizableScheduler,
     private val onGroupAdded: Flux<out List<Group>>,
-    private val meterRegistry: MeterRegistry
+    private val meterRegistry: MeterRegistry,
+    private val versions: SnapshotsVersions
 ) {
     companion object {
         private val logger by logger()
     }
-
-    private val versions = SnapshotsVersions()
 
     private var globalSnapshot: UpdateResult? = null
 

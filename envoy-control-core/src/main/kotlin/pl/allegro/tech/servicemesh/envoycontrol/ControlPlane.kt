@@ -28,6 +28,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.Envoy
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
@@ -124,9 +125,6 @@ class ControlPlane private constructor(
                 )
             }
 
-            val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
-
-            val groupSnapshotScheduler = buildGroupSnapshotScheduler(groupSnapshotProperties)
             val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
             val groupChangeWatcher = GroupChangeWatcher(cache, metrics, meterRegistry)
             val meteredConnectionsCallbacks = MeteredConnectionsCallbacks().also {
@@ -173,8 +171,61 @@ class ControlPlane private constructor(
                     executorGroup,
                     cachedProtoResourcesSerializer
             )
+            val snapshotsVersions = SnapshotsVersions()
             val snapshotProperties = properties.envoy.snapshot
-            val envoySnapshotFactory = EnvoySnapshotFactory(
+
+            return ControlPlane(
+                buildGrpcServer(v2discoveryServer, v3discoveryServer),
+                buildSnapshotUpdater(
+                    cache,
+                    buildSnapshotFactory(snapshotProperties, snapshotsVersions),
+                    buildGroupSnapshotScheduler(properties.server.groupSnapshotUpdateScheduler),
+                    groupChangeWatcher,
+                    snapshotsVersions
+                ),
+                nodeGroup,
+                cache,
+                changes
+            )
+        }
+
+        private fun buildGrpcServer(
+            v2discoveryServer: V2DiscoveryServer,
+            v3discoveryServer: V3DiscoveryServer
+        ): Server {
+            return grpcServer(
+                properties.server,
+                v2discoveryServer,
+                v3discoveryServer,
+                nioEventLoopExecutor!!,
+                grpcServerExecutor!!
+            )
+        }
+
+        private fun buildSnapshotUpdater(
+            cache: SimpleCache<Group>,
+            envoySnapshotFactory: EnvoySnapshotFactory,
+            groupSnapshotScheduler: ParallelizableScheduler,
+            groupChangeWatcher: GroupChangeWatcher,
+            snapshotsVersions: SnapshotsVersions
+        ): SnapshotUpdater {
+            return SnapshotUpdater(
+                cache,
+                properties.envoy.snapshot,
+                envoySnapshotFactory,
+                Schedulers.fromExecutor(globalSnapshotExecutor!!),
+                groupSnapshotScheduler,
+                groupChangeWatcher.onGroupAdded(),
+                meterRegistry,
+                snapshotsVersions
+            )
+        }
+
+        private fun buildSnapshotFactory(
+            snapshotProperties: SnapshotProperties,
+            snapshotsVersions: SnapshotsVersions
+        ): EnvoySnapshotFactory {
+            return EnvoySnapshotFactory(
                 ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties),
                 egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
                 clustersFactory = EnvoyClustersFactory(snapshotProperties),
@@ -186,31 +237,9 @@ class ControlPlane private constructor(
                     envoyHttpFilters
                 ),
                 // Remember when LDS change we have to send RDS again
-                snapshotsVersions = SnapshotsVersions(),
+                snapshotsVersions = snapshotsVersions,
                 properties = snapshotProperties,
                 meterRegistry = meterRegistry
-            )
-
-            return ControlPlane(
-                grpcServer(
-                        properties.server,
-                        v2discoveryServer,
-                        v3discoveryServer,
-                        nioEventLoopExecutor!!,
-                        grpcServerExecutor!!
-                ),
-                SnapshotUpdater(
-                        cache,
-                        properties.envoy.snapshot,
-                        envoySnapshotFactory,
-                        Schedulers.fromExecutor(globalSnapshotExecutor!!),
-                        groupSnapshotScheduler,
-                        groupChangeWatcher.onGroupAdded(),
-                        meterRegistry
-                ),
-                nodeGroup,
-                cache,
-                changes
             )
         }
 

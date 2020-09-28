@@ -754,7 +754,8 @@ class SnapshotUpdaterTest {
         globalSnapshotScheduler = Schedulers.newSingle("update-snapshot"),
         groupSnapshotScheduler = groupSnapshotScheduler,
         onGroupAdded = Flux.just(groups),
-        meterRegistry = simpleMeterRegistry
+        meterRegistry = simpleMeterRegistry,
+        versions = SnapshotsVersions()
     )
 }
 
