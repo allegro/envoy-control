@@ -15,13 +15,7 @@ class MetadataNodeGroup(
 ) : NodeGroup<Group> {
     private val logger by logger()
 
-    override fun hash(node: Node): Group {
-        return createV2Group(node)
-    }
-
-    override fun hash(node: io.envoyproxy.envoy.config.core.v3.Node): Group {
-        return createV3Group(node)
-    }
+    override fun hash(node: Node): Group = createGroup(node)
 
     @SuppressWarnings("ReturnCount")
     private fun metadataToListenersHostPort(
@@ -127,32 +121,23 @@ class MetadataNodeGroup(
         )
     }
 
-    private fun createV3Group(node: io.envoyproxy.envoy.config.core.v3.Node): Group {
+    private fun createGroup(node: Node): Group {
         val metadata = NodeMetadata(node.metadata, properties)
-        return createGroup(metadata, node.id, node.metadata)
-    }
-
-    private fun createV2Group(node: Node): Group {
-        val metadata = NodeMetadata(node.metadata, properties)
-        return createGroup(metadata, node.id, node.metadata)
-    }
-
-    private fun createGroup(nodeMetadata: NodeMetadata, id: String, metadata: Struct): Group {
-        val serviceName = serviceName(nodeMetadata)
-        val proxySettings = proxySettings(nodeMetadata)
-        val listenersConfig = createListenersConfig(id, metadata)
+        val serviceName = serviceName(metadata)
+        val proxySettings = proxySettings(metadata)
+        val listenersConfig = createListenersConfig(node.id, node.metadata)
 
         return when {
-            hasAllServicesDependencies(nodeMetadata) ->
+            hasAllServicesDependencies(metadata) ->
                 AllServicesGroup(
-                        nodeMetadata.communicationMode,
+                        metadata.communicationMode,
                         serviceName,
                         proxySettings,
                         listenersConfig
                 )
             else ->
                 ServicesGroup(
-                        nodeMetadata.communicationMode,
+                        metadata.communicationMode,
                         serviceName,
                         proxySettings,
                         listenersConfig
