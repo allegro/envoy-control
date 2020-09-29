@@ -3,8 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
@@ -17,7 +15,15 @@ import java.time.Duration
 class RemoteServicesTest {
     @Test
     fun `should collect responses from all clusters`() {
-        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
+        val controlPlaneClient = PlaceClient()
+        controlPlaneClient.forCluster("dc1") {
+            servicesState(service = "service-1")
+        }
+
+        controlPlaneClient.forCluster("dc2") {
+            servicesState(service = "service-1")
+        }
+        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
 
         val result = service
             .getChanges(1)
@@ -26,11 +32,20 @@ class RemoteServicesTest {
 
         assertThat(result).hasSize(2)
         assertThat(result.map { it.cluster }.toSet()).isEqualTo(setOf("dc1", "dc2"))
+
     }
 
     @Test
     fun `should ignore cluster without service instances`() {
-        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2/noinstances"))
+        val controlPlaneClient = PlaceClient()
+        controlPlaneClient.forCluster("dc1") {
+            servicesState(service = "service-1")
+        }
+        controlPlaneClient.forCluster("dc2") {
+            servicesState(service = "service-1")
+        }
+        val service =
+            RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(listOf("dc2")), listOf("dc1", "dc2"))
 
         val result = service
             .getChanges(1)
@@ -43,8 +58,15 @@ class RemoteServicesTest {
 
     @Test
     fun `should ignore services without instances`() {
-        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1",
-            "dc2/service-c-no-instances"))
+
+        val controlPlaneClient = PlaceClient()
+        controlPlaneClient.forCluster("dc1") {
+            servicesState(service = "service-1")
+        }
+        controlPlaneClient.forCluster("dc2") {
+            servicesState(service = "service-c", withoutInstances = true)
+        }
+        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
 
         val result = service
             .getChanges(1)
@@ -52,17 +74,32 @@ class RemoteServicesTest {
             ?: MultiClusterState.empty()
 
         assertThat(result).hasSize(2)
-        assertThat(result.map { it.cluster }).contains("dc1", "dc2/service-c-no-instances")
-        result.doesntHaveServiceWithEmptyInstances("dc2/service-c-no-instances", "service-c")
+        assertThat(result.map { it.cluster }).contains("dc1", "dc2")
+        result.doesntHaveServiceWithEmptyInstances("dc2", "service-c")
     }
 
     @Test
     fun `should skip failing responses if not cached`() {
+
+        val controlPlaneClient = PlaceClient()
+        controlPlaneClient.forCluster("dc1") {
+            servicesState(service = "dc1")
+        }
+        controlPlaneClient.forCluster("dc2") {
+            servicesStateError()
+        }
+        controlPlaneClient.forCluster("dc3") {
+            servicesState(service = "dc3")
+        }
+        controlPlaneClient.forCluster("dc4") {
+            servicesStateError()
+        }
+
         val service = RemoteServices(
-            asyncClient(),
+            controlPlaneClient,
             SimpleMeterRegistry(),
             fetcher(),
-            listOf("dc1", "dc2/error", "dc3", "dc4/error")
+            listOf("dc1", "dc2", "dc3", "dc4")
         )
 
         val result = service
@@ -77,27 +114,52 @@ class RemoteServicesTest {
     @Test
     fun `should serve cached responses when a cross cluster request fails`() {
         // given
-        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc1/successful-states", "dc2/second-request-failing"))
+        val controlPlaneClient = PlaceClient()
+        controlPlaneClient.forClusterWithMultipleStates("dc1") {
+            servicesState(service = "service-a")
+            servicesState(service = "service-b")
+        }
+        controlPlaneClient.forClusterWithMultipleStates("dc2") {
+            servicesState(service = "service-c")
+            servicesStateError()
+        }
+        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
 
         val successfulResult = service
             .getChanges(1)
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(successfulResult).containsExactlyInAnyOrder(*(expectedSuccessfulState.toTypedArray()))
+        assertThat(successfulResult.flatMap { it.servicesState.serviceNames() }.toSet()).isEqualTo(
+            setOf(
+                "service-a",
+                "service-c"
+            )
+        )
 
         val oneInstanceFailing = service
             .getChanges(1)
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(oneInstanceFailing).containsExactlyInAnyOrder(*(expectedStateWithOneRequestFailing.toTypedArray()))
+        assertThat(oneInstanceFailing.flatMap { it.servicesState.serviceNames() }.toSet()).isEqualTo(
+            setOf(
+                "service-b",
+                "service-c"
+            )
+        )
     }
 
     @Test
     fun `should not emit a value when all requests fail`() {
         // given
-        val service = RemoteServices(asyncClient(), SimpleMeterRegistry(), fetcher(), listOf("dc2/error"))
+
+        val controlPlaneClient = PlaceClient()
+        controlPlaneClient.forCluster("dc2") {
+            servicesStateError()
+        }
+
+        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc2"))
         val duration = 1L
 
         StepVerifier.create(
@@ -113,71 +175,19 @@ class RemoteServicesTest {
             .verify()
     }
 
-    private fun fetcher(): ControlPlaneInstanceFetcher {
-        return object : ControlPlaneInstanceFetcher {
-            override fun instances(cluster: String): List<URI> {
-                val uri = URI.create("http://$cluster")
-                if (uri.path == "/noinstances") {
-                    return emptyList()
-                }
-                return listOf(uri)
+    class CControlPlaneInstanceFetcher(private val clusterWithNoInstance: List<String>) : ControlPlaneInstanceFetcher {
+        override fun instances(cluster: String): List<URI> {
+            val uri = URI.create("http://$cluster")
+            if (clusterWithNoInstance.contains(cluster)) {
+                return emptyList()
             }
+            return listOf(uri)
         }
     }
 
-    private val servicesState1 = ServicesState(
-        serviceNameToInstances = mapOf(
-            "service-a" to ServiceInstances(
-                "service-a",
-                setOf(ServiceInstance("1", setOf(), "localhost", 80))
-            )
-        )
-    )
-    private val servicesState2 = ServicesState(
-        serviceNameToInstances = mapOf(
-            "service-a" to ServiceInstances(
-                "service-a",
-                setOf(ServiceInstance("2", setOf(), "localhost", 8080))
-            )
-        )
-    )
-
-    private val servicesState3 = ServicesState(
-        serviceNameToInstances = mapOf(
-            "service-b" to ServiceInstances(
-                "service-b",
-                setOf(ServiceInstance("3", setOf(), "localhost", 81))
-            )
-        )
-    )
-
-    private val servicesState4 = ServicesState(
-        serviceNameToInstances = mapOf(
-            "service-b" to ServiceInstances(
-                "service-b",
-                setOf(ServiceInstance("3", setOf(), "localhost", 81))
-            ),
-            "service-c" to ServiceInstances("service-c", emptySet())
-        )
-    )
-
-    private val expectedSuccessfulState = setOf(
-        ClusterState(servicesState1, Locality.REMOTE, "dc1/successful-states"),
-        ClusterState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
-    )
-
-    private val expectedStateWithOneRequestFailing = setOf(
-        ClusterState(servicesState2, Locality.REMOTE, "dc1/successful-states"),
-        ClusterState(servicesState3, Locality.REMOTE, "dc2/second-request-failing")
-    )
-
-    private val successfulStatesSequence = listOf(
-        Mono.just(servicesState1), Mono.just(servicesState2)
-    ).iterator()
-
-    private val secondStateFailingSequence = listOf(
-        Mono.just(servicesState3), Mono.error(RuntimeException("Error fetching from dc2"))
-    ).iterator()
+    private fun fetcher(clusterWithNoInstance: List<String> = emptyList()): ControlPlaneInstanceFetcher {
+        return CControlPlaneInstanceFetcher(clusterWithNoInstance)
+    }
 
     private fun MultiClusterState.doesntHaveServiceWithEmptyInstances(
         cluster: String,
@@ -189,25 +199,47 @@ class RemoteServicesTest {
         return this
     }
 
-    private fun asyncClient(): AsyncControlPlaneClient {
-        return object : AsyncControlPlaneClient {
-            override fun getState(uri: URI): Mono<ServicesState> = when {
-                uri.path == "/error" -> Mono.error(RuntimeException(uri.toString()))
-                uri.path == "/empty" -> Mono.empty()
-                uri.path == "/successful-states" -> successfulStatesSequence.next()
-                uri.path == "/second-request-failing" -> secondStateFailingSequence.next()
-                uri.path == "/service-c-no-instances" -> Mono.just(servicesState4)
-                else -> Mono.just(
+    class Scope(private val clusterName: String) {
+
+        var responses = mutableListOf<Mono<ServicesState>>()
+
+        fun servicesState(service: String, withoutInstances: Boolean = false) {
+            val instances = if (withoutInstances) emptySet() else setOf(
+                ServiceInstance(
+                    "1", setOf(), "localhost", 80
+                )
+            )
+            responses.add(
+                Mono.just(
                     ServicesState(
-                        serviceNameToInstances = mapOf(
-                            uri.authority to ServiceInstances(
-                                uri.authority,
-                                setOf(ServiceInstance("1", setOf(), "localhost", 80))
-                            )
-                        )
+                        serviceNameToInstances = mapOf(service to ServiceInstances(service, instances))
                     )
                 )
-            }
+            )
+        }
+
+        fun servicesStateError() {
+            responses.add(Mono.error(RuntimeException("Error fetching from $clusterName")))
+        }
+    }
+
+    class PlaceClient : AsyncControlPlaneClient {
+        val map = mutableMapOf<String, () -> Mono<ServicesState>>()
+
+        override fun getState(uri: URI): Mono<ServicesState> {
+            val s = uri.host
+            return map.getValue(s)()
+        }
+
+        fun forCluster(name: String, function: Scope.() -> Unit) {
+            val scope = Scope(name).apply(function)
+            map[name] = { scope.responses.first() }
+        }
+
+        fun forClusterWithMultipleStates(path: String, function: Scope.() -> Unit) {
+            val scope = Scope(path).apply(function)
+            val iterator = scope.responses.iterator()
+            map[path] = { iterator.next() }
         }
     }
 }
