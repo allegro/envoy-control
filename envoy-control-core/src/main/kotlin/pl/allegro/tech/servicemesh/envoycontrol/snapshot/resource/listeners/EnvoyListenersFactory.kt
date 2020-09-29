@@ -18,7 +18,6 @@ import io.envoyproxy.envoy.api.v2.core.ConfigSource
 import io.envoyproxy.envoy.api.v2.core.GrpcService
 import io.envoyproxy.envoy.api.v2.core.Http1ProtocolOptions
 import io.envoyproxy.envoy.api.v2.core.HttpProtocolOptions
-import io.envoyproxy.envoy.api.v2.core.Metadata
 import io.envoyproxy.envoy.api.v2.core.SocketAddress
 import io.envoyproxy.envoy.api.v2.core.TransportSocket
 import io.envoyproxy.envoy.api.v2.listener.Filter
@@ -52,7 +51,6 @@ class EnvoyListenersFactory(
 ) {
     private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters
     private val egressFilters: List<HttpFilterFactory> = envoyHttpFilters.egressFilters
-    private val ingressMetadata: Metadata? = envoyHttpFilters.ingressMetadata
     private val listenersFactoryProperties = snapshotProperties.dynamicListeners
     private val localServiceProperties = snapshotProperties.localService
     private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
@@ -66,27 +64,27 @@ class EnvoyListenersFactory(
     private val requireClientCertificate = BoolValue.of(tlsProperties.requireClientCertificate)
 
     private val downstreamTlsContext = DownstreamTlsContext.newBuilder()
-            .setRequireClientCertificate(requireClientCertificate)
+        .setRequireClientCertificate(requireClientCertificate)
             .setCommonTlsContext(CommonTlsContext.newBuilder()
                     .setTlsParams(TlsParameters.newBuilder()
-                            .setTlsMinimumProtocolVersion(tlsProperties.protocol.minimumVersion)
-                            .setTlsMaximumProtocolVersion(tlsProperties.protocol.maximumVersion)
-                            .addAllCipherSuites(tlsProperties.protocol.cipherSuites)
+                        .setTlsMinimumProtocolVersion(tlsProperties.protocol.minimumVersion)
+                        .setTlsMaximumProtocolVersion(tlsProperties.protocol.maximumVersion)
+                        .addAllCipherSuites(tlsProperties.protocol.cipherSuites)
                             .build())
                     .addTlsCertificateSdsSecretConfigs(SdsSecretConfig.newBuilder()
-                            .setName(tlsProperties.tlsCertificateSecretName)
-                            .build()
-                    )
+                        .setName(tlsProperties.tlsCertificateSecretName)
+                        .build()
+                )
                     .setValidationContextSdsSecretConfig(SdsSecretConfig.newBuilder()
-                            .setName(tlsProperties.validationContextSecretName)
-                            .build()
-                    )
-            )
+                        .setName(tlsProperties.validationContextSecretName)
+                        .build()
+                )
+        )
 
     private val downstreamTlsTransportSocket = TransportSocket.newBuilder()
-            .setName("envoy.transport_sockets.tls")
-            .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
-            .build()
+        .setName("envoy.transport_sockets.tls")
+        .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
+        .build()
 
     private enum class TransportProtocol(
         value: String,
@@ -96,17 +94,17 @@ class EnvoyListenersFactory(
         TLS("tls")
     }
 
-    private val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
+    val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
 
-    private fun apiConfigSource(): ApiConfigSource {
+    fun apiConfigSource(): ApiConfigSource {
         return ApiConfigSource.newBuilder()
-                .setApiType(ApiConfigSource.ApiType.GRPC)
+            .setApiType(ApiConfigSource.ApiType.GRPC)
                 .addGrpcServices(GrpcService.newBuilder()
-                        .setEnvoyGrpc(
-                                GrpcService.EnvoyGrpc.newBuilder()
-                                        .setClusterName("envoy-control-xds")
-                        )
-                ).build()
+                    .setEnvoyGrpc(
+                        GrpcService.EnvoyGrpc.newBuilder()
+                            .setClusterName("envoy-control-xds")
+                    )
+            ).build()
     }
 
     fun createListeners(group: Group, globalSnapshot: GlobalSnapshot): List<Listener> {
@@ -126,16 +124,16 @@ class EnvoyListenersFactory(
         globalSnapshot: GlobalSnapshot
     ): Listener {
         return Listener.newBuilder()
-                .setName("egress_listener")
-                .setAddress(
-                        Address.newBuilder().setSocketAddress(
-                                SocketAddress.newBuilder()
-                                        .setPortValue(listenersConfig.egressPort)
-                                        .setAddress(listenersConfig.egressHost)
-                        )
+            .setName("egress_listener")
+            .setAddress(
+                Address.newBuilder().setSocketAddress(
+                    SocketAddress.newBuilder()
+                        .setPortValue(listenersConfig.egressPort)
+                        .setAddress(listenersConfig.egressHost)
                 )
-                .addFilterChains(createEgressFilterChain(group, listenersConfig, globalSnapshot))
-                .build()
+            )
+            .addFilterChains(createEgressFilterChain(group, listenersConfig, globalSnapshot))
+            .build()
     }
 
     private fun createIngressListener(
@@ -149,30 +147,20 @@ class EnvoyListenersFactory(
         } else null
 
         val listener = Listener.newBuilder()
-                .setName("ingress_listener")
-                .setAddress(
-                        Address.newBuilder().setSocketAddress(
-                                SocketAddress.newBuilder()
-                                        .setPortValue(listenersConfig.ingressPort)
-                                        .setAddress(listenersConfig.ingressHost)
-                        )
+            .setName("ingress_listener")
+            .setAddress(
+                Address.newBuilder().setSocketAddress(
+                    SocketAddress.newBuilder()
+                        .setPortValue(listenersConfig.ingressPort)
+                        .setAddress(listenersConfig.ingressHost)
                 )
-
-        addIngressMetadata(listener)
+            )
 
         listOfNotNull(securedIngressChain, insecureIngressChain).forEach {
             listener.addFilterChains(it.build())
         }
 
         return listener.build()
-    }
-
-    private fun addIngressMetadata(listener: Listener.Builder) {
-        if (ingressMetadata != null) {
-            listener.metadata = Metadata.newBuilder(listener.metadata)
-                .mergeFrom(ingressMetadata)
-                .build()
-        }
     }
 
     private fun createIngressFilterChain(
@@ -186,8 +174,8 @@ class EnvoyListenersFactory(
             TransportProtocol.TLS -> "ingress_https"
         }
         return FilterChain.newBuilder()
-                .setFilterChainMatch(transportProtocol.filterChainMatch)
-                .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot, statPrefix))
+            .setFilterChainMatch(transportProtocol.filterChainMatch)
+            .addFilters(createIngressFilter(group, listenersConfig, globalSnapshot, statPrefix))
     }
 
     private fun createSecuredIngressFilterChain(
@@ -206,8 +194,8 @@ class EnvoyListenersFactory(
         globalSnapshot: GlobalSnapshot
     ): FilterChain {
         return FilterChain.newBuilder()
-                .addFilters(createEgressFilter(group, listenersConfig, globalSnapshot))
-                .build()
+            .addFilters(createEgressFilter(group, listenersConfig, globalSnapshot))
+            .build()
     }
 
     private fun createEgressFilter(
@@ -216,9 +204,9 @@ class EnvoyListenersFactory(
         globalSnapshot: GlobalSnapshot
     ): Filter {
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
-                .setStatPrefix("egress_http")
-                .setRds(egressRds(group.communicationMode))
-                .setHttpProtocolOptions(egressHttp1ProtocolOptions())
+            .setStatPrefix("egress_http")
+            .setRds(egressRds(group.communicationMode))
+            .setHttpProtocolOptions(egressHttp1ProtocolOptions())
 
         addHttpFilters(connectionManagerBuilder, egressFilters, group, globalSnapshot)
 
@@ -251,22 +239,22 @@ class EnvoyListenersFactory(
         }
 
         return Filter.newBuilder()
-                .setName("envoy.http_connection_manager")
+            .setName("envoy.http_connection_manager")
                 .setTypedConfig(ProtobufAny.pack(
-                        connectionManagerBuilder.build()
+                    connectionManagerBuilder.build()
                 ))
-                .build()
+            .build()
     }
 
     private fun egressHttp1ProtocolOptions(): Http1ProtocolOptions? {
         return Http1ProtocolOptions.newBuilder()
-                .setAllowAbsoluteUrl(boolValue(true))
-                .build()
+            .setAllowAbsoluteUrl(boolValue(true))
+            .build()
     }
 
     private fun egressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
-                .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
+            .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
 
         when (communicationMode) {
             ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
@@ -274,11 +262,11 @@ class EnvoyListenersFactory(
         }
 
         return Rds.newBuilder()
-                .setRouteConfigName("default_routes")
-                .setConfigSource(
-                        configSource.build()
-                )
-                .build()
+            .setRouteConfigName("default_routes")
+            .setConfigSource(
+                configSource.build()
+            )
+            .build()
     }
 
     private fun createIngressFilter(
@@ -291,17 +279,17 @@ class EnvoyListenersFactory(
             ?: Durations.fromMillis(localServiceProperties.connectionIdleTimeout.toMillis())
         val httpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(connectionIdleTimeout).build()
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
-                .setStatPrefix(statPrefix)
-                .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
-                .setDelayedCloseTimeout(durationInSeconds(0))
-                .setCommonHttpProtocolOptions(httpProtocolOptions)
-                .setCodecType(HttpConnectionManager.CodecType.AUTO)
-                .setRds(ingressRds(group.communicationMode))
-                .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
+            .setStatPrefix(statPrefix)
+            .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
+            .setDelayedCloseTimeout(durationInSeconds(0))
+            .setCommonHttpProtocolOptions(httpProtocolOptions)
+            .setCodecType(HttpConnectionManager.CodecType.AUTO)
+            .setRds(ingressRds(group.communicationMode))
+            .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
 
         if (listenersConfig.useRemoteAddress) {
             connectionManagerBuilder.setXffNumTrustedHops(
-                    listenersFactoryProperties.httpFilters.ingressXffNumTrustedHops
+                listenersFactoryProperties.httpFilters.ingressXffNumTrustedHops
             )
         }
 
@@ -312,14 +300,14 @@ class EnvoyListenersFactory(
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
         return Http1ProtocolOptions.newBuilder()
-                .setAcceptHttp10(true)
-                .setDefaultHostForHttp10(serviceName)
-                .build()
+            .setAcceptHttp10(true)
+            .setDefaultHostForHttp10(serviceName)
+            .build()
     }
 
     private fun ingressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
-                .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
+            .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
 
         when (communicationMode) {
             ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
@@ -327,28 +315,28 @@ class EnvoyListenersFactory(
         }
 
         return Rds.newBuilder()
-                .setRouteConfigName("ingress_secured_routes")
-                .setConfigSource(configSource.build())
-                .build()
+            .setRouteConfigName("ingress_secured_routes")
+            .setConfigSource(configSource.build())
+            .build()
     }
 
-    private fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings.StatusCodeFilterSettings) {
+    fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings.StatusCodeFilterSettings) {
         this.setFilter(
-                AccessLogFilter.newBuilder().setStatusCodeFilter(
-                        StatusCodeFilter.newBuilder()
-                                .setComparison(
-                                        ComparisonFilter.newBuilder()
-                                                .setOp(settings.comparisonOperator)
-                                                .setValue(
-                                                        RuntimeUInt32.newBuilder()
-                                                                .setDefaultValue(settings.comparisonCode)
-                                                                .setRuntimeKey("access_log_filter_http_code")
-                                                                .build()
-                                                )
-                                                .build()
-                                )
-                                .build()
-                )
+            AccessLogFilter.newBuilder().setStatusCodeFilter(
+                StatusCodeFilter.newBuilder()
+                    .setComparison(
+                        ComparisonFilter.newBuilder()
+                            .setOp(settings.comparisonOperator)
+                            .setValue(
+                                RuntimeUInt32.newBuilder()
+                                    .setDefaultValue(settings.comparisonCode)
+                                    .setRuntimeKey("access_log_filter_http_code")
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .build()
+            )
         )
     }
 
@@ -366,36 +354,36 @@ class EnvoyListenersFactory(
         }
 
         return builder.setTypedConfig(
-                        ProtobufAny.pack(
-                                FileAccessLog.newBuilder()
-                                        .setPath(accessLogPath)
-                                        .setJsonFormat(
-                                                Struct.newBuilder()
-                                                        .putFields("time", accessLogTimeFormat)
-                                                        .putFields("message", accessLogMessageFormat)
-                                                        .putFields("level", accessLogLevel)
-                                                        .putFields("logger", accessLogLogger)
-                                                        .putFields("access_log_type", stringValue(accessLogType))
-                                                        .putFields("request_protocol", stringValue("%PROTOCOL%"))
-                                                        .putFields("request_method", stringValue("%REQ(:METHOD)%"))
+            ProtobufAny.pack(
+                FileAccessLog.newBuilder()
+                    .setPath(accessLogPath)
+                    .setJsonFormat(
+                        Struct.newBuilder()
+                            .putFields("time", accessLogTimeFormat)
+                            .putFields("message", accessLogMessageFormat)
+                            .putFields("level", accessLogLevel)
+                            .putFields("logger", accessLogLogger)
+                            .putFields("access_log_type", stringValue(accessLogType))
+                            .putFields("request_protocol", stringValue("%PROTOCOL%"))
+                            .putFields("request_method", stringValue("%REQ(:METHOD)%"))
                                                         .putFields("request_authority",
                                                                 stringValue("%REQ(:authority)%"))
-                                                        .putFields("request_path", stringValue("%REQ(:PATH)%"))
-                                                        .putFields("response_code", stringValue("%RESPONSE_CODE%"))
-                                                        .putFields("response_flags", stringValue("%RESPONSE_FLAGS%"))
-                                                        .putFields("bytes_received", stringValue("%BYTES_RECEIVED%"))
-                                                        .putFields("bytes_sent", stringValue("%BYTES_SENT%"))
-                                                        .putFields("duration_ms", stringValue("%DURATION%"))
+                            .putFields("request_path", stringValue("%REQ(:PATH)%"))
+                            .putFields("response_code", stringValue("%RESPONSE_CODE%"))
+                            .putFields("response_flags", stringValue("%RESPONSE_FLAGS%"))
+                            .putFields("bytes_received", stringValue("%BYTES_RECEIVED%"))
+                            .putFields("bytes_sent", stringValue("%BYTES_SENT%"))
+                            .putFields("duration_ms", stringValue("%DURATION%"))
                                                         .putFields("downstream_remote_address",
                                                                 stringValue("%DOWNSTREAM_REMOTE_ADDRESS%"))
-                                                        .putFields("upstream_host", stringValue("%UPSTREAM_HOST%"))
-                                                        .putFields("user_agent", stringValue("%REQ(USER-AGENT)%"))
-                                                        .build()
-                                        )
-                                        .build()
-                        )
-                )
-                .build()
+                            .putFields("upstream_host", stringValue("%UPSTREAM_HOST%"))
+                            .putFields("user_agent", stringValue("%REQ(USER-AGENT)%"))
+                            .build()
+                    )
+                    .build()
+            )
+        )
+            .build()
     }
 
     private fun boolValue(value: Boolean) = BoolValue.newBuilder().setValue(value).build()

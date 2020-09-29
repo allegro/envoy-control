@@ -3,9 +3,8 @@ function envoy_on_request(handle)
     local method = handle:headers():get(":method")
     local xff_header = handle:headers():get("x-forwarded-for")
     local metadata = handle:streamInfo():dynamicMetadata()
-    local lua_metadata = metadata:get("envoy.filters.http.lua") or {}
-    local client_identity_header_names = lua_metadata["client_identity_headers"] or {}
-    local service_name
+    local client_identity_header_names = handle:metadata():get("client_identity_headers") or {}
+    local service_name = ""
     for i,h in ipairs(client_identity_header_names) do
         service_name = handle:headers():get(h) or ""
         if service_name ~= "" then break end

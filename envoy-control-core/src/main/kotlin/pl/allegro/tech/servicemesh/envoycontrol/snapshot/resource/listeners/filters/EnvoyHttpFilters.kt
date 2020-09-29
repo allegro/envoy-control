@@ -7,10 +7,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.Http
 class EnvoyHttpFilters(
     val ingressFilters: List<HttpFilterFactory>,
     val egressFilters: List<HttpFilterFactory>,
-    val ingressMetadata: Metadata?
+    val ingressMetadata: Metadata = Metadata.getDefaultInstance()
 ) {
     companion object {
-        val emptyFilters = EnvoyHttpFilters(listOf(), listOf(), null)
+        val emptyFilters = EnvoyHttpFilters(listOf(), listOf(), Metadata.getDefaultInstance())
 
         fun defaultFilters(snapshotProperties: SnapshotProperties): EnvoyHttpFilters {
             val defaultFilters = EnvoyDefaultFilters(snapshotProperties)
