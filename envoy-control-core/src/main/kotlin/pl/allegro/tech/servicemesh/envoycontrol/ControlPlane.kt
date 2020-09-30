@@ -190,6 +190,7 @@ class ControlPlane private constructor(
                 CachedProtoResourcesSerializer(meterRegistry, properties.server.reportProtobufCacheMetrics)
             )
 
+            val snapshotsVersions = SnapshotsVersions()
             val snapshotProperties = properties.envoy.snapshot
             val envoySnapshotFactory = EnvoySnapshotFactory(
                 ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties),
@@ -203,7 +204,7 @@ class ControlPlane private constructor(
                     envoyHttpFilters
                 ),
                 // Remember when LDS change we have to send RDS again
-                snapshotsVersions = SnapshotsVersions(),
+                snapshotsVersions = snapshotsVersions,
                 properties = snapshotProperties,
                 meterRegistry = meterRegistry
             )
@@ -218,6 +219,7 @@ class ControlPlane private constructor(
                     groupSnapshotScheduler,
                     groupChangeWatcher.onGroupAdded(),
                     meterRegistry,
+                    snapshotsVersions,
                     envoyHttpFilters
                 ),
                 nodeGroup,
