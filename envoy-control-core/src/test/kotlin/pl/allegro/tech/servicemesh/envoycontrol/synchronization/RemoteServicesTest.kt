@@ -19,7 +19,6 @@ class RemoteServicesTest {
         controlPlaneClient.forCluster("dc1") {
             state(ServiceState(service = "service-1"))
         }
-
         controlPlaneClient.forCluster("dc2") {
             state(ServiceState(service = "service-1"))
         }
@@ -31,8 +30,8 @@ class RemoteServicesTest {
             ?: MultiClusterState.empty()
 
         assertThat(result).hasSize(2)
-        assertThat(result.map { it.cluster }.toSet()).isEqualTo(setOf("dc1", "dc2"))
-
+        assertThat(result.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-1")
+        assertThat(result.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames()).containsExactly("service-1")
     }
 
     @Test
@@ -58,7 +57,7 @@ class RemoteServicesTest {
             ?: MultiClusterState.empty()
 
         assertThat(result).hasSize(1)
-        assertThat(result.map { it.cluster }).contains("dc1")
+        assertThat(result.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-1")
     }
 
     @Test
@@ -79,7 +78,7 @@ class RemoteServicesTest {
             ?: MultiClusterState.empty()
 
         assertThat(result).hasSize(2)
-        assertThat(result.map { it.cluster }).contains("dc1", "dc2")
+        assertThat(result.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-1")
         result.doesntHaveServiceWithEmptyInstances("dc2", "service-c")
     }
 
@@ -112,8 +111,9 @@ class RemoteServicesTest {
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(result).isNotEmpty
-        assertThat(result.flatMap { it.servicesState.serviceNames() }.toSet()).isEqualTo(setOf("dc1", "dc3"))
+        assertThat(result).hasSize(2)
+        assertThat(result.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("dc1")
+        assertThat(result.singleOrNull { it.cluster == "dc3" }?.servicesState?.serviceNames()).containsExactly("dc3")
     }
 
     @Test
@@ -135,24 +135,16 @@ class RemoteServicesTest {
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(successfulResult.flatMap { it.servicesState.serviceNames() }.toSet()).isEqualTo(
-            setOf(
-                "service-a",
-                "service-c"
-            )
-        )
+        assertThat(successfulResult.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-a")
+        assertThat(successfulResult.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames()).containsExactly("service-c")
 
         val oneInstanceFailing = service
             .getChanges(1)
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(oneInstanceFailing.flatMap { it.servicesState.serviceNames() }.toSet()).isEqualTo(
-            setOf(
-                "service-b",
-                "service-c"
-            )
-        )
+        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-b")
+        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames()).containsExactly("service-c")
     }
 
     @Test
@@ -180,7 +172,7 @@ class RemoteServicesTest {
             .verify()
     }
 
-    class CControlPlaneInstanceFetcher(private val clusterWithNoInstance: List<String>) : ControlPlaneInstanceFetcher {
+    class FakeControlPlaneInstanceFetcher(private val clusterWithNoInstance: List<String>) : ControlPlaneInstanceFetcher {
         override fun instances(cluster: String): List<URI> {
             val uri = URI.create("http://$cluster")
             if (clusterWithNoInstance.contains(cluster)) {
@@ -191,7 +183,7 @@ class RemoteServicesTest {
     }
 
     private fun fetcher(clusterWithNoInstance: List<String> = emptyList()): ControlPlaneInstanceFetcher {
-        return CControlPlaneInstanceFetcher(clusterWithNoInstance)
+        return FakeControlPlaneInstanceFetcher(clusterWithNoInstance)
     }
 
     private fun MultiClusterState.doesntHaveServiceWithEmptyInstances(
@@ -204,8 +196,7 @@ class RemoteServicesTest {
         return this
     }
 
-
-    data class ServiceState(val service: String,val withoutInstances: Boolean = false)
+    data class ServiceState(val service: String, val withoutInstances: Boolean = false)
     class FakeAsyncControlPlane : AsyncControlPlaneClient {
         class ClusterScope(private val clusterName: String) {
             var responses = mutableListOf<Mono<ServicesState>>()
@@ -214,7 +205,7 @@ class RemoteServicesTest {
                 responses.add(
                     Mono.just(
                         ServicesState(
-                            serviceNameToInstances = services.map { toState(it.service,it.withoutInstances) }.toMap()
+                            serviceNameToInstances = services.map { toState(it.service, it.withoutInstances) }.toMap()
                         )
                     )
                 )
