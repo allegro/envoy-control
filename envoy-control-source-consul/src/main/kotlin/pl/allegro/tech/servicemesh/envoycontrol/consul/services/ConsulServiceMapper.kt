@@ -13,7 +13,7 @@ open class ConsulServiceMapper(
 ) {
     private val logger by logger()
 
-    private val weightEnabled = !weightTag.isEmpty()
+    private val weightEnabled = weightTag.isNotEmpty()
     private val weightTagRegex: Regex = weightTag.let { """${escape(it)}:(\d+)""".toRegex() }
 
     open fun toDomainInstance(consulInstance: ConsulServiceInstance): ServiceInstance {
