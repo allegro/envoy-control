@@ -1,4 +1,4 @@
 dependencies {
-    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
-    compile group: 'io.projectreactor', name: 'reactor-core', version: versions.reactor
+    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
+    api group: 'io.projectreactor', name: 'reactor-core', version: versions.reactor
 }

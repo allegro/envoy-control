@@ -6,9 +6,6 @@ import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.fail
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.LuaTestsContainer
 
-/**
- * TODO(https://github.com/allegro/envoy-control/issues/140): upgrade  to Gradle 6.5.* to see Lua test names in the output
- */
 internal class LuaTest {
 
     val logger by logger()

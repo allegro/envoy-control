@@ -7,16 +7,20 @@ repositories {
 }
 
 dependencies {
-    compile project(':envoy-control-runner')
+    implementation project(':envoy-control-runner')
 
-    compile group: 'org.assertj', name: 'assertj-core', version: versions.assertj
-    compile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: versions.junit
-    compile group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit
-    compile group: 'org.awaitility', name: 'awaitility', version: versions.awaitility
-    compile(group: 'com.pszymczyk.consul', name: 'embedded-consul', version: versions.embedded_consul) {
+    implementation group: 'org.assertj', name: 'assertj-core', version: versions.assertj
+    implementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: versions.junit
+    implementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit
+    implementation group: 'org.awaitility', name: 'awaitility', version: versions.awaitility
+    implementation(group: 'com.pszymczyk.consul', name: 'embedded-consul', version: versions.embedded_consul) {
         exclude group: 'org.apache.httpcomponents', module: 'httpclient'
     }
-    compile group: 'eu.rekawek.toxiproxy', name: 'toxiproxy-java', version: versions.toxiproxy
+
+    implementation "org.apache.httpcomponents:httpcore:4.4.9"
+    implementation "org.apache.httpcomponents:httpclient:4.5.5"
+
+    implementation group: 'eu.rekawek.toxiproxy', name: 'toxiproxy-java', version: versions.toxiproxy
     runtimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: versions.junit
     implementation group: 'org.testcontainers', name: 'junit-jupiter', version: versions.testcontainers
     implementation group: 'org.testcontainers', name: 'testcontainers', version: versions.testcontainers
