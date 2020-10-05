@@ -102,6 +102,67 @@ describe("envoy_on_request:", function()
         -- then
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "127.0.4.3")
     end)
+
+    it("should set empty service_name when there are empty client_identity_headers configured", function()
+        -- given
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+            ['x-forwarded-for'] = "127.0.4.3"
+        }
+        local filter_metadata = {
+            ['client_identity_headers'] = {}
+        }
+
+        local handle = handlerMock(headers, {}, nil, filter_metadata)
+        local metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "")
+    end)
+
+    it("should set empty service_name when there are no client_identity_headers configured", function()
+        -- given
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+            ['x-forwarded-for'] = "127.0.4.3"
+        }
+        local filter_metadata = {}
+
+        local handle = handlerMock(headers, {}, nil, filter_metadata)
+        local metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "")
+    end)
+
+    it("should set empty service_name when there are no headers matching client_identity_headers", function()
+        -- given
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+            ['x-forwarded-for'] = "127.0.4.3"
+        }
+        local filter_metadata = {
+            ['client_identity_headers'] = { "x-service-name", "x-via-ip" }
+        }
+
+        local handle = handlerMock(headers, {}, nil, filter_metadata)
+        local metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "")
+    end)
 end)
 
 describe("envoy_on_response:", function()

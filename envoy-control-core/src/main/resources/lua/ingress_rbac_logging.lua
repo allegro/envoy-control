@@ -5,7 +5,7 @@ function envoy_on_request(handle)
     local metadata = handle:streamInfo():dynamicMetadata()
     local client_identity_header_names = handle:metadata():get("client_identity_headers") or {}
     local service_name = ""
-    for i,h in ipairs(client_identity_header_names) do
+    for _,h in ipairs(client_identity_header_names) do
         service_name = handle:headers():get(h) or ""
         if service_name ~= "" then break end
     end
