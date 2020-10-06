@@ -72,6 +72,12 @@ class EnvoyClustersFactory(
         return services.map { edsCluster(it, communicationMode) }
     }
 
+    fun mapToV3Cluster(
+        clusters: List<Cluster>
+    ): List<Cluster> {
+        return clusters.map { mapClusterToV3(it) }
+    }
+
     fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
         return insecureClusters.map { cluster ->
             val upstreamTlsContext = createTlsContextWithSdsSecretConfig(cluster.name)
@@ -95,33 +101,31 @@ class EnvoyClustersFactory(
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
-            globalSnapshot.securedClusters.resources()
+            if (group.version == ResourceVersion.V3) {
+                globalSnapshot.v3SecuredClusters.resources()
+            } else {
+                globalSnapshot.securedClusters.resources()
+            }
         } else {
-            globalSnapshot.clusters.resources()
+            if (group.version == ResourceVersion.V3) {
+                globalSnapshot.v3Clusters.resources()
+            } else {
+                globalSnapshot.clusters.resources()
+            }
         }
-
-        // here we need clusters per group which breaks our optimization with globalSnapshot
 
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().mapNotNull {
-                if (group.version == ResourceVersion.V3) {
-                    mapClusterToV3(clusters[it.service])
-                } else {
-                    clusters[it.service]
-                }
+                clusters[it.service]
             }
             is AllServicesGroup -> globalSnapshot.allServicesNames.mapNotNull {
-                if (group.version == ResourceVersion.V3) {
-                    mapClusterToV3(clusters[it])
-                } else {
-                    clusters[it]
-                }
+                clusters[it]
             }
         }
     }
 
-    private fun mapClusterToV3(cluster: Cluster?): Cluster? {
-        return cluster?.let {
+    private fun mapClusterToV3(cluster: Cluster): Cluster {
+        return cluster.let {
             val v3Cluster = Cluster.newBuilder(it)
             val v3EdsClusterConfig = Cluster.EdsClusterConfig.newBuilder(v3Cluster.edsClusterConfig)
 

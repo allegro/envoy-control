@@ -9,7 +9,9 @@ data class GlobalSnapshot(
     val allServicesNames: Set<String>,
     val endpoints: SnapshotResources<ClusterLoadAssignment>,
     val clusterConfigurations: Map<String, ClusterConfiguration>,
-    val securedClusters: SnapshotResources<Cluster>
+    val securedClusters: SnapshotResources<Cluster>,
+    val v3Clusters: SnapshotResources<Cluster>,
+    val v3SecuredClusters: SnapshotResources<Cluster>
 )
 
 internal fun globalSnapshot(
@@ -17,10 +19,14 @@ internal fun globalSnapshot(
     endpoints: Iterable<ClusterLoadAssignment>,
     properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties(),
     clusterConfigurations: Map<String, ClusterConfiguration>,
-    securedClusters: List<Cluster>
+    securedClusters: List<Cluster>,
+    v3Clusters: List<Cluster>,
+    v3SecuredClusters: List<Cluster>
 ): GlobalSnapshot {
     val clusters = SnapshotResources.create(clusters, "")
     val securedClusters = SnapshotResources.create(securedClusters, "")
+    val v3Clusters = SnapshotResources.create(v3Clusters, "")
+    val v3SecuredClusters = SnapshotResources.create(v3SecuredClusters, "")
     val allServicesNames = getClustersForAllServicesGroups(clusters.resources(), properties)
     val endpoints = SnapshotResources.create(endpoints, "")
     return GlobalSnapshot(
@@ -28,7 +34,9 @@ internal fun globalSnapshot(
         securedClusters = securedClusters,
         endpoints = endpoints,
         allServicesNames = allServicesNames,
-        clusterConfigurations = clusterConfigurations
+        clusterConfigurations = clusterConfigurations,
+        v3Clusters = v3Clusters,
+        v3SecuredClusters = v3SecuredClusters
     )
 }
 

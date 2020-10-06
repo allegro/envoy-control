@@ -65,28 +65,30 @@ internal class RBACFilterFactoryTest {
             StatusRouteProperties()
     )
     private val rbacFilterFactoryWithSourceIpWithSelectorAuth = RBACFilterFactory(
-            IncomingPermissionsProperties().also {
-                it.enabled = true
-                it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
-                    ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
-                    ipProperties.ipFromRange = mutableMapOf(
-                        "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
-                    )
-                }
-                it.selectorMatching = mutableMapOf(
-                        "client1" to SelectorMatching().also { it.header = "x-secret-header" },
-                        "client2" to SelectorMatching().also { it.header = "x-secret-header" }
+        IncomingPermissionsProperties().also {
+            it.enabled = true
+            it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
+                ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
+                ipProperties.ipFromRange = mutableMapOf(
+                    "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
                 )
-            },
-            StatusRouteProperties()
+            }
+            it.selectorMatching = mutableMapOf(
+                "client1" to SelectorMatching().also { it.header = "x-secret-header" },
+                "client2" to SelectorMatching().also { it.header = "x-secret-header" }
+            )
+        },
+        StatusRouteProperties()
     )
 
     val snapshot = GlobalSnapshot(
-            SnapshotResources.create(listOf(), ""),
-            setOf(),
-            SnapshotResources.create(listOf(), ""),
-            mapOf(),
-            SnapshotResources.create(listOf(), "")
+        SnapshotResources.create(listOf(), ""),
+        setOf(),
+        SnapshotResources.create(listOf(), ""),
+        mapOf(),
+        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf(), "")
     )
 
     val clusterLoadAssignment = ClusterLoadAssignment.newBuilder()
@@ -104,11 +106,13 @@ internal class RBACFilterFactoryTest {
             ).build()
 
     val snapshotForSourceIpAuth = GlobalSnapshot(
-            SnapshotResources.create(listOf(), ""),
-            setOf(),
-            SnapshotResources.create(listOf(clusterLoadAssignment), ""),
-            mapOf(),
-            SnapshotResources.create(listOf(), "")
+        SnapshotResources.create(listOf(), ""),
+        setOf(),
+        SnapshotResources.create(listOf(clusterLoadAssignment), ""),
+        mapOf(),
+        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf(), "")
     )
 
     @Test
