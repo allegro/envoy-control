@@ -29,7 +29,7 @@ class NodeMetadataValidatorTest {
 
         // expects
         assertThatExceptionOfType(AllDependenciesValidationException::class.java)
-            .isThrownBy { validator.onStreamRequest(streamId = 123, request = request) }
+            .isThrownBy { validator.onV2StreamRequest(streamId = 123, request = request) }
             .satisfies {
                 assertThat(it.status.description).isEqualTo(
                     "Blocked service regular-1 from using all dependencies. Only defined services can use all dependencies"
@@ -49,7 +49,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { validator.onStreamRequest(123, request = request) }
+        assertDoesNotThrow { validator.onV2StreamRequest(123, request = request) }
     }
 
     @Test
@@ -65,7 +65,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { permissionsDisabledValidator.onStreamRequest(123, request = request) }
+        assertDoesNotThrow { permissionsDisabledValidator.onV2StreamRequest(123, request = request) }
     }
 
     @ParameterizedTest
@@ -95,7 +95,7 @@ class NodeMetadataValidatorTest {
 
         // expects
         assertThatExceptionOfType(ConfigurationModeNotSupportedException::class.java)
-            .isThrownBy { configurationModeValidator.onStreamRequest(streamId = 123, request = request) }
+            .isThrownBy { configurationModeValidator.onV2StreamRequest(streamId = 123, request = request) }
             .satisfies {
                 assertThat(it.status.description).isEqualTo(
                     "Blocked service regular-1 from receiving updates. $modeNotSupportedName is not supported by server."
@@ -129,7 +129,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { configurationModeValidator.onStreamRequest(123, request = request) }
+        assertDoesNotThrow { configurationModeValidator.onV2StreamRequest(123, request = request) }
     }
 
     private fun createOutgoingPermissions(

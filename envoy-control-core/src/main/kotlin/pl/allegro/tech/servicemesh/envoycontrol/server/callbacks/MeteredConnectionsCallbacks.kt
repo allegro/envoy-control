@@ -2,6 +2,8 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
 import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
+import io.envoyproxy.envoy.api.v2.DiscoveryRequest
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
 import java.util.concurrent.atomic.AtomicInteger
 
 class MeteredConnectionsCallbacks(
@@ -30,6 +32,12 @@ class MeteredConnectionsCallbacks(
         connectionsByType(typeUrl).decrementAndGet()
     }
 
+    override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
+    }
+
+    override fun onV2StreamRequest(p0: Long, p1: DiscoveryRequest?) {
+    }
+
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String?, error: Throwable?) {
         connections.decrementAndGet()
         connectionsByType(typeUrl).decrementAndGet()
@@ -39,11 +47,11 @@ class MeteredConnectionsCallbacks(
 
     private fun connectionsByType(typeUrl: String?): AtomicInteger {
         val type = when (typeUrl) {
-            Resources.CLUSTER_TYPE_URL -> MetricsStreamType.CDS
-            Resources.ENDPOINT_TYPE_URL -> MetricsStreamType.EDS
-            Resources.LISTENER_TYPE_URL -> MetricsStreamType.LDS
-            Resources.ROUTE_TYPE_URL -> MetricsStreamType.RDS
-            Resources.SECRET_TYPE_URL -> MetricsStreamType.SDS
+            Resources.V2.CLUSTER_TYPE_URL -> MetricsStreamType.CDS
+            Resources.V2.ENDPOINT_TYPE_URL -> MetricsStreamType.EDS
+            Resources.V2.LISTENER_TYPE_URL -> MetricsStreamType.LDS
+            Resources.V2.ROUTE_TYPE_URL -> MetricsStreamType.RDS
+            Resources.V2.SECRET_TYPE_URL -> MetricsStreamType.SDS
             "" -> MetricsStreamType.ADS // ads is when the type url is empty
             else -> MetricsStreamType.UNKNOWN
         }
