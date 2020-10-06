@@ -307,7 +307,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
-        fun <T> untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (T)): T {
+        fun <T> untilAsserted(wait: Duration = defaultDuration, fn: () -> (T)): T {
             var lastResult: T? = null
             await().atMost(wait).untilAsserted({ lastResult = fn() })
             assertThat(lastResult).isNotNull

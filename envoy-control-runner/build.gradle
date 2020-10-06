@@ -12,14 +12,14 @@ repositories {
 dependencies {
     api project(':envoy-control-source-consul')
 
-    implementation group: 'org.springframework.boot', name: 'spring-boot-starter', version: versions.spring_boot
-    api group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: versions.spring_boot
-    api group: 'org.springframework.boot', name: 'spring-boot-starter-actuator', version: versions.spring_boot
-    api group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: versions.spring_boot
-    implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: versions.micrometer
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter'
+    api group: 'org.springframework.boot', name: 'spring-boot-starter-web'
+    api group: 'org.springframework.boot', name: 'spring-boot-starter-actuator'
+    api group: 'org.springframework.boot', name: 'spring-boot-starter-security'
+    implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus'
 
     api group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: versions.kotlin
-    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: versions.jackson
+    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin'
     implementation group: 'net.openhft', name: 'zero-allocation-hashing', version: versions.xxhash
 }
 

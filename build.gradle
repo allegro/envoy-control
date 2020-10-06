@@ -48,26 +48,16 @@ allprojects {
     project.ext.versions = [
             kotlin            : '1.3.72',
             java_controlplane : '0.1.24-optimization-SNAPSHOT',
-            spring_boot       : '2.1.5.RELEASE',
+            spring_boot       : '2.3.4.RELEASE',
             grpc              : '1.21.0',
-            jaxb              : '2.3.1',
-            javaxactivation   : '1.1.1',
-            micrometer        : '1.1.2',
-            dropwizard        : '4.0.6',
             ecwid_consul      : '1.4.1',
-            awaitility        : '3.1.3',
             embedded_consul   : '2.0.0',
             junit             : '5.5.2',
-            assertj           : '3.11.1',
-            jackson           : '2.9.10',
             toxiproxy         : '2.1.3',
             testcontainers    : '1.12.5',
-            reactor           : '3.2.5.RELEASE',
             consul_recipes    : '0.8.3',
             mockito           : '2.23.0',
             cglib             : '3.2.9',
-            logback           : '1.2.3',
-            slf4j             : '1.7.25',
             re2j              : '1.3',
             xxhash            : '0.10.1'
     ]
@@ -124,9 +114,11 @@ subprojects {
     }
 
     dependencies {
+        implementation platform(group: 'org.springframework.boot', name: 'spring-boot-dependencies', version: versions.spring_boot)
+
         testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: versions.junit
         testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit
-        testCompile group: 'org.assertj', name: 'assertj-core', version: versions.assertj
+        testCompile group: 'org.assertj', name: 'assertj-core'
         testRuntimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: versions.junit
     }
 
