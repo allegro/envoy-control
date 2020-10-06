@@ -241,7 +241,7 @@ class EnvoyListenersFactory(
         }
 
         return Filter.newBuilder()
-                .setName("envoy.http_connection_manager")
+                .setName("envoy.filters.network.http_connection_manager")
                 .setTypedConfig(ProtobufAny.pack(
                         connectionManagerBuilder.build()
                 ))
