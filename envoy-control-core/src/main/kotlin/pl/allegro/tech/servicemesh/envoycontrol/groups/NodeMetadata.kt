@@ -5,7 +5,7 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
-import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter
+import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory

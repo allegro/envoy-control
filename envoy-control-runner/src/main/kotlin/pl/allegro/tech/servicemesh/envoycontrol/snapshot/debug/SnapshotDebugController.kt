@@ -13,13 +13,14 @@ import com.google.protobuf.util.JsonFormat
 import com.google.protobuf.util.JsonFormat.TypeRegistry
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SnapshotCache
-import io.envoyproxy.controlplane.cache.v2.Snapshot
-import io.envoyproxy.envoy.api.v2.auth.UpstreamTlsContext
-import io.envoyproxy.envoy.api.v2.core.Node
-import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config
-import io.envoyproxy.envoy.config.filter.http.lua.v2.Lua
-import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
-import io.envoyproxy.envoy.config.rbac.v2.RBAC
+import io.envoyproxy.controlplane.cache.v3.Snapshot
+import io.envoyproxy.envoy.config.core.v3.Node
+import io.envoyproxy.envoy.config.rbac.v3.RBAC
+import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
+import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
 import org.springframework.boot.jackson.JsonComponent
@@ -35,7 +36,6 @@ import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
-import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as FilterRBAC
 
 @RestController
 class SnapshotDebugController(controlPlane: ControlPlane) {
@@ -44,11 +44,25 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     val snapshotUpdater: SnapshotUpdater = controlPlane.snapshotUpdater
 
     /**
-     * Returns a textual representation of the v2 snapshot for debugging purposes.
+     * Returns a textual representation of the snapshot for debugging purposes.
      * It contains the versions of XDS resources and the contents for a provided node JSON
      * extracted from Envoy's config_dump endpoint.
      */
-    @PostMapping("/snapshot")
+    @PostMapping("/snapshotV2")
+    fun snapshot(@RequestBody node: io.envoyproxy.envoy.api.v2.core.Node): ResponseEntity<SnapshotDebugInfo> {
+        val nodeHash = nodeGroup.hash(node)
+        val snapshot = cache.getSnapshot(nodeHash)
+        return if (snapshot == null) {
+            throw SnapshotNotFoundException()
+        } else {
+            ResponseEntity(
+                SnapshotDebugInfo(snapshot as Snapshot),
+                HttpStatus.OK
+            )
+        }
+    }
+
+    @PostMapping("/snapshotV3")
     fun snapshot(@RequestBody node: Node): ResponseEntity<SnapshotDebugInfo> {
         val nodeHash = nodeGroup.hash(node)
         val snapshot = cache.getSnapshot(nodeHash)
@@ -95,7 +109,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             .add(Struct.getDescriptor())
             .add(Value.getDescriptor())
             .add(RBAC.getDescriptor())
-            .add(FilterRBAC.getDescriptor())
+            .add(RBACFilter.getDescriptor())
             .add(Any.getDescriptor())
             .add(PathMatcher.getDescriptor())
             .add(StringMatcher.getDescriptor())

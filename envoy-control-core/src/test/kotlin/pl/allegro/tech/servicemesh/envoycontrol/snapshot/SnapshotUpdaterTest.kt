@@ -7,8 +7,8 @@ import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.StatusInfo
 import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.controlplane.cache.XdsRequest
-import io.envoyproxy.controlplane.cache.v2.Snapshot
-import io.envoyproxy.envoy.api.v2.RouteConfiguration
+import io.envoyproxy.controlplane.cache.v3.Snapshot
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat

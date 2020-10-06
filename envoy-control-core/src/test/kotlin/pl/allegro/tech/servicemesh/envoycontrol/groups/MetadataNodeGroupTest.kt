@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
-import io.envoyproxy.envoy.config.filter.accesslog.v2.ComparisonFilter.Op.EQ
+import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
 import io.grpc.Status
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -242,8 +242,9 @@ class MetadataNodeGroupTest {
         val group = nodeGroup.hash(Node.newBuilder().setMetadata(metadata.build()).build())
 
         // then
-        assertThat(group.listenersConfig!!.accessLogFilterSettings.statusCodeFilterSettings!!.comparisonCode).isEqualTo(400)
-        assertThat(group.listenersConfig!!.accessLogFilterSettings.statusCodeFilterSettings!!.comparisonOperator).isEqualTo(EQ)
+        val statusCodeFilterSettings = group.listenersConfig!!.accessLogFilterSettings.statusCodeFilterSettings!!
+        assertThat(statusCodeFilterSettings.comparisonCode).isEqualTo(400)
+        assertThat(statusCodeFilterSettings.comparisonOperator).isEqualTo(ComparisonFilter.Op.EQ)
     }
 
     @ParameterizedTest

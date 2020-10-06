@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.util.JsonFormat
-import io.envoyproxy.envoy.config.rbac.v2.Permission
+import io.envoyproxy.envoy.config.rbac.v3.Permission
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint

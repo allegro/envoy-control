@@ -2,14 +2,14 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources
-import io.envoyproxy.envoy.api.v2.RouteConfiguration
-import io.envoyproxy.envoy.api.v2.core.HeaderValue
-import io.envoyproxy.envoy.api.v2.core.HeaderValueOption
-import io.envoyproxy.envoy.api.v2.route.DirectResponseAction
-import io.envoyproxy.envoy.api.v2.route.Route
-import io.envoyproxy.envoy.api.v2.route.RouteAction
-import io.envoyproxy.envoy.api.v2.route.RouteMatch
-import io.envoyproxy.envoy.api.v2.route.VirtualHost
+import io.envoyproxy.envoy.config.core.v3.HeaderValue
+import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
+import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
+import io.envoyproxy.envoy.config.route.v3.Route
+import io.envoyproxy.envoy.config.route.v3.RouteAction
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
+import io.envoyproxy.envoy.config.route.v3.RouteMatch
+import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
@@ -78,10 +78,11 @@ class EnvoyEgressRoutesFactory(
                         .setMatch(
                             RouteMatch.newBuilder()
                                 .setPrefix("/")
+                                .build()
                         )
                         .setRoute(
                             createRouteAction(routeSpecification)
-                        )
+                        ).build()
                 )
                 .build()
         }
@@ -124,7 +125,7 @@ class EnvoyEgressRoutesFactory(
 
         if (properties.egress.hostHeaderRewriting.enabled && routeSpecification.settings.rewriteHostHeader) {
             routeAction
-                .setAutoHostRewriteHeader(properties.egress.hostHeaderRewriting.customHostHeader)
+                    .setHostRewriteHeader(properties.egress.hostHeaderRewriting.customHostHeader)
         }
 
         return routeAction
