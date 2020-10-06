@@ -430,7 +430,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     }
 
     fun ObjectAssert<Health>.hasEnvoyControlCheckPassed(): ObjectAssert<Health> {
-        matches { it.details.get("envoyControl")?.status == Status.UP }
+        matches { it.components.get("envoyControl")?.status == Status.UP }
         return this
     }
 
