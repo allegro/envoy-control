@@ -3,28 +3,28 @@ dependencies {
 
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: versions.kotlin
-    api group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner'
-    api group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin'
+    api group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner', version: versions.jackson
+    api group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: versions.jackson
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: versions.kotlin
-    api group: 'io.dropwizard.metrics', name: 'metrics-core'
-    api group: 'io.micrometer', name: 'micrometer-core'
+    api group: 'io.dropwizard.metrics', name: 'metrics-core', version: versions.dropwizard
+    api group: 'io.micrometer', name: 'micrometer-core', version: versions.micrometer
     implementation group: 'com.google.re2j', name: 're2j', version: versions.re2j
 
     api group: 'io.envoyproxy.controlplane', name: 'server', version: versions.java_controlplane
 
     implementation group: 'io.grpc', name: 'grpc-netty', version: versions.grpc
 
-    implementation group: 'io.projectreactor', name: 'reactor-core'
+    implementation group: 'io.projectreactor', name: 'reactor-core', version: versions.reactor
 
-    implementation group: 'org.slf4j', name: 'jcl-over-slf4j'
-    implementation group: 'ch.qos.logback', name: 'logback-classic'
+    implementation group: 'org.slf4j', name: 'jcl-over-slf4j', version: versions.slf4j
+    implementation group: 'ch.qos.logback', name: 'logback-classic', version: versions.logback
 
     testImplementation group: 'io.grpc', name: 'grpc-testing', version: versions.grpc
-    testImplementation group: 'io.projectreactor', name: 'reactor-test'
+    testImplementation group: 'io.projectreactor', name: 'reactor-test', version: versions.reactor
     testImplementation group: 'org.mockito', name: 'mockito-core', version: versions.mockito
     testImplementation group: 'cglib', name: 'cglib-nodep', version: versions.cglib
 
-    testImplementation group: 'org.awaitility', name: 'awaitility'
+    testImplementation group: 'org.awaitility', name: 'awaitility', version: versions.awaitility
 
     testImplementation group: 'org.testcontainers', name: 'testcontainers', version: versions.testcontainers
     testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: versions.testcontainers
