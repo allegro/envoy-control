@@ -2,7 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config
 
-class ServiceTagFilter {
+class ServiceTagFilter private constructor() {
     companion object {
         fun serviceTagFilterRules(
             header: String,

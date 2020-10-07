@@ -154,11 +154,13 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
 
     return if (handleInternalRedirect == null && rewriteHostHeader == null && timeoutPolicy == null) {
         defaultSettings
-    } else DependencySettings(
-        handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
-        timeoutPolicy ?: defaultSettings.timeoutPolicy,
-        rewriteHostHeader ?: defaultSettings.rewriteHostHeader
-    )
+    } else {
+        DependencySettings(
+            handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
+            timeoutPolicy ?: defaultSettings.timeoutPolicy,
+            rewriteHostHeader ?: defaultSettings.rewriteHostHeader
+        )
+    }
 }
 
 fun Value?.toIncoming(): Incoming {
