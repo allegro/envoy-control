@@ -1,17 +1,17 @@
 dependencies {
-    implementation project(':envoy-control-core')
+    api project(':envoy-control-core')
 
-    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
-    compile group: 'io.projectreactor', name: 'reactor-core', version: versions.reactor
-    compile group: 'pl.allegro.tech.discovery', name: 'consul-recipes', version: versions.consul_recipes
-    compile group: 'com.ecwid.consul', name: 'consul-api', version: versions.ecwid_consul
+    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
+    implementation group: 'io.projectreactor', name: 'reactor-core', version: versions.reactor
+    api group: 'pl.allegro.tech.discovery', name: 'consul-recipes', version: versions.consul_recipes
+    api group: 'com.ecwid.consul', name: 'consul-api', version: versions.ecwid_consul
 
-    testCompile group: 'org.mockito', name: 'mockito-core', version: versions.mockito
-    testCompile group: 'cglib', name: 'cglib-nodep', version: versions.cglib
+    testImplementation group: 'org.mockito', name: 'mockito-core', version: versions.mockito
+    testImplementation group: 'cglib', name: 'cglib-nodep', version: versions.cglib
 
-    testCompile(group: 'com.pszymczyk.consul', name: 'embedded-consul', version: versions.embedded_consul) {
+    testImplementation(group: 'com.pszymczyk.consul', name: 'embedded-consul', version: versions.embedded_consul) {
         exclude group: 'org.apache.httpcomponents', module: 'httpclient'
     }
 
-    testCompile group: 'io.projectreactor', name: 'reactor-test', version: versions.reactor
+    testImplementation group: 'io.projectreactor', name: 'reactor-test', version: versions.reactor
 }
