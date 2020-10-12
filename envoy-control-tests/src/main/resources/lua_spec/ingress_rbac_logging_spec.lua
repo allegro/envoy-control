@@ -2,8 +2,8 @@ require("ingress_rbac_logging")
 
 local _ = match._
 local contains = function(substring) return match.matches(substring, nil, true) end
-local function formatLog(method, path, source_ip, service_name, protocol, statusCode)
-    return "\nINCOMING_PERMISSIONS { \"method\": \"" .. method .. "\", \"path\": \"" .. path .. "\", \"clientIp\": \"" .. source_ip .. "\", \"clientName\": \"" .. service_name .. "\", \"protocol\": \"" .. protocol .. "\", \"statusCode\": " .. statusCode .. " }"
+local function formatLog(method, path, source_ip, client_name, protocol, statusCode)
+    return "\nINCOMING_PERMISSIONS { \"method\": \"" .. method .. "\", \"path\": \"" .. path .. "\", \"clientIp\": \"" .. source_ip .. "\", \"clientName\": \"" .. client_name .. "\", \"protocol\": \"" .. protocol .. "\", \"statusCode\": " .. statusCode .. " }"
 end
 
 local function handlerMock(headers, dynamic_metadata, https, filter_metadata)
@@ -56,11 +56,11 @@ describe("envoy_on_request:", function()
         -- then
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.path", "/path")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.method", "GET")
-        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "lorem-service")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "lorem-service")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.xff_header", "127.0.4.3")
     end)
 
-    it("should set service_name metadata using data from configured headers", function()
+    it("should set client_name metadata using data from configured headers", function()
         -- given
         local headers = {
             [':path'] = '/path',
@@ -79,10 +79,10 @@ describe("envoy_on_request:", function()
         envoy_on_request(handle)
 
         -- then
-        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "lorem-service")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "lorem-service")
     end)
 
-    it("should set service_name metadata using second configured header when first one is missing", function()
+    it("should set client_name metadata using second configured header when first one is missing", function()
         -- given
         local headers = {
             [':path'] = '/path',
@@ -100,10 +100,10 @@ describe("envoy_on_request:", function()
         envoy_on_request(handle)
 
         -- then
-        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "127.0.4.3")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "127.0.4.3")
     end)
 
-    it("should set empty service_name when there are empty client_identity_headers configured", function()
+    it("should set empty client_name when there are empty client_identity_headers configured", function()
         -- given
         local headers = {
             [':path'] = '/path',
@@ -121,10 +121,10 @@ describe("envoy_on_request:", function()
         envoy_on_request(handle)
 
         -- then
-        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "")
     end)
 
-    it("should set empty service_name when there are no client_identity_headers configured", function()
+    it("should set empty client_name when there are no client_identity_headers configured", function()
         -- given
         local headers = {
             [':path'] = '/path',
@@ -140,10 +140,10 @@ describe("envoy_on_request:", function()
         envoy_on_request(handle)
 
         -- then
-        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "")
     end)
 
-    it("should set empty service_name when there are no headers matching client_identity_headers", function()
+    it("should set empty client_name when there are no headers matching client_identity_headers", function()
         -- given
         local headers = {
             [':path'] = '/path',
@@ -161,7 +161,7 @@ describe("envoy_on_request:", function()
         envoy_on_request(handle)
 
         -- then
-        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.service_name", "")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "")
     end)
 end)
 
@@ -179,7 +179,7 @@ describe("envoy_on_response:", function()
                 ['shadow_engine_result'] = 'denied'
             },
             ['envoy.filters.http.lua'] = {
-                ['request.info.service_name'] = 'service-first',
+                ['request.info.client_name'] = 'service-first',
                 ['request.info.path'] = '/path?query=val',
                 ['request.info.method'] = 'POST',
                 ['request.info.xff_header'] = '127.1.1.3',
