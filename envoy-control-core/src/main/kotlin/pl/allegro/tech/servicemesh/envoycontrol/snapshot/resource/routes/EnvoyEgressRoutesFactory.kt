@@ -96,7 +96,7 @@ class EnvoyEgressRoutesFactory(
                         HeaderValueOption.newBuilder()
                             .setHeader(
                                 HeaderValue.newBuilder()
-                                    .setKey(properties.incomingPermissions.clientIdentityHeader)
+                                    .setKey(properties.incomingPermissions.serviceNameHeader)
                                     .setValue(serviceName)
                             )
                     )
