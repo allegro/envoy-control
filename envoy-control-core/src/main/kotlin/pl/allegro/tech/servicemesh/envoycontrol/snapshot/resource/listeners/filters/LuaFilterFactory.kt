@@ -35,7 +35,7 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
                         Value.newBuilder()
                             .setListValue(ListValue.newBuilder()
                                 .addAllValues(
-                                    incomingPermissionsProperties.clientIdentityHeader
+                                    incomingPermissionsProperties.clientIdentityHeaders
                                         .map { Value.newBuilder().setStringValue(it).build() }
                                 )
                                 .build()
