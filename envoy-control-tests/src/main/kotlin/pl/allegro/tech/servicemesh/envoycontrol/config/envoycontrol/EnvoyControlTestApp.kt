@@ -228,7 +228,7 @@ class EnvoyControlRunnerTestApp(
 
 data class Health(
     val status: Status,
-    val details: Map<String, HealthDetails>
+    val components: Map<String, HealthDetails>
 )
 
 data class HealthDetails(

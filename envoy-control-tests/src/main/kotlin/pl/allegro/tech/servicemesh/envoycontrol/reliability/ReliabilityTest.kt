@@ -2,7 +2,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.reliability
 
 import com.google.common.base.Strings
 import org.assertj.core.api.Assertions.assertThat
-import org.awaitility.Duration
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
@@ -17,7 +16,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.externalConsulPort
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.externalEnvoyControl1GrpcPort
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.toxiproxyGrpcPort
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 @Tag("reliability")
 open class ReliabilityTest : EnvoyControlTestConfiguration() {
@@ -127,8 +126,8 @@ open class ReliabilityTest : EnvoyControlTestConfiguration() {
         interval: Duration,
         assertion: () -> Unit
     ) {
-        val intervalInMs = interval.valueInMS
-        val probes = duration.valueInMS / intervalInMs
+        val intervalInMs = interval.toMillis()
+        val probes = duration.toMillis() / intervalInMs
         runRepeat(probes, intervalInMs, assertion)
     }
 
@@ -137,7 +136,7 @@ open class ReliabilityTest : EnvoyControlTestConfiguration() {
         probes: Long = 10L,
         assertion: () -> Unit
     ) {
-        val millis = duration.valueInMS
+        val millis = duration.toMillis()
         val interval = millis / probes
         runRepeat(probes, interval, assertion)
     }
@@ -164,11 +163,10 @@ open class ReliabilityTest : EnvoyControlTestConfiguration() {
         }
     }
 
-    val failureDuration = Duration(
+    val failureDuration: Duration = Duration.ofSeconds(
         System.getProperty("RELIABILITY_FAILURE_DURATION_SECONDS")
             ?.let { Strings.emptyToNull(it) }
             ?.toLong()
-            ?: 20,
-        TimeUnit.SECONDS
+            ?: 20
     )
 }
