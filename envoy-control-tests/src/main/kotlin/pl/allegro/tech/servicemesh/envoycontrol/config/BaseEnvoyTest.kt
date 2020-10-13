@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
-import org.awaitility.Duration
 import org.testcontainers.containers.Network
 import org.testcontainers.junit.jupiter.Testcontainers
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulClientConfig
@@ -8,18 +7,18 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulServerConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulSetup
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.io.File
 import java.lang.Thread.sleep
+import java.time.Duration
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 @Testcontainers
 open class BaseEnvoyTest {
     companion object {
-        val defaultDuration = Duration(90, TimeUnit.SECONDS)
+        val defaultDuration: Duration = Duration.ofSeconds(90)
         val network: Network = Network.SHARED
 
         val echoContainer: EchoContainer = EchoContainer()
