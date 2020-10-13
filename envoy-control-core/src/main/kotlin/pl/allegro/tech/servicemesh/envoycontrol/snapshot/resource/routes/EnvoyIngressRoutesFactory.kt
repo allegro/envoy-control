@@ -18,10 +18,14 @@ import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 
 class EnvoyIngressRoutesFactory(
-    private val properties: SnapshotProperties
+    private val properties: SnapshotProperties,
+    envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 ) {
+
+    private val filterMetadata = envoyHttpFilters.ingressMetadata
     private fun clusterRouteAction(
         responseTimeout: Duration?,
         idleTimeout: Duration?,
@@ -98,7 +102,6 @@ class EnvoyIngressRoutesFactory(
                     .setPrefix("/")
             )
             .setRoute(localRouteAction)
-            .build()
         val retryRoutes = perMethodRetryPolicies
             .map { (method, retryPolicy) ->
                 Route.newBuilder()
@@ -108,9 +111,11 @@ class EnvoyIngressRoutesFactory(
                             .setPrefix("/")
                     )
                     .setRoute(clusterRouteActionWithRetryPolicy(retryPolicy, localRouteAction))
-                    .build()
             }
-        return retryRoutes + nonRetryRoute
+        return (retryRoutes + nonRetryRoute).map { builder ->
+            builder.setMetadata(filterMetadata)
+                .build()
+        }
     }
 
     private fun customHealthCheckRoute(proxySettings: ProxySettings): List<Route> {
@@ -120,14 +125,16 @@ class EnvoyIngressRoutesFactory(
                 proxySettings.incoming.timeoutPolicy.idleTimeout,
                 proxySettings.incoming.healthCheck.clusterName
             )
-            return listOf(Route.newBuilder()
-                .setMatch(
-                    RouteMatch.newBuilder()
-                        .setPrefix(proxySettings.incoming.healthCheck.path)
-                        .addHeaders(httpMethodMatcher(HttpMethod.GET))
-                )
-                .setRoute(healthCheckRouteAction)
-                .build())
+            return listOf(
+                Route.newBuilder()
+                    .setMatch(
+                        RouteMatch.newBuilder()
+                            .setPrefix(proxySettings.incoming.healthCheck.path)
+                            .addHeaders(httpMethodMatcher(HttpMethod.GET))
+                    )
+                    .setRoute(healthCheckRouteAction)
+                    .build()
+            )
         }
         return emptyList()
     }
