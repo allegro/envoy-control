@@ -9,17 +9,67 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnabledCommunicationModes
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OutgoingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class NodeMetadataValidatorTest {
 
     val validator = NodeMetadataValidator(SnapshotProperties().apply {
-        outgoingPermissions = createOutgoingPermissions(enabled = true, servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2"))
+        outgoingPermissions = createOutgoingPermissions(
+                enabled = true,
+                servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2")
+        )
+        incomingPermissions = createIncomingPermissions(
+                enabled = true,
+                servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2")
+        )
     })
 
     @Test
-    fun `should fail if service has no privilege to use wildcard`() {
+    fun `should fail if service has no privilege to use incoming wildcard`() {
+        // given
+        val node = node(
+                serviceName = "regular-1",
+                incomingSettings = true,
+                clients = listOf("*")
+        )
+        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+
+        // expects
+        assertThatExceptionOfType(WildcardPrincipalValidationException::class.java)
+                .isThrownBy { validator.onStreamRequest(streamId = 123, request = request) }
+                .satisfies {
+                    assertThat(it.status.description).isEqualTo(
+                            "Blocked service regular-1 from allowing everyone in incoming permissions. Only defined services can use that."
+                    )
+                    assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+                }
+    }
+
+    @Test
+    fun `should fail if service mixes incoming wildcard and normal permissions`() {
+        // given
+        val node = node(
+                serviceName = "vis-1",
+                incomingSettings = true,
+                clients = listOf("*", "something")
+        )
+        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+
+        // expects
+        assertThatExceptionOfType(WildcardPrincipalMixedWithOthersValidationException::class.java)
+                .isThrownBy { validator.onStreamRequest(streamId = 123, request = request) }
+                .satisfies {
+                    assertThat(it.status.description).isEqualTo(
+                            "Blocked service vis-1 from allowing everyone in incoming permissions. Either a wildcard or a list of clients must be provided."
+                    )
+                    assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+                }
+    }
+
+    @Test
+    fun `should fail if service has no privilege to use outgoing wildcard`() {
         // given
         val node = node(
             serviceDependencies = setOf("*", "a", "b", "c"),
@@ -39,7 +89,22 @@ class NodeMetadataValidatorTest {
     }
 
     @Test
-    fun `should not fail if service has privilege to use wildcard`() {
+    fun `should not fail if service has privilege to use incoming wildcard`() {
+        // given
+        val node = node(
+                serviceName = "vis-1",
+                incomingSettings = true,
+                clients = listOf("*")
+        )
+
+        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+
+        // then
+        assertDoesNotThrow { validator.onStreamRequest(123, request = request) }
+    }
+
+    @Test
+    fun `should not fail if service has privilege to use outgoing wildcard`() {
         // given
         val node = node(
             serviceDependencies = setOf("*", "a", "b", "c"),
@@ -130,6 +195,16 @@ class NodeMetadataValidatorTest {
 
         // then
         assertDoesNotThrow { configurationModeValidator.onStreamRequest(123, request = request) }
+    }
+
+    private fun createIncomingPermissions(
+            enabled: Boolean = false,
+            servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
+    ): IncomingPermissionsProperties {
+        val incomingPermissions = IncomingPermissionsProperties()
+        incomingPermissions.enabled = enabled
+        incomingPermissions.tlsAuthentication.servicesAllowedToUseWildcard = servicesAllowedToUseWildcard
+        return incomingPermissions
     }
 
     private fun createOutgoingPermissions(

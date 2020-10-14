@@ -13,6 +13,7 @@ fun node(
     ads: Boolean? = null,
     serviceName: String? = null,
     incomingSettings: Boolean = false,
+    clients: List<String> = listOf("client1"),
     idleTimeout: String? = null,
     responseTimeout: String? = null,
     connectionIdleTimeout: String? = null,
@@ -34,6 +35,7 @@ fun node(
             "proxy_settings",
             proxySettingsProto(
                 path = "/endpoint",
+                clients = clients,
                 serviceDependencies = serviceDependencies,
                 incomingSettings = incomingSettings,
                 idleTimeout = idleTimeout,
@@ -96,7 +98,8 @@ fun proxySettingsProto(
     responseTimeout: String? = null,
     connectionIdleTimeout: String? = null,
     healthCheckPath: String? = null,
-    healthCheckClusterName: String? = null
+    healthCheckClusterName: String? = null,
+    clients: List<String> = listOf("client1")
 ): Value = struct {
     if (incomingSettings) {
         putFields("incoming", struct {
@@ -109,7 +112,7 @@ fun proxySettingsProto(
                 }
             })
             putFields("endpoints", list {
-                addValues(incomingEndpointProto(path = path))
+                addValues(incomingEndpointProto(path = path, clients = clients))
             })
             putFields("timeoutPolicy", struct {
                 idleTimeout?.let {
@@ -221,14 +224,15 @@ fun incomingEndpointProto(
     path: String? = null,
     pathPrefix: String? = null,
     pathRegex: String? = null,
-    includeNullFields: Boolean = false
+    includeNullFields: Boolean = false,
+    clients: List<String> = listOf("client1")
 ): Value = struct {
 
     this.putPathFields(path, "path", includeNullFields)
     this.putPathFields(pathPrefix, "pathPrefix", includeNullFields)
     this.putPathFields(pathRegex, "pathRegex", includeNullFields)
 
-    putFields("clients", list { addValues(string("client1")) })
+    putFields("clients", list { clients.forEach { addValues(string(it)) } })
 }
 
 fun Struct.Builder.putPathFields(path: String?, fieldName: String, includeNullFields: Boolean) {

@@ -42,6 +42,7 @@ class RBACFilterFactory(
 
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
     private val denyForAllPrincipal = Principal.newBuilder().setNotId(anyPrincipal).build()
+    private val tlsUtils = TlsUtils(incomingPermissionsProperties.tlsAuthentication)
 
     init {
         incomingPermissionsProperties.selectorMatching.forEach {
@@ -246,13 +247,20 @@ class RBACFilterFactory(
     }
 
     private fun tlsPrincipals(tlsProperties: TlsAuthenticationProperties, client: String): List<Principal> {
-        val principalName = TlsUtils.resolveSanUri(client, tlsProperties.sanUriFormat)
+        val stringMatcher = if (client == tlsProperties.servicesAllowedToUseWildcardIdentifier) {
+            val regex = tlsUtils.resolveSanUriRegex()
+            StringMatcher.newBuilder()
+                    .setSafeRegex(regex)
+                    .build()
+        } else {
+            val principalName = TlsUtils.resolveSanUri(client, tlsProperties.sanUriFormat)
+            StringMatcher.newBuilder()
+                    .setExact(principalName)
+                    .build()
+        }
         return listOf(Principal.newBuilder().setAuthenticated(
                 Principal.Authenticated.newBuilder()
-                        .setPrincipalName(StringMatcher.newBuilder()
-                                .setExact(principalName)
-                                .build()
-                        )
+                        .setPrincipalName(stringMatcher)
                 ).build()
         )
     }

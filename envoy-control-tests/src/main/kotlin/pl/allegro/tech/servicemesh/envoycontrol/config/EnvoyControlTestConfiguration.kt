@@ -61,8 +61,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {
         private val logger by logger()
         private val defaultClient = ClientsFactory.createClient()
-        private val insecureClient = ClientsFactory.createInsecureClient()
-
         lateinit var envoyContainer1: EnvoyContainer
         lateinit var envoyContainer2: EnvoyContainer
         lateinit var localServiceContainer: EchoContainer
@@ -236,13 +234,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
         ): Response = EgressOperations(fromEnvoy).callService(service, headers, pathAndQuery)
-
-        fun callServiceInsecure(
-            service: String,
-            address: String = envoyContainer1.egressListenerUrl(),
-            headers: Map<String, String> = mapOf(),
-            pathAndQuery: String = ""
-        ): Response = call(service, address, headers, pathAndQuery, insecureClient)
 
         fun call(
             service: String,
