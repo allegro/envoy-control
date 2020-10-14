@@ -1,13 +1,8 @@
 plugins {
-    id 'org.jetbrains.kotlin.jvm'
     id 'application'
 }
 
 mainClassName = 'pl.allegro.tech.servicemesh.envoycontrol.EnvoyControl'
-
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     api project(':envoy-control-source-consul')
@@ -21,14 +16,6 @@ dependencies {
     api group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: versions.kotlin
     implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: versions.jackson
     implementation group: 'net.openhft', name: 'zero-allocation-hashing', version: versions.xxhash
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifact distZip, { classifier = "deploy" }
-        }
-    }
 }
 
 test {

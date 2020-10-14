@@ -209,9 +209,13 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
         private fun waitForEnvoyControlsHealthy() {
             await().atMost(30, TimeUnit.SECONDS).untilAsserted {
-                assertThat(envoyControl1.isHealthy()).isTrue()
+                assertThat(envoyControl1.isHealthy()).overridingErrorMessage(
+                    "Expecting first instance of EC to be healthy"
+                ).isTrue()
                 if (envoyControls == 2) {
-                    assertThat(envoyControl2.isHealthy()).isTrue()
+                    assertThat(envoyControl2.isHealthy()).overridingErrorMessage(
+                        "Expecting second instance of EC to be healthy"
+                    ).isTrue()
                 }
             }
         }
@@ -298,7 +302,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
-        fun <T> untilAsserted(wait: org.awaitility.Duration = defaultDuration, fn: () -> (T)): T {
+        fun <T> untilAsserted(wait: Duration = defaultDuration, fn: () -> (T)): T {
             var lastResult: T? = null
             await().atMost(wait).untilAsserted({ lastResult = fn() })
             assertThat(lastResult).isNotNull
@@ -421,7 +425,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     }
 
     fun ObjectAssert<Health>.hasEnvoyControlCheckPassed(): ObjectAssert<Health> {
-        matches { it.details.get("envoyControl")?.status == Status.UP }
+        matches { it.components.get("envoyControl")?.status == Status.UP }
         return this
     }
 
