@@ -16,7 +16,9 @@ class MetadataNodeGroup(
     private val logger by logger()
 
     override fun hash(node: Node): Group {
-        return createV2Group(node)
+        // We no longer support v2 transport.
+        // This code point will not be reached because we check it in NodeMetadataValidator#validateV2Metadata.
+        throw V2NotSupportedException(serviceName = null)
     }
 
     override fun hash(node: io.envoyproxy.envoy.config.core.v3.Node): Group {

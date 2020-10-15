@@ -110,7 +110,7 @@ class EnvoyControlRunnerTestApp(
         val response = httpClient.newCall(
             Request.Builder()
                 .post(RequestBody.create(MediaType.get("application/json"), nodeJson))
-                .url("http://localhost:$appPort/snapshotV2")
+                .url("http://localhost:$appPort/snapshot")
                 .build()
         ).execute()
 

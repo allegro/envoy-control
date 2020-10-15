@@ -86,8 +86,6 @@ internal class RBACFilterFactoryTest {
         setOf(),
         SnapshotResources.create(listOf(), ""),
         mapOf(),
-        SnapshotResources.create(listOf(), ""),
-        SnapshotResources.create(listOf(), ""),
         SnapshotResources.create(listOf(), "")
     )
 
@@ -110,8 +108,6 @@ internal class RBACFilterFactoryTest {
         setOf(),
         SnapshotResources.create(listOf(clusterLoadAssignment), ""),
         mapOf(),
-        SnapshotResources.create(listOf(), ""),
-        SnapshotResources.create(listOf(), ""),
         SnapshotResources.create(listOf(), "")
     )
 

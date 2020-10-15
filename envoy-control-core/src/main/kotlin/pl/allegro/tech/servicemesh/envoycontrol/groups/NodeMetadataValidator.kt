@@ -25,6 +25,11 @@ class ConfigurationModeNotSupportedException(serviceName: String?, mode: String)
     "Blocked service $serviceName from receiving updates. $mode is not supported by server."
 )
 
+class V2NotSupportedException(serviceName: String?)
+    : NodeMetadataValidationException(
+    "Blocked service $serviceName from receiving updates. V2 resources are not supported by server."
+)
+
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
@@ -62,7 +67,7 @@ class NodeMetadataValidator(
         // This may throw NodeMetadataValidationException
         val metadata = NodeMetadata(node.metadata, properties)
 
-        validateMetadata(metadata)
+        throw V2NotSupportedException(metadata.serviceName)
     }
 
     private fun validateMetadata(metadata: NodeMetadata) {

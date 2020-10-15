@@ -42,8 +42,6 @@ class EnvoySnapshotFactory(
 
         val clusters = clustersFactory.getClustersForServices(clusterConfigurations.values, communicationMode)
         val securedClusters = clustersFactory.getSecuredClusters(clusters)
-        val v3Clusters = clustersFactory.mapToV3Cluster(clusters)
-        val v3SecuredClusters = clustersFactory.mapToV3Cluster(clusters)
 
         val endpoints: List<ClusterLoadAssignment> = endpointsFactory.createLoadAssignment(
             clusters = clusterConfigurations.keys,
@@ -55,9 +53,7 @@ class EnvoySnapshotFactory(
             clusters = clusters,
             securedClusters = securedClusters,
             endpoints = endpoints,
-            properties = properties.outgoingPermissions,
-            v3Clusters = v3Clusters,
-            v3SecuredClusters = v3SecuredClusters
+            properties = properties.outgoingPermissions
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 

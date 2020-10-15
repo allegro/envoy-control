@@ -257,10 +257,7 @@ class EnvoyListenersFactory(
     private fun egressRds(communicationMode: CommunicationMode, version: ResourceVersion): Rds {
         val configSource = ConfigSource.newBuilder()
                 .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
-
-        if (version == ResourceVersion.V3) {
-            configSource.setResourceApiVersion(ApiVersion.V3)
-        }
+                .setResourceApiVersion(ApiVersion.V3)
 
         when (communicationMode) {
             ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
@@ -314,10 +311,7 @@ class EnvoyListenersFactory(
     private fun ingressRds(communicationMode: CommunicationMode, version: ResourceVersion): Rds {
         val configSource = ConfigSource.newBuilder()
                 .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
-
-        if (version == ResourceVersion.V3) {
-            configSource.setResourceApiVersion(ApiVersion.V3)
-        }
+                .setResourceApiVersion(ApiVersion.V3)
 
         when (communicationMode) {
             ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())

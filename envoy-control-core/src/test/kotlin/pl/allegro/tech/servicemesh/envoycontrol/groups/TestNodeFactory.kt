@@ -6,7 +6,7 @@ import com.google.protobuf.NullValue
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.api.v2.core.Node
+import io.envoyproxy.envoy.config.core.v3.Node
 
 fun node(
     serviceDependencies: Set<String> = emptySet(),

@@ -144,7 +144,8 @@ class ControlPlane private constructor(
                     meterRegistry,
                     properties.server.reportProtobufCacheMetrics
             )
-            val compositeDiscoveryCallbacksV2 = listOf(
+
+            val compositeDiscoveryCallbacksV3 = listOf(
                     CompositeDiscoveryServerCallbacks(
                             meterRegistry,
                             snapshotCollectingCallback,
@@ -152,20 +153,6 @@ class ControlPlane private constructor(
                             meteredConnectionsCallbacks,
                             NodeMetadataValidator(properties.envoy.snapshot)
                     )
-            )
-            val compositeDiscoveryCallbacksV3 = listOf(
-                    CompositeDiscoveryServerCallbacks(
-                            meterRegistry,
-                            loggingDiscoveryServerCallbacks,
-                            meteredConnectionsCallbacks,
-                            NodeMetadataValidator(properties.envoy.snapshot)
-                    )
-            )
-            val v2discoveryServer = V2DiscoveryServer(
-                compositeDiscoveryCallbacksV2,
-                groupChangeWatcher,
-                executorGroup,
-                cachedProtoResourcesSerializer
             )
             val v3discoveryServer = V3DiscoveryServer(
                     compositeDiscoveryCallbacksV3,
@@ -196,7 +183,6 @@ class ControlPlane private constructor(
             return ControlPlane(
                 grpcServer(
                         properties.server,
-                        v2discoveryServer,
                         v3discoveryServer,
                         nioEventLoopExecutor!!,
                         grpcServerExecutor!!
@@ -338,7 +324,6 @@ class ControlPlane private constructor(
 
         private fun grpcServer(
             config: ServerProperties,
-            v2discoveryServer: V2DiscoveryServer,
             v3discoveryServer: V3DiscoveryServer,
             nioEventLoopExecutor: Executor,
             grpcServerExecutor: Executor
@@ -353,7 +338,6 @@ class ControlPlane private constructor(
             .keepAliveTime(config.netty.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
             .permitKeepAliveTime(config.netty.permitKeepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
             .permitKeepAliveWithoutCalls(config.netty.permitKeepAliveWithoutCalls)
-            .withV2EnvoyServices(v2discoveryServer)
             .withV3EnvoyServices(v3discoveryServer)
             .build()
     }

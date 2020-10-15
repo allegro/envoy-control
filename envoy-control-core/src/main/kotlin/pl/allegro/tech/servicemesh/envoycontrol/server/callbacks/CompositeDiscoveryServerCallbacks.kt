@@ -36,9 +36,8 @@ class CompositeDiscoveryServerCallbacks(
     }
 
     override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequest?) {
-        runCallbacks {
-            it.onV2StreamRequest(streamId, request)
-        }
+        val metadata = request?.node?.metadata
+        logger.error("Server does not support V2 requests. Node metadata: {}", metadata)
     }
 
     override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {

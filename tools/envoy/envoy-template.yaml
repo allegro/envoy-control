@@ -118,10 +118,13 @@ static_resources:
 
 dynamic_resources:
   lds_config:
+    resource_api_version: V3
     ads: {}
   cds_config:
+    resource_api_version: V3
     ads: {}
   ads_config:
+    transport_api_version: V3
     api_type: GRPC
     grpc_services:
       envoy_grpc:

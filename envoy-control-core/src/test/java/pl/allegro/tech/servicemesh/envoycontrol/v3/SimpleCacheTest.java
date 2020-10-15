@@ -1,6 +1,14 @@
-package pl.allegro.tech.servicemesh.envoycontrol.v2;
+package pl.allegro.tech.servicemesh.envoycontrol.v3;
 import static io.envoyproxy.controlplane.cache.Resources.V2.CLUSTER_TYPE_URL;
 import static io.envoyproxy.controlplane.cache.Resources.V2.ROUTE_TYPE_URL;
+import io.envoyproxy.controlplane.cache.v3.Snapshot;
+import io.envoyproxy.envoy.config.cluster.v3.Cluster;
+import io.envoyproxy.envoy.config.core.v3.Node;
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.envoyproxy.envoy.config.listener.v3.Listener;
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret;
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.common.collect.ImmutableList;
@@ -12,16 +20,6 @@ import io.envoyproxy.controlplane.cache.Response;
 import io.envoyproxy.controlplane.cache.StatusInfo;
 import io.envoyproxy.controlplane.cache.Watch;
 import io.envoyproxy.controlplane.cache.XdsRequest;
-import io.envoyproxy.controlplane.cache.v2.Snapshot;
-import io.envoyproxy.envoy.api.v2.Cluster;
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment;
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest;
-import io.envoyproxy.envoy.api.v2.Listener;
-import io.envoyproxy.envoy.api.v2.RouteConfiguration;
-import io.envoyproxy.envoy.api.v2.auth.Secret;
-import io.envoyproxy.envoy.api.v2.core.Node;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -33,7 +31,7 @@ import java.util.stream.Collectors;
 import org.junit.Test;
 
 /**
- * This class is copy of {@link io.envoyproxy.controlplane.cache.v2.SimpleCacheTest}
+ * This class is copy of {@link io.envoyproxy.controlplane.cache.v3.SimpleCacheTest}
  */
 public class SimpleCacheTest {
 
@@ -555,17 +553,17 @@ public class SimpleCacheTest {
         protected static final String GROUP = "node";
 
         @Override
+        public String hash(io.envoyproxy.envoy.api.v2.core.Node node) {
+            throw new IllegalStateException("should not have received a v2 Node in a v3 Test");
+        }
+
+        @Override
         public String hash(Node node) {
             if (node == null) {
                 throw new IllegalArgumentException("node");
             }
 
             return GROUP;
-        }
-
-        @Override
-        public String hash(io.envoyproxy.envoy.config.core.v3.Node node) {
-            throw new IllegalStateException("should not have received a v3 Node in a v2 Test");
         }
     }
 

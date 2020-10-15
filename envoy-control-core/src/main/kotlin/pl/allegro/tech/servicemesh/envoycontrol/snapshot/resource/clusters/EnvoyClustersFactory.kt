@@ -36,7 +36,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
@@ -72,12 +71,6 @@ class EnvoyClustersFactory(
         return services.map { edsCluster(it, communicationMode) }
     }
 
-    fun mapToV3Cluster(
-        clusters: List<Cluster>
-    ): List<Cluster> {
-        return clusters.map { mapClusterToV3(it) }
-    }
-
     fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
         return insecureClusters.map { cluster ->
             val upstreamTlsContext = createTlsContextWithSdsSecretConfig(cluster.name)
@@ -101,17 +94,9 @@ class EnvoyClustersFactory(
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
-            if (group.version == ResourceVersion.V3) {
-                globalSnapshot.v3SecuredClusters.resources()
-            } else {
                 globalSnapshot.securedClusters.resources()
-            }
         } else {
-            if (group.version == ResourceVersion.V3) {
-                globalSnapshot.v3Clusters.resources()
-            } else {
                 globalSnapshot.clusters.resources()
-            }
         }
 
         return when (group) {
@@ -121,19 +106,6 @@ class EnvoyClustersFactory(
             is AllServicesGroup -> globalSnapshot.allServicesNames.mapNotNull {
                 clusters[it]
             }
-        }
-    }
-
-    private fun mapClusterToV3(cluster: Cluster): Cluster {
-        return cluster.let {
-            val v3Cluster = Cluster.newBuilder(it)
-            val v3EdsClusterConfig = Cluster.EdsClusterConfig.newBuilder(v3Cluster.edsClusterConfig)
-
-            v3Cluster.setEdsClusterConfig(
-                v3EdsClusterConfig.setEdsConfig(
-                    ConfigSource.newBuilder(v3EdsClusterConfig.edsConfig).setResourceApiVersion(ApiVersion.V3)
-                )
-            ).build()
         }
     }
 
@@ -258,14 +230,15 @@ class EnvoyClustersFactory(
                         // here we do not have group information
                         ADS -> ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
                         XDS ->
-                            ConfigSource.newBuilder().setApiConfigSource(
-                                ApiConfigSource.newBuilder().setApiType(ApiConfigSource.ApiType.GRPC)
-                                    .addGrpcServices(0, GrpcService.newBuilder().setEnvoyGrpc(
-                                        GrpcService.EnvoyGrpc.newBuilder()
-                                            .setClusterName(properties.xdsClusterName)
-                                    )
-                                    )
-                            )
+                            ConfigSource.newBuilder()
+                                .setResourceApiVersion(ApiVersion.V3)
+                                .setApiConfigSource(
+                                    ApiConfigSource.newBuilder().setApiType(ApiConfigSource.ApiType.GRPC)
+                                        .addGrpcServices(0, GrpcService.newBuilder().setEnvoyGrpc(
+                                            GrpcService.EnvoyGrpc.newBuilder()
+                                                .setClusterName(properties.xdsClusterName)
+                                        ))
+                                )
                     }
                 ).setServiceName(clusterConfiguration.serviceName)
             )
