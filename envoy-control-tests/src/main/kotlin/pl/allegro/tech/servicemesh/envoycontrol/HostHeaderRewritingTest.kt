@@ -10,7 +10,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
 
@@ -29,10 +28,6 @@ class HostHeaderRewritingTest {
             "envoy-control.envoy.snapshot.egress.host-header-rewriting.custom-host-header" to customHostHeader,
             "envoy-control.envoy.snapshot.egress.host-header-rewriting.enabled" to true
         ))
-
-        @JvmField
-        @RegisterExtension
-        val service = EchoServiceExtension()
 
         @JvmField
         @RegisterExtension
