@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyConta
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer.Companion.allInterfaces
 
 @Testcontainers
-internal class Toxiproxy {
+internal class Toxiproxy private constructor() {
     companion object {
         val toxiproxyGrpcPort = Ports.nextAvailable()
         val toxiproxyGrpcPort2 = Ports.nextAvailable()

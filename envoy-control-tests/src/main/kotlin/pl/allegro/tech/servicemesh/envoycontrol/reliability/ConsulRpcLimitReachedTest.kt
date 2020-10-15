@@ -2,13 +2,14 @@ package pl.allegro.tech.servicemesh.envoycontrol.reliability
 
 import com.ecwid.consul.v1.OperationException
 import org.assertj.core.api.Assertions.assertThat
-import org.awaitility.Duration
+import org.awaitility.Durations
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulOperations
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.externalEnvoyControl1GrpcPort
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.toxiproxyGrpcPort
+import java.time.Duration
 
 @Suppress("SwallowedException")
 internal class ConsulRpcLimitReachedTest : ReliabilityTest() {
@@ -33,10 +34,10 @@ internal class ConsulRpcLimitReachedTest : ReliabilityTest() {
     fun `is resilient to ECs consul client reaching RPC limit`() {
         // given
         // if failureDuration is Duration(1, SECONDS).divide(2) then Duration(0, SECONDS)
-        registerEchoInOtherAgentAfter(failureDuration.divide(2L))
+        registerEchoInOtherAgentAfter(failureDuration.dividedBy(2L))
 
         // when
-        holdAssertionsTrue(interval = Duration.ONE_SECOND) {
+        holdAssertionsTrue(interval = Durations.ONE_SECOND) {
             rpcLimitReached()
         }
 
@@ -45,7 +46,7 @@ internal class ConsulRpcLimitReachedTest : ReliabilityTest() {
     }
 
     private fun assertEchoReachableThroughProxy() {
-        untilAsserted(wait = defaultDuration.multiply(2L)) {
+        untilAsserted(wait = defaultDuration.multipliedBy(2L)) {
             callService("echo").use {
                 assertThat(it).isOk().isFrom(echoContainer)
             }
@@ -54,7 +55,7 @@ internal class ConsulRpcLimitReachedTest : ReliabilityTest() {
 
     private fun registerEchoInOtherAgentAfter(time: Duration) {
         Thread {
-            Thread.sleep(time.valueInMS)
+            Thread.sleep(time.toMillis())
             registerService(name = "echo")
         }.start()
     }

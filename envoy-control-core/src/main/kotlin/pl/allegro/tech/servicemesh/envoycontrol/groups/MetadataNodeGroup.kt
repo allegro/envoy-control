@@ -59,7 +59,7 @@ class MetadataNodeGroup(
         val ingressHost = ingressHostValue.stringValue
         val ingressPort = ingressPortValue.numberValue.toInt()
 
-        if (ingressPort < 0 || ingressPort > Companion.MAX_PORT_VALUE) {
+        if (ingressPort < 0 || ingressPort > MAX_PORT_VALUE) {
             logger.warn("Node $id has ingress port out of valid range [0-65535]. Falling back to static listeners.")
             return null
         }
@@ -67,7 +67,7 @@ class MetadataNodeGroup(
         val egressHost = egressHostValue.stringValue
         val egressPort = egressPortValue.numberValue.toInt()
 
-        if (egressPort < 0 || egressPort > Companion.MAX_PORT_VALUE) {
+        if (egressPort < 0 || egressPort > MAX_PORT_VALUE) {
             logger.warn("Node $id has egress port out of valid range [0-65535]. Falling back to static listeners.")
             return null
         }

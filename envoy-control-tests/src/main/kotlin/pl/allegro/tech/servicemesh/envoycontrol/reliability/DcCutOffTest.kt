@@ -67,7 +67,7 @@ class DcCutOffTest : ReliabilityTest() {
     private fun makeChangesInRemoteDcAsynchronously(id: String) {
         Thread {
             // if failureDuration is Duration(1, SECONDS).divide(2) then Duration(0, SECONDS)
-            Thread.sleep(failureDuration.divide(2L).valueInMS)
+            Thread.sleep(failureDuration.dividedBy(2L).toMillis())
             deregisterServiceInRemoteDc(id)
             registerServiceInRemoteCluster("echo", echoContainer2)
         }.start()

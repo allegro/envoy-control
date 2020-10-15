@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
+import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -44,6 +45,7 @@ class EnvoyDefaultFilters(
      * * defaultEnvoyRouterHttpFilter - router filter should be always the last filter.
      */
     val defaultIngressFilters = listOf(defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter)
+    val defaultIngressMetadata: Metadata = luaFilterFactory.ingressRbacLoggingMetadata()
 
     private fun headerToMetadataConfig(
         rules: List<Config.Rule>,
