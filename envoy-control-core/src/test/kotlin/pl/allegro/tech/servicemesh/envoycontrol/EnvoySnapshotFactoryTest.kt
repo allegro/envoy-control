@@ -88,7 +88,7 @@ class EnvoySnapshotFactoryTest {
         // when
         val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
 
-        //then
+        // then
         val listeners = snapshot.listeners().resources()
         assertThat(listeners.size).isEqualTo(0)
     }
