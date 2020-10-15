@@ -113,8 +113,7 @@ class EnvoyIngressRoutesFactory(
                     .setRoute(clusterRouteActionWithRetryPolicy(retryPolicy, localRouteAction))
             }
         return (retryRoutes + nonRetryRoute).map { builder ->
-            builder.setMetadata(filterMetadata)
-                .build()
+            builder.setMetadata(filterMetadata).build()
         }
     }
 

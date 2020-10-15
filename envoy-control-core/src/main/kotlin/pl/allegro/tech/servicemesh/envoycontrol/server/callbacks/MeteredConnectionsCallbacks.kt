@@ -6,6 +6,7 @@ import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
 import java.util.concurrent.atomic.AtomicInteger
 
+@Suppress("EmptyFunctionBlock")
 class MeteredConnectionsCallbacks(
     val connections: AtomicInteger = AtomicInteger()
 ) : DiscoveryServerCallbacks {

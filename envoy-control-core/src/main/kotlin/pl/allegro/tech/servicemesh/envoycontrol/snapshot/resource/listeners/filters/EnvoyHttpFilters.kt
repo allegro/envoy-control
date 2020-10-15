@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
-import io.envoyproxy.envoy.api.v2.core.Metadata
+import io.envoyproxy.envoy.config.core.v3.Metadata
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.HttpFilterFactory
 

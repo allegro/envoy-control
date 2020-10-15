@@ -14,6 +14,7 @@ data class GlobalSnapshot(
     val v3SecuredClusters: SnapshotResources<Cluster>
 )
 
+@Suppress("LongParameterList")
 internal fun globalSnapshot(
     clusters: Iterable<Cluster>,
     endpoints: Iterable<ClusterLoadAssignment>,
