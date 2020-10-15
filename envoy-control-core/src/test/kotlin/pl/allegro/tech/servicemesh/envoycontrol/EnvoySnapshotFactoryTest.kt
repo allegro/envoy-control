@@ -44,7 +44,7 @@ class EnvoySnapshotFactoryTest {
 
     @Test
     fun shouldGetSnapshotListenersForGroupWhenDynamicListenersEnabled() {
-        //given
+        // given
         val properties = SnapshotProperties()
         val envoySnapshotFactory = createSnapshotFactory(properties)
 
@@ -52,10 +52,10 @@ class EnvoySnapshotFactoryTest {
         val cluster = createCluster(properties)
         val globalSnapshot = createGlobalSnapshot(cluster)
 
-        //when
+        // when
         val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
 
-        //then
+        // then
         val listeners = snapshot.listeners().resources()
 
         assertThat(listeners.size).isEqualTo(2)
@@ -77,7 +77,7 @@ class EnvoySnapshotFactoryTest {
 
     @Test
     fun shouldGetEmptySnapshotListenersListForGroupWhenDynamicListenersPropertyIsNotEnabled() {
-        //given
+        // given
         val defaultProperties = SnapshotProperties().also { it.dynamicListeners.enabled = false }
         val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
 
@@ -85,7 +85,7 @@ class EnvoySnapshotFactoryTest {
         val cluster = createCluster(defaultProperties)
         val globalSnapshot = createGlobalSnapshot(cluster)
 
-        //when
+        // when
         val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
 
         //then
@@ -95,7 +95,7 @@ class EnvoySnapshotFactoryTest {
 
     @Test
     fun shouldGetEmptySnapshotListenersListForGroupWhenGroupListenersConfigIsNull() {
-        //given
+        // given
         val defaultProperties = SnapshotProperties().also { it.dynamicListeners.enabled = false }
         val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
 
@@ -103,10 +103,10 @@ class EnvoySnapshotFactoryTest {
         val cluster = createCluster(defaultProperties)
         val globalSnapshot = createGlobalSnapshot(cluster)
 
-        //when
+        // when
         val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
 
-        //then
+        // then
         val listeners = snapshot.listeners().resources()
         assertThat(listeners.size).isEqualTo(0)
     }
