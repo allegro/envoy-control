@@ -111,9 +111,6 @@ subprojects {
             maven(MavenPublication) {
                 from project.components.java
             }
-            gpr(MavenPublication) {
-                from project.components.java
-            }
         }
 
     }
