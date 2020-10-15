@@ -31,3 +31,8 @@ fun ObjectAssert<Response>.isFrom(echoServiceExtension: EchoServiceExtension): O
     }
     return this
 }
+
+fun ObjectAssert<Response>.hasXEnvoyUpstreamRemoteAddressFrom(echoServiceExtension: EchoServiceExtension): ObjectAssert<Response> {
+    matches { it.headers("x-envoy-upstream-remote-address").contains(echoServiceExtension.container().address()) }
+    return this
+}
