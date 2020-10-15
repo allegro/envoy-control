@@ -32,7 +32,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIn
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
 
-
 class EnvoySnapshotFactoryTest {
     companion object {
         const val INGRESS_HOST = "ingress-host"
@@ -75,7 +74,6 @@ class EnvoySnapshotFactoryTest {
         assertThat(egressSocket?.portValue).isEqualTo(EGRESS_PORT)
         assertThat(egressFilterChain?.filtersList?.get(0)?.name).isEqualTo("envoy.http_connection_manager")
     }
-
 
     @Test
     fun shouldGetEmptySnapshotListenersListForGroupWhenDynamicListenersPropertyIsNotEnabled() {
