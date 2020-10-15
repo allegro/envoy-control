@@ -46,12 +46,10 @@ open class BaseEnvoyTest {
         val consul: ConsulContainer = consulMastersInDc1[0].container
 
         init {
-            echoContainer.start()
-            echoContainer2.start()
             setupMultiDcConsul()
             consulAgentInDc1 = ConsulSetup(network, ConsulClientConfig(1, "dc1", consul.ipAddress()))
-            consulAgentInDc1.container.start()
             lowRpcConsulClient = setupLowRpcConsulClient()
+            listOf(echoContainer, echoContainer2, consulAgentInDc1.container, lowRpcConsulClient.container).parallelStream().forEach { it.start() }
         }
 
         private fun setupLowRpcConsulClient(): ConsulSetup {
@@ -64,7 +62,6 @@ open class BaseEnvoyTest {
                     jsonFiles = listOf(File("testcontainers/consul-low-rpc-rate.json"))
                 )
             )
-            client.container.start()
             return client
         }
 
@@ -75,7 +72,7 @@ open class BaseEnvoyTest {
         }
 
         private fun joinClusters(consulsInDc1: List<ConsulSetup>, consulsInDc2: List<ConsulSetup>) {
-            consulsInDc1.forEach { consul ->
+            consulsInDc1.parallelStream().forEach { consul ->
                 val consulInDc2ContainerNames = consulsInDc2.map { it.container.containerName() }.toTypedArray()
                 val args = arrayOf("consul", "join", "-wan", *consulInDc2ContainerNames)
                 consul.container.execInContainer(*args)
@@ -83,11 +80,11 @@ open class BaseEnvoyTest {
         }
 
         private fun startConsulCluster(consuls: List<ConsulSetup>) {
-            consuls.forEach { consul ->
+            consuls.parallelStream().forEach { consul ->
                 consul.container.start()
             }
-            consuls.forEach { consul ->
-                val consulContainerNames = consuls.map { it.container.containerName() }.toTypedArray()
+            val consulContainerNames = consuls.map { it.container.containerName() }.toTypedArray()
+            consuls.parallelStream().forEach { consul ->
                 val args = arrayOf("consul", "join", *consulContainerNames)
                 consul.container.execInContainer(*args)
             }
