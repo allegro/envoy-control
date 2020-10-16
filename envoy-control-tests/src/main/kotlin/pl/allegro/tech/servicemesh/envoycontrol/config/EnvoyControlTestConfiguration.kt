@@ -169,14 +169,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             ).withNetwork(network)
         }
 
-        fun createEnvoyContainerWithFaultyConfig(): EnvoyContainer {
-            return createEnvoyContainer(
-                envoyConfig = FaultyConfig,
-                envoyConnectGrpcPort = null,
-                envoyConnectGrpcPort2 = null
-            ).withStartupTimeout(Duration.ofSeconds(10))
-        }
-
         fun createEnvoyContainerWithEcho3Certificate(configOverride: String = ""): EnvoyContainer {
             val echo3EnvoyConfig = Echo3EnvoyAuthConfig.copy(configOverride = configOverride)
 
@@ -393,13 +385,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         matches {
             it.body()?.use { it.string().contains(echoContainer.response) } ?: false
         }
-        return this
-    }
-
-    fun ObjectAssert<Response>.hasHostHeaderWithValue(overriddenHostHeader: String): ObjectAssert<Response> {
-        matches({
-            it.body()?.use { it.string().contains("\"host\": \"$overriddenHostHeader\"") } ?: false
-        }, "Header Host should be overridden with value: $overriddenHostHeader")
         return this
     }
 
