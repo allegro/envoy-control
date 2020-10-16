@@ -123,6 +123,7 @@ class RoutesProperties {
     var admin = AdminRouteProperties()
     var status = StatusRouteProperties()
     var authorization = AuthorizationProperties()
+    var headersToRemove: List<String> = emptyList()
 }
 
 class ClusterOutlierDetectionProperties {

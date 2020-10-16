@@ -16,6 +16,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOneDomain
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOnlyRoutesInOrder
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeaderToRemove
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasSingleVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
@@ -67,6 +68,7 @@ internal class EnvoyIngressRoutesFactoryTest {
             pathPrefix = "/config_dump"
             method = "GET"
         })
+        routes.headersToRemove = listOf("x-via-vip")
     })
     private val adminRoutes = arrayOf(
         configDumpAuthorizedRoute(),
@@ -99,6 +101,7 @@ internal class EnvoyIngressRoutesFactoryTest {
 
         // then
         routeConfig
+            .hasRequestHeaderToRemove("x-via-vip")
             .hasSingleVirtualHostThat {
                 hasStatusVirtualClusters()
                 hasOneDomain("*")
