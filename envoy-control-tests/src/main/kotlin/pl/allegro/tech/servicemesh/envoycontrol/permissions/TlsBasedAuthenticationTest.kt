@@ -114,10 +114,6 @@ internal class TlsBasedAuthenticationTest {
 
         @JvmField
         @RegisterExtension
-        val service3 = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
         val echo1Envoy = EnvoyExtension(envoyControl, service1, echo1EnvoyConfig)
 
         @JvmField
@@ -131,10 +127,6 @@ internal class TlsBasedAuthenticationTest {
         @JvmField
         @RegisterExtension
         val envoyDifferentCa = EnvoyExtension(envoyControl, service2, envoyDifferentCaConfig)
-
-        @JvmField
-        @RegisterExtension
-        val envoyContainerWithEcho3San = EnvoyExtension(envoyControl, service2, envoyContainerWithEcho3SanConfig)
 
         @JvmField
         @RegisterExtension
@@ -228,6 +220,10 @@ internal class TlsBasedAuthenticationTest {
 
     @Test
     fun `should not allow traffic that fails client SAN validation`() {
+        // given
+        val envoyContainerWithEcho3San = EnvoyExtension(envoyControl, service2, envoyContainerWithEcho3SanConfig)
+        envoyContainerWithEcho3San.container.start()
+
         untilAsserted {
             // when
             // echo2 doesn't allow requests from echo3
@@ -238,6 +234,8 @@ internal class TlsBasedAuthenticationTest {
             assertThat(sanValidationFailure).isGreaterThan(0)
             assertThat(invalidResponse).isForbidden()
         }
+
+        envoyContainerWithEcho3San.container.stop()
     }
 
     @Test
