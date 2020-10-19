@@ -3,7 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -38,12 +38,12 @@ class NodeMetadataValidatorTest {
 
         // when
         val exception = catchThrowable { validator.onStreamRequest(streamId = 123, request = request) }
-        
+
         // then
-        assertThat(exception).isInstanceOf(AllDependenciesValidationException::class.java)
-        val validationException = exception as AllDependenciesValidationException
+        assertThat(exception).isInstanceOf(WildcardPrincipalValidationException::class.java)
+        val validationException = exception as WildcardPrincipalValidationException
         assertThat(validationException.status.description)
-            .isEqualTo("Blocked service regular-1 from using all dependencies. Only defined services can use all dependencies")
+            .isEqualTo("Blocked service regular-1 from allowing everyone in incoming permissions. Only defined services can use that.")
         assertThat(validationException.status.code)
             .isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -58,15 +58,16 @@ class NodeMetadataValidatorTest {
         )
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
+        // when
+        val exception = catchThrowable { validator.onStreamRequest(streamId = 123, request = request) }
+
         // expects
-        assertThatExceptionOfType(WildcardPrincipalMixedWithOthersValidationException::class.java)
-                .isThrownBy { validator.onStreamRequest(streamId = 123, request = request) }
-                .satisfies {
-                    assertThat(it.status.description).isEqualTo(
-                            "Blocked service vis-1 from allowing everyone in incoming permissions. Either a wildcard or a list of clients must be provided."
-                    )
-                    assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-                }
+        assertThat(exception).isInstanceOf(WildcardPrincipalMixedWithOthersValidationException::class.java)
+        val validationException = exception as WildcardPrincipalMixedWithOthersValidationException
+        assertThat(validationException.status.description)
+            .isEqualTo("Blocked service vis-1 from allowing everyone in incoming permissions. Either a wildcard or a list of clients must be provided.")
+        assertThat(validationException.status.code)
+            .isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test
@@ -78,15 +79,16 @@ class NodeMetadataValidatorTest {
         )
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
+        // when
+        val exception = catchThrowable { validator.onStreamRequest(streamId = 123, request = request) }
+
         // expects
-        assertThatExceptionOfType(AllDependenciesValidationException::class.java)
-            .isThrownBy { validator.onStreamRequest(streamId = 123, request = request) }
-            .satisfies {
-                assertThat(it.status.description).isEqualTo(
-                    "Blocked service regular-1 from using all dependencies. Only defined services can use all dependencies"
-                )
-                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-            }
+        assertThat(exception).isInstanceOf(AllDependenciesValidationException::class.java)
+        val validationException = exception as AllDependenciesValidationException
+        assertThat(validationException.status.description)
+            .isEqualTo("Blocked service regular-1 from using all dependencies. Only defined services can use all dependencies")
+        assertThat(validationException.status.code)
+            .isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test
@@ -159,15 +161,16 @@ class NodeMetadataValidatorTest {
         )
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
+        // when
+        val exception = catchThrowable { configurationModeValidator.onStreamRequest(streamId = 123, request = request) }
+
         // expects
-        assertThatExceptionOfType(ConfigurationModeNotSupportedException::class.java)
-            .isThrownBy { configurationModeValidator.onStreamRequest(streamId = 123, request = request) }
-            .satisfies {
-                assertThat(it.status.description).isEqualTo(
-                    "Blocked service regular-1 from receiving updates. $modeNotSupportedName is not supported by server."
-                )
-                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-            }
+        assertThat(exception).isInstanceOf(ConfigurationModeNotSupportedException::class.java)
+        val validationException = exception as ConfigurationModeNotSupportedException
+        assertThat(validationException.status.description)
+            .isEqualTo("Blocked service regular-1 from receiving updates. $modeNotSupportedName is not supported by server.")
+        assertThat(validationException.status.code)
+            .isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @ParameterizedTest

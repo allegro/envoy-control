@@ -14,7 +14,7 @@ class SanUriMatcherFactory(
     private fun escapeRegex(sanUriFormat: String): String {
         val parts = sanUriFormat.split(serviceNameTemplate)
         if (parts.size != 2) {
-            throw IllegalArgumentException("San URI format $sanUriFormat does not properly contain $serviceNameTemplate")
+            throw IllegalArgumentException("SAN URI $sanUriFormat does not properly contain $serviceNameTemplate")
         }
         val prefix = maybeWrap(parts[0])
         val suffix = maybeWrap(parts[1])
