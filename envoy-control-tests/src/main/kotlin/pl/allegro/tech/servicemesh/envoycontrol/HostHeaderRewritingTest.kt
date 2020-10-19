@@ -1,50 +1,51 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
+import org.assertj.core.api.ObjectAssert
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
 
-internal class HostHeaderRewritingTest : EnvoyControlTestConfiguration() {
+class HostHeaderRewritingTest {
 
     companion object {
         const val customHostHeader = "x-envoy-original-host-test"
-        val httpsEchoContainer = HttpsEchoContainer()
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            httpsEchoContainer.start()
-            setup(
-                appFactoryForEc1 = { consulPort ->
-                    EnvoyControlRunnerTestApp(
-                        consulPort = consulPort, properties = mapOf(
-                            "envoy-control.envoy.snapshot.egress.host-header-rewriting.custom-host-header" to customHostHeader,
-                            "envoy-control.envoy.snapshot.egress.host-header-rewriting.enabled" to true
-                        )
-                    )
-                }
-            )
-        }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
-        @JvmStatic
-        @AfterAll
-        fun teardown() {
-            httpsEchoContainer.stop()
-        }
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.envoy.snapshot.egress.host-header-rewriting.custom-host-header" to customHostHeader,
+            "envoy-control.envoy.snapshot.egress.host-header-rewriting.enabled" to true
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val httpsService = GenericServiceExtension(HttpsEchoContainer())
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl)
     }
 
     @Test
     fun `should override Host header with value from specified custom header`() {
         // given
-        registerService(name = "host-rewrite-service", container = httpsEchoContainer, port = HttpsEchoContainer.PORT)
+        consul.server.operations.registerService(httpsService, name = "host-rewrite-service")
 
         untilAsserted {
             // when
-            val response = callService(
+            val response = envoy.egressOperations.callService(
                 service = "host-rewrite-service",
                 pathAndQuery = "/headers",
                 headers = mapOf(customHostHeader to "some-original-host")
@@ -58,11 +59,11 @@ internal class HostHeaderRewritingTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should not override Host header when target service has host-header-rewriting disabled`() {
         // given
-        registerService(name = "service-1", container = httpsEchoContainer, port = HttpsEchoContainer.PORT)
+        consul.server.operations.registerService(httpsService, name = "service-1")
 
         untilAsserted {
             // when
-            val response = callService(
+            val response = envoy.egressOperations.callService(
                 service = "service-1",
                 pathAndQuery = "/headers",
                 headers = mapOf(customHostHeader to "some-original-host")
@@ -72,4 +73,11 @@ internal class HostHeaderRewritingTest : EnvoyControlTestConfiguration() {
             assertThat(response).isOk().hasHostHeaderWithValue("service-1")
         }
     }
+}
+
+fun ObjectAssert<Response>.hasHostHeaderWithValue(overriddenHostHeader: String): ObjectAssert<Response> {
+    matches({
+        it.body()?.use { it.string().contains("\"host\": \"$overriddenHostHeader\"") } ?: false
+    }, "Header Host should be overridden with value: $overriddenHostHeader")
+    return this
 }
