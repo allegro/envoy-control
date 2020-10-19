@@ -168,9 +168,13 @@ class EnvoyIngressRoutesFactory(
             }
         val builder = RouteConfiguration.newBuilder()
             .setName("ingress_secured_routes")
-        if (properties.routes.headersToRemove.isNotEmpty()) {
-            builder.addAllRequestHeadersToRemove(properties.routes.headersToRemove)
+
+        when {
+            properties.ingress.headersToRemove.isNotEmpty() -> {
+                builder.addAllRequestHeadersToRemove(properties.ingress.headersToRemove)
+            }
         }
+
         return builder
             .addVirtualHosts(virtualHost)
             .build()

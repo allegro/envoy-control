@@ -27,8 +27,8 @@ fun RouteConfiguration.hasRequestHeaderToAdd(key: String, value: String): RouteC
     return this
 }
 
-fun RouteConfiguration.hasRequestHeaderToRemove(value: String): RouteConfiguration {
-    assertThat(this.requestHeadersToRemoveList).contains(value)
+fun RouteConfiguration.hasRequestHeadersToRemove(value: List<String>): RouteConfiguration {
+    assertThat(this.requestHeadersToRemoveList).containsAll(value)
     return this
 }
 

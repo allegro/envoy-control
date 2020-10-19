@@ -11,6 +11,7 @@ class SnapshotProperties {
     var routes = RoutesProperties()
     var localService = LocalServiceProperties()
     var egress = EgressProperties()
+    var ingress = IngressProperties()
     var incomingPermissions = IncomingPermissionsProperties()
     var outgoingPermissions = OutgoingPermissionsProperties()
     var loadBalancing = LoadBalancingProperties()
@@ -123,7 +124,6 @@ class RoutesProperties {
     var admin = AdminRouteProperties()
     var status = StatusRouteProperties()
     var authorization = AuthorizationProperties()
-    var headersToRemove: List<String> = emptyList()
 }
 
 class ClusterOutlierDetectionProperties {
@@ -220,6 +220,10 @@ class EgressProperties {
     var commonHttp = CommonHttpProperties()
     var neverRemoveClusters = true
     var hostHeaderRewriting = HostHeaderRewritingProperties()
+}
+
+class IngressProperties {
+    var headersToRemove = mutableListOf<String>()
 }
 
 class CommonHttpProperties {
