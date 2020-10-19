@@ -36,15 +36,16 @@ class NodeMetadataValidatorTest {
         )
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
-        // expects
-        assertThatExceptionOfType(WildcardPrincipalValidationException::class.java)
-                .isThrownBy { validator.onStreamRequest(streamId = 123, request = request) }
-                .satisfies {
-                    assertThat(it.status.description).isEqualTo(
-                            "Blocked service regular-1 from allowing everyone in incoming permissions. Only defined services can use that."
-                    )
-                    assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-                }
+        // when
+        val exception = catchThrowable { validator.onStreamRequest(streamId = 123, request = request) }
+        
+        // then
+        assertThat(exception).isInstanceOf(AllDependenciesValidationException::class.java)
+        val validationException = exception as AllDependenciesValidationException
+        assertThat(validationException.status.description)
+            .isEqualTo("Blocked service regular-1 from using all dependencies. Only defined services can use all dependencies")
+        assertThat(validationException.status.code)
+            .isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test
