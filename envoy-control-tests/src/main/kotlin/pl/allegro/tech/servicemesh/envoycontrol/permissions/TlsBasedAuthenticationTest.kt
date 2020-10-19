@@ -182,7 +182,7 @@ internal class TlsBasedAuthenticationTest {
     fun `should encrypt traffic between selected services`() {
         untilAsserted {
             // when
-            val validResponse = echo1Envoy.egressOperations.callService("echo2", pathAndQuery = "/secured_endpoint")
+            val validResponse = callEcho2FromEcho1()
 
             // then
             val sslHandshakes = echo1Envoy.container.admin().statValue("cluster.echo2.ssl.handshake")?.toInt()
@@ -231,7 +231,7 @@ internal class TlsBasedAuthenticationTest {
         untilAsserted {
             // when
             // echo2 doesn't allow requests from echo3
-            val invalidResponse = envoyContainerWithEcho3San.egressOperations.callService("echo2", pathAndQuery = "/secured_endpoint")
+            val invalidResponse = callEcho2(from = envoyContainerWithEcho3San)
 
             // then
             val sanValidationFailure = echo2Envoy.container.admin().statValue("http.ingress_https.rbac.denied")?.toInt()
@@ -247,7 +247,7 @@ internal class TlsBasedAuthenticationTest {
 
         untilAsserted {
             // when
-            val invalidResponse = echo1Envoy.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
+            val invalidResponse = callEcho3FromEcho1()
 
             // then
             val sanValidationFailure = echo1Envoy.container.admin().statValue("cluster.echo3.ssl.fail_verify_san")?.toInt()
@@ -260,7 +260,7 @@ internal class TlsBasedAuthenticationTest {
     fun `client should reject server certificate signed by not trusted CA`() {
         untilAsserted {
             // when
-            val invalidResponse = envoyNotTrustingDefaultCa.egressOperations.callService("echo2", pathAndQuery = "/secured_endpoint")
+            val invalidResponse = callEcho2(from = envoyNotTrustingDefaultCa)
 
             // then
             val serverTlsErrors = echo2Envoy.container.admin().statValue("listener.0.0.0.0_5001.ssl.connection_error")?.toInt()
@@ -277,7 +277,7 @@ internal class TlsBasedAuthenticationTest {
     fun `server should reject client certificate signed by not trusted CA`() {
         untilAsserted {
             // when
-            val invalidResponse = envoyDifferentCa.egressOperations.callService("echo2", pathAndQuery = "/secured_endpoint")
+            val invalidResponse = callEcho2(from = envoyDifferentCa)
 
             // then
             val serverVerificationErrors = echo2Envoy.container.admin().statValue("listener.0.0.0.0_5001.ssl.fail_verify_error")?.toInt()
@@ -315,10 +315,10 @@ internal class TlsBasedAuthenticationTest {
         )
         untilAsserted {
             // when
-            val validResponse1 = echo1Envoy.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
-            val validResponse2 = echo2Envoy.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
-            val invalidResponse1 = envoyDifferentCa.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
-            val invalidResponse2 = envoyNotTrustingDefaultCa.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
+            val validResponse1 = callEcho3FromEcho1()
+            val validResponse2 = callEcho3FromEcho2()
+            val invalidResponse1 = callEcho3FromEchoWithDifferentCa()
+            val invalidResponse2 = callEcho3FromEchoWithNotTrustingDefaultCa()
 
             // then
             assertThat(validResponse1).isOk()
@@ -339,4 +339,22 @@ internal class TlsBasedAuthenticationTest {
 
         return request.execute()
     }
+
+    private fun callEcho2FromEcho1() =
+        echo1Envoy.egressOperations.callService("echo2", pathAndQuery = "/secured_endpoint")
+
+    private fun callEcho2(from: EnvoyExtension) = from.egressOperations.callService("echo2", pathAndQuery = "/secured_endpoint")
+
+    private fun callEcho3FromEcho1() =
+        echo1Envoy.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
+
+    private fun callEcho3FromEcho2() =
+        echo2Envoy.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
+
+    private fun callEcho3FromEchoWithNotTrustingDefaultCa() =
+        envoyNotTrustingDefaultCa.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
+
+    private fun callEcho3FromEchoWithDifferentCa() =
+        envoyDifferentCa.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
+
 }
