@@ -356,5 +356,4 @@ internal class TlsBasedAuthenticationTest {
 
     private fun callEcho3FromEchoWithDifferentCa() =
         envoyDifferentCa.egressOperations.callService("echo3", pathAndQuery = "/secured_endpoint")
-
 }
