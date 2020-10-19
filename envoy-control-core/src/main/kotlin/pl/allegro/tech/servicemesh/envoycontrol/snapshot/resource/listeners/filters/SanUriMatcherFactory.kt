@@ -9,19 +9,17 @@ class SanUriMatcherFactory(
     private val tlsProperties: TlsAuthenticationProperties
 ) {
     private val serviceNameTemplate = "{service-name}"
-    private val sanUriWildcardRegex = escapeRegex(tlsProperties.sanUriFormat)
+    private val sanUriWildcardRegex = createSanUriWildcardRegex(tlsProperties.sanUriFormat)
 
-    private fun escapeRegex(sanUriFormat: String): String {
+    private fun createSanUriWildcardRegex(sanUriFormat: String): String {
         val parts = sanUriFormat.split(serviceNameTemplate)
         if (parts.size != 2) {
             throw IllegalArgumentException("SAN URI $sanUriFormat does not properly contain $serviceNameTemplate")
         }
-        val prefix = maybeWrap(parts[0])
-        val suffix = maybeWrap(parts[1])
+        val prefix = Regex.escape(parts[0])
+        val suffix = Regex.escape(parts[1])
         return "$prefix${tlsProperties.serviceNameWildcardRegex}$suffix"
     }
-
-    private fun maybeWrap(part: String) = if (part != "") """\Q$part\E""" else ""
 
     private val sanUriRegexMatcher = RegexMatcher.newBuilder()
         .setGoogleRe2(RegexMatcher.GoogleRE2.getDefaultInstance())
