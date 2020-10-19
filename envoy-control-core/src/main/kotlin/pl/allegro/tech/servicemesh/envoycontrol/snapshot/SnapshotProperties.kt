@@ -76,7 +76,7 @@ class SelectorMatching {
 }
 
 class TlsAuthenticationProperties {
-    var servicesAllowedToUseWildcardIdentifier = "*"
+    var wildcardClientIdentifier = "*"
     var servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
     var tlsContextMetadataMatchKey = "acceptMTLS"
     var protocol = TlsProtocolProperties()
@@ -85,7 +85,7 @@ class TlsAuthenticationProperties {
     var validationContextSecretName: String = "validation_context"
     var tlsCertificateSecretName: String = "server_cert"
     var mtlsEnabledTag: String = "mtls:enabled"
-    var sanUriWildcardRegex: String = "spiffe:\\/\\/.+"
+    var serviceNameWildcardRegex: String = ".+"
     var sanUriFormat: String = "spiffe://{service-name}"
 }
 

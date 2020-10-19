@@ -81,7 +81,7 @@ class NodeMetadataValidator(
     private fun validateIncomingEndpoints(metadata: NodeMetadata) {
         metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
             val clients = incomingEndpoint.clients.map { it.name }
-            if (clients.contains(tlsProperties.servicesAllowedToUseWildcardIdentifier)) {
+            if (clients.contains(tlsProperties.wildcardClientIdentifier)) {
                 if (clients.size != 1) {
                     throw WildcardPrincipalMixedWithOthersValidationException(metadata.serviceName)
                 }
