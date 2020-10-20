@@ -30,7 +30,6 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
-import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -41,7 +40,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
-import pl.allegro.tech.servicemesh.envoycontrol.protocol.TlsUtils
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.SanUriMatcherFactory
 
 class EnvoyClustersFactory(
     private val properties: SnapshotProperties
@@ -53,6 +52,7 @@ class EnvoyClustersFactory(
     private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
     private val tlsProperties = properties.incomingPermissions.tlsAuthentication
+    private val sanUriMatcher = SanUriMatcherFactory(tlsProperties)
     private val matchPlaintextContext = Cluster.TransportSocketMatch.newBuilder()
         .setName("plaintext_match")
         .setTransportSocket(
@@ -126,16 +126,15 @@ class EnvoyClustersFactory(
         .setName(tlsProperties.tlsCertificateSecretName).build()
 
     private fun createTlsContextWithSdsSecretConfig(serviceName: String): UpstreamTlsContext {
-        val sanMatch = TlsUtils.resolveSanUri(serviceName, tlsProperties.sanUriFormat)
+        val sanMatch = sanUriMatcher.createSanUriMatcher(serviceName)
         return UpstreamTlsContext.newBuilder()
             .setCommonTlsContext(CommonTlsContext.newBuilder()
                 .setTlsParams(commonTlsParams)
                 .setCombinedValidationContext(CommonTlsContext.CombinedCertificateValidationContext.newBuilder()
                     .setDefaultValidationContext(CertificateValidationContext.newBuilder()
-                        .addAllMatchSubjectAltNames(listOf(StringMatcher.newBuilder()
-                            .setExact(sanMatch)
-                            .build()
-                        )).build())
+                        .addAllMatchSubjectAltNames(
+                            listOf(sanMatch)
+                        ).build())
                     .setValidationContextSdsSecretConfig(validationContextSecretConfig)
                     .build()
                 )

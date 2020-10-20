@@ -9,20 +9,17 @@ import io.envoyproxy.envoy.config.rbac.v3.Principal
 import io.envoyproxy.envoy.config.rbac.v3.RBAC
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
-import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.protocol.TlsUtils
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 
 class RBACFilterFactory(
@@ -42,6 +39,7 @@ class RBACFilterFactory(
 
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
     private val denyForAllPrincipal = Principal.newBuilder().setNotId(anyPrincipal).build()
+    private val sanUriMatcherFactory = SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
 
     init {
         incomingPermissionsProperties.selectorMatching.forEach {
@@ -218,7 +216,7 @@ class RBACFilterFactory(
         } else if (staticRangesForClient != null) {
             listOf(staticRangesForClient)
         } else {
-            tlsPrincipals(incomingPermissionsProperties.tlsAuthentication, clientWithSelector.name)
+            tlsPrincipals(clientWithSelector.name)
         }
     }
 
@@ -245,15 +243,13 @@ class RBACFilterFactory(
         }
     }
 
-    private fun tlsPrincipals(tlsProperties: TlsAuthenticationProperties, client: String): List<Principal> {
-        val principalName = TlsUtils.resolveSanUri(client, tlsProperties.sanUriFormat)
+    private fun tlsPrincipals(client: String): List<Principal> {
+        val stringMatcher = sanUriMatcherFactory.createSanUriMatcher(client)
+
         return listOf(Principal.newBuilder().setAuthenticated(
-                Principal.Authenticated.newBuilder()
-                        .setPrincipalName(StringMatcher.newBuilder()
-                                .setExact(principalName)
-                                .build()
-                        )
-                ).build()
+            Principal.Authenticated.newBuilder()
+                .setPrincipalName(stringMatcher)
+        ).build()
         )
     }
 

@@ -15,6 +15,18 @@ class AllDependenciesValidationException(serviceName: String?)
     "Blocked service $serviceName from using all dependencies. Only defined services can use all dependencies"
 )
 
+class WildcardPrincipalValidationException(serviceName: String?)
+    : NodeMetadataValidationException(
+        "Blocked service $serviceName from allowing everyone in incoming permissions. " +
+                "Only defined services can use that."
+)
+
+class WildcardPrincipalMixedWithOthersValidationException(serviceName: String?)
+    : NodeMetadataValidationException(
+        "Blocked service $serviceName from allowing everyone in incoming permissions. " +
+                "Either a wildcard or a list of clients must be provided."
+)
+
 class InvalidHttpMethodValidationException(serviceName: String?, method: String)
     : NodeMetadataValidationException(
         "Service: $serviceName defined an unknown method: $method in endpoint permissions."
@@ -33,6 +45,8 @@ class V2NotSupportedException(serviceName: String?)
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
+    private val tlsProperties = properties.incomingPermissions.tlsAuthentication
+
     override fun onStreamClose(streamId: Long, typeUrl: String?) {}
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String?, error: Throwable?) {}
@@ -80,8 +94,23 @@ class NodeMetadataValidator(
             return
         }
         validateEndpointPermissionsMethods(metadata)
+        validateIncomingEndpoints(metadata)
         if (hasAllServicesDependencies(metadata) && !isAllowedToHaveAllServiceDependencies(metadata)) {
             throw AllDependenciesValidationException(metadata.serviceName)
+        }
+    }
+
+    private fun validateIncomingEndpoints(metadata: NodeMetadata) {
+        metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
+            val clients = incomingEndpoint.clients.map { it.name }
+            if (clients.contains(tlsProperties.wildcardClientIdentifier)) {
+                if (clients.size != 1) {
+                    throw WildcardPrincipalMixedWithOthersValidationException(metadata.serviceName)
+                }
+                if (metadata.serviceName !in tlsProperties.servicesAllowedToUseWildcard) {
+                    throw WildcardPrincipalValidationException(metadata.serviceName)
+                }
+            }
         }
     }
 
