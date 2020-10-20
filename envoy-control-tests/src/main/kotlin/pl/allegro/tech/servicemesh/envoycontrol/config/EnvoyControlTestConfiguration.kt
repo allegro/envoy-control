@@ -57,12 +57,11 @@ val AdsWithNoDependencies = EnvoyConfig("envoy/config_ads_no_dependencies.yaml")
 val Xds = EnvoyConfig("envoy/config_xds.yaml")
 val RandomConfigFile = if (Random.nextBoolean()) Ads else Xds
 
+@Deprecated("use extension approach instead, e.g. RetryPolicyTest")
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
     companion object {
         private val logger by logger()
         private val defaultClient = ClientsFactory.createClient()
-        private val insecureClient = ClientsFactory.createInsecureClient()
-
         lateinit var envoyContainer1: EnvoyContainer
         lateinit var envoyContainer2: EnvoyContainer
         lateinit var localServiceContainer: EchoContainer
@@ -168,14 +167,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             ).withNetwork(network)
         }
 
-        fun createEnvoyContainerWithFaultyConfig(): EnvoyContainer {
-            return createEnvoyContainer(
-                envoyConfig = FaultyConfig,
-                envoyConnectGrpcPort = null,
-                envoyConnectGrpcPort2 = null
-            ).withStartupTimeout(Duration.ofSeconds(10))
-        }
-
         fun createEnvoyContainerWithEcho3Certificate(configOverride: String = ""): EnvoyContainer {
             val echo3EnvoyConfig = Echo3EnvoyAuthConfig.copy(configOverride = configOverride)
 
@@ -240,13 +231,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             headers: Map<String, String> = mapOf(),
             pathAndQuery: String = ""
         ): Response = EgressOperations(fromEnvoy).callService(service, headers, pathAndQuery)
-
-        fun callServiceInsecure(
-            service: String,
-            address: String = envoyContainer1.egressListenerUrl(),
-            headers: Map<String, String> = mapOf(),
-            pathAndQuery: String = ""
-        ): Response = call(service, address, headers, pathAndQuery, insecureClient)
 
         fun call(
             service: String,
@@ -392,13 +376,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         matches {
             it.body()?.use { it.string().contains(echoContainer.response) } ?: false
         }
-        return this
-    }
-
-    fun ObjectAssert<Response>.hasHostHeaderWithValue(overriddenHostHeader: String): ObjectAssert<Response> {
-        matches({
-            it.body()?.use { it.string().contains("\"host\": \"$overriddenHostHeader\"") } ?: false
-        }, "Header Host should be overridden with value: $overriddenHostHeader")
         return this
     }
 
