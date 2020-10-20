@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
 import org.junit.jupiter.api.extension.AfterAllCallback
+import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
@@ -14,7 +15,7 @@ class EnvoyExtension(
     envoyControl: EnvoyControlExtension,
     private val localService: ServiceExtension<*>? = null,
     config: EnvoyConfig = RandomConfigFile
-) : BeforeAllCallback, AfterAllCallback {
+) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     companion object {
         val logger by logger()
@@ -42,5 +43,9 @@ class EnvoyExtension(
 
     override fun afterAll(context: ExtensionContext) {
         container.stop()
+    }
+
+    override fun afterEach(context: ExtensionContext?) {
+        container.admin().resetCounters()
     }
 }

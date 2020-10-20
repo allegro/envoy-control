@@ -77,6 +77,8 @@ class SelectorMatching {
 }
 
 class TlsAuthenticationProperties {
+    var wildcardClientIdentifier = "*"
+    var servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
     var tlsContextMetadataMatchKey = "acceptMTLS"
     var protocol = TlsProtocolProperties()
     /** if true, a request without a cert will be rejected during handshake and will not reach RBAC filter */
@@ -84,6 +86,7 @@ class TlsAuthenticationProperties {
     var validationContextSecretName: String = "validation_context"
     var tlsCertificateSecretName: String = "server_cert"
     var mtlsEnabledTag: String = "mtls:enabled"
+    var serviceNameWildcardRegex: String = ".+"
     var sanUriFormat: String = "spiffe://{service-name}"
 }
 
