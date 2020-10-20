@@ -27,7 +27,7 @@ static_resources:
             config_source:
               ads: {}
           http_filters:
-          - name: envoy.router
+          - name: envoy.filters.http.router
           http_protocol_options:
             allow_absolute_url: true
           access_log:
@@ -52,7 +52,7 @@ static_resources:
                 config_source:
                   ads: {}
               http_filters:
-                - name: envoy.router
+                - name: envoy.filters.http.router
 
   clusters:
   - name: envoy-control-xds
