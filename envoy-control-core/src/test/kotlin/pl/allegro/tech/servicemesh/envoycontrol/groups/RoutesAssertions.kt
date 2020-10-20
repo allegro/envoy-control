@@ -27,6 +27,11 @@ fun RouteConfiguration.hasRequestHeaderToAdd(key: String, value: String): RouteC
     return this
 }
 
+fun RouteConfiguration.hasRequestHeadersToRemove(value: List<String>): RouteConfiguration {
+    assertThat(this.requestHeadersToRemoveList).containsAll(value)
+    return this
+}
+
 fun RouteConfiguration.hasResponseHeaderToAdd(key: String, value: String): RouteConfiguration {
     assertThat(this.responseHeadersToAddList).anySatisfy {
         assertThat(it.header.key).isEqualTo(key)
