@@ -313,7 +313,7 @@ class ControlPlane private constructor(
         }
 
         private fun meterExecutor(executor: ExecutorService, executorServiceName: String) {
-            ExecutorServiceMetrics(executor, executorServiceName, "executor", emptySet())
+            ExecutorServiceMetrics(executor, executorServiceName, executorServiceName, emptySet())
                 .bindTo(meterRegistry)
         }
 
