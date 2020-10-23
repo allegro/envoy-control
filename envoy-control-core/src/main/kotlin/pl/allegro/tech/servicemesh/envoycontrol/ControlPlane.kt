@@ -100,7 +100,7 @@ class ControlPlane private constructor(
 
         fun build(changes: Flux<MultiClusterState>): ControlPlane {
             if (grpcServerExecutor == null) {
-                grpcServerExecutor = meterThreadPoolExecutor(
+                grpcServerExecutor = newMeteredThreadPoolExecutor(
                     properties.server.serverPoolSize,
                     properties.server.serverPoolSize,
                     properties.server.serverPoolKeepAlive.toMillis(),
@@ -112,7 +112,7 @@ class ControlPlane private constructor(
             if (nioEventLoopExecutor == null) {
                 // unbounded executor - netty will only use configured number of threads
                 // (by nioEventLoopThreadCount property or default netty value: <number of CPUs> * 2)
-                nioEventLoopExecutor = newMeterCachedThreadPool("grpc-worker-event-loop")
+                nioEventLoopExecutor = newMeteredCachedThreadPool("grpc-worker-event-loop")
             }
 
             if (executorGroup == null) {
@@ -123,7 +123,7 @@ class ControlPlane private constructor(
                         //   executor group is invalid, because it may lead to sending XDS responses out of order for
                         //   given DiscoveryRequestStreamObserver. We should switch to multiple, single-threaded
                         //   ThreadPoolExecutors. More info in linked task.
-                        val executor = newMeterFixedThreadPool(
+                        val executor = newMeteredFixedThreadPool(
                             "discovery-responses-executor",
                             properties.server.executorGroup.parallelPoolSize
                         )
@@ -133,7 +133,7 @@ class ControlPlane private constructor(
             }
 
             if (globalSnapshotExecutor == null) {
-                globalSnapshotExecutor = newMeterFixedThreadPool(
+                globalSnapshotExecutor = newMeteredFixedThreadPool(
                     "snapshot-update",
                     properties.server.globalSnapshotUpdatePoolSize
                 )
@@ -146,7 +146,7 @@ class ControlPlane private constructor(
                 ExecutorType.PARALLEL -> ParallelScheduler(
                     scheduler = Schedulers.fromExecutor(
                         groupSnapshotParallelExecutorSupplier()
-                            ?: newMeterFixedThreadPool(
+                            ?: newMeteredFixedThreadPool(
                                 "group-snapshot",
                                 groupSnapshotProperties.parallelPoolSize
                             )
@@ -281,7 +281,7 @@ class ControlPlane private constructor(
             override fun newThread(r: Runnable) = Thread(r, "$threadNamePrefix-${counter.getAndIncrement()}")
         }
 
-        private fun meterThreadPoolExecutor(
+        private fun newMeteredThreadPoolExecutor(
             corePoolSize: Int,
             maximumPoolSize: Int,
             keepAliveTimeMillis: Long,
@@ -300,13 +300,13 @@ class ControlPlane private constructor(
             return threadPoolExecutor
         }
 
-        private fun newMeterFixedThreadPool(executorServiceName: String, poolSize: Int): ExecutorService {
+        private fun newMeteredFixedThreadPool(executorServiceName: String, poolSize: Int): ExecutorService {
             val executor = Executors.newFixedThreadPool(poolSize, ThreadNamingThreadFactory(executorServiceName))
             meterExecutor(executor, executorServiceName)
             return executor
         }
 
-        private fun newMeterCachedThreadPool(executorServiceName: String): ExecutorService {
+        private fun newMeteredCachedThreadPool(executorServiceName: String): ExecutorService {
             val executor = Executors.newCachedThreadPool(ThreadNamingThreadFactory(executorServiceName))
             meterExecutor(executor, executorServiceName)
             return executor

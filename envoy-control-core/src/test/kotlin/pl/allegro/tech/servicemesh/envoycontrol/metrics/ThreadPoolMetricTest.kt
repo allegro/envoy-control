@@ -31,5 +31,8 @@ class ThreadPoolMetricTest {
         }
 
         assertThat(allMeterNames).containsAll(requiredMeterNames)
+
+        // and
+        controlPlane.close()
     }
 }
