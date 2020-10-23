@@ -16,6 +16,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOneDomain
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOnlyRoutesInOrder
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeadersToRemove
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasSingleVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
@@ -56,18 +57,7 @@ internal class EnvoyIngressRoutesFactoryTest {
             }
         )
     }
-    private val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
-        routes.status.enabled = true
-        routes.status.endpoints = mutableListOf(EndpointMatch())
-        routes.status.createVirtualCluster = true
-        localService.retryPolicy = retryPolicyProps
-        routes.admin.publicAccessEnabled = true
-        routes.admin.token = "test_token"
-        routes.admin.securedPaths.add(SecuredRoute().apply {
-            pathPrefix = "/config_dump"
-            method = "GET"
-        })
-    })
+
     private val adminRoutes = arrayOf(
         configDumpAuthorizedRoute(),
         configDumpRoute(),
@@ -80,6 +70,18 @@ internal class EnvoyIngressRoutesFactoryTest {
     @Test
     fun `should create route config with health check and response timeout defined`() {
         // given
+        val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
+            routes.status.enabled = true
+            routes.status.endpoints = mutableListOf(EndpointMatch())
+            routes.status.createVirtualCluster = true
+            localService.retryPolicy = retryPolicyProps
+            routes.admin.publicAccessEnabled = true
+            routes.admin.token = "test_token"
+            routes.admin.securedPaths.add(SecuredRoute().apply {
+                pathPrefix = "/config_dump"
+                method = "GET"
+            })
+        })
         val responseTimeout = Durations.fromSeconds(777)
         val idleTimeout = Durations.fromSeconds(61)
         val connectionIdleTimeout = Durations.fromSeconds(120)
@@ -122,5 +124,28 @@ internal class EnvoyIngressRoutesFactoryTest {
                 )
                 matchingRetryPolicy(retryPolicyProps.default)
             }
+    }
+
+    @Test
+    fun `should create route config with headers to remove`() {
+        // given
+        val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
+            ingress.headersToRemove = mutableListOf("x-via-vip", "x-special-case-header")
+        })
+        val proxySettingsOneEndpoint = ProxySettings(
+                incoming = Incoming(
+                        healthCheck = HealthCheck(
+                                path = "",
+                                clusterName = "health_check_cluster"
+                        ),
+                        permissionsEnabled = true
+                )
+        )
+
+        // when
+        val routeConfig = routesFactory.createSecuredIngressRouteConfig(proxySettingsOneEndpoint)
+
+        // then
+        routeConfig.hasRequestHeadersToRemove(listOf("x-via-vip", "x-special-case-header"))
     }
 }

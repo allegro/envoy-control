@@ -97,11 +97,22 @@ subprojects {
     }
 
     publishing {
+        repositories {
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/allegro/envoy-control")
+                credentials {
+                    username = githubUsername
+                    password = githubPassword
+                }
+            }
+        }
         publications {
             maven(MavenPublication) {
                 from project.components.java
             }
         }
+
     }
 
     configurations {

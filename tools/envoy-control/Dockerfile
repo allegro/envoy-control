@@ -1,5 +1,5 @@
-FROM gradle:5.6.2-jdk11 AS builder
-COPY --chown=gradle:gradle settings.gradle build.gradle /home/gradle/src/
+FROM gradle:6.6.1-jdk11 AS builder
+COPY --chown=gradle:gradle settings.gradle build.gradle gradle.properties /home/gradle/src/
 COPY --chown=gradle:gradle envoy-control-core/ /home/gradle/src/envoy-control-core/
 COPY --chown=gradle:gradle envoy-control-runner/ /home/gradle/src/envoy-control-runner/
 COPY --chown=gradle:gradle envoy-control-services/ /home/gradle/src/envoy-control-services/

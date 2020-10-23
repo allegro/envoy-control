@@ -8,7 +8,8 @@ import org.assertj.core.api.ObjectAssert
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
 
-class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http-https-echo@$hash") {
+class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http-https-echo@$hash"),
+    ServiceContainer {
 
     companion object {
         // We need to use hash because the image doesn't use tags and the tests will fail if there is an older version
@@ -21,6 +22,8 @@ class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http
         super.configure()
         withNetwork(BaseEnvoyTest.network)
     }
+
+    override fun port() = PORT
 }
 
 class HttpsEchoResponse(val response: Response) {

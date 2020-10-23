@@ -166,9 +166,16 @@ class EnvoyIngressRoutesFactory(
                     it.retryPolicy = defaultRetryPolicy
                 }
             }
-
-        return RouteConfiguration.newBuilder()
+        val builder = RouteConfiguration.newBuilder()
             .setName("ingress_secured_routes")
+
+        when {
+            properties.ingress.headersToRemove.isNotEmpty() -> {
+                builder.addAllRequestHeadersToRemove(properties.ingress.headersToRemove)
+            }
+        }
+
+        return builder
             .addVirtualHosts(virtualHost)
             .build()
     }
