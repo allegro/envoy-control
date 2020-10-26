@@ -62,7 +62,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         }
     }
 
-    @PostMapping("/snapshotV3")
+    @PostMapping("/snapshot")
     fun snapshot(@RequestBody node: Node): ResponseEntity<SnapshotDebugInfo> {
         val nodeHash = nodeGroup.hash(node)
         val snapshot = cache.getSnapshot(nodeHash)
