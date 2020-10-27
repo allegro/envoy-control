@@ -1,9 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.ObjectAssert
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasXEnvoyUpstreamRemoteAddressFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
@@ -43,5 +44,16 @@ class AddUpstreamHeaderTest {
             // then
             assertThat(response).isOk().hasXEnvoyUpstreamRemoteAddressFrom(echoContainer)
         }
+    }
+
+    private fun ObjectAssert<Response>.hasXEnvoyUpstreamRemoteAddressFrom(
+        echoServiceExtension: EchoServiceExtension
+    ): ObjectAssert<Response> {
+        matches {
+            it
+                .headers("x-envoy-upstream-remote-address")
+                .contains(echoServiceExtension.container().address())
+        }
+        return this
     }
 }
