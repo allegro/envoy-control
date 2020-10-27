@@ -8,6 +8,7 @@ import io.envoyproxy.envoy.api.v2.core.Node
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class AllDependenciesValidationException(serviceName: String?)
@@ -40,6 +41,10 @@ class ConfigurationModeNotSupportedException(serviceName: String?, mode: String)
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
+    companion object {
+        private val logger by logger()
+    }
+
     private val tlsProperties = properties.incomingPermissions.tlsAuthentication
 
     override fun onStreamClose(streamId: Long, typeUrl: String?) {}
@@ -81,6 +86,7 @@ class NodeMetadataValidator(
 
     private fun validateMetadata(metadata: NodeMetadata) {
         validateDependencies(metadata)
+        validateIncomingEndpoints(metadata)
         validateConfigurationMode(metadata)
     }
 
@@ -89,15 +95,25 @@ class NodeMetadataValidator(
             return
         }
         validateEndpointPermissionsMethods(metadata)
-        validateIncomingEndpoints(metadata)
         if (hasAllServicesDependencies(metadata) && !isAllowedToHaveAllServiceDependencies(metadata)) {
             throw AllDependenciesValidationException(metadata.serviceName)
         }
     }
 
     private fun validateIncomingEndpoints(metadata: NodeMetadata) {
+        if (!properties.incomingPermissions.enabled) {
+            return
+        }
+
         metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
             val clients = incomingEndpoint.clients.map { it.name }
+
+            if (clients.isEmpty() && incomingEndpoint.unlistedClientsPolicy != Incoming.UnlistedPolicy.LOG) {
+                logger.warn("An incoming endpoint definition for service: ${metadata.serviceName}" +
+                    ", path: ${incomingEndpoint.path} does not have any clients defined." +
+                    "It means that no one will be able to contact that endpoint")
+            }
+
             if (clients.contains(tlsProperties.wildcardClientIdentifier)) {
                 if (clients.size != 1) {
                     throw WildcardPrincipalMixedWithOthersValidationException(metadata.serviceName)
