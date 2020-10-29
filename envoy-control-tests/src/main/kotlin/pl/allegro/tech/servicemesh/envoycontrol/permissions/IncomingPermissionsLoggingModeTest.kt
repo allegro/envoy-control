@@ -117,6 +117,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         }
     }
 
+    @Test
     fun `should allow echo3 to access status endpoint over https`() {
         // when
         val echoResponse = call(service = "echo", from = echo3Envoy, path = "/status/hc")
