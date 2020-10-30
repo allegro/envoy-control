@@ -23,9 +23,20 @@ function envoy_on_response(handle)
     end
 
     local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
-    local client_name = lua_metadata["request.info.client_name"] or ""
+    local client_name = nil
     local path = lua_metadata["request.info.path"] or ""
-    local protocol = handle:connection():ssl() == nil and "http" or "https"
+    local protocol = "http"
+    if handle:connection():ssl() ~= nil then
+        protocol = "https"
+        local uriSanPeerCertificate = handle:streamInfo():downstreamSslConnection():uriSanPeerCertificate()
+        if uriSanPeerCertificate[1] ~= nil then
+            client_name = string.match(uriSanPeerCertificate[1], "://([a-zA-Z0-9-_.]+)")
+        end
+    end
+    if client_name == "" or client_name == nil then
+        client_name = lua_metadata["request.info.client_name"] or ""
+    end
+
     local method = lua_metadata["request.info.method"] or ""
     local xff_header = lua_metadata["request.info.xff_header"] or ""
     local source_ip = string.match(xff_header, '[^,]+$') or ""

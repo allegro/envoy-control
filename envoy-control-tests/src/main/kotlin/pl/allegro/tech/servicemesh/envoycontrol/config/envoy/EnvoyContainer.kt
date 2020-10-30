@@ -32,7 +32,7 @@ class EnvoyContainer(
 
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
-        const val DEFAULT_IMAGE = "envoyproxy/envoy-alpine:v1.14.3"
+        const val DEFAULT_IMAGE = "envoyproxy/envoy-alpine:v1.16.0"
         private const val ADMIN_PORT = 10000
     }
 

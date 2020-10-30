@@ -6,10 +6,13 @@ local function formatLog(method, path, source_ip, client_name, protocol, statusC
     return "\nINCOMING_PERMISSIONS { \"method\": \"" .. method .. "\", \"path\": \"" .. path .. "\", \"clientIp\": \"" .. source_ip .. "\", \"clientName\": \"" .. client_name .. "\", \"protocol\": \"" .. protocol .. "\", \"statusCode\": " .. statusCode .. " }"
 end
 
-local function handlerMock(headers, dynamic_metadata, https, filter_metadata)
+local function handlerMock(headers, dynamic_metadata, https, filter_metadata, uri_san_peer_certificate)
     local metadata_mock = mock({
         set = function() end,
         get = function(_, key) return dynamic_metadata[key] end
+    })
+    local downstreamSslConnection_mock = mock({
+        uriSanPeerCertificate = function() return uri_san_peer_certificate end
     })
     local log_info_mock = spy(function() end)
     return {
@@ -18,7 +21,8 @@ local function handlerMock(headers, dynamic_metadata, https, filter_metadata)
         }
         end,
         streamInfo = function() return {
-            dynamicMetadata = function() return metadata_mock end
+            dynamicMetadata = function() return metadata_mock end,
+            downstreamSslConnection = function() return downstreamSslConnection_mock end
         }
         end,
         connection = function() return {
@@ -47,7 +51,7 @@ describe("envoy_on_request:", function()
             ['client_identity_headers'] = { 'x-service-name' }
         }
 
-        local handle = handlerMock(headers, {}, nil, filter_metadata)
+        local handle = handlerMock(headers, {}, nil, filter_metadata, {"service://lorem-service?env=dev"})
         local metadata = handle:streamInfo():dynamicMetadata()
 
         -- when
@@ -169,6 +173,7 @@ describe("envoy_on_response:", function()
     local headers
     local metadata
     local ssl
+    local uri_san_peer_certificate = {}
 
     before_each(function ()
         headers = {
@@ -193,7 +198,7 @@ describe("envoy_on_response:", function()
 
         it("https request", function ()
             -- given
-            local handle = handlerMock(headers, metadata, ssl)
+            local handle = handlerMock(headers, metadata, ssl, nil, {"service://service-first?env=dev"})
 
             -- when
             envoy_on_response(handle)
@@ -201,6 +206,31 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "403"))
             assert.spy(handle.logInfo).was_called(1)
+        end)
+
+        it("if uri san peer certificate is provided should take client name from it", function ()
+
+            uri_san_client_names_pairs = {
+                ["service-first-special"] = {"service://service-first-special?env=dev"},
+                ["service-first-some"] = {"service://service-first-some"},
+                ["service-first-http"] = {"http://service-first-http?env=dev"},
+                ["service-first-https"] = {"https://service-first-https?env=dev"},
+                ["service-first-spiffe"] = {"spiffe://service-first-spiffe?env=dev"},
+                ["service-first-spiffe"] = {"spiffe://service-first-spiffe/?env=dev"},
+                ["service-first"] = {}
+            }
+
+            for i,v in pairs(uri_san_client_names_pairs) do
+                -- given
+                local handle = handlerMock(headers, metadata, ssl, nil, v)
+
+                -- when
+                envoy_on_response(handle)
+
+                -- then
+                assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", i, "https", "403"))
+                assert.spy(handle.logInfo).was_called(1)
+            end
         end)
 
         it("http request", function ()
@@ -219,7 +249,7 @@ describe("envoy_on_response:", function()
         it("allowed & logged request", function ()
             -- given
             headers[':status'] = '200'
-            local handle = handlerMock(headers, metadata, ssl)
+            local handle = handlerMock(headers, metadata, ssl, nil, {"service://service-first?env=dev"})
 
             -- when
             envoy_on_response(handle)
@@ -233,7 +263,7 @@ describe("envoy_on_response:", function()
             -- given
             metadata['envoy.filters.http.lua'] = {}
             headers = {}
-            local handle = handlerMock(headers, metadata, ssl)
+            local handle = handlerMock(headers, metadata, ssl, nil, uri_san_peer_certificate)
 
             -- when
             envoy_on_response(handle)
@@ -247,7 +277,7 @@ describe("envoy_on_response:", function()
             -- given
             metadata['envoy.filters.http.lua'] = nil
             headers = {}
-            local handle = handlerMock(headers, metadata, ssl)
+            local handle = handlerMock(headers, metadata, ssl, nil, uri_san_peer_certificate)
 
             -- when
             envoy_on_response(handle)
@@ -260,7 +290,7 @@ describe("envoy_on_response:", function()
         it("request with empty path", function ()
             -- given
             metadata['envoy.filters.http.lua']['request.info.path'] = ''
-            local handle = handlerMock(headers, metadata, ssl)
+            local handle = handlerMock(headers, metadata, ssl, nil, {"service://service-first?env=dev"})
 
             -- when
             envoy_on_response(handle)
@@ -276,7 +306,7 @@ describe("envoy_on_response:", function()
         it("request with no rbac metadata", function()
             -- given
             metadata = {}
-            local handle = handlerMock(headers, metadata, ssl)
+            local handle = handlerMock(headers, metadata, ssl,nil, uri_san_peer_certificate)
             local metadataMock = handle:streamInfo():dynamicMetadata()
 
             -- when
@@ -290,7 +320,7 @@ describe("envoy_on_response:", function()
         it("authorized request", function()
             -- given
             metadata['envoy.filters.http.rbac']['shadow_engine_result'] = 'allowed'
-            local handle = handlerMock(headers, metadata, ssl)
+            local handle = handlerMock(headers, metadata, ssl, nil, uri_san_peer_certificate)
             local metadataMock = handle:streamInfo():dynamicMetadata()
 
             -- when
@@ -318,7 +348,7 @@ describe("envoy_on_response:", function()
             it("'"..xff.."' -> '"..expected_client_ip.."'", function ()
                 -- given
                 metadata['envoy.filters.http.lua']['request.info.xff_header'] = xff
-                local handle = handlerMock(headers, metadata, ssl)
+                local handle = handlerMock(headers, metadata, ssl, nil, uri_san_peer_certificate)
 
                 -- when
                 envoy_on_response(handle)
