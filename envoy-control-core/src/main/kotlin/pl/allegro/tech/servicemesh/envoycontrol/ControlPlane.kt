@@ -9,6 +9,7 @@ import io.envoyproxy.controlplane.server.callback.SnapshotCollectingCallback
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics
 import io.netty.channel.nio.NioEventLoopGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.GroupChangeWatcher
@@ -38,7 +39,9 @@ import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import java.time.Clock
+import java.util.concurrent.BlockingQueue
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadFactory
@@ -97,21 +100,19 @@ class ControlPlane private constructor(
 
         fun build(changes: Flux<MultiClusterState>): ControlPlane {
             if (grpcServerExecutor == null) {
-                grpcServerExecutor = ThreadPoolExecutor(
+                grpcServerExecutor = newMeteredThreadPoolExecutor(
                     properties.server.serverPoolSize,
                     properties.server.serverPoolSize,
-                    properties.server.serverPoolKeepAlive.toMillis(), TimeUnit.MILLISECONDS,
+                    properties.server.serverPoolKeepAlive.toMillis(),
                     LinkedBlockingQueue<Runnable>(),
-                    ThreadNamingThreadFactory("grpc-server-worker")
+                    "grpc-server-worker"
                 )
             }
 
             if (nioEventLoopExecutor == null) {
                 // unbounded executor - netty will only use configured number of threads
                 // (by nioEventLoopThreadCount property or default netty value: <number of CPUs> * 2)
-                nioEventLoopExecutor = Executors.newCachedThreadPool(
-                    ThreadNamingThreadFactory("grpc-worker-event-loop")
-                )
+                nioEventLoopExecutor = newMeteredCachedThreadPool("grpc-worker-event-loop")
             }
 
             if (executorGroup == null) {
@@ -122,9 +123,9 @@ class ControlPlane private constructor(
                         //   executor group is invalid, because it may lead to sending XDS responses out of order for
                         //   given DiscoveryRequestStreamObserver. We should switch to multiple, single-threaded
                         //   ThreadPoolExecutors. More info in linked task.
-                        val executor = Executors.newFixedThreadPool(
-                            properties.server.executorGroup.parallelPoolSize,
-                            ThreadNamingThreadFactory("discovery-responses-executor")
+                        val executor = newMeteredFixedThreadPool(
+                            "discovery-responses-executor",
+                            properties.server.executorGroup.parallelPoolSize
                         )
                         ExecutorGroup { executor }
                     }
@@ -132,9 +133,9 @@ class ControlPlane private constructor(
             }
 
             if (globalSnapshotExecutor == null) {
-                globalSnapshotExecutor = Executors.newFixedThreadPool(
-                    properties.server.globalSnapshotUpdatePoolSize,
-                    ThreadNamingThreadFactory("snapshot-update")
+                globalSnapshotExecutor = newMeteredFixedThreadPool(
+                    "snapshot-update",
+                    properties.server.globalSnapshotUpdatePoolSize
                 )
             }
 
@@ -145,9 +146,9 @@ class ControlPlane private constructor(
                 ExecutorType.PARALLEL -> ParallelScheduler(
                     scheduler = Schedulers.fromExecutor(
                         groupSnapshotParallelExecutorSupplier()
-                            ?: Executors.newFixedThreadPool(
-                                groupSnapshotProperties.parallelPoolSize,
-                                ThreadNamingThreadFactory("group-snapshot")
+                            ?: newMeteredFixedThreadPool(
+                                "group-snapshot",
+                                groupSnapshotProperties.parallelPoolSize
                             )
                     ),
                     parallelism = groupSnapshotProperties.parallelPoolSize
@@ -278,6 +279,42 @@ class ControlPlane private constructor(
         private class ThreadNamingThreadFactory(val threadNamePrefix: String) : ThreadFactory {
             private val counter = AtomicInteger()
             override fun newThread(r: Runnable) = Thread(r, "$threadNamePrefix-${counter.getAndIncrement()}")
+        }
+
+        private fun newMeteredThreadPoolExecutor(
+            corePoolSize: Int,
+            maximumPoolSize: Int,
+            keepAliveTimeMillis: Long,
+            workQueue: BlockingQueue<Runnable>,
+            poolExecutorName: String
+        ): ThreadPoolExecutor {
+            val threadPoolExecutor = ThreadPoolExecutor(
+                corePoolSize,
+                maximumPoolSize,
+                keepAliveTimeMillis,
+                TimeUnit.MILLISECONDS,
+                workQueue,
+                ThreadNamingThreadFactory(poolExecutorName)
+            )
+            meterExecutor(threadPoolExecutor, poolExecutorName)
+            return threadPoolExecutor
+        }
+
+        private fun newMeteredFixedThreadPool(executorServiceName: String, poolSize: Int): ExecutorService {
+            val executor = Executors.newFixedThreadPool(poolSize, ThreadNamingThreadFactory(executorServiceName))
+            meterExecutor(executor, executorServiceName)
+            return executor
+        }
+
+        private fun newMeteredCachedThreadPool(executorServiceName: String): ExecutorService {
+            val executor = Executors.newCachedThreadPool(ThreadNamingThreadFactory(executorServiceName))
+            meterExecutor(executor, executorServiceName)
+            return executor
+        }
+
+        private fun meterExecutor(executor: ExecutorService, executorServiceName: String) {
+            ExecutorServiceMetrics(executor, executorServiceName, executorServiceName, emptySet())
+                .bindTo(meterRegistry)
         }
 
         private fun grpcServer(
