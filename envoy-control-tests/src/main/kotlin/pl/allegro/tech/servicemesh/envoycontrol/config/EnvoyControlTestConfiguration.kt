@@ -11,7 +11,6 @@ import org.assertj.core.api.ObjectAssert
 import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
-import org.springframework.boot.actuate.health.Status
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EgressOperations
@@ -20,10 +19,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.IngressOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.Health
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
@@ -397,21 +394,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
     fun ObjectAssert<Response>.hasLocationHeaderFrom(serviceName: String): ObjectAssert<Response> {
         matches { it.headers("location").contains("http://$serviceName/") }
-        return this
-    }
-
-    fun ObjectAssert<Health>.isStatusHealthy(): ObjectAssert<Health> {
-        matches { it.status == Status.UP }
-        return this
-    }
-
-    fun ObjectAssert<Health>.hasEnvoyControlCheckPassed(): ObjectAssert<Health> {
-        matches { it.components.get("envoyControl")?.status == Status.UP }
-        return this
-    }
-
-    fun ObjectAssert<ServicesState>.hasServiceStateChanged(): ObjectAssert<ServicesState> {
-        matches { it.serviceNames().isNotEmpty() }
         return this
     }
 
