@@ -50,11 +50,13 @@ class EnvoyAdmin(
     fun isIngressReady() = statValue("http.ingress_http.rq_total") != "-1"
 
     fun statValue(statName: String): String? = get("stats?filter=$statName").body()?.use {
-        val splitedStats = it.string().lines().first().split(":")
-        if (splitedStats.size != 2) {
-            return "-1"
+        it.string().lines().forEach { line ->
+            val splitedStats = line.split(":")
+            if (splitedStats.size == 2 && statName.equals(splitedStats[0].trim())) {
+                return splitedStats[1].trim()
+            }
         }
-        return splitedStats[1].trim()
+        return "-1"
     }
 
     fun resetCounters() {
