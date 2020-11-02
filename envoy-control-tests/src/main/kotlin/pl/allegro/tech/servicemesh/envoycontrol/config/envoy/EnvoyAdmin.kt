@@ -51,9 +51,9 @@ class EnvoyAdmin(
 
     fun statValue(statName: String): String? = get("stats?filter=$statName").body()?.use {
         it.string().lines().forEach { line ->
-            val splitedStats = line.split(":")
-            if (splitedStats.size == 2 && statName.equals(splitedStats[0].trim())) {
-                return splitedStats[1].trim()
+            val splitStats = line.split(":")
+            if (splitStats.size == 2 && statName.equals(splitStats[0].trim())) {
+                return splitStats[1].trim()
             }
         }
         return "-1"

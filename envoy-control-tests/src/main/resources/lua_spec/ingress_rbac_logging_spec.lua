@@ -209,15 +209,13 @@ describe("envoy_on_response:", function()
         end)
 
         it("if uri san peer certificate is provided should take client name from it", function ()
-
-            uri_san_client_names_pairs = {
+            local uri_san_client_names_pairs = {
                 ["service-first-special"] = {"service://service-first-special?env=dev"},
                 ["service-first-some"] = {"service://service-first-some"},
                 ["service-first-http"] = {"http://service-first-http?env=dev"},
                 ["service-first-https"] = {"https://service-first-https?env=dev"},
                 ["service-first-spiffe"] = {"spiffe://service-first-spiffe?env=dev"},
-                ["service-first-spiffe"] = {"spiffe://service-first-spiffe/?env=dev"},
-                ["service-first"] = {}
+                ["service-first-spiffe"] = {"spiffe://service-first-spiffe/?env=dev"}
             }
 
             for i,v in pairs(uri_san_client_names_pairs) do
@@ -232,6 +230,26 @@ describe("envoy_on_response:", function()
                 assert.spy(handle.logInfo).was_called(1)
             end
         end)
+
+        it("should add not trusted to client name if name is not from san peer certificate", function ()
+            local uri_san_client_names_pairs = {
+                ["not trusted service-first"] = nil,
+                ["not trusted service-first"] = {},
+            }
+
+            for i,v in pairs(uri_san_client_names_pairs) do
+                -- given
+                local handle = handlerMock(headers, metadata, ssl, nil, v)
+
+                -- when
+                envoy_on_response(handle)
+
+                -- then
+                assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", i, "https", "403"))
+                assert.spy(handle.logInfo).was_called(1)
+            end
+        end)
+
 
         it("http request", function ()
             -- given
