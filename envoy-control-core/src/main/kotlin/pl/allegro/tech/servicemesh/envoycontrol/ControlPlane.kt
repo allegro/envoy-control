@@ -257,9 +257,9 @@ class ControlPlane private constructor(
                     //   executor group is invalid, because it may lead to sending XDS responses out of order for
                     //   given DiscoveryRequestStreamObserver. We should switch to multiple, single-threaded
                     //   ThreadPoolExecutors. More info in linked task.
-                    val executor = Executors.newFixedThreadPool(
-                            properties.server.executorGroup.parallelPoolSize,
-                            ThreadNamingThreadFactory("discovery-responses-executor")
+                    val executor = newMeteredFixedThreadPool(
+                        "discovery-responses-executor",
+                        properties.server.executorGroup.parallelPoolSize
                     )
                     ExecutorGroup { executor }
                 }
@@ -267,12 +267,12 @@ class ControlPlane private constructor(
         }
 
         private fun buildThreadPoolExecutor(): ThreadPoolExecutor {
-            return ThreadPoolExecutor(
+            return newMeteredThreadPoolExecutor(
                     properties.server.serverPoolSize,
                     properties.server.serverPoolSize,
-                    properties.server.serverPoolKeepAlive.toMillis(), TimeUnit.MILLISECONDS,
+                    properties.server.serverPoolKeepAlive.toMillis(),
                     LinkedBlockingQueue<Runnable>(),
-                    ThreadNamingThreadFactory("grpc-server-worker")
+                    "grpc-server-worker"
             )
         }
 
