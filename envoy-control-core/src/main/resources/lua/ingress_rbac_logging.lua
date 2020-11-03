@@ -3,12 +3,28 @@ function envoy_on_request(handle)
     local method = handle:headers():get(":method")
     local xff_header = handle:headers():get("x-forwarded-for")
     local metadata = handle:streamInfo():dynamicMetadata()
-    local client_identity_header_names = handle:metadata():get("client_identity_headers") or {}
+
     local client_name = ""
-    for _,h in ipairs(client_identity_header_names) do
-        client_name = handle:headers():get(h) or ""
-        if client_name ~= "" then break end
+    if handle:connection():ssl() ~= nil then
+        local uriSanPeerCertificate = handle:streamInfo():downstreamSslConnection():uriSanPeerCertificate()
+        if uriSanPeerCertificate[1] ~= nil then
+            client_name = string.match(uriSanPeerCertificate[1], "://([a-zA-Z0-9-_.]+)")
+        end
     end
+
+    if client_name == "" or client_name == nil then
+        local client_identity_header_names = handle:metadata():get("client_identity_headers") or {}
+        for _,h in ipairs(client_identity_header_names) do
+            client_name = handle:headers():get(h) or ""
+            if client_name ~= "" then break end
+        end
+
+        if handle:connection():ssl() ~= nil and client_name or "" ~= "" then
+            client_name = "not trusted "..client_name
+        end
+
+    end
+
     metadata:set("envoy.filters.http.lua", "request.info.path", path)
     metadata:set("envoy.filters.http.lua", "request.info.method", method)
     metadata:set("envoy.filters.http.lua", "request.info.xff_header", xff_header)
@@ -23,27 +39,9 @@ function envoy_on_response(handle)
     end
 
     local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
-    local client_name = ""
+    local client_name = lua_metadata["request.info.client_name"] or ""
     local path = lua_metadata["request.info.path"] or ""
-    local protocol = "http"
-    if handle:connection():ssl() ~= nil then
-        protocol = "https"
-        local uriSanPeerCertificate = handle:streamInfo():downstreamSslConnection():uriSanPeerCertificate()
-        if uriSanPeerCertificate[1] ~= nil then
-            client_name = string.match(uriSanPeerCertificate[1], "://([a-zA-Z0-9-_.]+)")
-        end
-    end
-
-    if client_name == "" or client_name == nil then
-        if handle:connection():ssl() ~= nil then
-            if lua_metadata["request.info.client_name"] or "" ~= "" then
-                client_name = "not trusted "..lua_metadata["request.info.client_name"]
-            end
-        else
-            client_name = lua_metadata["request.info.client_name"] or ""
-        end
-    end
-
+    local protocol = handle:connection():ssl() == nil and "http" or "https"
     local method = lua_metadata["request.info.method"] or ""
     local xff_header = lua_metadata["request.info.xff_header"] or ""
     local source_ip = string.match(xff_header, '[^,]+$') or ""
