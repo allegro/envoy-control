@@ -18,6 +18,9 @@ class EnvoyDefaultFilters(
     private val luaFilterFactory = LuaFilterFactory(
         snapshotProperties.incomingPermissions
     )
+    private val luaClientFilterFactory = LuaClientFilterFactory(
+        snapshotProperties.incomingPermissions
+    )
 
     private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
             snapshotProperties.routing.serviceTags.header,
@@ -35,6 +38,10 @@ class EnvoyDefaultFilters(
         group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressRbacLoggingFilter(group)
     }
 
+    private val defaultHeaderFilter = {
+        group: Group, _: GlobalSnapshot -> luaClientFilterFactory.ingressClientFilter(group)
+    }
+
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
 
     /**
@@ -44,7 +51,9 @@ class EnvoyDefaultFilters(
      *   the request
      * * defaultEnvoyRouterHttpFilter - router filter should be always the last filter.
      */
-    val defaultIngressFilters = listOf(defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter)
+    val defaultIngressFilters = listOf(
+        defaultHeaderFilter, defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter
+    )
     val defaultIngressMetadata: Metadata = luaFilterFactory.ingressRbacLoggingMetadata()
 
     private fun headerToMetadataConfig(
