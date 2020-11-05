@@ -169,11 +169,11 @@ class EnvoySnapshotFactoryTest {
 
     private fun createGlobalSnapshot(cluster: Cluster?): GlobalSnapshot {
         return GlobalSnapshot(
-            SnapshotResources.create(emptyList(), "v2"), emptySet(),
+            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"), emptySet(),
             SnapshotResources.create(emptyList(), "v1"), emptyMap(),
             SnapshotResources.create(listOf(cluster), "v3"),
-            SnapshotResources.create(emptyList(), "v2"),
-            SnapshotResources.create(emptyList(), "v2")
+            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
+            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
         )
     }
 

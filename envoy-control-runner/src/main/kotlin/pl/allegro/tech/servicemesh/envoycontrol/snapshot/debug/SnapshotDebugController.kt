@@ -14,13 +14,11 @@ import com.google.protobuf.util.JsonFormat.TypeRegistry
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.v3.Snapshot
-import io.envoyproxy.envoy.config.core.v3.Node
 import io.envoyproxy.envoy.config.rbac.v3.RBAC
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
-import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
 import org.springframework.boot.jackson.JsonComponent
@@ -36,6 +34,9 @@ import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
+import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
+import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
+import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 
 @RestController
 class SnapshotDebugController(controlPlane: ControlPlane) {
@@ -48,29 +49,29 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
      * It contains the versions of XDS resources and the contents for a provided node JSON
      * extracted from Envoy's config_dump endpoint.
      */
-    @PostMapping("/snapshotV2")
-    fun snapshot(@RequestBody node: io.envoyproxy.envoy.api.v2.core.Node): ResponseEntity<SnapshotDebugInfo> {
+    @PostMapping(value = ["/snapshot"], consumes = ["application/json"], produces = ["application/v2+json"])
+    fun snapshot(@RequestBody node: NodeV2): ResponseEntity<SnapshotDebugInfo> {
         val nodeHash = nodeGroup.hash(node)
         val snapshot = cache.getSnapshot(nodeHash)
         return if (snapshot == null) {
             throw SnapshotNotFoundException()
         } else {
             ResponseEntity(
-                SnapshotDebugInfo(snapshot as Snapshot),
+                SnapshotDebugInfo(snapshot),
                 HttpStatus.OK
             )
         }
     }
 
-    @PostMapping("/snapshot")
-    fun snapshot(@RequestBody node: Node): ResponseEntity<SnapshotDebugInfo> {
+    @PostMapping(value = ["/snapshot"], consumes = ["application/json"], produces = ["application/v3+json"])
+    fun snapshot(@RequestBody node: NodeV3): ResponseEntity<SnapshotDebugInfo> {
         val nodeHash = nodeGroup.hash(node)
         val snapshot = cache.getSnapshot(nodeHash)
         return if (snapshot == null) {
             throw SnapshotNotFoundException()
         } else {
             ResponseEntity(
-                SnapshotDebugInfo(snapshot as Snapshot),
+                SnapshotDebugInfo(snapshot),
                 HttpStatus.OK
             )
         }

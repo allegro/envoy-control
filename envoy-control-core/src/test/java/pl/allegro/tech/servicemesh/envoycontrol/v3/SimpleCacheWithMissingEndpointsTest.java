@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.v2;
+package pl.allegro.tech.servicemesh.envoycontrol.v3;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Message;
@@ -6,10 +6,10 @@ import io.envoyproxy.controlplane.cache.Resources;
 import io.envoyproxy.controlplane.cache.Response;
 import io.envoyproxy.controlplane.cache.Watch;
 import io.envoyproxy.controlplane.cache.XdsRequest;
-import io.envoyproxy.controlplane.cache.v2.Snapshot;
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment;
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest;
-import io.envoyproxy.envoy.api.v2.core.Node;
+import io.envoyproxy.controlplane.cache.v3.Snapshot;
+import io.envoyproxy.envoy.config.core.v3.Node;
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,7 +46,7 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
 
     @Test
     public void missingNamesListShouldReturnWatcherWithResponseInAdsMode() {
-        pl.allegro.tech.servicemesh.envoycontrol.v2.SimpleCache<String> cache = new pl.allegro.tech.servicemesh.envoycontrol.v2.SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache<String> cache = new pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
 
@@ -56,7 +56,7 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
                 true,
                 XdsRequest.create(DiscoveryRequest.newBuilder()
                         .setNode(Node.getDefaultInstance())
-                        .setTypeUrl(Resources.V2.ENDPOINT_TYPE_URL)
+                        .setTypeUrl(Resources.V3.ENDPOINT_TYPE_URL)
                         .addResourceNames("none")
                         .addResourceNames(CLUSTER_NAME)
                         .build()),
