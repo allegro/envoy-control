@@ -17,7 +17,8 @@ local function handlerMock(headers, dynamic_metadata, https, filter_metadata, ur
     local log_info_mock = spy(function() end)
     return {
         headers = function() return {
-            get = function(_, key) return headers[key] end
+            get = function(_, key) return headers[key] end,
+            add = function(_, key, value) headers[key] = value end
         }
         end,
         streamInfo = function() return {
@@ -64,7 +65,29 @@ describe("envoy_on_request:", function()
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.xff_header", "127.0.4.3")
     end)
 
-    it("should set client_name from cert when ssl available, if not should use configured client_identity_headers", function()
+    it ("should add x-client-name-trusted header with values from certificate", function()
+        -- given
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+            ['x-service-name'] = 'lorem-service',
+        }
+        local filter_metadata = {['client_identity_headers'] = { "x-service-name" }}
+
+        local handle = handlerMock(headers, {}, true, filter_metadata,
+            {"service://service-first-regular?env=dev", "service://service-first-special?env=dev",}
+        )
+        local metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "service-first-regular")
+        assert.are.equal(headers['x-client-name-trusted'],"service-first-regular,service-first-special")
+    end)
+
+    it("should set client_name from certificate when ssl available, if not should use configured client_identity_headers", function()
         -- given
         local headers = {
             [':path'] = '/path',

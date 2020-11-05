@@ -7,8 +7,16 @@ function envoy_on_request(handle)
     local client_name = ""
     if handle:connection():ssl() ~= nil then
         local uriSanPeerCertificate = handle:streamInfo():downstreamSslConnection():uriSanPeerCertificate()
-        if uriSanPeerCertificate[1] ~= nil then
-            client_name = string.match(uriSanPeerCertificate[1], "://([a-zA-Z0-9-_.]+)")
+        if next(uriSanPeerCertificate) ~= nil then
+            local pattern = "://([a-zA-Z0-9-_.]+)"
+            local x_client_name_header_values = {}
+            client_name = string.match(uriSanPeerCertificate[1], pattern)
+            for _, v in pairs(uriSanPeerCertificate) do
+                table.insert(x_client_name_header_values, string.match(v, pattern))
+            end
+            if next(x_client_name_header_values) then
+                handle:headers():add("x-client-name-trusted",table.concat(x_client_name_header_values, ","))
+            end
         end
     end
 
@@ -22,7 +30,6 @@ function envoy_on_request(handle)
         if handle:connection():ssl() ~= nil and client_name or "" ~= "" then
             client_name = "not trusted "..client_name
         end
-
     end
 
     metadata:set("envoy.filters.http.lua", "request.info.path", path)
