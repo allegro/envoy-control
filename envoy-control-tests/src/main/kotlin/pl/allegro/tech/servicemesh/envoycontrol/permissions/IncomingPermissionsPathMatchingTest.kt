@@ -32,6 +32,8 @@ class IncomingPermissionsPathMatchingTest {
                       clients: ["echo2"]
                     - pathRegex: "/regex/.*/segment"
                       clients: ["echo2"]
+                    - pathRegex: "/l/u/[^/]/public.*"
+                      clients: ["echo2"]
                     roles: []
                   outgoing:
                     dependencies: []
@@ -116,6 +118,9 @@ class IncomingPermissionsPathMatchingTest {
     @Test
     fun `echo should allow echo2 to access 'regex' endpoint on correct regex path`() {
         // expect
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/l/u/4/public").also {
+            assertThat(it).isOk()
+        }
         echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/regex/1/segment").also {
             assertThat(it).isOk()
         }
