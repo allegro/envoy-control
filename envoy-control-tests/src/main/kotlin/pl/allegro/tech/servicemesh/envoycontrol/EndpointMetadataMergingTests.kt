@@ -1,35 +1,45 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-open class EndpointMetadataMergingTests : EnvoyControlTestConfiguration() {
+open class EndpointMetadataMergingTests {
 
     companion object {
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true
         )
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(appFactoryForEc1 = { consulPort ->
-                EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            })
-        }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, properties)
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, service)
     }
 
     @Test
     fun `should merge all service tags of endpoints with the same ip and port`() {
         // given
-        registerService(name = "echo", container = echoContainer, tags = listOf("ipsum"))
-        registerService(name = "echo", container = echoContainer, tags = listOf("lorem", "dolom"))
+        consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("ipsum"))
+        consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("lorem", "dolom"))
 
-        waitForReadyServices("echo")
+        envoy.egressOperations.waitForReadyServices("echo")
 
         // when
         val ipsumStats = callEchoServiceRepeatedly(repeat = 1, tag = "ipsum")
@@ -37,9 +47,9 @@ open class EndpointMetadataMergingTests : EnvoyControlTestConfiguration() {
         val dolomStats = callEchoServiceRepeatedly(repeat = 1, tag = "dolom")
 
         // then
-        assertThat(ipsumStats.hits(echoContainer)).isEqualTo(1)
-        assertThat(loremStats.hits(echoContainer)).isEqualTo(1)
-        assertThat(dolomStats.hits(echoContainer)).isEqualTo(1)
+        assertThat(ipsumStats.hits(service.container())).isEqualTo(1)
+        assertThat(loremStats.hits(service.container())).isEqualTo(1)
+        assertThat(dolomStats.hits(service.container())).isEqualTo(1)
     }
 
     protected open fun callEchoServiceRepeatedly(
@@ -47,8 +57,8 @@ open class EndpointMetadataMergingTests : EnvoyControlTestConfiguration() {
         tag: String? = null,
         assertNoErrors: Boolean = true
     ): CallStats {
-        val stats = CallStats(listOf(echoContainer))
-        callServiceRepeatedly(
+        val stats = CallStats(listOf(service.container()))
+        envoy.egressOperations.callServiceRepeatedly(
             service = "echo",
             stats = stats,
             minRepeat = repeat,

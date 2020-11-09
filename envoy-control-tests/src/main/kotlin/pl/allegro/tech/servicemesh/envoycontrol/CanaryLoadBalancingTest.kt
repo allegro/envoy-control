@@ -1,14 +1,18 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
+open class CanaryLoadBalancingTest {
 
     companion object {
         private val properties = mapOf(
@@ -20,26 +24,35 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.load-balancing.canary.metadata-value" to "1"
         )
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(appFactoryForEc1 = { consulPort ->
-                EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            })
-        }
-    }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
-    private val canaryContainer = echoContainer
-    private val regularContainer = echoContainer2
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, properties)
+
+        @JvmField
+        @RegisterExtension
+        val canaryContainer = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val regularContainer = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl)
+    }
 
     @Test
     fun `should balance load according to weights`() {
         // given
-        registerService(name = "echo", container = canaryContainer, tags = listOf("canary", "weight:1"))
-        registerService(name = "echo", container = regularContainer, tags = listOf("weight:20"))
+        consul.server.operations.registerService(name = "echo", extension = canaryContainer, tags = listOf("canary", "weight:1"))
+        consul.server.operations.registerService(name = "echo", extension = regularContainer, tags = listOf("weight:20"))
 
         untilAsserted {
-            callService("echo").also {
+            envoy.egressOperations.callService("echo").also {
                 assertThat(it).isOk()
             }
         }
@@ -48,7 +61,7 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         val stats = callEchoServiceRepeatedly(
             minRepeat = 30,
             maxRepeat = 200,
-            repeatUntil = { response -> response.isFrom(canaryContainer) }
+            repeatUntil = { response -> response.isFrom(canaryContainer.container()) }
         )
 
         // then
@@ -79,11 +92,11 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should route request to canary instance only`() {
         // given
-        registerService(name = "echo", container = canaryContainer, tags = listOf("canary", "weight:1"))
-        registerService(name = "echo", container = regularContainer, tags = listOf("weight:20"))
+        consul.server.operations.registerService(name = "echo", extension = canaryContainer, tags = listOf("canary", "weight:1"))
+        consul.server.operations.registerService(name = "echo", extension = regularContainer, tags = listOf("weight:20"))
 
         untilAsserted {
-            callService("echo").also {
+            envoy.egressOperations.callService("echo").also {
                 assertThat(it).isOk()
             }
         }
@@ -103,11 +116,11 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
 
     @Test
     open fun `should route to both canary and regular instances when canary weight is 0`() {
-        registerService(name = "echo", container = canaryContainer, tags = listOf("canary", "weight:0"))
-        registerService(name = "echo", container = regularContainer, tags = listOf("weight:20"))
+        consul.server.operations.registerService(name = "echo", extension = canaryContainer, tags = listOf("canary", "weight:0"))
+        consul.server.operations.registerService(name = "echo", extension = regularContainer, tags = listOf("weight:20"))
 
         untilAsserted {
-            callService("echo").also {
+            envoy.egressOperations.callService("echo").also {
                 assertThat(it).isOk()
             }
         }
@@ -116,7 +129,7 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         val stats = callEchoServiceRepeatedly(
             minRepeat = 30,
             maxRepeat = 200,
-            repeatUntil = { response -> response.isFrom(canaryContainer) }
+            repeatUntil = { response -> response.isFrom(canaryContainer.container()) }
         )
 
         // then
@@ -125,7 +138,7 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         assertThat(stats.canaryHits).isGreaterThan(0)
     }
 
-    protected open fun callStats() = CallStats(listOf(canaryContainer, regularContainer))
+    protected open fun callStats() = CallStats(listOf(canaryContainer.container(), regularContainer.container()))
 
     fun callEchoServiceRepeatedly(
         minRepeat: Int,
@@ -134,7 +147,7 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
         headers: Map<String, String> = mapOf()
     ): CallStats {
         val stats = callStats()
-        callServiceRepeatedly(
+        envoy.egressOperations.callServiceRepeatedly(
             service = "echo",
             stats = stats,
             minRepeat = minRepeat,
@@ -146,7 +159,7 @@ open class CanaryLoadBalancingTest : EnvoyControlTestConfiguration() {
     }
 
     val CallStats.regularHits: Int
-        get() = this.hits(regularContainer)
+        get() = this.hits(regularContainer.container())
     val CallStats.canaryHits: Int
-        get() = this.hits(canaryContainer)
+        get() = this.hits(canaryContainer.container())
 }
