@@ -1,12 +1,12 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import io.envoyproxy.envoy.api.v2.Cluster
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
-import io.envoyproxy.envoy.api.v2.core.Address
-import io.envoyproxy.envoy.api.v2.core.SocketAddress
-import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
-import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
-import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
+import io.envoyproxy.envoy.config.cluster.v3.Cluster
+import io.envoyproxy.envoy.config.core.v3.Address
+import io.envoyproxy.envoy.config.core.v3.SocketAddress
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.endpoint.v3.Endpoint
+import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
+import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup

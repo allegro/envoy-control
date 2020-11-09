@@ -1,11 +1,11 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import io.envoyproxy.controlplane.cache.Snapshot
-import io.envoyproxy.envoy.api.v2.Cluster
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
-import io.envoyproxy.envoy.api.v2.Listener
-import io.envoyproxy.envoy.api.v2.RouteConfiguration
-import io.envoyproxy.envoy.api.v2.auth.Secret
+import io.envoyproxy.controlplane.cache.v3.Snapshot
+import io.envoyproxy.envoy.config.cluster.v3.Cluster
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.listener.v3.Listener
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
+import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
@@ -42,6 +42,8 @@ class EnvoySnapshotFactory(
 
         val clusters = clustersFactory.getClustersForServices(clusterConfigurations.values, communicationMode)
         val securedClusters = clustersFactory.getSecuredClusters(clusters)
+        val v3Clusters = clustersFactory.mapToV3Cluster(clusters)
+        val v3SecuredClusters = clustersFactory.mapToV3Cluster(clusters)
 
         val endpoints: List<ClusterLoadAssignment> = endpointsFactory.createLoadAssignment(
             clusters = clusterConfigurations.keys,
@@ -53,7 +55,9 @@ class EnvoySnapshotFactory(
             clusters = clusters,
             securedClusters = securedClusters,
             endpoints = endpoints,
-            properties = properties.outgoingPermissions
+            properties = properties.outgoingPermissions,
+            v3Clusters = v3Clusters,
+            v3SecuredClusters = v3SecuredClusters
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 

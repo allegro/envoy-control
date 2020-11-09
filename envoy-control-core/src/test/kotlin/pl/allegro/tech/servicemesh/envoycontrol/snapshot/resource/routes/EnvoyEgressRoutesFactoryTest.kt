@@ -6,8 +6,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomIdleTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomRequestTimeout
-import pl.allegro.tech.servicemesh.envoycontrol.groups.autoHostRewriteHeaderIsEmpty
-import pl.allegro.tech.servicemesh.envoycontrol.groups.hasAutoHostRewriteHeader
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hostRewriteHeaderIsEmpty
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasHostRewriteHeader
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRequestHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
@@ -116,7 +116,7 @@ internal class EnvoyEgressRoutesFactoryTest {
             .virtualHostsList[0]
             .routesList[0]
             .route
-            .autoHostRewriteHeaderIsEmpty()
+            .hostRewriteHeaderIsEmpty()
     }
 
     @Test
@@ -136,6 +136,6 @@ internal class EnvoyEgressRoutesFactoryTest {
             .virtualHostsList[0]
             .routesList[0]
             .route
-            .hasAutoHostRewriteHeader(snapshotProperties.egress.hostHeaderRewriting.customHostHeader)
+            .hasHostRewriteHeader(snapshotProperties.egress.hostHeaderRewriting.customHostHeader)
     }
 }

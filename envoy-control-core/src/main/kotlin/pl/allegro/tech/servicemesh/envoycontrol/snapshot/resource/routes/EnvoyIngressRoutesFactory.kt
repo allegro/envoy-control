@@ -3,15 +3,15 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 import com.google.protobuf.Duration
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.api.v2.RouteConfiguration
-import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
-import io.envoyproxy.envoy.api.v2.route.RetryPolicy
-import io.envoyproxy.envoy.api.v2.route.Route
-import io.envoyproxy.envoy.api.v2.route.RouteAction
-import io.envoyproxy.envoy.api.v2.route.RouteMatch
-import io.envoyproxy.envoy.api.v2.route.VirtualCluster
-import io.envoyproxy.envoy.api.v2.route.VirtualHost
-import io.envoyproxy.envoy.type.matcher.RegexMatcher
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
+import io.envoyproxy.envoy.config.route.v3.RetryPolicy
+import io.envoyproxy.envoy.config.route.v3.Route
+import io.envoyproxy.envoy.config.route.v3.RouteAction
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
+import io.envoyproxy.envoy.config.route.v3.RouteMatch
+import io.envoyproxy.envoy.config.route.v3.VirtualCluster
+import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
@@ -113,8 +113,7 @@ class EnvoyIngressRoutesFactory(
                     .setRoute(clusterRouteActionWithRetryPolicy(retryPolicy, localRouteAction))
             }
         return (retryRoutes + nonRetryRoute).map { builder ->
-            builder.setMetadata(filterMetadata)
-                .build()
+            builder.setMetadata(filterMetadata).build()
         }
     }
 

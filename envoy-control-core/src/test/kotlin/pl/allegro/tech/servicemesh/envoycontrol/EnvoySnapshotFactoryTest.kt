@@ -2,11 +2,11 @@ package pl.allegro.tech.servicemesh.envoycontrol
 
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.SnapshotResources
-import io.envoyproxy.envoy.api.v2.Cluster
-import io.envoyproxy.envoy.api.v2.Listener
-import io.envoyproxy.envoy.api.v2.core.AggregatedConfigSource
-import io.envoyproxy.envoy.api.v2.core.ConfigSource
-import io.envoyproxy.envoy.api.v2.core.Metadata
+import io.envoyproxy.envoy.config.cluster.v3.Cluster
+import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
+import io.envoyproxy.envoy.config.core.v3.ConfigSource
+import io.envoyproxy.envoy.config.core.v3.Metadata
+import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
@@ -69,10 +69,10 @@ class EnvoySnapshotFactoryTest {
 
         assertThat(ingressSocket?.address).isEqualTo(INGRESS_HOST)
         assertThat(ingressSocket?.portValue).isEqualTo(INGRESS_PORT)
-        assertThat(ingressFilterChain?.filtersList?.get(0)?.name).isEqualTo("envoy.http_connection_manager")
+        assertThat(ingressFilterChain?.filtersList?.get(0)?.name).isEqualTo("envoy.filters.network.http_connection_manager")
         assertThat(egressSocket?.address).isEqualTo(EGRESS_HOST)
         assertThat(egressSocket?.portValue).isEqualTo(EGRESS_PORT)
-        assertThat(egressFilterChain?.filtersList?.get(0)?.name).isEqualTo("envoy.http_connection_manager")
+        assertThat(egressFilterChain?.filtersList?.get(0)?.name).isEqualTo("envoy.filters.network.http_connection_manager")
     }
 
     @Test
@@ -111,10 +111,12 @@ class EnvoySnapshotFactoryTest {
         assertThat(listeners.size).isEqualTo(0)
     }
 
-    private fun createServicesGroup(mode: CommunicationMode = CommunicationMode.XDS,
-                                    serviceName: String = DEFAULT_SERVICE_NAME,
-                                    dependencies: Array<String> = emptyArray(),
-                                    listenersConfigExists: Boolean = true): ServicesGroup {
+    private fun createServicesGroup(
+        mode: CommunicationMode = CommunicationMode.XDS,
+        serviceName: String = DEFAULT_SERVICE_NAME,
+        dependencies: Array<String> = emptyArray(),
+        listenersConfigExists: Boolean = true
+    ): ServicesGroup {
         val listenersConfig = when (listenersConfigExists) {
             true -> createListenersConfig()
             false -> null
@@ -140,8 +142,10 @@ class EnvoySnapshotFactoryTest {
     fun createSnapshotFactory(properties: SnapshotProperties): EnvoySnapshotFactory {
         val ingressRoutesFactory = EnvoyIngressRoutesFactory(
             SnapshotProperties(),
-            EnvoyHttpFilters(emptyList(), emptyList(),
-                Metadata.getDefaultInstance())
+            EnvoyHttpFilters(
+                emptyList(), emptyList(),
+                Metadata.getDefaultInstance()
+            )
         )
         val egressRoutesFactory = EnvoyEgressRoutesFactory(properties)
         val clustersFactory = EnvoyClustersFactory(properties)
@@ -151,21 +155,25 @@ class EnvoySnapshotFactoryTest {
         val snapshotsVersions = SnapshotsVersions()
         val meterRegistry: MeterRegistry = SimpleMeterRegistry()
 
-        return EnvoySnapshotFactory(ingressRoutesFactory,
+        return EnvoySnapshotFactory(
+            ingressRoutesFactory,
             egressRoutesFactory,
             clustersFactory,
             endpointsFactory,
             listenersFactory,
             snapshotsVersions,
             properties,
-            meterRegistry)
+            meterRegistry
+        )
     }
 
     private fun createGlobalSnapshot(cluster: Cluster?): GlobalSnapshot {
         return GlobalSnapshot(
-            SnapshotResources.create(emptyList(), "v2"), emptySet(),
+            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"), emptySet(),
             SnapshotResources.create(emptyList(), "v1"), emptyMap(),
-            SnapshotResources.create(listOf(cluster), "v3")
+            SnapshotResources.create(listOf(cluster), "v3"),
+            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
+            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
         )
     }
 

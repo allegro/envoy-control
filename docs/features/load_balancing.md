@@ -70,7 +70,7 @@ egress http connection manager in Envoy static config:
                     key: canary
                     type: STRING
                   remove: false
-          - name: envoy.router
+          - name: envoy.filters.http.router
 ```
 
 The `envoy.filters.http.header_to_metadata` should be added before
