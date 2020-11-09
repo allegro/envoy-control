@@ -3,11 +3,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
-import io.envoyproxy.envoy.api.v2.core.Node
-
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
+import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
+import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 class MetadataNodeGroup(
     val properties: SnapshotProperties,
@@ -15,7 +15,13 @@ class MetadataNodeGroup(
 ) : NodeGroup<Group> {
     private val logger by logger()
 
-    override fun hash(node: Node): Group = createGroup(node)
+    override fun hash(node: NodeV2): Group {
+        return createV2Group(node)
+    }
+
+    override fun hash(node: NodeV3): Group {
+        return createV3Group(node)
+    }
 
     @SuppressWarnings("ReturnCount")
     private fun metadataToListenersHostPort(
@@ -121,26 +127,37 @@ class MetadataNodeGroup(
         )
     }
 
-    private fun createGroup(node: Node): Group {
+    private fun createV3Group(node: NodeV3): Group {
         val metadata = NodeMetadata(node.metadata, properties)
-        val serviceName = serviceName(metadata)
-        val proxySettings = proxySettings(metadata)
-        val listenersConfig = createListenersConfig(node.id, node.metadata)
+        return createGroup(metadata, node.id, node.metadata, ResourceVersion.V3)
+    }
+
+    private fun createV2Group(node: NodeV2): Group {
+        val metadata = NodeMetadata(node.metadata, properties)
+        return createGroup(metadata, node.id, node.metadata, ResourceVersion.V2)
+    }
+
+    private fun createGroup(nodeMetadata: NodeMetadata, id: String, metadata: Struct, version: ResourceVersion): Group {
+        val serviceName = serviceName(nodeMetadata)
+        val proxySettings = proxySettings(nodeMetadata)
+        val listenersConfig = createListenersConfig(id, metadata)
 
         return when {
-            hasAllServicesDependencies(metadata) ->
+            hasAllServicesDependencies(nodeMetadata) ->
                 AllServicesGroup(
-                        metadata.communicationMode,
+                        nodeMetadata.communicationMode,
                         serviceName,
                         proxySettings,
-                        listenersConfig
+                        listenersConfig,
+                        version
                 )
             else ->
                 ServicesGroup(
-                        metadata.communicationMode,
+                        nodeMetadata.communicationMode,
                         serviceName,
                         proxySettings,
-                        listenersConfig
+                        listenersConfig,
+                        version
                 )
         }
     }

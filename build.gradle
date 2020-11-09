@@ -46,8 +46,9 @@ allprojects {
     apply plugin: 'kotlin-spring'
 
     project.ext.versions = [
+
             kotlin            : '1.3.72',
-            java_controlplane : '0.1.24-optimization-SNAPSHOT',
+            java_controlplane : '0.1.24',
             spring_boot       : '2.3.4.RELEASE',
             grpc              : '1.21.0',
             jaxb              : '2.3.1',

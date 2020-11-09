@@ -1,9 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.debug
 
-import io.envoyproxy.envoy.api.v2.Cluster
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
-import io.envoyproxy.envoy.api.v2.Listener
-import io.envoyproxy.envoy.api.v2.RouteConfiguration
+import io.envoyproxy.envoy.config.cluster.v3.Cluster
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.listener.v3.Listener
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import net.openhft.hashing.LongHashFunction
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 
@@ -28,8 +28,8 @@ data class Versions(
 )
 
 data class Snapshot(
-    val clusters: Map<String, Cluster>,
-    val endpoints: Map<String, ClusterLoadAssignment>,
+    val clusters: Map<String, Cluster> = emptyMap(),
+    val endpoints: Map<String, ClusterLoadAssignment> = emptyMap(),
     val listeners: Map<String, Listener> = emptyMap(),
     val routes: Map<String, RouteConfiguration> = emptyMap()
 )
@@ -38,7 +38,7 @@ data class SnapshotDebugInfo(
     val snapshot: Snapshot,
     val versions: Versions
 ) {
-    constructor(snapshot: io.envoyproxy.controlplane.cache.Snapshot) : this(
+    constructor(snapshot: io.envoyproxy.controlplane.cache.v3.Snapshot) : this(
         snapshot = Snapshot(
             clusters = snapshot.clusters().resources(),
             endpoints = snapshot.endpoints().resources(),

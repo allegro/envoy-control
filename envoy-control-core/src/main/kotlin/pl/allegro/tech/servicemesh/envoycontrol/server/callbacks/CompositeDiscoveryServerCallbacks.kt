@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -17,19 +18,33 @@ class CompositeDiscoveryServerCallbacks(
     private val logger by logger()
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String?, error: Throwable?) {
-        runCallbacks { it.onStreamCloseWithError(streamId, typeUrl, error) }
+        runCallbacks {
+            it.onStreamCloseWithError(streamId, typeUrl, error)
+        }
     }
 
     override fun onStreamClose(streamId: Long, typeUrl: String?) {
-        runCallbacks { it.onStreamClose(streamId, typeUrl) }
+        runCallbacks {
+            it.onStreamClose(streamId, typeUrl)
+        }
     }
 
     override fun onStreamOpen(streamId: Long, typeUrl: String?) {
-        runCallbacks { it.onStreamOpen(streamId, typeUrl) }
+        runCallbacks {
+            it.onStreamOpen(streamId, typeUrl)
+        }
     }
 
-    override fun onStreamRequest(streamId: Long, request: DiscoveryRequest?) {
-        runCallbacks { it.onStreamRequest(streamId, request) }
+    override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequest?) {
+        runCallbacks {
+            it.onV2StreamRequest(streamId, request)
+        }
+    }
+
+    override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
+        runCallbacks {
+            it.onV3StreamRequest(streamId, request)
+        }
     }
 
     override fun onStreamResponse(
@@ -37,7 +52,9 @@ class CompositeDiscoveryServerCallbacks(
         request: DiscoveryRequest?,
         response: DiscoveryResponse?
     ) {
-        runCallbacks { it.onStreamResponse(streamId, request, response) }
+        runCallbacks {
+            it.onStreamResponse(streamId, request, response)
+        }
     }
 
     private fun runCallbacks(fn: (DiscoveryServerCallbacks) -> Unit) {

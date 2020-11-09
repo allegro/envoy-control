@@ -5,20 +5,27 @@ sealed class Group {
     abstract val serviceName: String
     abstract val proxySettings: ProxySettings
     abstract val listenersConfig: ListenersConfig?
+    abstract val version: ResourceVersion
+}
+
+enum class ResourceVersion {
+    V2, V3
 }
 
 data class ServicesGroup(
     override val communicationMode: CommunicationMode,
     override val serviceName: String = "",
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val listenersConfig: ListenersConfig? = null
+    override val listenersConfig: ListenersConfig? = null,
+    override val version: ResourceVersion = ResourceVersion.V2
 ) : Group()
 
 data class AllServicesGroup(
     override val communicationMode: CommunicationMode,
     override val serviceName: String = "",
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val listenersConfig: ListenersConfig? = null
+    override val listenersConfig: ListenersConfig? = null,
+    override val version: ResourceVersion = ResourceVersion.V2
 ) : Group()
 
 data class ListenersConfig(

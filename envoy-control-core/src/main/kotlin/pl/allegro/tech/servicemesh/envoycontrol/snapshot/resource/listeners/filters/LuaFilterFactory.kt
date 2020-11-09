@@ -1,12 +1,12 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
+import io.envoyproxy.envoy.config.core.v3.Metadata
+import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import com.google.protobuf.ListValue
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
-import io.envoyproxy.envoy.api.v2.core.Metadata
-import io.envoyproxy.envoy.config.filter.http.lua.v2.Lua
-import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 

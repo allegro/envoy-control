@@ -37,7 +37,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // when
-        val exception = catchThrowable { validator.onStreamRequest(streamId = 123, request = request) }
+        val exception = catchThrowable { validator.onV2StreamRequest(streamId = 123, request = request) }
 
         // then
         assertThat(exception).isInstanceOf(WildcardPrincipalValidationException::class.java)
@@ -59,7 +59,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // when
-        val exception = catchThrowable { validator.onStreamRequest(streamId = 123, request = request) }
+        val exception = catchThrowable { validator.onV2StreamRequest(streamId = 123, request = request) }
 
         // expects
         assertThat(exception).isInstanceOf(WildcardPrincipalMixedWithOthersValidationException::class.java)
@@ -80,7 +80,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // when
-        val exception = catchThrowable { validator.onStreamRequest(streamId = 123, request = request) }
+        val exception = catchThrowable { validator.onV2StreamRequest(streamId = 123, request = request) }
 
         // expects
         assertThat(exception).isInstanceOf(AllDependenciesValidationException::class.java)
@@ -103,7 +103,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { validator.onStreamRequest(123, request = request) }
+        assertDoesNotThrow { validator.onV2StreamRequest(123, request = request) }
     }
 
     @Test
@@ -117,7 +117,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { validator.onStreamRequest(123, request = request) }
+        assertDoesNotThrow { validator.onV2StreamRequest(123, request = request) }
     }
 
     @Test
@@ -133,7 +133,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { permissionsDisabledValidator.onStreamRequest(123, request = request) }
+        assertDoesNotThrow { permissionsDisabledValidator.onV2StreamRequest(123, request = request) }
     }
 
     @ParameterizedTest
@@ -162,7 +162,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // when
-        val exception = catchThrowable { configurationModeValidator.onStreamRequest(streamId = 123, request = request) }
+        val exception = catchThrowable { configurationModeValidator.onV2StreamRequest(streamId = 123, request = request) }
 
         // expects
         assertThat(exception).isInstanceOf(ConfigurationModeNotSupportedException::class.java)
@@ -198,7 +198,7 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequest.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { configurationModeValidator.onStreamRequest(123, request = request) }
+        assertDoesNotThrow { configurationModeValidator.onV2StreamRequest(123, request = request) }
     }
 
     private fun createIncomingPermissions(
