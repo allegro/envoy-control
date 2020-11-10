@@ -2,9 +2,9 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.controlplane.server.exception.RequestException
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
-import io.envoyproxy.envoy.api.v2.DiscoveryResponse
+import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
+import io.envoyproxy.envoy.api.v2.DiscoveryResponse as DiscoveryResponseV2
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
@@ -35,12 +35,12 @@ class CompositeDiscoveryServerCallbacks(
         }
     }
 
-    override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequest?) {
+    override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequestV2?) {
         val metadata = request?.node?.metadata
         logger.error("Server does not support V2 requests. Node metadata: {}", metadata)
     }
 
-    override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
+    override fun onV3StreamRequest(streamId: Long, request: DiscoveryRequestV3?) {
         runCallbacks {
             it.onV3StreamRequest(streamId, request)
         }
@@ -48,8 +48,8 @@ class CompositeDiscoveryServerCallbacks(
 
     override fun onStreamResponse(
         streamId: Long,
-        request: DiscoveryRequest?,
-        response: DiscoveryResponse?
+        request: DiscoveryRequestV2?,
+        response: DiscoveryResponseV2?
     ) {
         runCallbacks {
             it.onStreamResponse(streamId, request, response)

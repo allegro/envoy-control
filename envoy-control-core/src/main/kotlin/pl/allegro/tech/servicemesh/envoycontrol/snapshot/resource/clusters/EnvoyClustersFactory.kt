@@ -94,9 +94,9 @@ class EnvoyClustersFactory(
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
-                globalSnapshot.securedClusters.resources()
+            globalSnapshot.securedClusters.resources()
         } else {
-                globalSnapshot.clusters.resources()
+            globalSnapshot.clusters.resources()
         }
 
         return when (group) {
@@ -227,16 +227,20 @@ class EnvoyClustersFactory(
                 Cluster.EdsClusterConfig.newBuilder().setEdsConfig(
                     when (communicationMode) {
                         // here we do not have group information
-                        ADS -> ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
+                        ADS -> ConfigSource.newBuilder()
+                            .setResourceApiVersion(ApiVersion.V3)
+                            .setAds(AggregatedConfigSource.newBuilder())
                         XDS ->
                             ConfigSource.newBuilder()
                                 .setResourceApiVersion(ApiVersion.V3)
                                 .setApiConfigSource(
                                     ApiConfigSource.newBuilder().setApiType(ApiConfigSource.ApiType.GRPC)
-                                        .addGrpcServices(0, GrpcService.newBuilder().setEnvoyGrpc(
-                                            GrpcService.EnvoyGrpc.newBuilder()
-                                                .setClusterName(properties.xdsClusterName)
-                                        ))
+                                        .addGrpcServices(
+                                            0, GrpcService.newBuilder().setEnvoyGrpc(
+                                                GrpcService.EnvoyGrpc.newBuilder()
+                                                    .setClusterName(properties.xdsClusterName)
+                                            )
+                                        )
                                 )
                     }
                 ).setServiceName(clusterConfiguration.serviceName)

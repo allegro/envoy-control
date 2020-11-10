@@ -3,11 +3,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
-import io.envoyproxy.envoy.api.v2.core.Node
-
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
+import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
+import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 class MetadataNodeGroup(
     val properties: SnapshotProperties,
@@ -15,13 +15,13 @@ class MetadataNodeGroup(
 ) : NodeGroup<Group> {
     private val logger by logger()
 
-    override fun hash(node: Node): Group {
+    override fun hash(node: NodeV2): Group {
         // We no longer support v2 transport.
         // This code point will not be reached because we check it in NodeMetadataValidator#validateV2Metadata.
         throw V2NotSupportedException(serviceName = null)
     }
 
-    override fun hash(node: io.envoyproxy.envoy.config.core.v3.Node): Group {
+    override fun hash(node: NodeV3): Group {
         return createV3Group(node)
     }
 
@@ -132,11 +132,6 @@ class MetadataNodeGroup(
     private fun createV3Group(node: io.envoyproxy.envoy.config.core.v3.Node): Group {
         val metadata = NodeMetadata(node.metadata, properties)
         return createGroup(metadata, node.id, node.metadata, ResourceVersion.V3)
-    }
-
-    private fun createV2Group(node: Node): Group {
-        val metadata = NodeMetadata(node.metadata, properties)
-        return createGroup(metadata, node.id, node.metadata, ResourceVersion.V2)
     }
 
     private fun createGroup(nodeMetadata: NodeMetadata, id: String, metadata: Struct, version: ResourceVersion): Group {

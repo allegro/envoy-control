@@ -31,8 +31,12 @@ class LuaTestsContainer : BaseGenericContainer<LuaTestsContainer>("vpanov/lua-bu
     fun runLuaTests(): TestsResults = use {
         start()
         val results = execInContainer("busted", "--output=json", "--lpath=$LUA_SRC_DIR_DEST/?.lua", LUA_SPEC_DIR_DST)
-        val output = kotlin.runCatching { mapper.readValue(results.stdout, TestsOutput::class.java) }
-            .getOrElse { error -> invalidTestOutput(results.stdout, error) }
+        // with testcontainers 1.15.0-rc2 combined with Docker 19.03.13 and MacOS 10.15.6
+        // newlines started to appear in the output; as we expect JSON to be parsed by ObjectMapper,
+        // we eliminate those newlines inserted by org.testcontainers.containers.output.ToStringConsumer
+        val stdout = results.stdout.replace("\n", "")
+        val output = kotlin.runCatching { mapper.readValue(stdout, TestsOutput::class.java) }
+            .getOrElse { error -> invalidTestOutput(stdout, error) }
         return TestsResults(stdout = output, stderr = results.stderr, exitCodeSuccess = (results.exitCode == 0))
     }
 

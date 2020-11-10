@@ -69,12 +69,6 @@ class RBACFilterFactory(
     ): List<EndpointWithPolicy> {
         val principalCache = mutableMapOf<ClientWithSelector, List<Principal>>()
         return incomingPermissions.endpoints.map { incomingEndpoint ->
-            if (incomingEndpoint.clients.isEmpty()) {
-                logger.warn("An incoming endpoint definition for $serviceName does not have any clients defined." +
-                    "It means that no one will be able to contact that endpoint, unless 'log' policy is defined " +
-                    "for unlisted endpoints or clients.")
-            }
-
             val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
             val principals = clientsWithSelectors
                 .flatMap { client ->

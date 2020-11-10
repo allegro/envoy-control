@@ -41,7 +41,7 @@ internal class GroupChangeWatcher(
 
     override fun createWatch(
         ads: Boolean,
-        request: XdsRequest?,
+        request: XdsRequest,
         knownResourceNames: MutableSet<String>,
         responseConsumer: Consumer<Response>,
         hasClusterChanged: Boolean

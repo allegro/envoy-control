@@ -1,13 +1,15 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
+import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
-import io.envoyproxy.envoy.api.v2.core.Node
+import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
+import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class AllDependenciesValidationException(serviceName: String?)
@@ -45,6 +47,10 @@ class V2NotSupportedException(serviceName: String?)
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
+    companion object {
+        private val logger by logger()
+    }
+
     private val tlsProperties = properties.incomingPermissions.tlsAuthentication
 
     override fun onStreamClose(streamId: Long, typeUrl: String?) {}
@@ -53,22 +59,22 @@ class NodeMetadataValidator(
 
     override fun onStreamOpen(streamId: Long, typeUrl: String?) {}
 
-    override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
+    override fun onV3StreamRequest(streamId: Long, request: DiscoveryRequestV3?) {
         request?.node?.let { validateV3Metadata(it) }
     }
 
-    override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequest?) {
+    override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequestV2?) {
         request?.node?.let { validateV2Metadata(it) }
     }
 
     override fun onStreamResponse(
         streamId: Long,
-        request: DiscoveryRequest?,
+        request: DiscoveryRequestV2?,
         response: DiscoveryResponse?
     ) {
     }
 
-    private fun validateV3Metadata(node: io.envoyproxy.envoy.config.core.v3.Node) {
+    private fun validateV3Metadata(node: NodeV3) {
         // Some validation logic is executed when NodeMetadata is created.
         // This may throw NodeMetadataValidationException
         val metadata = NodeMetadata(node.metadata, properties)
@@ -76,7 +82,7 @@ class NodeMetadataValidator(
         validateMetadata(metadata)
     }
 
-    private fun validateV2Metadata(node: Node) {
+    private fun validateV2Metadata(node: NodeV2) {
         // Some validation logic is executed when NodeMetadata is created.
         // This may throw NodeMetadataValidationException
         val metadata = NodeMetadata(node.metadata, properties)
@@ -86,6 +92,7 @@ class NodeMetadataValidator(
 
     private fun validateMetadata(metadata: NodeMetadata) {
         validateDependencies(metadata)
+        validateIncomingEndpoints(metadata)
         validateConfigurationMode(metadata)
     }
 
@@ -94,15 +101,25 @@ class NodeMetadataValidator(
             return
         }
         validateEndpointPermissionsMethods(metadata)
-        validateIncomingEndpoints(metadata)
         if (hasAllServicesDependencies(metadata) && !isAllowedToHaveAllServiceDependencies(metadata)) {
             throw AllDependenciesValidationException(metadata.serviceName)
         }
     }
 
     private fun validateIncomingEndpoints(metadata: NodeMetadata) {
+        if (!properties.incomingPermissions.enabled) {
+            return
+        }
+
         metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
             val clients = incomingEndpoint.clients.map { it.name }
+
+            if (clients.isEmpty() && incomingEndpoint.unlistedClientsPolicy != Incoming.UnlistedPolicy.LOG) {
+                logger.warn("An incoming endpoint definition for service: ${metadata.serviceName}" +
+                    ", path: ${incomingEndpoint.path} does not have any clients defined." +
+                    "It means that no one will be able to contact that endpoint")
+            }
+
             if (clients.contains(tlsProperties.wildcardClientIdentifier)) {
                 if (clients.size != 1) {
                     throw WildcardPrincipalMixedWithOthersValidationException(metadata.serviceName)
