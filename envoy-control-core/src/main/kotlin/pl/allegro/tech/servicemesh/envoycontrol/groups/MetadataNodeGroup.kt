@@ -129,7 +129,7 @@ class MetadataNodeGroup(
         )
     }
 
-    private fun createV3Group(node: io.envoyproxy.envoy.config.core.v3.Node): Group {
+    private fun createV3Group(node: NodeV3): Group {
         val metadata = NodeMetadata(node.metadata, properties)
         return createGroup(metadata, node.id, node.metadata, ResourceVersion.V3)
     }
