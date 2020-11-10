@@ -562,14 +562,12 @@ public class SimpleCacheTest {
             }
 
             return GROUP;
-
         }
 
         @Override
         public String hash(io.envoyproxy.envoy.config.core.v3.Node node) {
-            throw new IllegalStateException("should not have received a v2 Node in a v3 Test");
+            throw new IllegalStateException("should not have received a v3 Node in a v2 Test");
         }
-
     }
 
     protected static class WatchAndTracker {
