@@ -43,7 +43,7 @@ class EnvoySnapshotFactory(
         val clusters = clustersFactory.getClustersForServices(clusterConfigurations.values, communicationMode)
         val securedClusters = clustersFactory.getSecuredClusters(clusters)
         val v3Clusters = clustersFactory.mapToV3Cluster(clusters)
-        val v3SecuredClusters = clustersFactory.mapToV3Cluster(clusters)
+        val v3SecuredClusters = clustersFactory.mapToV3Cluster(securedClusters)
 
         val endpoints: List<ClusterLoadAssignment> = endpointsFactory.createLoadAssignment(
             clusters = clusterConfigurations.keys,
