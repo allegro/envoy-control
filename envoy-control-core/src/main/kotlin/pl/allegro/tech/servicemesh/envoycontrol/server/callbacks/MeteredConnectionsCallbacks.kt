@@ -49,11 +49,6 @@ class MeteredConnectionsCallbacks(
     @Suppress("ComplexMethod")
     private fun connectionsByType(typeUrl: String?): AtomicInteger {
         val type = when (typeUrl) {
-            Resources.V2.CLUSTER_TYPE_URL -> MetricsStreamType.CDS
-            Resources.V2.ENDPOINT_TYPE_URL -> MetricsStreamType.EDS
-            Resources.V2.LISTENER_TYPE_URL -> MetricsStreamType.LDS
-            Resources.V2.ROUTE_TYPE_URL -> MetricsStreamType.RDS
-            Resources.V2.SECRET_TYPE_URL -> MetricsStreamType.SDS
             Resources.V3.CLUSTER_TYPE_URL -> MetricsStreamType.CDS
             Resources.V3.ENDPOINT_TYPE_URL -> MetricsStreamType.EDS
             Resources.V3.LISTENER_TYPE_URL -> MetricsStreamType.LDS
