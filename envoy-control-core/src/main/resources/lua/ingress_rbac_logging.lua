@@ -6,9 +6,13 @@ function envoy_on_request(handle)
 
     local client_name = ""
     local client_identity_header_names = handle:metadata():get("client_identity_headers") or {}
+    --local trusted_header = handle:metadata():get("x_client_name_trusted")
+    --above commented line causes STDERR: Segmentation fault
+    local trusted_header = "x-client-name-trusted"
+
     for _,h in ipairs(client_identity_header_names) do
         client_name = handle:headers():get(h) or ""
-        if client_name ~= "" and handle:connection():ssl() ~= nil and h ~= "x-client-name-trusted" then
+        if client_name ~= "" and handle:connection():ssl() ~= nil and h ~= trusted_header then
             client_name = "not trusted ".. client_name
         end
         if client_name ~= "" then break end

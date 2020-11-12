@@ -13,7 +13,7 @@ class LuaClientFilterFactory(private val incomingPermissionsProperties: Incoming
 
     private val ingressClientFilter: HttpFilter? = if (incomingPermissionsProperties.enabled) {
         HttpFilter.newBuilder()
-            .setName("envoy.lua")
+            .setName("ingress.client.lua")
             .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientScript).build()))
             .build()
     } else {

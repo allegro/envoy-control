@@ -1,6 +1,6 @@
 require("ingress_client")
 
-local function handlerMock(headers, dynamic_metadata, https, uri_san_peer_certificate)
+local function handlerMock(headers, metadata, https, uri_san_peer_certificate)
     local downstreamSslConnection_mock = mock({
         uriSanPeerCertificate = function() return uri_san_peer_certificate end
     })
@@ -17,17 +17,24 @@ local function handlerMock(headers, dynamic_metadata, https, uri_san_peer_certif
         end,
         connection = function() return {
             ssl = function() return https or nil end
-        }
+        }end,
+        metadata = function() return {
+                get = function(_, key) return metadata[key] end
+            }
         end
     }
 end
 
 describe("envoy_on_request:", function()
+    local metadata = {
+        ['x_client_name_trusted'] = "x-client-name-trusted",
+    }
+
     it ("should remove x-client-name-trusted header if provided", function()
         -- given
         local headers = { ['x-client-name-trusted'] = 'service-third' }
 
-        local handle = handlerMock(headers, {}, true)
+        local handle = handlerMock(headers, metadata, true)
 
         -- when
         envoy_on_request(handle)
@@ -53,7 +60,7 @@ describe("envoy_on_request:", function()
         for header_value, uri_san_peer_certificate in pairs(uri_san_client_names_pairs) do
             local headers = {}
 
-            local handle = handlerMock(headers, {}, true, uri_san_peer_certificate)
+            local handle = handlerMock(headers, metadata, true, uri_san_peer_certificate)
 
             -- when
             envoy_on_request(handle)

@@ -1,6 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
+import com.google.protobuf.ListValue
+import com.google.protobuf.Struct
+import com.google.protobuf.Value
 import io.envoyproxy.envoy.api.v2.core.Metadata
 import io.envoyproxy.envoy.config.filter.http.header_to_metadata.v2.Config
 import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
@@ -54,7 +57,30 @@ class EnvoyDefaultFilters(
     val defaultIngressFilters = listOf(
         defaultHeaderFilter, defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter
     )
-    val defaultIngressMetadata: Metadata = luaFilterFactory.ingressRbacLoggingMetadata()
+    val defaultIngressMetadata: Metadata = ingressMetadata()
+
+    private fun ingressMetadata(): Metadata {
+        return Metadata.newBuilder()
+            .putFilterMetadata("envoy.filters.http.lua",
+                Struct.newBuilder()
+                    .putFields("client_identity_headers",
+                        Value.newBuilder()
+                            .setListValue(ListValue.newBuilder()
+                                .addAllValues(
+                                    snapshotProperties.incomingPermissions.clientIdentityHeaders
+                                        .map { Value.newBuilder().setStringValue(it).build() }
+                                )
+                                .build()
+                            ).build()
+                    )
+                    .putFields("x_client_name_trusted",
+                        Value.newBuilder()
+                            .setStringValue(snapshotProperties.incomingPermissions.xClientNameTrustedHeader)
+                            .build()
+                    )
+                .build()
+            ).build()
+    }
 
     private fun headerToMetadataConfig(
         rules: List<Config.Rule>,

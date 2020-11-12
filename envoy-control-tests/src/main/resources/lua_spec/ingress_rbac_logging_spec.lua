@@ -70,7 +70,8 @@ describe("envoy_on_request:", function()
             ['x-client-name-trusted'] = 'service-first,service-second'
         }
         local filter_metadata = {
-            ['client_identity_headers'] = { "x-client-name-trusted", "x-service-name" }
+            ['client_identity_headers'] = { "x-client-name-trusted", "x-service-name" },
+            ['x_client_name_trusted'] = "x-client-name-trusted"
         }
         local handle = handlerMock(headers, {}, true, filter_metadata)
         local metadata = handle:streamInfo():dynamicMetadata()
@@ -91,7 +92,8 @@ describe("envoy_on_request:", function()
             ['x-service-name'] = 'lorem-service',
         }
         local filter_metadata = {
-            ['client_identity_headers'] = { "x-service-name" }
+            ['client_identity_headers'] = { "x-service-name" },
+            ['x_client_name_trusted'] = "x-client-name-trusted"
         }
 
         local handle = handlerMock(headers, {}, true, filter_metadata)
