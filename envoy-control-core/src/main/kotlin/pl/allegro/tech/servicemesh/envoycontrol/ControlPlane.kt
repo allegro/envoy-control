@@ -137,42 +137,13 @@ class ControlPlane private constructor(
                 }
             }
             val loggingDiscoveryServerCallbacks = LoggingDiscoveryServerCallbacks(
-                    properties.server.logFullRequest,
-                    properties.server.logFullResponse
+                properties.server.logFullRequest,
+                properties.server.logFullResponse
             )
             val snapshotCollectingCallback = buildSnapshotCollectingCallback(cache)
             val cachedProtoResourcesSerializer = CachedProtoResourcesSerializer(
-                    meterRegistry,
-                    properties.server.reportProtobufCacheMetrics
-            )
-            val compositeDiscoveryCallbacksV2 = listOf(
-                    CompositeDiscoveryServerCallbacks(
-                            meterRegistry,
-                            snapshotCollectingCallback,
-                            loggingDiscoveryServerCallbacks,
-                            meteredConnectionsCallbacks,
-                            NodeMetadataValidator(properties.envoy.snapshot)
-                    )
-            )
-            val compositeDiscoveryCallbacksV3 = listOf(
-                    CompositeDiscoveryServerCallbacks(
-                            meterRegistry,
-                            loggingDiscoveryServerCallbacks,
-                            meteredConnectionsCallbacks,
-                            NodeMetadataValidator(properties.envoy.snapshot)
-                    )
-            )
-            val v2discoveryServer = V2DiscoveryServer(
-                compositeDiscoveryCallbacksV2,
-                groupChangeWatcher,
-                executorGroup,
-                cachedProtoResourcesSerializer
-            )
-            val v3discoveryServer = V3DiscoveryServer(
-                    compositeDiscoveryCallbacksV3,
-                    groupChangeWatcher,
-                    executorGroup,
-                    cachedProtoResourcesSerializer
+                meterRegistry,
+                properties.server.reportProtobufCacheMetrics
             )
 
             val snapshotsVersions = SnapshotsVersions()
@@ -196,11 +167,22 @@ class ControlPlane private constructor(
 
             return ControlPlane(
                 grpcServer(
-                        properties.server,
-                        v2discoveryServer,
-                        v3discoveryServer,
-                        nioEventLoopExecutor!!,
-                        grpcServerExecutor!!
+                    properties.server,
+                    createV2Server(
+                        loggingDiscoveryServerCallbacks,
+                        meteredConnectionsCallbacks,
+                        groupChangeWatcher,
+                        cachedProtoResourcesSerializer
+                    ),
+                    createV3Server(
+                        snapshotCollectingCallback,
+                        loggingDiscoveryServerCallbacks,
+                        meteredConnectionsCallbacks,
+                        groupChangeWatcher,
+                        cachedProtoResourcesSerializer
+                    ),
+                    nioEventLoopExecutor!!,
+                    grpcServerExecutor!!
                 ),
                 SnapshotUpdater(
                     cache,
@@ -219,17 +201,64 @@ class ControlPlane private constructor(
             )
         }
 
+        private fun createV3Server(
+            snapshotCollectingCallback: SnapshotCollectingCallback<Group, Snapshot>,
+            loggingDiscoveryServerCallbacks: LoggingDiscoveryServerCallbacks,
+            meteredConnectionsCallbacks: MeteredConnectionsCallbacks,
+            groupChangeWatcher: GroupChangeWatcher,
+            cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
+        ): V3DiscoveryServer {
+            val compositeDiscoveryCallbacksV3 = listOf(
+                CompositeDiscoveryServerCallbacks(
+                    meterRegistry,
+                    snapshotCollectingCallback,
+                    loggingDiscoveryServerCallbacks,
+                    meteredConnectionsCallbacks,
+                    NodeMetadataValidator(properties.envoy.snapshot)
+                )
+            )
+
+            return V3DiscoveryServer(
+                compositeDiscoveryCallbacksV3,
+                groupChangeWatcher,
+                executorGroup,
+                cachedProtoResourcesSerializer
+            )
+        }
+
+        private fun createV2Server(
+            loggingDiscoveryServerCallbacks: LoggingDiscoveryServerCallbacks,
+            meteredConnectionsCallbacks: MeteredConnectionsCallbacks,
+            groupChangeWatcher: GroupChangeWatcher,
+            cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
+        ): V2DiscoveryServer {
+            val compositeDiscoveryCallbacksV2 = listOf(
+                CompositeDiscoveryServerCallbacks(
+                    meterRegistry,
+                    loggingDiscoveryServerCallbacks,
+                    meteredConnectionsCallbacks,
+                    NodeMetadataValidator(properties.envoy.snapshot)
+                )
+            )
+            return V2DiscoveryServer(
+                compositeDiscoveryCallbacksV2,
+                groupChangeWatcher,
+                executorGroup,
+                cachedProtoResourcesSerializer
+            )
+        }
+
         private fun buildSnapshotCollectingCallback(
             cache: SimpleCache<Group>
         ): SnapshotCollectingCallback<Group, Snapshot> {
             val cleanupProperties = properties.server.snapshotCleanup
             return SnapshotCollectingCallback(
-                    cache,
-                    nodeGroup,
-                    Clock.systemDefaultZone(),
-                    emptySet(),
-                    cleanupProperties.collectAfterMillis.toMillis(),
-                    cleanupProperties.collectionIntervalMillis.toMillis()
+                cache,
+                nodeGroup,
+                Clock.systemDefaultZone(),
+                emptySet(),
+                cleanupProperties.collectAfterMillis.toMillis(),
+                cleanupProperties.collectionIntervalMillis.toMillis()
             )
         }
 
@@ -268,11 +297,11 @@ class ControlPlane private constructor(
 
         private fun buildThreadPoolExecutor(): ThreadPoolExecutor {
             return newMeteredThreadPoolExecutor(
-                    properties.server.serverPoolSize,
-                    properties.server.serverPoolSize,
-                    properties.server.serverPoolKeepAlive.toMillis(),
-                    LinkedBlockingQueue<Runnable>(),
-                    "grpc-server-worker"
+                properties.server.serverPoolSize,
+                properties.server.serverPoolSize,
+                properties.server.serverPoolKeepAlive.toMillis(),
+                LinkedBlockingQueue<Runnable>(),
+                "grpc-server-worker"
             )
         }
 
@@ -318,10 +347,10 @@ class ControlPlane private constructor(
 
         private fun NettyServerBuilder.withV2EnvoyServices(discoveryServer: V2DiscoveryServer): NettyServerBuilder {
             return this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
-                    .addService(discoveryServer.clusterDiscoveryServiceImpl)
-                    .addService(discoveryServer.endpointDiscoveryServiceImpl)
-                    .addService(discoveryServer.listenerDiscoveryServiceImpl)
-                    .addService(discoveryServer.routeDiscoveryServiceImpl)
+                .addService(discoveryServer.clusterDiscoveryServiceImpl)
+                .addService(discoveryServer.endpointDiscoveryServiceImpl)
+                .addService(discoveryServer.listenerDiscoveryServiceImpl)
+                .addService(discoveryServer.routeDiscoveryServiceImpl)
         }
 
         private fun NettyServerBuilder.withV3EnvoyServices(discoveryServer: V3DiscoveryServer): NettyServerBuilder {
@@ -379,19 +408,25 @@ class ControlPlane private constructor(
             v3discoveryServer: V3DiscoveryServer,
             nioEventLoopExecutor: Executor,
             grpcServerExecutor: Executor
-        ): Server = NettyServerBuilder.forPort(config.port)
-            .workerEventLoopGroup(
-                NioEventLoopGroup(
-                    config.nioEventLoopThreadCount,
-                    nioEventLoopExecutor
+        ): Server {
+            val serverBuilder = NettyServerBuilder.forPort(config.port)
+                .workerEventLoopGroup(
+                    NioEventLoopGroup(
+                        config.nioEventLoopThreadCount,
+                        nioEventLoopExecutor
+                    )
                 )
-            )
-            .executor(grpcServerExecutor)
-            .keepAliveTime(config.netty.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
-            .permitKeepAliveTime(config.netty.permitKeepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
-            .permitKeepAliveWithoutCalls(config.netty.permitKeepAliveWithoutCalls)
-            .withV2EnvoyServices(v2discoveryServer)
-            .withV3EnvoyServices(v3discoveryServer)
-            .build()
+                .executor(grpcServerExecutor)
+                .keepAliveTime(config.netty.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
+                .permitKeepAliveTime(config.netty.permitKeepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
+                .permitKeepAliveWithoutCalls(config.netty.permitKeepAliveWithoutCalls)
+
+            if (properties.envoy.snapshot.supportV2Configuration) {
+                serverBuilder.withV2EnvoyServices(v2discoveryServer)
+            }
+            return serverBuilder
+                .withV3EnvoyServices(v3discoveryServer)
+                .build()
+        }
     }
 }

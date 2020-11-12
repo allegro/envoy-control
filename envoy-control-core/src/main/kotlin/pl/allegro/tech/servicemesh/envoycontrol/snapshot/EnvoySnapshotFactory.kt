@@ -12,6 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
@@ -40,10 +41,20 @@ class EnvoySnapshotFactory(
     ): GlobalSnapshot {
         val sample = Timer.start(meterRegistry)
 
-        val clusters = clustersFactory.getClustersForServices(clusterConfigurations.values, communicationMode)
+        var v2Clusters = emptyList<Cluster>()
+        var v2SecuredClusters = emptyList<Cluster>()
+        if (properties.supportV2Configuration) {
+            v2Clusters = clustersFactory.getClustersForServices(
+                clusterConfigurations.values, communicationMode,
+                ResourceVersion.V2
+            )
+            v2SecuredClusters = clustersFactory.getSecuredClusters(v2Clusters)
+        }
+        val clusters = clustersFactory.getClustersForServices(
+            clusterConfigurations.values, communicationMode,
+            ResourceVersion.V3
+        )
         val securedClusters = clustersFactory.getSecuredClusters(clusters)
-        val v3Clusters = clustersFactory.mapToV3Cluster(clusters)
-        val v3SecuredClusters = clustersFactory.mapToV3Cluster(securedClusters)
 
         val endpoints: List<ClusterLoadAssignment> = endpointsFactory.createLoadAssignment(
             clusters = clusterConfigurations.keys,
@@ -56,8 +67,8 @@ class EnvoySnapshotFactory(
             securedClusters = securedClusters,
             endpoints = endpoints,
             properties = properties.outgoingPermissions,
-            v3Clusters = v3Clusters,
-            v3SecuredClusters = v3SecuredClusters
+            v2Clusters = v2Clusters,
+            v2SecuredClusters = v2SecuredClusters
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 
