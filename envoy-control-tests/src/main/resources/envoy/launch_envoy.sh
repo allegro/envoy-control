@@ -28,9 +28,16 @@ echo "${CONFIG}" | sed \
  -e "s;PRIVATE_KEY;${PRIVATE_KEY};g" \
  -e "s;SERVICE_NAME;${SERVICE_NAME};g" \
  > "${CONFIG_FILE}"
-cat "${CONFIG_FILE}"
+#cat "${CONFIG_FILE}"
 
 shift 8
-/usr/local/bin/envoy --drain-time-s 1 -c "${CONFIG_FILE}" "$@"
+
+echo "
+run
+backtrace
+quit
+" > "${CONFIG_DIR}/gdbcmds"
+
+gdb -x "${CONFIG_DIR}/gdbcmds" --args /usr/local/bin/envoy --drain-time-s 1 -c "${CONFIG_FILE}" "$@"
 
 rm -rf "${CONFIG_DIR}"
