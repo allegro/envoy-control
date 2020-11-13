@@ -2,11 +2,11 @@ function envoy_on_request(handle)
     if handle:headers():get("x-client-name-trusted") ~= nil then
         handle:headers():remove("x-client-name-trusted")
     end
-    --local trusted_header = handle:metadata():get("x_client_name_trusted")
+    local trusted_header = handle:metadata():get("x_client_name_trusted")
     --above commented line causes STDERR: Segmentation fault
-    local trusted_header = "x-client-name-trusted"
+    --local trusted_header = "x-client-name-trusted"
 
-    if handle:connection():ssl() ~= nil then
+    if handle:connection():ssl() ~= nil and handle:streamInfo() ~= nil and handle:streamInfo():downstreamSslConnection() ~= nil then
         local uriSanPeerCertificate = handle:streamInfo():downstreamSslConnection():uriSanPeerCertificate()
         if uriSanPeerCertificate ~= nil and next(uriSanPeerCertificate) ~= nil then
             local pattern = "://([a-zA-Z0-9-_.]+)"
