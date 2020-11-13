@@ -75,6 +75,12 @@ class EnvoyDefaultFilters(
                             .setStringValue(snapshotProperties.incomingPermissions.xClientNameTrustedHeader)
                             .build()
                     )
+                    .putFields("san_uri_client_name_regex",
+                        Value.newBuilder()
+                            .setStringValue(
+                                snapshotProperties.incomingPermissions.tlsAuthentication.sanUriClientNameRegex
+                            ).build()
+                    )
                 .build()
             ).build()
     }

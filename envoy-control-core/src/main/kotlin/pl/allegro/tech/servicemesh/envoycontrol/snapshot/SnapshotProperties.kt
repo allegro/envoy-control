@@ -89,6 +89,7 @@ class TlsAuthenticationProperties {
     var mtlsEnabledTag: String = "mtls:enabled"
     var serviceNameWildcardRegex: String = ".+"
     var sanUriFormat: String = "spiffe://{service-name}"
+    var sanUriClientNameRegex: String = "://([a-zA-Z0-9-_.]+)"
 }
 
 class TlsProtocolProperties {

@@ -5,12 +5,12 @@ function envoy_on_request(handle)
         handle:headers():remove("x-client-name-trusted")
     end
 
-    if handle:connection():ssl() and streamInfo:downstreamSslConnection() then
+    if handle:connection():ssl() and streamInfo:downstreamSslConnection() and streamInfo:downstreamSslConnection():peerCertificateValidated() then
         local uriSanPeerCertificate = handle:streamInfo():downstreamSslConnection():uriSanPeerCertificate()
+        local san_uri_format = handle:metadata():get("san_uri_client_name_regex")
         if uriSanPeerCertificate ~= nil and next(uriSanPeerCertificate) ~= nil then
-            local pattern = "://([a-zA-Z0-9-_.]+)"
             for _, entry in pairs(uriSanPeerCertificate) do
-                handle:headers():add(trusted_header, string.match(entry, pattern))
+                handle:headers():add(trusted_header, string.match(entry, san_uri_format))
             end
         end
     end
