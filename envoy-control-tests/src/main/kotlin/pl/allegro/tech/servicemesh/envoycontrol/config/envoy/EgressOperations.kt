@@ -70,14 +70,4 @@ class EgressOperations(val envoy: EnvoyContainer) {
         )
             .execute()
     }
-
-    fun waitForReadyServices(vararg serviceNames: String) {
-        serviceNames.forEach {
-            untilAsserted {
-                callService(it).also {
-                    assertThat(it).isOk()
-                }
-            }
-        }
-    }
 }

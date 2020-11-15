@@ -39,7 +39,7 @@ open class EndpointMetadataMergingTests {
         consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("ipsum"))
         consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("lorem", "dolom"))
 
-        envoy.egressOperations.waitForReadyServices("echo")
+        envoy.waitForReadyServices("echo")
 
         // when
         val ipsumStats = callEchoServiceRepeatedly(repeat = 1, tag = "ipsum")
