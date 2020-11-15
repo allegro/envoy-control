@@ -49,7 +49,6 @@ class EnvoySANValidationTest {
             envoy.container.removeHost("my.example.com")
             envoy.container.removeHost("bad.host.example.com")
         }
-
     }
 
     @Test
