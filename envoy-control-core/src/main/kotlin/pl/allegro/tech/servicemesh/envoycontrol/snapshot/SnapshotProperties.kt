@@ -65,6 +65,7 @@ typealias Client = String
 
 class IncomingPermissionsProperties {
     var enabled = false
+    var metricsPerEndpointEnabled = true
     var clientIdentityHeaders = listOf("x-service-name")
     var serviceNameHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()

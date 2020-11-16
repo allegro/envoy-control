@@ -12,6 +12,7 @@ import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualCluster
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
@@ -24,7 +25,6 @@ class EnvoyIngressRoutesFactory(
     private val properties: SnapshotProperties,
     envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 ) {
-
     private val filterMetadata = envoyHttpFilters.ingressMetadata
     private fun clusterRouteAction(
         responseTimeout: Duration?,
@@ -143,8 +143,71 @@ class EnvoyIngressRoutesFactory(
         routeAction: RouteAction.Builder
     ) = routeAction.clone().setRetryPolicy(retryPolicy)
 
+    private fun createVirtualClustersForIncomingPermissions(endpoints: List<IncomingEndpoint>): List<VirtualCluster> {
+        if (!properties.incomingPermissions.metricsPerEndpointEnabled) {
+            return listOf()
+        }
+
+        return endpoints.flatMap { endpoint ->
+            val pathMatcher = HeaderMatcher.newBuilder()
+            val virtualClusterName = createVirtualClusterName(endpoint)
+            when (endpoint.pathMatchingType) {
+                PathMatchingType.PATH_PREFIX -> {
+                    pathMatcher.setName(":path").setPrefixMatch(endpoint.path)
+                }
+                PathMatchingType.PATH -> {
+                    pathMatcher.setName(":path").setExactMatch(endpoint.path)
+                }
+                PathMatchingType.PATH_REGEX -> {
+                    pathMatcher.setName(":path").setRe2Match(endpoint.path)
+                }
+            }
+
+            val methodMatcher = if (endpoint.methods.isNotEmpty()) {
+                HeaderMatcher.newBuilder().setName(":method").setRe2Match(endpoint.methods.joinToString("|")).build()
+            } else {
+                null
+            }
+
+            endpoint.clients.map { client ->
+                val clientMatcher = HeaderMatcher.newBuilder()
+                        .setName(properties.incomingPermissions.serviceNameHeader)
+                        .setExactMatch(client.compositeName())
+                        .build()
+
+                VirtualCluster.newBuilder()
+                        .addAllHeaders(listOfNotNull(clientMatcher, pathMatcher.build(), methodMatcher))
+                        .setName("${virtualClusterName}_client_${client.compositeName()}")
+                        .build()
+            } + VirtualCluster.newBuilder()
+                    .addAllHeaders(listOfNotNull(pathMatcher.build(), methodMatcher))
+                    .setName("${virtualClusterName}_other_clients")
+                    .build()
+        }
+    }
+
+    private fun createVirtualClusterName(endpoint: IncomingEndpoint): String {
+        return when (endpoint.pathMatchingType) {
+            PathMatchingType.PATH_PREFIX -> {
+                endpoint.path + "*"
+            }
+            PathMatchingType.PATH -> {
+                endpoint.path
+            }
+            PathMatchingType.PATH_REGEX -> {
+                "regex_${endpoint.path}"
+            }
+        } + "_" + if (endpoint.methods.isNotEmpty()) {
+            endpoint.methods.joinToString("|")
+        } else {
+            "ALL_HTTP_METHODS"
+        }
+    }
+
     fun createSecuredIngressRouteConfig(proxySettings: ProxySettings): RouteConfiguration {
-        val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
+        val incomingEndpointsVirtualClusters =
+            createVirtualClustersForIncomingPermissions(proxySettings.incoming.endpoints)
+        val virtualClusters = incomingEndpointsVirtualClusters + when (statusRouteVirtualClusterEnabled()) {
             true -> {
                 statusClusters + endpoints
             }

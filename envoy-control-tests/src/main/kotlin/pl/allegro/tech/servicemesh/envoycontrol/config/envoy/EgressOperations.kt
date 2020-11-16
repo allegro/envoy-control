@@ -3,8 +3,10 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
+import pl.allegro.tech.discovery.consul.recipes.internal.http.MediaType
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import java.time.Duration
@@ -16,8 +18,12 @@ class EgressOperations(val envoy: EnvoyContainer) {
             .readTimeout(Duration.ofSeconds(20))
             .build()
 
-    fun callService(service: String, headers: Map<String, String> = mapOf(), pathAndQuery: String = "") =
-        callWithHostHeader(service, headers, pathAndQuery)
+    fun callService(
+        service: String,
+        headers: Map<String, String> = mapOf(),
+        pathAndQuery: String = "",
+        method: String = "GET"
+    ) = callWithHostHeader(service, headers, pathAndQuery, method)
 
     fun callServiceRepeatedly(
         service: String,
@@ -56,10 +62,18 @@ class EgressOperations(val envoy: EnvoyContainer) {
             ""
         )
 
-    private fun callWithHostHeader(host: String, moreHeaders: Map<String, String>, pathAndQuery: String): Response {
+    private fun callWithHostHeader(
+        host: String,
+        moreHeaders: Map<String, String>,
+        pathAndQuery: String,
+        method: String = "GET"
+    ): Response {
+        val body = if (method == "POST") {
+            RequestBody.create(MediaType.JSON_MEDIA_TYPE, "{}")
+        } else null
         return client.newCall(
             Request.Builder()
-                .get()
+                .method(method, body)
                 .header("Host", host)
                 .apply {
                     moreHeaders.forEach { name, value -> header(name, value) }
