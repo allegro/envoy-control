@@ -140,7 +140,8 @@ class ControlPlane private constructor(
                     properties.server.logFullRequest,
                     properties.server.logFullResponse
             )
-            val snapshotCollectingCallback = buildSnapshotCollectingCallback(cache)
+            val snapshotCollectingCallbackV2 = buildSnapshotCollectingCallback(cache)
+            val snapshotCollectingCallbackV3 = buildSnapshotCollectingCallback(cache)
             val cachedProtoResourcesSerializer = CachedProtoResourcesSerializer(
                     meterRegistry,
                     properties.server.reportProtobufCacheMetrics
@@ -148,7 +149,7 @@ class ControlPlane private constructor(
             val compositeDiscoveryCallbacksV2 = listOf(
                     CompositeDiscoveryServerCallbacks(
                             meterRegistry,
-                            snapshotCollectingCallback,
+                            snapshotCollectingCallbackV2,
                             loggingDiscoveryServerCallbacks,
                             meteredConnectionsCallbacks,
                             NodeMetadataValidator(properties.envoy.snapshot)
@@ -157,7 +158,7 @@ class ControlPlane private constructor(
             val compositeDiscoveryCallbacksV3 = listOf(
                     CompositeDiscoveryServerCallbacks(
                             meterRegistry,
-                            snapshotCollectingCallback,
+                            snapshotCollectingCallbackV3,
                             loggingDiscoveryServerCallbacks,
                             meteredConnectionsCallbacks,
                             NodeMetadataValidator(properties.envoy.snapshot)
