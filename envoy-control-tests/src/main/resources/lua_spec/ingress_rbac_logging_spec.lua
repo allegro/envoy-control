@@ -35,7 +35,7 @@ end
 
 
 describe("envoy_on_request:", function()
-    it("should set dynamic metadata", function()
+    it("should set dynamic metadata for client identity", function()
         -- given
         local headers = {
             [':path'] = '/path',
@@ -58,6 +58,25 @@ describe("envoy_on_request:", function()
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.method", "GET")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "lorem-service")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.xff_header", "127.0.4.3")
+    end)
+
+    it("should set dynamic metadata for request id", function()
+        -- given
+        local headers = {
+            ['x-custom-request-id'] = '123-456-789',
+        }
+        local filter_metadata = {
+            ['request_id_headers'] = { 'x-custom-request-id' }
+        }
+
+        local handle = handlerMock(headers, {}, nil, filter_metadata)
+        local metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.request_id", "123-456-789")
     end)
 
     it("should set client_name metadata using data from configured headers", function()
