@@ -26,14 +26,11 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
     private val ingressClientScript: String = this::class.java.classLoader
             .getResource("lua/ingress_client.lua")!!.readText()
 
-    private val ingressClientFilter: HttpFilter? = if (incomingPermissionsProperties.enabled) {
+    private val ingressClientFilter: HttpFilter =
         HttpFilter.newBuilder()
                 .setName("ingress.client.lua")
                 .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientScript).build()))
                 .build()
-    } else {
-        null
-    }
 
     fun ingressClientFilter(group: Group): HttpFilter? = ingressClientFilter
 }

@@ -162,6 +162,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         val echoResponse = call(service = "echo", from = echo3Envoy, path = "/block-unlisted-clients")
 
         // then
+        assertThat(echoResponse.header("x-client-name-trusted")).isEqualTo("echo3")
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
         assertThat(echoEnvoy.ingressSslRequests).isOne()
         assertThat(echoEnvoy).hasNoRBACDenials()
