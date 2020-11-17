@@ -30,6 +30,8 @@ class LuaTestsContainer : BaseGenericContainer<LuaTestsContainer>("vpanov/lua-bu
 
     fun runLuaTests(): TestsResults = use {
         start()
+        // if busted returns a non-zero code you can try to remove --outout=json (sometimes it hides the error),
+        // set a breakpoint after this line and see what's in stdout / stderr
         val results = execInContainer("busted", "--output=json", "--lpath=$LUA_SRC_DIR_DEST/?.lua", LUA_SPEC_DIR_DST)
         // with testcontainers 1.15.0-rc2 combined with Docker 19.03.13 and MacOS 10.15.6
         // newlines started to appear in the output; as we expect JSON to be parsed by ObjectMapper,

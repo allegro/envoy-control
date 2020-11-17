@@ -66,6 +66,7 @@ typealias Client = String
 class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeaders = listOf("x-service-name")
+    val requestIdentificationHeaders = listOf("x-request-id")
     var serviceNameHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
     var selectorMatching: MutableMap<Client, SelectorMatching> = mutableMapOf()

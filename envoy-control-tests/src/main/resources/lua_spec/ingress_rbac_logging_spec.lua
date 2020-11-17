@@ -2,8 +2,8 @@ require("ingress_rbac_logging")
 
 local _ = match._
 local contains = function(substring) return match.matches(substring, nil, true) end
-local function formatLog(method, path, source_ip, client_name, protocol, statusCode)
-    return "\nINCOMING_PERMISSIONS { \"method\": \"" .. method .. "\", \"path\": \"" .. path .. "\", \"clientIp\": \"" .. source_ip .. "\", \"clientName\": \"" .. client_name .. "\", \"protocol\": \"" .. protocol .. "\", \"statusCode\": " .. statusCode .. " }"
+local function formatLog(method, path, source_ip, client_name, protocol, request_id, status_code)
+    return "\nINCOMING_PERMISSIONS { \"method\": \"" .. method .. "\", \"path\": \"" .. path .. "\", \"clientIp\": \"" .. source_ip .. "\", \"clientName\": \"" .. client_name .. "\", \"protocol\": \"" .. protocol .. "\", \"requestId\": \"" .. request_id .. "\", \"statusCode\": " .. status_code .. " }"
 end
 
 local function handlerMock(headers, dynamic_metadata, https, filter_metadata)
@@ -199,7 +199,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "403"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "", "403"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -212,7 +212,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "http", "403"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "http", "", "403"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -225,7 +225,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "200"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "", "200"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -239,7 +239,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "0"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "", "0"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -253,7 +253,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "0"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "", "0"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -266,7 +266,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "", "127.1.1.3", "service-first", "https", "403"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "", "127.1.1.3", "service-first", "https", "", "403"))
             assert.spy(handle.logInfo).was_called(1)
         end)
     end)

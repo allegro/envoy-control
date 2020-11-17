@@ -10,7 +10,8 @@ private class RbacLogDescription(
     val method: String,
     val clientName: String,
     val clientIp: String,
-    val statusCode: String
+    val statusCode: String,
+    val requestId: String
 )
 
 private const val RBAC_LOG_PREFIX = "INCOMING_PERMISSIONS"
@@ -32,7 +33,8 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
     path: String,
     method: String,
     clientName: String,
-    clientIp: String
+    clientIp: String,
+    requestId: String = ""
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = true,
     protocol = protocol,
@@ -42,7 +44,8 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
         method = method,
         clientName = clientName,
         clientIp = clientIp,
-        statusCode = "403"
+        statusCode = "403",
+        requestId = requestId
     )
 )
 
@@ -51,7 +54,8 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     path: String,
     method: String,
     clientName: String,
-    clientIp: String
+    clientIp: String,
+    requestId: String = ""
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = false,
     protocol = protocol,
@@ -61,7 +65,8 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
         method = method,
         clientIp = clientIp,
         statusCode = "200",
-        clientName = clientName
+        clientName = clientName,
+        requestId = requestId
     )
 )
 
@@ -93,6 +98,7 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logDescription: Rbac
             "\"clientIp\": \"${logDescription.clientIp}\", " +
             "\"clientName\": \"${logDescription.clientName}\", " +
             "\"protocol\": \"${logDescription.protocol}\", " +
+            "\"requestId\": \"${logDescription.requestId}\", " +
             "\"statusCode\": ${logDescription.statusCode} }\n"
     assertThat(it).isEqualTo(logLine)
 }

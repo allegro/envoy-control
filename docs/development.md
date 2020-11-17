@@ -17,6 +17,23 @@ Envoy Control is a [Kotlin](https://kotlinlang.org/) application, it requires JD
 * Reliability tests
 ```./gradlew clean -i -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20```
 
+## Running Lua tests locally (not inside docker) for debugging purposes
+
+If for some reason `busted` exists with non-zero code and does not give any output you can try running it locally.
+
+### Requirements on macOS
+
+```bash
+brew info luarocks
+luarocks install busted
+```
+
+### Running Lua tests
+
+```
+busted --lpath="./envoy-control-core/src/main/resources/lua/?.lua"  envoy-control-tests/src/main/resources/lua_spec/
+```
+
 ## Packaging
 To build a distribution package run
 ```

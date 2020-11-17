@@ -41,6 +41,16 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
                                 .build()
                             ).build()
                     )
+                    .putFields("request_id_headers",
+                        Value.newBuilder()
+                            .setListValue(ListValue.newBuilder()
+                                .addAllValues(
+                                    incomingPermissionsProperties.requestIdentificationHeaders
+                                        .map { Value.newBuilder().setStringValue(it).build() }
+                                )
+                                .build()
+                            ).build()
+                    )
                     .build()
             ).build()
     }
