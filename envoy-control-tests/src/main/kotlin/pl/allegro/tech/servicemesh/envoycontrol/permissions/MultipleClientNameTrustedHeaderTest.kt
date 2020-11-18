@@ -6,14 +6,13 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-class ClientNameTrustedHeaderTest {
+class MultipleClientNameTrustedHeaderTest {
     companion object {
 
         @JvmField
@@ -23,6 +22,7 @@ class ClientNameTrustedHeaderTest {
         @JvmField
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.envoy.snapshot.trustedCaFile" to "/app/root-ca-1.crt",
             "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.enabled" to true,
             "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.retry-on" to listOf("connect-failure", "reset"),
             "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.num-retries" to 3
@@ -38,23 +38,15 @@ class ClientNameTrustedHeaderTest {
               metadata:
                 proxy_settings:
                   incoming:
-                    unlistedEndpointsPolicy: $unlistedEndpointsPolicy
+                    unlistedEndpointsPolicy: log
                     endpoints:
-                    - path: "/block-unlisted-clients"
-                      clients: ["authorized-clients"]
-                      unlistedClientsPolicy: blockAndLog
                     - path: "/log-unlisted-clients"
                       methods: [GET]
-                      clients: ["authorized-clients"]
+                      clients: ["echo4"]
                       unlistedClientsPolicy: log
-                    - path: "/block-unlisted-clients-by-default"
-                      clients: ["authorized-clients"]
-                    roles:
-                    - name: authorized-clients
-                      clients: ["echo2", "source-ip-client"]
                   outgoing:
                     dependencies:
-                      - service: "echo2"
+                      - service: "echo4"
         """.trimIndent()
 
         @JvmField
@@ -64,20 +56,25 @@ class ClientNameTrustedHeaderTest {
         )
 
         // language=yaml
-        private val echo2Config = """
+        private val echo4Config = """
             node:
               metadata:
                 proxy_settings:
                   outgoing:
                     dependencies:
                       - service: "echo"
-                      - service: "echo2"
         """.trimIndent()
+
+        val Echo4EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
+            trustedCa = "/app/root-ca-1.crt",
+            serviceName = "echo4",
+            certificateChain = "/app/fullchain_echo4.pem",
+            privateKey = "/app/privkey_echo4.pem"
+        )
 
         @JvmField
         @RegisterExtension
-        val envoySecond = EnvoyExtension(envoyControl, service, Echo2EnvoyAuthConfig.copy(configOverride = echo2Config))
-
+        val envoyFour = EnvoyExtension(envoyControl, service, Echo4EnvoyAuthConfig.copy(configOverride = echo4Config))
     }
 
     @BeforeEach
@@ -95,24 +92,17 @@ class ClientNameTrustedHeaderTest {
 
     private fun waitForEnvoysInitialized() {
         untilAsserted {
-            assertThat(envoySecond.container.admin().isEndpointHealthy("echo", envoy.container.ipAddress())).isTrue()
+            assertThat(envoyFour.container.admin().isEndpointHealthy("echo", envoy.container.ipAddress())).isTrue()
         }
     }
 
     @Test
-    fun `should return "x-client-name-trusted" header on request`() {
-        // when
-        val response = envoySecond.egressOperations.callService("echo", emptyMap(), "/log-unlisted-clients")
-        // then
-        assertThat(response.header("x-client-name-trusted")).isEqualTo("echo2")
-    }
-
-    @Test
-    fun `should override "x-client-name-trusted" header with trusted client name form certificate on request`() {
-        // when
-        val headers = mapOf("x-client-name-trusted" to "fake-service")
-        val response = envoySecond.egressOperations.callService("echo", headers, "/log-unlisted-clients")
-        // then
-        assertThat(response.header("x-client-name-trusted")).isEqualTo("echo2")
+    fun `should set "x-client-name-trusted" header based on URIs in certificate san field`() {
+        untilAsserted {
+            // when
+            val response = envoyFour.egressOperations.callService("echo", emptyMap(), "/log-unlisted-clients")
+            // then
+            assertThat(response.header("x-client-name-trusted")).isEqualTo("echo4,echo4-special,echo4-admin")
+        }
     }
 }
