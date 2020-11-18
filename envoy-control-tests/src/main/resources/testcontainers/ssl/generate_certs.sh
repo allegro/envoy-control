@@ -59,7 +59,7 @@ function gen_clientMulti {
   # Sign
   openssl x509 \
     -req -in "echo-$1.csr" \
-    -extfile <(echo "subjectAltName=URI:spiffe://echo$1,URI:spiffe://echo$1-special,URI:spiffe://echo$1-admin") \
+    -extfile <(echo "subjectAltName=URI.1:spiffe://echo$1,URI.2:spiffe://echo$1-special,URI.3:spiffe://echo$1-admin") \
     -CA "intermediate-ca-$2.crt" \
     -CAkey "intermediate-ca-$2.key" \
     -CAcreateserial \
@@ -79,4 +79,4 @@ openssl x509 -inform PEM -in fullchain-echo-4-intermediate-1.crt > fullchain_ech
 openssl rsa -in privkey-echo-4.key -text > privkey_echo4.pem
 
 echo "# post clenaup"
-rm echo-4.csr echo-4-signed-by-root-ca-1.crt fullchain-echo-4-intermediate-1.crt intermediate-ca-1.crt intermediate-ca-1.csr intermediate-ca-1.key intermediate-ca-1.srl privkey-echo-4.key root-ca-1.key root-ca-1.srl
+rm  echo-4.csr echo-4-signed-by-root-ca-1.crt fullchain-echo-4-intermediate-1.crt intermediate-ca-1.crt intermediate-ca-1.csr intermediate-ca-1.key intermediate-ca-1.srl privkey-echo-4.key root-ca-1.key root-ca-1.srl
