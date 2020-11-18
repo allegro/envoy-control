@@ -22,7 +22,7 @@ class MultipleClientNameTrustedHeaderTest {
         @JvmField
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(consul, mapOf(
-            "envoy-control.envoy.snapshot.trustedCaFile" to "/app/root-ca-1.crt",
+            "envoy-control.envoy.snapshot.trustedCaFile" to "/app/root-ca-3.crt",
             "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.enabled" to true,
             "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.retry-on" to listOf("connect-failure", "reset"),
             "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.num-retries" to 3
@@ -33,7 +33,7 @@ class MultipleClientNameTrustedHeaderTest {
         val service = EchoServiceExtension()
 
         // language=yaml
-        private fun proxySettings(unlistedEndpointsPolicy: String) = """
+        val proxySettings = """
             node:
               metadata:
                 proxy_settings:
@@ -42,21 +42,27 @@ class MultipleClientNameTrustedHeaderTest {
                     endpoints:
                     - path: "/log-unlisted-clients"
                       methods: [GET]
-                      clients: ["echo4"]
+                      clients: ["echo5"]
                       unlistedClientsPolicy: log
                   outgoing:
                     dependencies:
-                      - service: "echo4"
+                      - service: "echo5"
         """.trimIndent()
 
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service,
-            Echo1EnvoyAuthConfig.copy(configOverride = proxySettings(unlistedEndpointsPolicy = "blockAndLog"))
+            Echo1EnvoyAuthConfig.copy(
+                trustedCa = "/app/root-ca-3.crt",
+                serviceName = "echo4",
+                certificateChain = "/app/fullchain_echo4.pem",
+                privateKey = "/app/privkey_echo4.pem",
+                configOverride = proxySettings
+            )
         )
 
         // language=yaml
-        private val echo4Config = """
+        private val echo5Config = """
             node:
               metadata:
                 proxy_settings:
@@ -65,23 +71,23 @@ class MultipleClientNameTrustedHeaderTest {
                       - service: "echo"
         """.trimIndent()
 
-        val Echo4EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
-            trustedCa = "/app/root-ca-1.crt",
-            serviceName = "echo4",
-            certificateChain = "/app/fullchain_echo4.pem",
-            privateKey = "/app/privkey_echo4.pem"
+        val Echo5EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
+            trustedCa = "/app/root-ca-3.crt",
+            serviceName = "echo5",
+            certificateChain = "/app/fullchain_echo5.pem",
+            privateKey = "/app/privkey_echo5.pem"
         )
 
         @JvmField
         @RegisterExtension
-        val envoyFour = EnvoyExtension(envoyControl, service, Echo4EnvoyAuthConfig.copy(configOverride = echo4Config))
+        val envoyFive = EnvoyExtension(envoyControl, service, Echo5EnvoyAuthConfig.copy(configOverride = echo5Config))
     }
 
     @BeforeEach
     fun beforeEach() {
         consul.server.operations.registerService(
-            id = "echo",
-            name = "echo",
+            id = "echo4",
+            name = "echo4",
             address = envoy.container.ipAddress(),
             port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
             tags = listOf("mtls:enabled")
@@ -92,7 +98,7 @@ class MultipleClientNameTrustedHeaderTest {
 
     private fun waitForEnvoysInitialized() {
         untilAsserted {
-            assertThat(envoyFour.container.admin().isEndpointHealthy("echo", envoy.container.ipAddress())).isTrue()
+            assertThat(envoyFive.container.admin().isEndpointHealthy("echo4", envoy.container.ipAddress())).isTrue()
         }
     }
 
@@ -100,9 +106,9 @@ class MultipleClientNameTrustedHeaderTest {
     fun `should set "x-client-name-trusted" header based on URIs in certificate san field`() {
         untilAsserted {
             // when
-            val response = envoyFour.egressOperations.callService("echo", emptyMap(), "/log-unlisted-clients")
+            val response = envoyFive.egressOperations.callService("echo4", emptyMap(), "/log-unlisted-clients")
             // then
-            assertThat(response.header("x-client-name-trusted")).isEqualTo("echo4,echo4-special,echo4-admin")
+            assertThat(response.header("x-client-name-trusted")).isEqualTo("echo5,echo4-special,echo4-admin")
         }
     }
 }
