@@ -18,7 +18,7 @@ class EnvoyContainer(
     image: String = DEFAULT_IMAGE
 ) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
-        .run("apk --no-cache add curl iproute2")
+        .run("apt-get update && apt-get install -y curl iproute2")
 ) {
 
     companion object {
@@ -32,7 +32,7 @@ class EnvoyContainer(
 
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
-        const val DEFAULT_IMAGE = "envoyproxy/envoy-alpine-dev:79984e40b456f30cfb53564c4afe955aea19f9f9"
+        const val DEFAULT_IMAGE = "marcinfalkowski/envoy-dev:v1.16.1-dev-lua-segfault-fix-1-16-0-backport-20201118-df9dc819"
 //        const val DEFAULT_IMAGE = "envoyproxy/envoy-alpine:v1.16.0"
         private const val ADMIN_PORT = 10000
     }
