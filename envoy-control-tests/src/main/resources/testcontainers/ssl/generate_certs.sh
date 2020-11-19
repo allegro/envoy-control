@@ -103,10 +103,12 @@ gen_client 4 3
 gen_clientMulti 5 3
 
 openssl x509 -inform PEM -in fullchain-echo-4-intermediate-3.crt > fullchain_echo4.pem
-openssl rsa -in privkey-echo-4.key -text > privkey_echo4.pem
+mv privkey-echo-4.key privkey_echo4.pem
+#openssl rsa -in privkey-echo-4.key -text > privkey_echo4.pem
 
 openssl x509 -inform PEM -in fullchain-echo-5-intermediate-3.crt > fullchain_echo5.pem
-openssl rsa -in privkey-echo-5.key -text > privkey_echo5.pem
+mv privkey-echo-5.key privkey_echo5.pem
+#openssl rsa -in privkey-echo-5.key -text > privkey_echo5.pem
 
 echo "# post clenaup"
 rm intermediate-ca-3.crt intermediate-ca-3.csr intermediate-ca-3.key intermediate-ca-3.srl
