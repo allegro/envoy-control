@@ -108,7 +108,7 @@ class MultipleClientNameTrustedHeaderTest {
             // when
             val response = envoyFive.egressOperations.callService("echo4", emptyMap(), "/log-unlisted-clients")
             // then
-            assertThat(response.header("x-client-name-trusted")).isEqualTo("echo5,echo4-special,echo4-admin")
+            assertThat(response.header("x-client-name-trusted")).isEqualTo("echo5,echo5-special,echo5-admin")
         }
     }
 }
