@@ -64,7 +64,7 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
         val result = execInContainer(HOST_IP_SCRIPT_DEST)
 
         if (result.stderr.isNotEmpty() or result.stdout.isEmpty()) {
-            throw ContainerUnableToObtainHostIpException()
+            throw ContainerUnableToObtainHostIpException("stderr: ${result.stderr}")
         }
 
         return result.stdout.trim()
@@ -143,4 +143,4 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
     fun containerName() = containerId.substring(0, 12)
 }
 
-class ContainerUnableToObtainHostIpException : RuntimeException()
+class ContainerUnableToObtainHostIpException(msg: String) : RuntimeException(msg)
