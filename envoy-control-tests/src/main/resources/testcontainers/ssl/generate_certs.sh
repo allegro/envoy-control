@@ -93,22 +93,22 @@ function gen_clientMulti {
   cat "echo-$1-signed-by-root-ca-$2.crt" "intermediate-ca-$2.crt" > "fullchain-echo-$1-intermediate-$2.crt"
 }
 echo "# remove used"
-rm root-ca-3.crt root-ca3.key.pem
+rm root-ca-3.crt root-ca3.key.pem root-ca-3.key root-ca-3.srl
 rm fullchain_echo4.pem privkey_echo4.pem
 rm fullchain_echo5.pem privkey_echo5.pem
 
 gen_root_ca 3
-gen_intermediate 1
-gen_client 4 1
-gen_clientMulti 5 1
+gen_intermediate 3
+gen_client 4 3
+gen_clientMulti 5 3
 
-openssl x509 -inform PEM -in fullchain-echo-4-intermediate-1.crt > fullchain_echo4.pem
+openssl x509 -inform PEM -in fullchain-echo-4-intermediate-3.crt > fullchain_echo4.pem
 openssl rsa -in privkey-echo-4.key -text > privkey_echo4.pem
 
-openssl x509 -inform PEM -in fullchain-echo-5-intermediate-1.crt > fullchain_echo5.pem
+openssl x509 -inform PEM -in fullchain-echo-5-intermediate-3.crt > fullchain_echo5.pem
 openssl rsa -in privkey-echo-5.key -text > privkey_echo5.pem
 
 echo "# post clenaup"
-rm intermediate-ca-1.crt intermediate-ca-1.csr intermediate-ca-1.key intermediate-ca-1.srl root-ca-1.key root-ca-1.srl
-rm  echo-4.csr echo-4-signed-by-root-ca-1.crt fullchain-echo-4-intermediate-1.crt privkey-echo-4.key
-rm  echo-5.csr echo-5-signed-by-root-ca-1.crt fullchain-echo-5-intermediate-1.crt privkey-echo-5.key
+rm intermediate-ca-3.crt intermediate-ca-3.csr intermediate-ca-3.key intermediate-ca-3.srl
+rm echo-4.csr echo-4-signed-by-root-ca-3.crt fullchain-echo-4-intermediate-3.crt privkey-echo-4.key
+rm echo-5.csr echo-5-signed-by-root-ca-3.crt fullchain-echo-5-intermediate-3.crt privkey-echo-5.key
