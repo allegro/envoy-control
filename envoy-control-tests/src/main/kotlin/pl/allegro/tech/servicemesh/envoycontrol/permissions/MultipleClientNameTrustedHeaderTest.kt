@@ -22,7 +22,7 @@ class MultipleClientNameTrustedHeaderTest {
         @JvmField
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(consul, mapOf(
-            "envoy-control.envoy.snapshot.trustedCaFile" to "/app/root-ca-3.crt",
+//            "envoy-control.envoy.snapshot.trustedCaFile" to "/app/root-ca-3.crt",
             "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.enabled" to true,
             "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.retry-on" to listOf("connect-failure", "reset"),
             "envoy-control.envoy.snapshot.local-service.retry-policy.per-http-method.GET.num-retries" to 3
@@ -53,7 +53,7 @@ class MultipleClientNameTrustedHeaderTest {
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service,
             Echo1EnvoyAuthConfig.copy(
-                trustedCa = "/app/root-ca-3.crt",
+//                trustedCa = "/app/root-ca-3.crt",
                 serviceName = "echo4",
                 certificateChain = "/app/fullchain_echo4.pem",
                 privateKey = "/app/privkey_echo4.pem",
@@ -68,11 +68,11 @@ class MultipleClientNameTrustedHeaderTest {
                 proxy_settings:
                   outgoing:
                     dependencies:
-                      - service: "echo"
+                      - service: "echo4"
         """.trimIndent()
 
         val Echo5EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
-            trustedCa = "/app/root-ca-3.crt",
+//            trustedCa = "/app/root-ca-3.crt",
             serviceName = "echo5",
             certificateChain = "/app/fullchain_echo5.pem",
             privateKey = "/app/privkey_echo5.pem"

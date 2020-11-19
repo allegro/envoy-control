@@ -38,8 +38,8 @@ function gen_intermediate {
   # Sign CSR with Root CA
   openssl x509 \
     -req -in "intermediate-ca-$1.csr" \
-    -CA "root-ca-$1.crt" \
-    -CAkey "root-ca-$1.key" \
+    -CA "root-ca.crt" \
+    -CAkey "root-ca.key.pem" \
     -CAcreateserial \
     -extensions v3_ca \
     -days 99999 \
@@ -97,7 +97,7 @@ rm root-ca-3.crt root-ca3.key.pem root-ca-3.key root-ca-3.srl
 rm fullchain_echo4.pem privkey_echo4.pem
 rm fullchain_echo5.pem privkey_echo5.pem
 
-gen_root_ca 3
+#gen_root_ca 3
 gen_intermediate 3
 gen_client 4 3
 gen_clientMulti 5 3
