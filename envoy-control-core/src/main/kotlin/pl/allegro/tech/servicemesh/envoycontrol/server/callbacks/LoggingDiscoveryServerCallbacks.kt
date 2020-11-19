@@ -48,8 +48,8 @@ class LoggingDiscoveryServerCallbacks(
 
     override fun onV3StreamResponse(
         streamId: Long,
-        request: io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest?,
-        response: io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse?
+        request: v3DiscoveryRequest?,
+        response: v3DiscoveryResponse?
     ) {
         logger.debug(
             "onStreamResponseV3 streamId: {}, request: {}, response: {}",
