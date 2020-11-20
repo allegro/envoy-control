@@ -123,7 +123,10 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
 
     fun runCommands(commands: Array<String>) {
         commands.forEach { command ->
-            execInContainer(*(command.split(" ").toTypedArray()))
+            val result = execInContainer(*(command.split(" ").toTypedArray()))
+            if (result.exitCode != 0) {
+                throw CommandFailedException(command, result.exitCode, result.stdout, result.stderr, this.containerName())
+            }
         }
     }
 
@@ -144,3 +147,12 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
 }
 
 class ContainerUnableToObtainHostIpException(msg: String) : RuntimeException(msg)
+class CommandFailedException(
+    cmd: String,
+    exitCode: Int,
+    stdout: String,
+    stderr: String,
+    containerName: String
+) : RuntimeException(
+    "Command '$cmd' failed in container $containerName with exit code $exitCode; stderr: $stderr, stdout: $stdout"
+)

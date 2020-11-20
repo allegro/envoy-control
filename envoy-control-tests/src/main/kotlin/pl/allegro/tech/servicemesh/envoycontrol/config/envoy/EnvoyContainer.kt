@@ -18,7 +18,7 @@ class EnvoyContainer(
     image: String = DEFAULT_IMAGE
 ) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
         .from(image)
-        .run("apt-get update && apt-get install -y curl iproute2")
+        .run("apt-get update && apt-get install -y curl iproute2 iptables")
 ) {
 
     companion object {
