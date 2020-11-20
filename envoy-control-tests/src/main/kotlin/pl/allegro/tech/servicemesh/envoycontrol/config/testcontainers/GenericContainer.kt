@@ -64,7 +64,7 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
         val result = execInContainer(HOST_IP_SCRIPT_DEST)
 
         if (result.stderr.isNotEmpty() or result.stdout.isEmpty()) {
-            throw ContainerUnableToObtainHostIpException()
+            throw ContainerUnableToObtainHostIpException("stderr: ${result.stderr}")
         }
 
         return result.stdout.trim()
@@ -123,7 +123,10 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
 
     fun runCommands(commands: Array<String>) {
         commands.forEach { command ->
-            execInContainer(*(command.split(" ").toTypedArray()))
+            val result = execInContainer(*(command.split(" ").toTypedArray()))
+            if (result.exitCode != 0) {
+                throw CommandFailedException(command, result.exitCode, result.stdout, result.stderr, this.containerName())
+            }
         }
     }
 
@@ -143,4 +146,13 @@ open class GenericContainer<SELF : GenericContainer<SELF>> : BaseGenericContaine
     fun containerName() = containerId.substring(0, 12)
 }
 
-class ContainerUnableToObtainHostIpException : RuntimeException()
+class ContainerUnableToObtainHostIpException(msg: String) : RuntimeException(msg)
+class CommandFailedException(
+    cmd: String,
+    exitCode: Int,
+    stdout: String,
+    stderr: String,
+    containerName: String
+) : RuntimeException(
+    "Command '$cmd' failed in container $containerName with exit code $exitCode; stderr: $stderr, stdout: $stdout"
+)
