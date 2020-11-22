@@ -55,7 +55,7 @@ class EnvoyClustersFactory(
     private val tlsProperties = properties.incomingPermissions.tlsAuthentication
     private val sanUriMatcher = SanUriMatcherFactory(tlsProperties)
     private val matchPlaintextContext = Cluster.TransportSocketMatch.newBuilder()
-        //.setName("plaintext_match")
+        .setName("plaintext_match")
         .setTransportSocket(
             TransportSocket.newBuilder().setName("envoy.transport_sockets.raw_buffer").build()
         )

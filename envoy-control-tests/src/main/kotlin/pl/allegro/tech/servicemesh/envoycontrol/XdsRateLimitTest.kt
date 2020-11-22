@@ -30,7 +30,7 @@ class XdsRateLimitTest {
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, service, config = Echo1EnvoyAuthConfig.copy(configOverride = """
+        val envoy = EnvoyExtension(envoyControl, service, config = Echo1EnvoyAuthConfig.copy(privateKey = "missing_file", configOverride = """ 
             dynamic_resources:
               ads_config:
                 rate_limit_settings:
@@ -45,6 +45,6 @@ class XdsRateLimitTest {
         consul.server.operations.registerService(service, name = "echo")
         consul.server.operations.registerService(service, name = "echo2")
         consul.server.operations.registerService(service, name = "echo3")
-        Thread.sleep(1000000)
+        Thread.sleep(5000)
     }
 }
