@@ -1,12 +1,14 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import com.google.protobuf.util.Durations
+import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.cache.Response
-import io.envoyproxy.controlplane.cache.Snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.StatusInfo
 import io.envoyproxy.controlplane.cache.Watch
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest
+import io.envoyproxy.controlplane.cache.XdsRequest
+import io.envoyproxy.controlplane.cache.v3.Snapshot
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
@@ -580,7 +582,7 @@ class SnapshotUpdaterTest {
 
     class FailingMockCacheException : RuntimeException()
 
-    open class MockCache : SnapshotCache<Group> {
+    open class MockCache : SnapshotCache<Group, Snapshot> {
         val groups: MutableMap<Group, Snapshot?> = mutableMapOf()
         private var concurrentSetSnapshotCounter: CountDownLatch? = null
 
@@ -603,7 +605,7 @@ class SnapshotUpdaterTest {
 
         override fun createWatch(
             ads: Boolean,
-            request: DiscoveryRequest,
+            request: XdsRequest,
             knownResourceNames: MutableSet<String>,
             responseConsumer: Consumer<Response>,
             hasClusterChanged: Boolean
@@ -629,32 +631,33 @@ class SnapshotUpdaterTest {
         }
     }
 
-    private fun hasSnapshot(cache: SnapshotCache<Group>, group: Group): Snapshot {
+    private fun hasSnapshot(cache: SnapshotCache<Group, Snapshot>, group: Group): Snapshot {
         val snapshot = cache.getSnapshot(group)
         assertThat(snapshot).isNotNull
         return snapshot
     }
 
     private fun Snapshot.hasOnlyClustersFor(vararg expected: String): Snapshot {
-        assertThat(this.clusters().resources().keys.toSet())
+        assertThat(this.resources(Resources.ResourceType.CLUSTER).keys.toSet())
             .isEqualTo(expected.toSet())
         return this
     }
 
     private fun Snapshot.hasOnlyEndpointsFor(vararg expected: String): Snapshot {
-        assertThat(this.endpoints().resources().keys.toSet())
+        assertThat(this.resources(Resources.ResourceType.ENDPOINT).keys.toSet())
             .isEqualTo(expected.toSet())
         return this
     }
 
     private fun Snapshot.hasOnlyEgressRoutesForClusters(vararg expected: String): Snapshot {
-        assertThat(this.routes().resources()["default_routes"]!!.virtualHostsList.flatMap { it.domainsList }.toSet())
+        val routes = this.resources(Resources.ResourceType.ROUTE)["default_routes"] as RouteConfiguration
+        assertThat(routes.virtualHostsList.flatMap { it.domainsList }.toSet())
             .isEqualTo(expected.toSet() + setOf("envoy-original-destination", "*"))
         return this
     }
 
     private fun Snapshot.withoutClusters() {
-        assertThat(this.clusters().resources().keys).isEmpty()
+        assertThat(this.resources(Resources.ResourceType.CLUSTER).keys).isEmpty()
     }
 
     private fun Snapshot.hasVirtualHostConfig(name: String, idleTimeout: String, requestTimeout: String): Snapshot {
@@ -740,7 +743,7 @@ class SnapshotUpdaterTest {
         )
 
     private fun snapshotUpdater(
-        cache: SnapshotCache<Group>,
+        cache: SnapshotCache<Group, Snapshot>,
         properties: SnapshotProperties = SnapshotProperties(),
         groups: List<Group> = emptyList(),
         groupSnapshotScheduler: ParallelizableScheduler = DirectScheduler

@@ -3,14 +3,14 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 import com.google.protobuf.Any
 import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.controlplane.cache.SnapshotResources
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
-import io.envoyproxy.envoy.api.v2.core.Address
-import io.envoyproxy.envoy.api.v2.core.SocketAddress
-import io.envoyproxy.envoy.api.v2.endpoint.Endpoint
-import io.envoyproxy.envoy.api.v2.endpoint.LbEndpoint
-import io.envoyproxy.envoy.api.v2.endpoint.LocalityLbEndpoints
-import io.envoyproxy.envoy.config.filter.network.http_connection_manager.v2.HttpFilter
-import io.envoyproxy.envoy.config.filter.http.rbac.v2.RBAC as RBACFilter
+import io.envoyproxy.envoy.config.core.v3.Address
+import io.envoyproxy.envoy.config.core.v3.SocketAddress
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.endpoint.v3.Endpoint
+import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
+import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
@@ -65,28 +65,30 @@ internal class RBACFilterFactoryTest {
             StatusRouteProperties()
     )
     private val rbacFilterFactoryWithSourceIpWithSelectorAuth = RBACFilterFactory(
-            IncomingPermissionsProperties().also {
-                it.enabled = true
-                it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
-                    ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
-                    ipProperties.ipFromRange = mutableMapOf(
-                        "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
-                    )
-                }
-                it.selectorMatching = mutableMapOf(
-                        "client1" to SelectorMatching().also { it.header = "x-secret-header" },
-                        "client2" to SelectorMatching().also { it.header = "x-secret-header" }
+        IncomingPermissionsProperties().also {
+            it.enabled = true
+            it.sourceIpAuthentication = SourceIpAuthenticationProperties().also { ipProperties ->
+                ipProperties.ipFromServiceDiscovery.enabledForIncomingServices = listOf("client1")
+                ipProperties.ipFromRange = mutableMapOf(
+                    "client2" to setOf("192.168.1.0/24", "192.168.2.0/28")
                 )
-            },
-            StatusRouteProperties()
+            }
+            it.selectorMatching = mutableMapOf(
+                "client1" to SelectorMatching().also { it.header = "x-secret-header" },
+                "client2" to SelectorMatching().also { it.header = "x-secret-header" }
+            )
+        },
+        StatusRouteProperties()
     )
 
     val snapshot = GlobalSnapshot(
-            SnapshotResources.create(listOf(), ""),
-            setOf(),
-            SnapshotResources.create(listOf(), ""),
-            mapOf(),
-            SnapshotResources.create(listOf(), "")
+        SnapshotResources.create(listOf(), ""),
+        setOf(),
+        SnapshotResources.create(listOf(), ""),
+        mapOf(),
+        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf(), "")
     )
 
     val clusterLoadAssignment = ClusterLoadAssignment.newBuilder()
@@ -104,11 +106,13 @@ internal class RBACFilterFactoryTest {
             ).build()
 
     val snapshotForSourceIpAuth = GlobalSnapshot(
-            SnapshotResources.create(listOf(), ""),
-            setOf(),
-            SnapshotResources.create(listOf(clusterLoadAssignment), ""),
-            mapOf(),
-            SnapshotResources.create(listOf(), "")
+        SnapshotResources.create(listOf(), ""),
+        setOf(),
+        SnapshotResources.create(listOf(clusterLoadAssignment), ""),
+        mapOf(),
+        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf(), "")
     )
 
     @Test

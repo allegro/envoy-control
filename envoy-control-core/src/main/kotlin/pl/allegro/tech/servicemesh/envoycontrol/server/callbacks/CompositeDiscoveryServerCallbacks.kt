@@ -2,10 +2,12 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.controlplane.server.exception.RequestException
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest
-import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import io.envoyproxy.envoy.api.v2.DiscoveryRequest as v2DiscoveryRequest
+import io.envoyproxy.envoy.api.v2.DiscoveryResponse as v2DiscoveryResponse
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse as v3DiscoveryResponse
 
 class CompositeException(exceptions: List<java.lang.Exception>) :
     RuntimeException("Composite exception: " + exceptions.map { it.message }.joinToString(",", "[", "]"))
@@ -17,27 +19,53 @@ class CompositeDiscoveryServerCallbacks(
     private val logger by logger()
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String?, error: Throwable?) {
-        runCallbacks { it.onStreamCloseWithError(streamId, typeUrl, error) }
+        runCallbacks {
+            it.onStreamCloseWithError(streamId, typeUrl, error)
+        }
     }
 
     override fun onStreamClose(streamId: Long, typeUrl: String?) {
-        runCallbacks { it.onStreamClose(streamId, typeUrl) }
+        runCallbacks {
+            it.onStreamClose(streamId, typeUrl)
+        }
     }
 
     override fun onStreamOpen(streamId: Long, typeUrl: String?) {
-        runCallbacks { it.onStreamOpen(streamId, typeUrl) }
+        runCallbacks {
+            it.onStreamOpen(streamId, typeUrl)
+        }
     }
 
-    override fun onStreamRequest(streamId: Long, request: DiscoveryRequest?) {
-        runCallbacks { it.onStreamRequest(streamId, request) }
+    override fun onV2StreamRequest(streamId: Long, request: v2DiscoveryRequest?) {
+        runCallbacks {
+            it.onV2StreamRequest(streamId, request)
+        }
+    }
+
+    override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
+        runCallbacks {
+            it.onV3StreamRequest(streamId, request)
+        }
     }
 
     override fun onStreamResponse(
         streamId: Long,
-        request: DiscoveryRequest?,
-        response: DiscoveryResponse?
+        request: v2DiscoveryRequest?,
+        response: v2DiscoveryResponse?
     ) {
-        runCallbacks { it.onStreamResponse(streamId, request, response) }
+        runCallbacks {
+            it.onStreamResponse(streamId, request, response)
+        }
+    }
+
+    override fun onV3StreamResponse(
+        streamId: Long,
+        request: v3DiscoveryRequest?,
+        response: v3DiscoveryResponse?
+    ) {
+        runCallbacks {
+            it.onV3StreamResponse(streamId, request, response)
+        }
     }
 
     private fun runCallbacks(fn: (DiscoveryServerCallbacks) -> Unit) {

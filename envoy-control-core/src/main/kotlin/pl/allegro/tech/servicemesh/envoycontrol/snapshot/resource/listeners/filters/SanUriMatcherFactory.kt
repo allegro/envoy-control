@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
-import io.envoyproxy.envoy.type.matcher.RegexMatcher
-import io.envoyproxy.envoy.type.matcher.StringMatcher
+import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
+import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
 import java.lang.IllegalArgumentException
 

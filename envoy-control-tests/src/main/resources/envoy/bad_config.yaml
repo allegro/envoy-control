@@ -29,20 +29,20 @@ node:
 static_resources:
   clusters:
   - connect_timeout: 1s
-  load_assignment:
-    cluster_name: envoy-control-xds
-    endpoints:
-      - lb_endpoints:
-          - endpoint:
-              address:
-                socket_address:
-                  address: HOST_IP
-                  port_value: HOST_PORT
-          - endpoint:
-              address:
-                socket_address:
-                  address: HOST_IP
-                  port_value: HOST2_PORT
+    load_assignment:
+      cluster_name: envoy-control-xds
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: HOST_IP
+                    port_value: HOST_PORT
+            - endpoint:
+                address:
+                  socket_address:
+                    address: HOST_IP
+                    port_value: HOST2_PORT
     http2_protocol_options: {}
     name: envoy-control-xds
   - name: local_service
@@ -87,7 +87,7 @@ static_resources:
             config_source:
               ads: {}
           http_filters:
-          - name: envoy.router
+          - name: envoy.filters.http.router
   - name: ingress_listener
     address:
       socket_address:
@@ -104,4 +104,4 @@ static_resources:
                 config_source:
                   ads: {}
               http_filters:
-                - name: envoy.router
+                - name: envoy.filters.http.router

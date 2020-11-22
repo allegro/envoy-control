@@ -1,10 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
-import io.envoyproxy.envoy.api.v2.route.HeaderMatcher
-import io.envoyproxy.envoy.config.rbac.v2.Permission
-import io.envoyproxy.envoy.type.matcher.PathMatcher
-import io.envoyproxy.envoy.type.matcher.RegexMatcher
-import io.envoyproxy.envoy.type.matcher.StringMatcher
+import io.envoyproxy.envoy.config.rbac.v3.Permission
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
+import io.envoyproxy.envoy.type.matcher.v3.PathMatcher
+import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
+import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 

@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.controlplane.cache.SnapshotCache
+import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -20,7 +21,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 
 class SnapshotUpdater(
-    private val cache: SnapshotCache<Group>,
+    private val cache: SnapshotCache<Group, Snapshot>,
     private val properties: SnapshotProperties,
     private val snapshotFactory: EnvoySnapshotFactory,
     private val globalSnapshotScheduler: Scheduler,
