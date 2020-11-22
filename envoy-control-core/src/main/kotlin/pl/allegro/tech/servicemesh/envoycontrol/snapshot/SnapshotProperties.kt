@@ -65,7 +65,8 @@ typealias Client = String
 
 class IncomingPermissionsProperties {
     var enabled = false
-    var clientIdentityHeaders = listOf("x-client-name-trusted", "x-service-name")
+    var clientIdentityHeaders = listOf("x-service-name")
+    var xClientNameTrustedHeader = "x-client-name-trusted"
     var serviceNameHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
     var selectorMatching: MutableMap<Client, SelectorMatching> = mutableMapOf()
@@ -88,6 +89,7 @@ class TlsAuthenticationProperties {
     var mtlsEnabledTag: String = "mtls:enabled"
     var serviceNameWildcardRegex: String = ".+"
     var sanUriFormat: String = "spiffe://{service-name}"
+    var sanUriClientNameRegex: String = "://([a-zA-Z0-9-_.]+)"
 }
 
 class TlsProtocolProperties {
