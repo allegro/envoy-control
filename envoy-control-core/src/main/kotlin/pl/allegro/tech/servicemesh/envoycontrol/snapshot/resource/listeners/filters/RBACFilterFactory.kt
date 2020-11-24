@@ -39,6 +39,9 @@ class RBACFilterFactory(
 
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
     private val denyForAllPrincipal = Principal.newBuilder().setNotId(anyPrincipal).build()
+    private val allowAllEndpointsForClients = incomingPermissionsProperties.allowedClientsForAllEndpoints.map {
+        ClientWithSelector(name = it)
+    }
     private val sanUriMatcherFactory = SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
 
     init {
@@ -195,7 +198,7 @@ class RBACFilterFactory(
             roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
         }
         // sorted order ensures that we do not duplicate rules
-        return clients.toSortedSet()
+        return (clients + allowAllEndpointsForClients).toSortedSet()
     }
 
     private fun mapClientWithSelectorToPrincipals(
