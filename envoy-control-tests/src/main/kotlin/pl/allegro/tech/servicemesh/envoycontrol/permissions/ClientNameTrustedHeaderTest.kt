@@ -182,15 +182,4 @@ class ClientNameTrustedHeaderTest {
             assertThat(it.requestHeaders["x-client-name-trusted"]).isNull()
         }
     }
-
-    fun `should not set "x-client-name-trusted" header from not trusted certificate`() {
-
-    }
-
-
-    /**
-     * TODO(mf). Add tests:
-     * * client cert signed by invalid CA
-     * * client cert with slightly different SAN
-     */
 }

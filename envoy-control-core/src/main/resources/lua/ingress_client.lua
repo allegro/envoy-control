@@ -6,7 +6,10 @@ function envoy_on_request(handle)
         handle:headers():remove(trusted_header)
     end
 
-    if handle:connection():ssl() and streamInfo:downstreamSslConnection() then
+    if handle:connection():ssl()
+      and streamInfo:downstreamSslConnection()
+      and streamInfo:downstreamSslConnection():peerCertificateValidated() then
+
         local uriSanPeerCertificate = handle:streamInfo():downstreamSslConnection():uriSanPeerCertificate()
         if uriSanPeerCertificate ~= nil and next(uriSanPeerCertificate) ~= nil then
             local san_uri_format = handle:metadata():get("san_uri_lua_pattern")

@@ -95,6 +95,19 @@ describe("envoy_on_request:", function()
         end
     end)
 
+    it ("should not add x-client-name-trusted header when client certificate is not validated", function()
+        local correct_san_uri = "spiffe://service-first-spiffe?env=dev"
+        local headers = {}
+        local peer_validated = false
+        local handle = handlerMock(headers, metadata, true, { correct_san_uri }, peer_validated)
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.are.equal(headers['x-client-name-trusted'], nil)
+    end)
+
     -- TODO(mf): tests for peerCertificateValidated == false
 end)
 
