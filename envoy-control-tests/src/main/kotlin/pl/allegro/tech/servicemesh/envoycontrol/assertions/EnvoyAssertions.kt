@@ -28,13 +28,14 @@ fun ObjectAssert<EnvoyContainer>.hasNoRBACDenials(): ObjectAssert<EnvoyContainer
     assertThat(it.logRecorder.getRecordedLogs()).filteredOn(::isRbacAccessLog).isEmpty()
 }
 
+@Suppress("LongParameterList")
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
     protocol: String,
     path: String,
     method: String,
     clientName: String,
     clientIp: String,
-    requestId: String = ""
+    requestId: String
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = true,
     protocol = protocol,
