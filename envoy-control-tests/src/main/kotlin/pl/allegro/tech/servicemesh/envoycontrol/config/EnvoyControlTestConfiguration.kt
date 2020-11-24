@@ -214,9 +214,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         fun callEnvoyIngress(envoy: EnvoyContainer = envoyContainer1, path: String, useSsl: Boolean = false): Response =
             call(address = envoy.ingressListenerUrl(secured = useSsl), pathAndQuery = path)
 
-        fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
-            call(address = address)
-
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", address)
 
