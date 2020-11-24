@@ -83,7 +83,7 @@ internal class RBACFilterFactoryTest {
     private val rbacFilterFactoryWithAllowAllEndpointsForClient = RBACFilterFactory(
         IncomingPermissionsProperties().also {
             it.enabled = true
-            it.allowedClientsForAllEndpoints = mutableListOf("allowed-client")
+            it.clientsAllowedToAllEndpoints = mutableListOf("allowed-client")
         },
         StatusRouteProperties()
     )
