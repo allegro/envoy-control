@@ -29,7 +29,7 @@ end
 describe("envoy_on_request:", function()
     local metadata = {
         ['trusted_client_identity_header'] = "x-client-name-trusted",
-        ['san_uri_client_name_regex'] = "://([a-zA-Z0-9-_.]+)"
+        ['san_uri_client_name_regex'] = "://([a-zA-Z0-9-_.]+)" -- TODO(mf) change format
     }
 
     it ("should remove x-client-name-trusted header if provided", function()
@@ -46,14 +46,14 @@ describe("envoy_on_request:", function()
 
     end)
 
-    it ("should add x-client-name-trusted header with values from certificate", function()
+    it ("should add x-client-name-trusted header with correct values from certificate", function()
         -- given
 
         local uri_san_client_names_pairs = {
             ["service-first-special"] = {"service://service-first-special?env=dev"},
             ["service-first-some"] = {"service://service-first-some"},
             ["service-first-http"] = {"http://service-first-http?env=dev"},
-            ["service-first-https"] = {"https://service-first-https?env=dev"},
+            ["service-first-https"] = {"https://service-first-https?env=dev"},  -- TODO(mf) check if not present because it's invalid format
             ["service-first-spiffe"] = {"spiffe://service-first-spiffe?env=dev"},
             ["service-first-spiffe"] = {"spiffe://service-first-spiffe/?env=dev"},
             ["service-first-regular,service-first-special"] = {"service://service-first-regular?env=dev", "service://service-first-special?env=dev"},

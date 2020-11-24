@@ -9,7 +9,7 @@ class SanUriMatcherFactory(
     private val tlsProperties: TlsAuthenticationProperties
 ) {
     private val serviceNameTemplate = "{service-name}"
-    private val sanUriWildcardRegex = createSanUriWildcardRegex(tlsProperties.sanUriFormat)
+    val sanUriWildcardRegex = createSanUriWildcardRegex(tlsProperties.sanUriFormat)
 
     private fun createSanUriWildcardRegex(sanUriFormat: String): String {
         val parts = sanUriFormat.split(serviceNameTemplate)

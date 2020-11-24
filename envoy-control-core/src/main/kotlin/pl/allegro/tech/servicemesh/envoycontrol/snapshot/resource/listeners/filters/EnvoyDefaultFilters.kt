@@ -54,36 +54,7 @@ class EnvoyDefaultFilters(
     val defaultIngressFilters = listOf(
         defaultClientNameHeaderFilter, defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter
     )
-    val defaultIngressMetadata: Metadata = ingressMetadata()
-
-    private fun ingressMetadata(): Metadata {
-        return Metadata.newBuilder()
-            .putFilterMetadata("envoy.filters.http.lua",
-                Struct.newBuilder()
-                    .putFields("client_identity_headers",
-                        Value.newBuilder()
-                            .setListValue(ListValue.newBuilder()
-                                .addAllValues(
-                                    snapshotProperties.incomingPermissions.clientIdentityHeaders
-                                        .map { Value.newBuilder().setStringValue(it).build() }
-                                )
-                                .build()
-                            ).build()
-                    )
-                    .putFields("trusted_client_identity_header",  // TODO(mf): use in rbac logging script
-                        Value.newBuilder()
-                            .setStringValue(snapshotProperties.incomingPermissions.trustedClientIdentityHeader)
-                            .build()
-                    )
-                    .putFields("san_uri_client_name_regex",
-                        Value.newBuilder()
-                            .setStringValue(
-                                snapshotProperties.incomingPermissions.tlsAuthentication.sanUriClientNameRegex
-                            ).build()
-                    )
-                .build()
-            ).build()
-    }
+    val defaultIngressMetadata: Metadata = luaFilterFactory.ingressScriptsMetadata()
 
     private fun headerToMetadataConfig(
         rules: List<Config.Rule>,
