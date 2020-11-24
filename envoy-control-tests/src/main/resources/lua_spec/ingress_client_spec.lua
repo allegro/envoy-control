@@ -28,7 +28,7 @@ end
 
 describe("envoy_on_request:", function()
     local metadata = {
-        ['x_client_name_trusted'] = "x-client-name-trusted",
+        ['trusted_client_identity_header'] = "x-client-name-trusted",
         ['san_uri_client_name_regex'] = "://([a-zA-Z0-9-_.]+)"
     }
 

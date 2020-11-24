@@ -70,9 +70,9 @@ class EnvoyDefaultFilters(
                                 .build()
                             ).build()
                     )
-                    .putFields("x_client_name_trusted",
+                    .putFields("trusted_client_identity_header",  // TODO(mf): use in rbac logging script
                         Value.newBuilder()
-                            .setStringValue(snapshotProperties.incomingPermissions.xClientNameTrustedHeader)
+                            .setStringValue(snapshotProperties.incomingPermissions.trustedClientIdentityHeader)
                             .build()
                     )
                     .putFields("san_uri_client_name_regex",

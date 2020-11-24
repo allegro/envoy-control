@@ -33,7 +33,9 @@ class ClientNameTrustedHeaderTest {
         @JvmField
         @RegisterExtension
         @Order(Order.DEFAULT - 1)
-        val envoyControl = EnvoyControlExtension(consul)
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.envoy.snapshot.incoming-permissions.trusted-client-identity-header" to "x-client-name-trusted"
+        ))
 
         @JvmField
         @RegisterExtension

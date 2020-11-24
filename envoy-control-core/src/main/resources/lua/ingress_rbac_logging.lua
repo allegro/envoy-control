@@ -4,7 +4,7 @@ function envoy_on_request(handle)
     local xff_header = handle:headers():get("x-forwarded-for")
     local metadata = handle:streamInfo():dynamicMetadata()
     local client_identity_header_names = handle:metadata():get("client_identity_headers") or {}
-    local trusted_header = handle:metadata():get("x_client_name_trusted")
+    local trusted_header = handle:metadata():get("trusted_client_identity_header")
     local client_name = handle:headers():get(trusted_header) or ""
 
     if client_name == "" then
