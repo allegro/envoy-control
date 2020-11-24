@@ -8,17 +8,36 @@ import java.lang.IllegalArgumentException
 class SanUriMatcherFactory(
     private val tlsProperties: TlsAuthenticationProperties
 ) {
+    private val luaEscapeRegex = Regex("""[-().%+*?\[^$]""")
     private val serviceNameTemplate = "{service-name}"
-    val sanUriWildcardRegex = createSanUriWildcardRegex(tlsProperties.sanUriFormat)
 
-    private fun createSanUriWildcardRegex(sanUriFormat: String): String {
-        val parts = sanUriFormat.split(serviceNameTemplate)
-        if (parts.size != 2) {
-            throw IllegalArgumentException("SAN URI $sanUriFormat does not properly contain $serviceNameTemplate")
-        }
-        val prefix = Regex.escape(parts[0])
-        val suffix = Regex.escape(parts[1])
+    val sanUriWildcardRegex = createSanUriWildcardRegex()
+    val sanUriWildcardRegexForLua = createSanUriWildcardRegexForLua()
+
+    private fun createSanUriWildcardRegex(): String {
+        val parts = getSanUriFormatSplit()
+        val prefix = Regex.escape(parts.first)
+        val suffix = Regex.escape(parts.second)
         return "$prefix${tlsProperties.serviceNameWildcardRegex}$suffix"
+    }
+
+    private fun createSanUriWildcardRegexForLua(): String {
+        val parts = getSanUriFormatSplit()
+        val prefix = escapeForLua(parts.first)
+        val suffix = escapeForLua(parts.second)
+        return "^${prefix}(${tlsProperties.serviceNameWildcardRegex})${suffix}\$"
+    }
+
+    private fun escapeForLua(input: String): String {
+        return input.replace(luaEscapeRegex, "%$0")
+    }
+
+    private fun getSanUriFormatSplit(): Pair<String, String> {
+        val parts = tlsProperties.sanUriFormat.split(serviceNameTemplate)
+        if (parts.size != 2) {
+            throw IllegalArgumentException("SAN URI ${tlsProperties.sanUriFormat} does not properly contain $serviceNameTemplate")
+        }
+        return parts[0] to parts[1]
     }
 
     private val sanUriRegexMatcher = RegexMatcher.newBuilder()

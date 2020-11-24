@@ -26,13 +26,15 @@ local function handlerMock(headers, metadata, https, uri_san_peer_certificate, p
     }
 end
 
+-- TODO(mf): test with SAN URI with additional forbidden prefix and suffix
+
 describe("envoy_on_request:", function()
     local metadata = {
         ['trusted_client_identity_header'] = "x-client-name-trusted",
-        ['san_uri_client_name_regex'] = "://([a-zA-Z0-9-_.]+)" -- TODO(mf) change format
+        ['san_uri_lua_pattern'] = "^spiffe://(.+)%?env=dev$"
     }
 
-    it ("should remove x-client-name-trusted header if provided", function()
+    it("should remove x-client-name-trusted header if provided", function()
         -- given
         local headers = { ['x-client-name-trusted'] = 'service-third' }
 
@@ -46,33 +48,54 @@ describe("envoy_on_request:", function()
 
     end)
 
-    it ("should add x-client-name-trusted header with correct values from certificate", function()
+    describe("should add x-client-name-trusted header with correct values from certificate:", function()
         -- given
-
         local uri_san_client_names_pairs = {
-            ["service-first-special"] = {"service://service-first-special?env=dev"},
-            ["service-first-some"] = {"service://service-first-some"},
-            ["service-first-http"] = {"http://service-first-http?env=dev"},
-            ["service-first-https"] = {"https://service-first-https?env=dev"},  -- TODO(mf) check if not present because it's invalid format
             ["service-first-spiffe"] = {"spiffe://service-first-spiffe?env=dev"},
-            ["service-first-spiffe"] = {"spiffe://service-first-spiffe/?env=dev"},
-            ["service-first-regular,service-first-special"] = {"service://service-first-regular?env=dev", "service://service-first-special?env=dev"},
+            ["1"] = {"spiffe://1?env=dev"},
+            ["correct,correct2"] = {"spiffe://correct?env=dev","service://fake?env=dev", "spiffe://correct2?env=dev"},
         }
 
         for header_value, uri_san_peer_certificate in pairs(uri_san_client_names_pairs) do
-            local headers = {}
+            it(header_value, function()
+                local headers = {}
+                local handle = handlerMock(headers, metadata, true, uri_san_peer_certificate, true)
 
-            local handle = handlerMock(headers, metadata, true, uri_san_peer_certificate, true)
+                -- when
+                envoy_on_request(handle)
 
-            -- when
-            envoy_on_request(handle)
-
-            -- then
-            assert.are.equal(headers['x-client-name-trusted'], header_value)
+                -- then
+                assert.are.equal(headers['x-client-name-trusted'], header_value)
+            end)
         end
 
 
     end)
+
+    describe ("should not add x-client-name-trusted header when certificate values are incorrect:", function()
+        local incorrect_uri_sans = {
+            "service://service-first-special?env=dev",
+            "spiffe://service-first-spiffe",
+            "spiffe://service-first-spiffe=dev",
+            "hackerspiffe://service-first-spiffe?env=dev",
+            "spiffe://service-first-spiffe?env=devandhack"
+        }
+
+        for _, incorrect_san in ipairs(incorrect_uri_sans) do
+            it(incorrect_san, function()
+                local headers = {}
+                local handle = handlerMock(headers, metadata, true, { incorrect_san }, true)
+
+                -- when
+                envoy_on_request(handle)
+
+                -- then
+                assert.are.equal(headers['x-client-name-trusted'], nil)
+            end)
+        end
+    end)
+
+    -- TODO(mf): tests for peerCertificateValidated == false
 end)
 
 --[[

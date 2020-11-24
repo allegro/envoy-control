@@ -32,9 +32,12 @@ class ClientNameTrustedHeaderTest {
          */
         @JvmField
         @RegisterExtension
-        @Order(Order.DEFAULT - 1)
+        @Order(Order.DEFAULT - 1) // TODO(mf): get rid of Order
         val envoyControl = EnvoyControlExtension(consul, mapOf(
-            "envoy-control.envoy.snapshot.incoming-permissions.trusted-client-identity-header" to "x-client-name-trusted"
+            "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.require-client-certificate" to false,
+            "envoy-control.envoy.snapshot.incoming-permissions.trusted-client-identity-header" to "x-client-name-trusted",
+            "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.san-uri-format" to "spiffe://{service-name}",
+            "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.service-name-wildcard-regex" to ".+"
         ))
 
         @JvmField
@@ -117,18 +120,17 @@ class ClientNameTrustedHeaderTest {
     fun `should always remove "x-client-name-trusted" header on every envoy ingress request`() {
         // when
         val response = envoy2.ingressOperations.callLocalService(
-            "/log-unlisted-clients",
+            "/endpoint",
             Headers.of(mapOf("x-client-name-trusted" to "fake-service"))
         )
         // then
-        assertThat(response.header("x-client-name-trusted")).isNull()
-
+        assertThat(response.header("x-client-name-trusted")).isNull() // TODO(mf): assert is from container echo2
     }
 
     @Test
     fun `should add "x-client-name-trusted" header on envoy ingress request`() {
         // when
-        val response = envoy2.egressOperations.callService("echo", emptyMap(), "/log-unlisted-clients")
+        val response = envoy2.egressOperations.callService("echo", emptyMap(), "/endpoint")
         // then
         assertThat(response.header("x-client-name-trusted")).isEqualTo("echo2")
     }
@@ -137,7 +139,7 @@ class ClientNameTrustedHeaderTest {
     fun `should override "x-client-name-trusted" header with trusted client name form certificate on request`() {
         // when
         val headers = mapOf("x-client-name-trusted" to "fake-service")
-        val response = envoy2.egressOperations.callService("echo", headers, "/log-unlisted-clients")
+        val response = envoy2.egressOperations.callService("echo", headers, "/endpoint")
         // then
         assertThat(response.header("x-client-name-trusted")).isEqualTo("echo2")
     }
@@ -145,20 +147,17 @@ class ClientNameTrustedHeaderTest {
     @Test
     fun `should set "x-client-name-trusted" header based on all URIs in certificate SAN field`() {
         // when
-        val response = envoy4MultipleSANs.egressOperations.callService("echo", emptyMap(), "/log-unlisted-clients")
+        val response = envoy4MultipleSANs.egressOperations.callService("echo", emptyMap(), "/endpoint")
         // then
         assertThat(response.header("x-client-name-trusted")).isEqualTo("echo4,echo4-special,echo4-admin")
     }
 
-    /**
-     * TODO(mf): ten test  powinien działać odwrotnie - client name nie powinien być dodany, bo SAN jest w złym formacie
-     */
     @Test
-    fun `should set "x-client-name-trusted" header based on URIs in certificate SAN field regardles protocol used in SAN alt name`() {
+    fun `should not set "x-client-name-trusted" header based on URIs in certificate SAN fields in invalid format`() {
         // when
-        val response = envoy5InvalidSANs.egressOperations.callService("echo", emptyMap(), "/log-unlisted-clients")
+        val response = envoy5InvalidSANs.egressOperations.callService("echo", emptyMap(), "/endpoint")
         // then
-        assertThat(response.header("x-client-name-trusted")).isEqualTo("echo5,echo5-special,echo5-admin")
+        assertThat(response.header("x-client-name-trusted")).isNull()
     }
 
 

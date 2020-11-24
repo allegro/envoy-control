@@ -10,7 +10,7 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 
-class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermissionsProperties) {
+class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsProperties) {
 
     private val ingressRbacLoggingScript: String = this::class.java.classLoader
         .getResource("lua/ingress_rbac_logging.lua")!!.readText()
@@ -42,10 +42,10 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
                         .setStringValue(incomingPermissionsProperties.trustedClientIdentityHeader)
                         .build()
                 )
-                .putFields("san_uri_client_name_regex",
+                .putFields("san_uri_lua_pattern",
                     Value.newBuilder()
                         .setStringValue(
-                            incomingPermissionsProperties.tlsAuthentication.sanUriClientNameRegex
+                            SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication).sanUriWildcardRegexForLua
                         ).build()
                 )
                 .build()
