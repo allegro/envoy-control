@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
@@ -13,11 +14,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoHeadersContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoResponse
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.isFrom
 import java.time.Duration
-import java.util.concurrent.TimeUnit
-import kotlin.time.toDuration
 
 class ClientNameTrustedHeaderTest {
     companion object {
@@ -26,10 +27,6 @@ class ClientNameTrustedHeaderTest {
         @RegisterExtension
         val consul = ConsulExtension()
 
-
-        /**
-         * TODO(mf): dodaj jawnie propertiesy dotyczące tematu tutaj
-         */
         @JvmField
         @RegisterExtension
         @Order(Order.DEFAULT - 1) // TODO(mf): get rid of Order
@@ -42,7 +39,7 @@ class ClientNameTrustedHeaderTest {
 
         @JvmField
         @RegisterExtension
-        val service = GenericServiceExtension(EchoHeadersContainer())
+        val service = GenericServiceExtension(HttpsEchoContainer())
 
         // language=yaml
         private var proxySettings = """
@@ -123,16 +120,27 @@ class ClientNameTrustedHeaderTest {
             "/endpoint",
             Headers.of(mapOf("x-client-name-trusted" to "fake-service"))
         )
+
         // then
-        assertThat(response.header("x-client-name-trusted")).isNull() // TODO(mf): assert is from container echo2
+        assertThat(response).isOk()
+        HttpsEchoResponse(response).also {
+            assertThat(it).isFrom(service.container())
+            assertThat(it.requestHeaders["x-client-name-trusted"]).isNull()
+        }
     }
 
     @Test
     fun `should add "x-client-name-trusted" header on envoy ingress request`() {
         // when
         val response = envoy2.egressOperations.callService("echo", emptyMap(), "/endpoint")
+
         // then
-        assertThat(response.header("x-client-name-trusted")).isEqualTo("echo2")
+        assertThat(response).isOk()
+        HttpsEchoResponse(response).also {
+            assertThat(it).isFrom(service.container())
+            assertThat(it.requestHeaders["x-client-name-trusted"]).isEqualTo("echo2")
+        }
+
     }
 
     @Test
@@ -140,24 +148,43 @@ class ClientNameTrustedHeaderTest {
         // when
         val headers = mapOf("x-client-name-trusted" to "fake-service")
         val response = envoy2.egressOperations.callService("echo", headers, "/endpoint")
+
         // then
-        assertThat(response.header("x-client-name-trusted")).isEqualTo("echo2")
+        assertThat(response).isOk()
+        HttpsEchoResponse(response).also {
+            assertThat(it).isFrom(service.container())
+            assertThat(it.requestHeaders["x-client-name-trusted"]).isEqualTo("echo2")
+        }
     }
 
     @Test
     fun `should set "x-client-name-trusted" header based on all URIs in certificate SAN field`() {
         // when
         val response = envoy4MultipleSANs.egressOperations.callService("echo", emptyMap(), "/endpoint")
+
         // then
-        assertThat(response.header("x-client-name-trusted")).isEqualTo("echo4,echo4-special,echo4-admin")
+        assertThat(response).isOk()
+        HttpsEchoResponse(response).also {
+            assertThat(it).isFrom(service.container())
+            assertThat(it.requestHeaders["x-client-name-trusted"]).isEqualTo("echo4, echo4-special, echo4-admin")
+        }
     }
 
     @Test
     fun `should not set "x-client-name-trusted" header based on URIs in certificate SAN fields in invalid format`() {
         // when
         val response = envoy5InvalidSANs.egressOperations.callService("echo", emptyMap(), "/endpoint")
+
         // then
-        assertThat(response.header("x-client-name-trusted")).isNull()
+        assertThat(response).isOk()
+        HttpsEchoResponse(response).also {
+            assertThat(it).isFrom(service.container())
+            assertThat(it.requestHeaders["x-client-name-trusted"]).isNull()
+        }
+    }
+
+    fun `should not set "x-client-name-trusted" header from not trusted certificate`() {
+
     }
 
 

@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
+import com.fasterxml.jackson.module.kotlin.*
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.Response
@@ -14,12 +15,13 @@ class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http
     companion object {
         // We need to use hash because the image doesn't use tags and the tests will fail if there is an older version
         // of the image pulled locally
-        const val hash = "sha256:6b69d5da0245157d7f9d06dfb65d0dd25fbedf5389a66d912c806572d02b0d1d"
-        const val PORT = 80
+        const val hash = "sha256:cd9025b7cdb6b2e8dd6e4a403d50b2dea074835948411167fc86566cb4ae77b6"
+        const val PORT = 5678
     }
 
     override fun configure() {
         super.configure()
+        withEnv("HTTP_PORT", "$PORT")
         withNetwork(BaseEnvoyTest.network)
     }
 
@@ -33,9 +35,19 @@ class HttpsEchoResponse(val response: Response) {
     }
 
     val body = response.use { it.body()?.string() } ?: ""
+
+    val requestHeaders by lazy<Map<String, String>> {
+        objectMapper.convertValue(objectMapper.readTree(body).at("/headers"))
+    }
+
+    val hostname by lazy { objectMapper.readTree(body).at("/os/hostname").textValue() }
 }
 
 fun ObjectAssert<HttpsEchoResponse>.hasSNI(serverName: String): ObjectAssert<HttpsEchoResponse> = satisfies {
     val actualServerName = HttpsEchoResponse.objectMapper.readTree(it.body).at("/connection/servername").textValue()
     Assertions.assertThat(actualServerName).isEqualTo(serverName)
+}
+
+fun ObjectAssert<HttpsEchoResponse>.isFrom(container: HttpsEchoContainer) = satisfies {
+    Assertions.assertThat(container.containerId.substring(0, 12)).isEqualTo(it.hostname)
 }
