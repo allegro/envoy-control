@@ -224,9 +224,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             headers = headers
         )
 
-        fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
-            call(address = address)
-
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", address)
 
