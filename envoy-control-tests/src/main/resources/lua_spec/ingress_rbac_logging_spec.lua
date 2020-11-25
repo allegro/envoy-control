@@ -103,7 +103,7 @@ describe("envoy_on_request:", function()
         envoy_on_request(handle)
 
         -- then
-        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", 'not trusted lorem-service')
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", 'lorem-service (not trusted)')
 
     end)
 

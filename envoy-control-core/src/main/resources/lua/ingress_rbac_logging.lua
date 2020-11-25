@@ -10,10 +10,10 @@ function envoy_on_request(handle)
     if client_name == "" then
         for _,h in ipairs(client_identity_header_names) do
             client_name = handle:headers():get(h) or ""
-            if client_name ~= "" and handle:connection():ssl() ~= nil then
-                client_name = "not trusted ".. client_name
-            end
             if client_name ~= "" then break end
+        end
+        if client_name ~= "" and handle:connection():ssl() ~= nil then
+            client_name = client_name .. " (not trusted)"
         end
     end
 

@@ -211,8 +211,18 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
-        fun callEnvoyIngress(envoy: EnvoyContainer = envoyContainer1, path: String, useSsl: Boolean = false): Response =
-            call(address = envoy.ingressListenerUrl(secured = useSsl), pathAndQuery = path)
+        fun callEnvoyIngress(
+            envoy: EnvoyContainer = envoyContainer1,
+            path: String,
+            useSsl: Boolean = false,
+            client: OkHttpClient = defaultClient,
+            headers: Map<String, String> = emptyMap()
+        ): Response = call(
+            address = envoy.ingressListenerUrl(secured = useSsl),
+            pathAndQuery = path,
+            client = client,
+            headers = headers
+        )
 
         fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
             call(address = address)

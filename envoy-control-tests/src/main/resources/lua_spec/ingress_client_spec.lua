@@ -26,8 +26,6 @@ local function handlerMock(headers, metadata, https, uri_san_peer_certificate, p
     }
 end
 
--- TODO(mf): test with SAN URI with additional forbidden prefix and suffix
-
 describe("envoy_on_request:", function()
     local metadata = {
         ['trusted_client_identity_header'] = "x-client-name-trusted",
@@ -107,8 +105,6 @@ describe("envoy_on_request:", function()
         -- then
         assert.are.equal(headers['x-client-name-trusted'], nil)
     end)
-
-    -- TODO(mf): tests for peerCertificateValidated == false
 end)
 
 --[[
