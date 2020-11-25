@@ -37,7 +37,6 @@ describe("envoy_on_request:", function()
     it("should remove x-client-name-trusted header if provided", function()
         -- given
         local headers = { ['x-client-name-trusted'] = 'service-third' }
-
         local handle = handlerMock(headers, metadata, true, nil)
 
         -- when
@@ -68,8 +67,6 @@ describe("envoy_on_request:", function()
                 assert.are.equal(headers['x-client-name-trusted'], header_value)
             end)
         end
-
-
     end)
 
     describe("should not add x-client-name-trusted header when certificate values are incorrect:", function()
