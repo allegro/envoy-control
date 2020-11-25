@@ -43,6 +43,8 @@ class EnvoyDefaultFilters(
 
     /**
      * Order matters:
+     * * defaultClientNameHeaderFilter has to be before defaultRbacLoggingFilter, because the latter consume results of
+     *   the former
      * * defaultRbacLoggingFilter has to be before defaultRbacFilter, otherwise unauthorised requests will not be
      *   logged, because the RBAC filter will stop filter chain execution and subsequent filters will not process
      *   the request

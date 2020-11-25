@@ -1,8 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
-import com.fasterxml.jackson.module.kotlin.*
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.convertValue
 import okhttp3.Response
 import org.assertj.core.api.Assertions
 import org.assertj.core.api.ObjectAssert
