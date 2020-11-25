@@ -1,9 +1,8 @@
-require("ingress_client")
+require("ingress_client_name_header")
 
-local function handlerMock(headers, metadata, https, uri_san_peer_certificate, peerCertificateValidated)
+local function handlerMock(headers, metadata, https, uri_san_peer_certificate)
     local downstreamSslConnection_mock = mock({
-        uriSanPeerCertificate = function() return uri_san_peer_certificate end,
-        peerCertificateValidated = function() return peerCertificateValidated end
+        uriSanPeerCertificate = function() return uri_san_peer_certificate end
     })
     return {
         headers = function() return {
@@ -57,7 +56,7 @@ describe("envoy_on_request:", function()
         for header_value, uri_san_peer_certificate in pairs(uri_san_client_names_pairs) do
             it(header_value, function()
                 local headers = {}
-                local handle = handlerMock(headers, metadata, true, uri_san_peer_certificate, true)
+                local handle = handlerMock(headers, metadata, true, uri_san_peer_certificate)
 
                 -- when
                 envoy_on_request(handle)
@@ -82,7 +81,7 @@ describe("envoy_on_request:", function()
         for _, incorrect_san in ipairs(incorrect_uri_sans) do
             it(incorrect_san, function()
                 local headers = {}
-                local handle = handlerMock(headers, metadata, true, { incorrect_san }, true)
+                local handle = handlerMock(headers, metadata, true, { incorrect_san })
 
                 -- when
                 envoy_on_request(handle)
@@ -91,19 +90,6 @@ describe("envoy_on_request:", function()
                 assert.are.equal(headers['x-client-name-trusted'], nil)
             end)
         end
-    end)
-
-    it ("should not add x-client-name-trusted header when client certificate is not validated", function()
-        local correct_san_uri = "spiffe://service-first-spiffe?env=dev"
-        local headers = {}
-        local peer_validated = false
-        local handle = handlerMock(headers, metadata, true, { correct_san_uri }, peer_validated)
-
-        -- when
-        envoy_on_request(handle)
-
-        -- then
-        assert.are.equal(headers['x-client-name-trusted'], nil)
     end)
 end)
 

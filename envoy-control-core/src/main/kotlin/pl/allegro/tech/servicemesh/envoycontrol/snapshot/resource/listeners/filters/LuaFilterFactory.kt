@@ -57,13 +57,13 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
     fun ingressRbacLoggingFilter(group: Group): HttpFilter? =
         ingressRbacLoggingFilter.takeIf { group.proxySettings.incoming.permissionsEnabled }
 
-    private val ingressClientScript: String = this::class.java.classLoader
-            .getResource("lua/ingress_client.lua")!!.readText()
+    private val ingressClientNameHeaderScript: String = this::class.java.classLoader
+            .getResource("lua/ingress_client_name_header.lua")!!.readText()
 
     private val ingressClientNameHeaderFilter: HttpFilter =
         HttpFilter.newBuilder()
                 .setName("ingress.client.lua")
-                .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientScript).build()))
+                .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientNameHeaderScript).build()))
                 .build()
 
     fun ingressClientNameHeaderFilter(): HttpFilter? =

@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.permissions
 import okhttp3.Headers
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
@@ -51,9 +50,7 @@ class ClientNameTrustedHeaderTest {
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, service,
-            Echo1EnvoyAuthConfig.copy(configOverride = proxySettings)
-        )
+        val envoy = EnvoyExtension(envoyControl, service, Echo1EnvoyAuthConfig.copy(configOverride = proxySettings))
 
         // language=yaml
         private val echoClientsConfig = """
@@ -139,7 +136,6 @@ class ClientNameTrustedHeaderTest {
             assertThat(it).isFrom(service.container())
             assertThat(it.requestHeaders["x-client-name-trusted"]).isEqualTo("echo2")
         }
-
     }
 
     @Test
