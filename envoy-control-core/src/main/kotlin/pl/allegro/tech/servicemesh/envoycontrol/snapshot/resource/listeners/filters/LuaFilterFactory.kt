@@ -24,6 +24,8 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
         null
     }
 
+    private val trustedClientIdentityHeader = incomingPermissionsProperties.trustedClientIdentityHeader
+
     private val ingressScriptsMetadata = Metadata.newBuilder()
         .putFilterMetadata("envoy.filters.http.lua",
             Struct.newBuilder()
@@ -39,7 +41,7 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
                 )
                 .putFields("trusted_client_identity_header",
                     Value.newBuilder()
-                        .setStringValue(incomingPermissionsProperties.trustedClientIdentityHeader)
+                        .setStringValue(trustedClientIdentityHeader)
                         .build()
                 )
                 .putFields("san_uri_lua_pattern",
@@ -58,13 +60,14 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
     private val ingressClientScript: String = this::class.java.classLoader
             .getResource("lua/ingress_client.lua")!!.readText()
 
-    private val ingressClientFilter: HttpFilter =
+    private val ingressClientNameHeaderFilter: HttpFilter =
         HttpFilter.newBuilder()
                 .setName("ingress.client.lua")
                 .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientScript).build()))
                 .build()
 
-    fun ingressClientFilter(): HttpFilter = ingressClientFilter
+    fun ingressClientNameHeaderFilter(): HttpFilter? =
+        ingressClientNameHeaderFilter.takeIf { trustedClientIdentityHeader.isNotEmpty() }
 
     fun ingressScriptsMetadata(): Metadata = ingressScriptsMetadata
 }

@@ -12,7 +12,7 @@ function envoy_on_request(handle)
             client_name = handle:headers():get(h) or ""
             if client_name ~= "" then break end
         end
-        if client_name ~= "" and handle:connection():ssl() ~= nil then
+        if trusted_header ~= "" and client_name ~= "" and handle:connection():ssl() ~= nil then
             client_name = client_name .. " (not trusted)"
         end
     end

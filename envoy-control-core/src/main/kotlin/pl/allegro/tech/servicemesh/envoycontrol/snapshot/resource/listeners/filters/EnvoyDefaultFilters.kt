@@ -1,9 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
-import com.google.protobuf.ListValue
-import com.google.protobuf.Struct
-import com.google.protobuf.Value
 import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
@@ -39,7 +36,7 @@ class EnvoyDefaultFilters(
     }
 
     private val defaultClientNameHeaderFilter = {
-        group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressClientFilter()
+        group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressClientNameHeaderFilter()
     }
 
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)

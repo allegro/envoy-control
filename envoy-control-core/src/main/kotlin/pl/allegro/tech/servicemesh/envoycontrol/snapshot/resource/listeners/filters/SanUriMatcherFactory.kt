@@ -25,7 +25,7 @@ class SanUriMatcherFactory(
         val parts = getSanUriFormatSplit()
         val prefix = escapeForLua(parts.first)
         val suffix = escapeForLua(parts.second)
-        return "^${prefix}(${tlsProperties.serviceNameWildcardRegex})${suffix}\$"
+        return "^$prefix(${tlsProperties.serviceNameWildcardRegex})$suffix\$"
     }
 
     private fun escapeForLua(input: String): String {
