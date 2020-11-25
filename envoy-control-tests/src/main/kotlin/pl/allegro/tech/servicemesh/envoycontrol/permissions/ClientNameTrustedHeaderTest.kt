@@ -29,7 +29,6 @@ class ClientNameTrustedHeaderTest {
 
         @JvmField
         @RegisterExtension
-        @Order(Order.DEFAULT - 1) // TODO(mf): get rid of Order
         val envoyControl = EnvoyControlExtension(consul, mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.require-client-certificate" to false,
             "envoy-control.envoy.snapshot.incoming-permissions.trusted-client-identity-header" to "x-client-name-trusted",

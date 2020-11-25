@@ -88,7 +88,7 @@ class TlsAuthenticationProperties {
     var tlsCertificateSecretName: String = "server_cert"
     var mtlsEnabledTag: String = "mtls:enabled"
     var serviceNameWildcardRegex: String = ".+"
-    var sanUriFormat: String = "spiffe://{service-name}"  // TODO(mf): add do docs
+    var sanUriFormat: String = "spiffe://{service-name}"
 }
 
 class TlsProtocolProperties {

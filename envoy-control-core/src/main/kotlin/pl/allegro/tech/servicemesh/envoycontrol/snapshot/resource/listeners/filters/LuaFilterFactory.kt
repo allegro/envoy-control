@@ -37,7 +37,7 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
                             .build()
                         ).build()
                 )
-                .putFields("trusted_client_identity_header",  // TODO(mf): use in rbac logging script
+                .putFields("trusted_client_identity_header",
                     Value.newBuilder()
                         .setStringValue(incomingPermissionsProperties.trustedClientIdentityHeader)
                         .build()
@@ -45,7 +45,8 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
                 .putFields("san_uri_lua_pattern",
                     Value.newBuilder()
                         .setStringValue(
-                            SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication).sanUriWildcardRegexForLua
+                            SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
+                                .sanUriWildcardRegexForLua
                         ).build()
                 )
                 .build()

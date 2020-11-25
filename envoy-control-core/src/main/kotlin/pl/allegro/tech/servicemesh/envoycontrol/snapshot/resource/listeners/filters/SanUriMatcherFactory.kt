@@ -33,9 +33,10 @@ class SanUriMatcherFactory(
     }
 
     private fun getSanUriFormatSplit(): Pair<String, String> {
-        val parts = tlsProperties.sanUriFormat.split(serviceNameTemplate)
+        val format = tlsProperties.sanUriFormat
+        val parts = format.split(serviceNameTemplate)
         if (parts.size != 2) {
-            throw IllegalArgumentException("SAN URI ${tlsProperties.sanUriFormat} does not properly contain $serviceNameTemplate")
+            throw IllegalArgumentException("SAN URI $format does not properly contain $serviceNameTemplate")
         }
         return parts[0] to parts[1]
     }
