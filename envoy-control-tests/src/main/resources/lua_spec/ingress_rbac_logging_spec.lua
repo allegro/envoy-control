@@ -14,7 +14,10 @@ local function handlerMock(headers, dynamic_metadata, https, filter_metadata)
     local log_info_mock = spy(function() end)
     return {
         headers = function() return {
-            get = function(_, key) return headers[key] end,
+            get = function(_, key)
+                assert.is.not_nil(key, "headers:get() called with nil argument")
+                return headers[key]
+            end,
             add = function(_, key, value) headers[key] = value end
         }
         end,
@@ -209,6 +212,24 @@ describe("envoy_on_request:", function()
 
         -- then
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "")
+    end)
+
+    it("should survive lack of trusted_client_identity_header metadata", function ()
+        -- given
+        local empty_metadata = {}
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+        }
+        local handle = handlerMock(headers, {}, nil, empty_metadata)
+        local dynamic_metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(dynamic_metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.path", "/path")
+        assert.spy(dynamic_metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.method", "GET")
     end)
 end)
 

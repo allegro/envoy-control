@@ -1,6 +1,9 @@
 function envoy_on_request(handle)
     local streamInfo = handle:streamInfo()
-    local trusted_header = handle:metadata():get("trusted_client_identity_header")
+    local trusted_header = handle:metadata():get("trusted_client_identity_header") or ""
+    if trusted_header == "" then
+        return
+    end
 
     if handle:headers():get(trusted_header) ~= nil then
         handle:headers():remove(trusted_header)

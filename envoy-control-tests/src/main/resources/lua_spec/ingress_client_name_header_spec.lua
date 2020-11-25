@@ -7,7 +7,10 @@ local function handlerMock(headers, metadata, https, uri_san_peer_certificate)
     return {
         headers = function() return {
             add = function(_, key, value) if headers[key] ~= nil then headers[key] = headers[key] ..","..value else headers[key] = value end end,
-            get = function(_, key) return headers[key] end,
+            get = function(_, key)
+                assert.is.not_nil(key, "headers:get() called with nil argument")
+                return headers[key]
+            end,
             remove = function(_, key) headers[key] = nil end
         }
         end,
@@ -69,7 +72,8 @@ describe("envoy_on_request:", function()
 
     end)
 
-    describe ("should not add x-client-name-trusted header when certificate values are incorrect:", function()
+    describe("should not add x-client-name-trusted header when certificate values are incorrect:", function()
+        -- given
         local incorrect_uri_sans = {
             "service://service-first-special?env=dev",
             "spiffe://service-first-spiffe",
@@ -90,6 +94,19 @@ describe("envoy_on_request:", function()
                 assert.are.equal(headers['x-client-name-trusted'], nil)
             end)
         end
+    end)
+
+    it("should survive lack of metadata", function ()
+        -- given
+        local headers = {}
+        local no_metadata = {}
+        local handle = handlerMock(headers, no_metadata, true, nil)
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.are.equal(headers['x-client-name-trusted'], nil)
     end)
 end)
 
