@@ -54,16 +54,23 @@ class EnvoyClustersFactory(
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
     private val tlsProperties = properties.incomingPermissions.tlsAuthentication
     private val sanUriMatcher = SanUriMatcherFactory(tlsProperties)
-    private val matchPlaintextContext = Cluster.TransportSocketMatch.newBuilder()
-        .setName("plaintext_match")
-        .setTransportSocket(
-            TransportSocket.newBuilder().setName("envoy.transport_sockets.raw_buffer").build()
-        )
-        .build()
+    private val matchPlaintextContext: Cluster.TransportSocketMatch
 
     private val tlsContextMatch = Struct.newBuilder()
         .putFields(tlsProperties.tlsContextMetadataMatchKey, Value.newBuilder().setBoolValue(true).build())
         .build()
+
+    init {
+        val newBuilder = Cluster.TransportSocketMatch.newBuilder()
+        if (System.getProperty("ENVOY_FAIL") == null) {
+            newBuilder.setName("plaintext_match")
+        }
+        matchPlaintextContext = newBuilder
+            .setTransportSocket(
+                TransportSocket.newBuilder().setName("envoy.transport_sockets.raw_buffer").build()
+            )
+            .build()
+    }
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,

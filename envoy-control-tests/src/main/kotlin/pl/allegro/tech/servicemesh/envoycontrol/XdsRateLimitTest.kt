@@ -11,6 +11,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtens
 class XdsRateLimitTest {
     companion object {
 
+        init {
+            System.setProperty("ENVOY_FAIL", "ok")
+        }
+
         @JvmField
         @RegisterExtension
         val consul = ConsulExtension()
@@ -30,7 +34,7 @@ class XdsRateLimitTest {
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, service, config = Echo1EnvoyAuthConfig.copy(privateKey = "missing_file", configOverride = """ 
+        val envoy = EnvoyExtension(envoyControl, service, config = Echo1EnvoyAuthConfig.copy(configOverride = """ 
             dynamic_resources:
               ads_config:
                 rate_limit_settings:
