@@ -66,7 +66,6 @@ typealias Client = String
 class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeaders = listOf("x-service-name")
-    /** set to empty string to disable */
     var trustedClientIdentityHeader = "x-client-name-trusted"
     var serviceNameHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
