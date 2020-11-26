@@ -49,5 +49,5 @@ fun ObjectAssert<HttpsEchoResponse>.hasSNI(serverName: String): ObjectAssert<Htt
 }
 
 fun ObjectAssert<HttpsEchoResponse>.isFrom(container: HttpsEchoContainer) = satisfies {
-    Assertions.assertThat(container.containerId.substring(0, 12)).isEqualTo(it.hostname)
+    Assertions.assertThat(container.containerName()).isEqualTo(it.hostname)
 }

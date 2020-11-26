@@ -93,7 +93,7 @@ describe("envoy_on_request:", function()
         end
     end)
 
-    it("should survive lack of metadata", function ()
+    it("should handle missing metadata", function ()
         -- given
         local headers = {}
         local no_metadata = {}

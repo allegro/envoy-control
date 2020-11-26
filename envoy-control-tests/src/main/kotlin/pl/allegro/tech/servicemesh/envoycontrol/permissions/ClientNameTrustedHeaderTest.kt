@@ -110,7 +110,7 @@ class ClientNameTrustedHeaderTest {
     }
 
     @Test
-    fun `should always remove "x-client-name-trusted" header on every envoy ingress request`() {
+    fun `should always remove trusted client identity header from client ingress request`() {
         // when
         val response = envoy2.ingressOperations.callLocalService(
             "/endpoint",
@@ -126,7 +126,7 @@ class ClientNameTrustedHeaderTest {
     }
 
     @Test
-    fun `should add "x-client-name-trusted" header on envoy ingress request`() {
+    fun `should add trusted client identity header to ingress request to local service`() {
         // when
         val response = envoy2.egressOperations.callService("echo", emptyMap(), "/endpoint")
 
@@ -139,7 +139,7 @@ class ClientNameTrustedHeaderTest {
     }
 
     @Test
-    fun `should override "x-client-name-trusted" header with trusted client name form certificate on request`() {
+    fun `should override trusted client identity header in ingress request to local service`() {
         // when
         val headers = mapOf("x-client-name-trusted" to "fake-service")
         val response = envoy2.egressOperations.callService("echo", headers, "/endpoint")
@@ -153,7 +153,7 @@ class ClientNameTrustedHeaderTest {
     }
 
     @Test
-    fun `should set "x-client-name-trusted" header based on all URIs in certificate SAN field`() {
+    fun `should set trusted client identity header based on all URIs in certificate SAN field`() {
         // when
         val response = envoy4MultipleSANs.egressOperations.callService("echo", emptyMap(), "/endpoint")
 
@@ -166,7 +166,7 @@ class ClientNameTrustedHeaderTest {
     }
 
     @Test
-    fun `should not set "x-client-name-trusted" header based on URIs in certificate SAN fields in invalid format`() {
+    fun `should not set trusted client identity header based on URIs in certificate SAN fields having invalid format`() {
         // when
         val response = envoy5InvalidSANs.egressOperations.callService("echo", emptyMap(), "/endpoint")
 
