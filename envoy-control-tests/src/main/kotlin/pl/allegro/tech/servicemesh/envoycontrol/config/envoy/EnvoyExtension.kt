@@ -12,7 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class EnvoyExtension(
-    envoyControl: EnvoyControlExtension,
+    private val envoyControl: EnvoyControlExtension,
     private val localService: ServiceExtension<*>? = null,
     config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
@@ -32,6 +32,7 @@ class EnvoyExtension(
 
     override fun beforeAll(context: ExtensionContext) {
         localService?.beforeAll(context)
+        envoyControl.beforeAll(context)
 
         try {
             container.start()

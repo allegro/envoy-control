@@ -12,6 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasNoRBACDenials
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionBlock
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionLog
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
+import pl.allegro.tech.servicemesh.envoycontrol.config.ClientsFactory
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
@@ -654,6 +655,32 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             method = "POST",
             clientName = "echo3",
             clientIp = echo3Envoy.ipAddress()
+        )
+    }
+
+    @Test
+    fun `echo2 should allow unlisted client with client identity header over https and log client name as untrusted`() {
+        // given
+        val insecureClient = ClientsFactory.createInsecureClient()
+
+        // when
+        val echo2Response = callEnvoyIngress(
+            envoy = echo2Envoy,
+            path = "/log-unlisted-clients",
+            headers = mapOf("x-service-name" to "service-name-from-header"),
+            useSsl = true,
+            client = insecureClient
+        )
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.ingressSslRequests).isOne()
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/log-unlisted-clients",
+            method = "GET",
+            clientName = "service-name-from-header (not trusted)",
+            clientIp = echo2Envoy.gatewayIp()
         )
     }
 
