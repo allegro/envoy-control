@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.convertValue
 import okhttp3.Response
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
@@ -45,9 +45,9 @@ class HttpsEchoResponse(val response: Response) {
 
 fun ObjectAssert<HttpsEchoResponse>.hasSNI(serverName: String): ObjectAssert<HttpsEchoResponse> = satisfies {
     val actualServerName = HttpsEchoResponse.objectMapper.readTree(it.body).at("/connection/servername").textValue()
-    Assertions.assertThat(actualServerName).isEqualTo(serverName)
+    assertThat(actualServerName).isEqualTo(serverName)
 }
 
 fun ObjectAssert<HttpsEchoResponse>.isFrom(container: HttpsEchoContainer) = satisfies {
-    Assertions.assertThat(container.containerName()).isEqualTo(it.hostname)
+    assertThat(container.containerName()).isEqualTo(it.hostname)
 }

@@ -1,12 +1,12 @@
 function envoy_on_request(handle)
     local streamInfo = handle:streamInfo()
-    local trusted_header = handle:metadata():get("trusted_client_identity_header") or ""
-    if trusted_header == "" then
+    local trusted_header_name = handle:metadata():get("trusted_client_identity_header") or ""
+    if trusted_header_name == "" then
         return
     end
 
-    if handle:headers():get(trusted_header) ~= nil then
-        handle:headers():remove(trusted_header)
+    if handle:headers():get(trusted_header_name) ~= nil then
+        handle:headers():remove(trusted_header_name)
     end
 
     if handle:connection():ssl() and streamInfo:downstreamSslConnection() then
@@ -17,7 +17,7 @@ function envoy_on_request(handle)
             for _, entry in pairs(uriSanPeerCertificate) do
                 local clientName = string.match(entry, san_uri_format)
                 if clientName ~= nil and clientName ~= '' then
-                    handle:headers():add(trusted_header, clientName)
+                    handle:headers():add(trusted_header_name, clientName)
                 end
             end
         end
