@@ -199,7 +199,7 @@ class ControlPlane private constructor(
         private fun createV3Server(
             cache: SimpleCache<Group>,
             loggingDiscoveryServerCallbacks: LoggingDiscoveryServerCallbacks,
-            meteredConnectionsCallbacks: MeteredConnectionsCallbacks,
+            meteredConnectionsCallbacks: MetricsDiscoveryServerCallbacks,
             groupChangeWatcher: GroupChangeWatcher,
             cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
         ): V3DiscoveryServer {
@@ -224,7 +224,7 @@ class ControlPlane private constructor(
         private fun createV2Server(
             cache: SimpleCache<Group>,
             loggingDiscoveryServerCallbacks: LoggingDiscoveryServerCallbacks,
-            meteredConnectionsCallbacks: MeteredConnectionsCallbacks,
+            meteredConnectionsCallbacks: MetricsDiscoveryServerCallbacks,
             groupChangeWatcher: GroupChangeWatcher,
             cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
         ): V2DiscoveryServer {

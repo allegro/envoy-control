@@ -256,7 +256,9 @@ class EnvoyClustersFactory(
                             ConfigSource.newBuilder()
                                 .setResourceApiVersion(apiVersion)
                                 .setApiConfigSource(
-                                    ApiConfigSource.newBuilder().setApiType(ApiConfigSource.ApiType.GRPC)
+                                    ApiConfigSource.newBuilder()
+                                        .setApiType(ApiConfigSource.ApiType.GRPC)
+                                        .setTransportApiVersion(apiVersion)
                                         .addGrpcServices(
                                             0, GrpcService.newBuilder().setEnvoyGrpc(
                                                 GrpcService.EnvoyGrpc.newBuilder()
