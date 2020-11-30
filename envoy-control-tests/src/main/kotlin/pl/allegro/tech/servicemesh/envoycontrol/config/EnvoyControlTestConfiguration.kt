@@ -356,12 +356,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
     }
 
-    /**
-     * We have to retrieve the bean manually instead of @Autowired because the app is created in manual way
-     * instead of using the JUnit Spring Extension
-     */
-    inline fun <reified T> bean(): T = envoyControl1.bean(T::class.java)
-
     fun waitForReadyServices(vararg serviceNames: String) {
         serviceNames.forEach {
             untilAsserted {
