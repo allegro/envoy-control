@@ -111,7 +111,7 @@ interface MetricsDiscoveryServerCallbacksTest {
     @Test
     fun `should measure gRPC connections`() {
         // given
-        val meterRegistry = envoyControl().app.bean(MeterRegistry::class.java)
+        val meterRegistry = envoyControl().app.meterRegistry()
         consul().server.operations.registerService(service(), name = "echo")
 
         // expect
@@ -129,7 +129,7 @@ interface MetricsDiscoveryServerCallbacksTest {
     @Test
     fun `should measure gRPC requests`() {
         // given
-        val meterRegistry = envoyControl().app.bean(MeterRegistry::class.java)
+        val meterRegistry = envoyControl().app.meterRegistry()
         consul().server.operations.registerService(service(), name = "echo")
 
         // expect
