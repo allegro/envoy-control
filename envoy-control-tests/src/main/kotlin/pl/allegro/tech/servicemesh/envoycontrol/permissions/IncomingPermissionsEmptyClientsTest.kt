@@ -78,12 +78,11 @@ internal class IncomingPermissionsEmptyClientsTest : EnvoyControlTestConfigurati
         // then
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
-                protocol = "http",
-                path = "/blocked-for-all",
-                method = "GET",
-                clientName = "",
-                clientIp = echoEnvoy.gatewayIp(),
-                requestId = ""
+            protocol = "http",
+            path = "/blocked-for-all",
+            method = "GET",
+            clientName = "",
+            clientIp = echoEnvoy.gatewayIp()
         )
     }
 
@@ -131,8 +130,7 @@ internal class IncomingPermissionsEmptyClientsTest : EnvoyControlTestConfigurati
             path = "/unlisted",
             method = "GET",
             clientName = "",
-            clientIp = echo2Envoy.gatewayIp(),
-            requestId = ""
+            clientIp = echo2Envoy.gatewayIp()
         )
     }
 

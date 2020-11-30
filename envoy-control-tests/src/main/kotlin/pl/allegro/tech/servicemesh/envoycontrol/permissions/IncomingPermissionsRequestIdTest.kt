@@ -70,10 +70,6 @@ class IncomingPermissionsRequestIdTest {
             assertThat(response).isOk()
             assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
                 protocol = "http",
-                path = "/path",
-                method = "GET",
-                clientName = "echo",
-                clientIp = echoEnvoy.container.ipAddress(),
                 requestId = "123"
             )
         }
