@@ -23,7 +23,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.ExecutorType
 import pl.allegro.tech.servicemesh.envoycontrol.server.ServerProperties
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.CompositeDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscoveryServerCallbacks
-import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MeteredConnectionsCallbacks
+import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
@@ -130,12 +130,7 @@ class ControlPlane private constructor(
             val groupSnapshotScheduler = buildGroupSnapshotScheduler(groupSnapshotProperties)
             val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
             val groupChangeWatcher = GroupChangeWatcher(cache, metrics, meterRegistry)
-            val meteredConnectionsCallbacks = MeteredConnectionsCallbacks().also {
-                meterRegistry.gauge("grpc.all-connections", it.connections)
-                MeteredConnectionsCallbacks.MetricsStreamType.values().map { type ->
-                    meterRegistry.gauge("grpc.connections.${type.name.toLowerCase()}", it.connections(type))
-                }
-            }
+            val meteredConnectionsCallbacks = MetricsDiscoveryServerCallbacks(meterRegistry)
             val loggingDiscoveryServerCallbacks = LoggingDiscoveryServerCallbacks(
                 properties.server.logFullRequest,
                 properties.server.logFullResponse

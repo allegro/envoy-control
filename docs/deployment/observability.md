@@ -37,7 +37,7 @@ Standard [Spring metrics](https://docs.spring.io/spring-boot/docs/current/refere
 
 Envoy Control Runner exposes a set of metrics on standard Spring Actuator's `/actuator/metrics` endpoint.
 
-#### Connections
+#### xDS connections
 
 Metric                       | Description                         
 -----------------------------| --------------------------------------------------------
@@ -48,6 +48,17 @@ Metric                       | Description
 **grpc.connections.rds**     | Number of running gRPC RDS connections  
 **grpc.connections.sds**     | Number of running gRPC SDS connections  
 **grpc.connections.unknown** | Number of running gRPC connections for unknown resource  
+
+#### xDS requests
+
+Metric                    | Description                         
+--------------------------| --------------------------------------------------------
+**grpc.requests.cds**     | Counter of received gRPC CDS requests  
+**grpc.requests.eds**     | Counter of received gRPC EDS requests  
+**grpc.requests.lds**     | Counter of received gRPC LDS requests  
+**grpc.requests.rds**     | Counter of received gRPC RDS requests  
+**grpc.requests.sds**     | Counter of received gRPC SDS requests  
+**grpc.requests.unknown** | Counter of received gRPC requests for unknown resource  
 
 #### Snapshot
 

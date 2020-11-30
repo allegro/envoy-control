@@ -33,7 +33,7 @@ static_resources:
           access_log:
             name: envoy.file_access_log
             config:
-              path: "./envoy/ingress-access.log"
+              path: "/home/envoy/ingress-access.log"
               format: >
                 [%START_TIME%] %PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% %RESPONSE_CODE% %RESPONSE_FLAGS%
                 %BYTES_RECEIVED%b %BYTES_SENT%b %DURATION%ms "%DOWNSTREAM_REMOTE_ADDRESS%" -> "%UPSTREAM_HOST%"

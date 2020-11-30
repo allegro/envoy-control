@@ -14,11 +14,15 @@ local function handlerMock(headers, dynamic_metadata, https, filter_metadata)
     local log_info_mock = spy(function() end)
     return {
         headers = function() return {
-            get = function(_, key) return headers[key] end
+            get = function(_, key)
+                assert.is.not_nil(key, "headers:get() called with nil argument")
+                return headers[key]
+            end,
+            add = function(_, key, value) headers[key] = value end
         }
         end,
         streamInfo = function() return {
-            dynamicMetadata = function() return metadata_mock end
+            dynamicMetadata = function() return metadata_mock end,
         }
         end,
         connection = function() return {
@@ -58,6 +62,52 @@ describe("envoy_on_request:", function()
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.method", "GET")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "lorem-service")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.xff_header", "127.0.4.3")
+    end)
+
+    it("should set client_name from x-client-name-trusted header", function()
+        -- given
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+            ['x-service-name'] = 'lorem-service',
+            ['x-client-name-trusted'] = 'service-first,service-second'
+        }
+        local filter_metadata = {
+            ['client_identity_headers'] = { "x-service-name" },
+            ['trusted_client_identity_header'] = "x-client-name-trusted"
+        }
+        local handle = handlerMock(headers, {}, true, filter_metadata)
+        local metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", 'service-first,service-second')
+
+    end)
+
+    it("should add not trusted to client_name if ssl available and name was not from certificate", function()
+        -- given
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+            ['x-service-name'] = 'lorem-service',
+        }
+        local filter_metadata = {
+            ['client_identity_headers'] = { "x-service-name" },
+            ['trusted_client_identity_header'] = "x-client-name-trusted"
+        }
+
+        local handle = handlerMock(headers, {}, true, filter_metadata)
+        local metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", 'lorem-service (not trusted)')
+
     end)
 
     it("should set client_name metadata using data from configured headers", function()
@@ -162,6 +212,24 @@ describe("envoy_on_request:", function()
 
         -- then
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "")
+    end)
+
+    it("should survive lack of trusted_client_identity_header metadata", function ()
+        -- given
+        local empty_metadata = {}
+        local headers = {
+            [':path'] = '/path',
+            [':method'] = 'GET',
+        }
+        local handle = handlerMock(headers, {}, nil, empty_metadata)
+        local dynamic_metadata = handle:streamInfo():dynamicMetadata()
+
+        -- when
+        envoy_on_request(handle)
+
+        -- then
+        assert.spy(dynamic_metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.path", "/path")
+        assert.spy(dynamic_metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.method", "GET")
     end)
 end)
 

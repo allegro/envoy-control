@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.pszymczyk.consul.infrastructure.Ports
+import io.micrometer.core.instrument.MeterRegistry
 import okhttp3.Credentials
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
@@ -49,7 +50,7 @@ interface EnvoyControlTestApp {
         faultId: String
     ): Response
 
-    fun <T> bean(clazz: Class<T>): T
+    fun meterRegistry(): MeterRegistry
 }
 
 class EnvoyControlRunnerTestApp(
@@ -217,8 +218,8 @@ class EnvoyControlRunnerTestApp(
             .execute()
     }
 
-    override fun <T> bean(clazz: Class<T>): T = app.context().getBean(clazz)
-        ?: throw IllegalStateException("Bean of type ${clazz.simpleName} not found in the context")
+    override fun meterRegistry() = app.context().getBean(MeterRegistry::class.java)
+    ?: throw IllegalStateException("MeterRegistry bean not found in the context")
 
     companion object {
         val logger by logger()

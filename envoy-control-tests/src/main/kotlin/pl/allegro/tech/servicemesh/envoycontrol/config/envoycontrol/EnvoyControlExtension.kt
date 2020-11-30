@@ -11,6 +11,8 @@ import java.util.concurrent.TimeUnit
 class EnvoyControlExtension(private val consul: ConsulExtension, val app: EnvoyControlTestApp)
     : BeforeAllCallback, AfterAllCallback {
 
+    private var started = false
+
     constructor(consul: ConsulExtension, properties: Map<String, Any> = mapOf())
         : this(consul, EnvoyControlRunnerTestApp(
                     properties = properties,
@@ -18,9 +20,14 @@ class EnvoyControlExtension(private val consul: ConsulExtension, val app: EnvoyC
         ))
 
     override fun beforeAll(context: ExtensionContext) {
+        if (started) {
+            return
+        }
+
         consul.beforeAll(context)
         app.run()
         waitUntilHealthy()
+        started = true
     }
 
     private fun waitUntilHealthy() {

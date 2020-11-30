@@ -211,11 +211,18 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
-        fun callEnvoyIngress(envoy: EnvoyContainer = envoyContainer1, path: String, useSsl: Boolean = false): Response =
-            call(address = envoy.ingressListenerUrl(secured = useSsl), pathAndQuery = path)
-
-        fun callIngressRoot(address: String = envoyContainer1.ingressListenerUrl()): Response =
-            call(address = address)
+        fun callEnvoyIngress(
+            envoy: EnvoyContainer = envoyContainer1,
+            path: String,
+            useSsl: Boolean = false,
+            client: OkHttpClient = defaultClient,
+            headers: Map<String, String> = emptyMap()
+        ): Response = call(
+            address = envoy.ingressListenerUrl(secured = useSsl),
+            pathAndQuery = path,
+            client = client,
+            headers = headers
+        )
 
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", address)
@@ -348,12 +355,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             assertThat(response).isOk().isFrom(target)
         }
     }
-
-    /**
-     * We have to retrieve the bean manually instead of @Autowired because the app is created in manual way
-     * instead of using the JUnit Spring Extension
-     */
-    inline fun <reified T> bean(): T = envoyControl1.bean(T::class.java)
 
     fun waitForReadyServices(vararg serviceNames: String) {
         serviceNames.forEach {

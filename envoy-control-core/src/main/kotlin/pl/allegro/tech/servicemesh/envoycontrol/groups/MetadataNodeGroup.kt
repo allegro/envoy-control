@@ -50,7 +50,7 @@ class MetadataNodeGroup(
         }
 
         if (egressHostValue == null) {
-            logger.warn("Node $id has no egerss host configured, falling back to static listeners.")
+            logger.warn("Node $id has no egress host configured, falling back to static listeners.")
             return null
         }
 

@@ -4,11 +4,22 @@ function envoy_on_request(handle)
     local xff_header = handle:headers():get("x-forwarded-for")
     local metadata = handle:streamInfo():dynamicMetadata()
     local client_identity_header_names = handle:metadata():get("client_identity_headers") or {}
+    local trusted_header_name = handle:metadata():get("trusted_client_identity_header") or ""
     local client_name = ""
-    for _,h in ipairs(client_identity_header_names) do
-        client_name = handle:headers():get(h) or ""
-        if client_name ~= "" then break end
+    if trusted_header_name ~= "" then
+        client_name = handle:headers():get(trusted_header_name) or ""
     end
+
+    if client_name == "" then
+        for _,h in ipairs(client_identity_header_names) do
+            client_name = handle:headers():get(h) or ""
+            if client_name ~= "" then break end
+        end
+        if trusted_header_name ~= "" and client_name ~= "" and handle:connection():ssl() ~= nil then
+            client_name = client_name .. " (not trusted)"
+        end
+    end
+
     metadata:set("envoy.filters.http.lua", "request.info.path", path)
     metadata:set("envoy.filters.http.lua", "request.info.method", method)
     metadata:set("envoy.filters.http.lua", "request.info.xff_header", xff_header)

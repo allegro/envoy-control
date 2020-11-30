@@ -2,7 +2,7 @@
 
 set -eu
 
-HOST_IP=$(sh /usr/local/bin/host_ip.sh)
+HOST_IP=$(bash /usr/local/bin/host_ip.sh)
 HOST_PORT=$1
 HOST2_PORT=$2
 
