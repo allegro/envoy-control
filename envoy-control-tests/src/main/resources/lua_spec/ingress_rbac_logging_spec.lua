@@ -67,10 +67,10 @@ describe("envoy_on_request:", function()
     it("should set dynamic metadata for request id", function()
         -- given
         local headers = {
-            ['x-custom-request-id'] = '123-456-789',
+            ['x-request-id'] = '123-456-789',
         }
         local filter_metadata = {
-            ['request_id_headers'] = { 'x-custom-request-id' }
+            ['request_id_headers'] = { 'x-request-id' }
         }
 
         local handle = handlerMock(headers, {}, nil, filter_metadata)

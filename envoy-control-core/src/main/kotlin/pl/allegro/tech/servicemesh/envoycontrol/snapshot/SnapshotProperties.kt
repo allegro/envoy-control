@@ -67,7 +67,7 @@ class IncomingPermissionsProperties {
     var enabled = false
     var clientIdentityHeaders = listOf("x-service-name")
     var trustedClientIdentityHeader = "x-client-name-trusted"
-    var requestIdentificationHeaders = listOf("x-custom-request-id")
+    var requestIdentificationHeaders = listOf("x-request-id")
     var serviceNameHeader = "x-service-name"
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
     var selectorMatching: MutableMap<Client, SelectorMatching> = mutableMapOf()
