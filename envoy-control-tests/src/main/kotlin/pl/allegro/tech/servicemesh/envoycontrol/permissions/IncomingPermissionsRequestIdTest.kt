@@ -1,6 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionLog
@@ -54,12 +56,19 @@ class IncomingPermissionsRequestIdTest {
         val echoEnvoy = EnvoyExtension(envoyControl, config = echoConfig, localService = echoService)
     }
 
-    @Test
-    fun `echo should allow echo2 to access 'path' endpoint on exact path`() {
-        // given
-        echoEnvoy.container.logRecorder.recordLogs(::isRbacAccessLog)
+    @BeforeEach
+    fun beforeEach() {
         consul.server.operations.registerServiceWithEnvoyOnIngress(echoEnvoy, name = "echo")
+        echoEnvoy.container.logRecorder.recordLogs(::isRbacAccessLog)
+    }
 
+    @AfterEach
+    fun afterEach() {
+        echoEnvoy.container.logRecorder.stopRecording()
+    }
+
+    @Test
+    fun `incoming permissions logs should contain requestId if present`() {
         untilAsserted {
             // when
             val response = echoEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path", headers = mapOf(
@@ -71,6 +80,23 @@ class IncomingPermissionsRequestIdTest {
             assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
                 protocol = "http",
                 requestId = "123"
+            )
+        }
+    }
+
+    @Test
+    fun `should handle request id containing double quotes`() {
+        untilAsserted {
+            // when
+            val response = echoEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path", headers = mapOf(
+                "x-request-id" to "\""
+            ))
+
+            // then
+            assertThat(response).isOk()
+            assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
+                protocol = "http",
+                requestId = "\""
             )
         }
     }

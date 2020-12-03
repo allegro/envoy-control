@@ -53,5 +53,19 @@ function envoy_on_response(handle)
     local source_ip = string.match(xff_header, '[^,]+$') or ""
     local request_id = lua_metadata["request.info.request_id"] or ""
     local statusCode = handle:headers():get(":status") or "0"
-    handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method.."\", \"path\": \""..path.."\", \"clientIp\": \""..source_ip.."\", \"clientName\": \""..client_name.."\", \"protocol\": \""..protocol.."\", \"requestId\": \""..request_id.."\", \"statusCode\": "..statusCode.." }")
+    handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method.."\", \"path\": \""..path.."\", \"clientIp\": \""..source_ip.."\", \"clientName\": \""..escape(client_name).."\", \"protocol\": \""..protocol.."\", \"requestId\": \""..escape(request_id).."\", \"statusCode\": "..statusCode.." }")
+end
+
+escapeList = {
+    ["\\"] = "\\\\",
+    ["\""] = "\\\"",
+    ["\b"] = "\\b",
+    ["\f"] = "\\f",
+    ["\n"] = "\\n",
+    ["\r"] = "\\r",
+    ["\t"] = "\\t",
+}
+
+function escape(val)
+    return string.gsub(val, "[\\\"\b\f\n\r\t]", escapeList)
 end

@@ -37,6 +37,31 @@ local function handlerMock(headers, dynamic_metadata, https, filter_metadata)
     }
 end
 
+describe("json escape string:", function()
+    local chars_to_escape = {
+        ["\\"] = "\\\\",
+        ["\""] = "\\\"",
+        ["\b"] = "\\b",
+        ["\f"] = "\\f",
+        ["\n"] = "\\n",
+        ["\r"] = "\\r",
+        ["\t"] = "\\t",
+        ['some \t text'] = 'some \\t text',
+        ['multiple \" escaped \t text'] = 'multiple \\" escaped \\t text',
+        ['/multiple \" escaped \t text/'] = '/multiple \\" escaped \\t text/',
+        ['no escape here'] = 'no escape here',
+        ["{\"hello\": \"world\"}"] = '{\\"hello\\": \\"world\\"}',
+    }
+
+    for given, expected in pairs(chars_to_escape) do
+        it("should escape '"..given.."' with backslashes", function()
+            -- when
+            local escaped = escape(given)
+
+            assert.equals(expected, escaped)
+        end)
+    end
+end)
 
 describe("envoy_on_request:", function()
     it("should set dynamic metadata", function()
