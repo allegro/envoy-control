@@ -660,7 +660,6 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             method = "POST",
             clientName = "echo3",
             clientIp = echo3Envoy.ipAddress()
-
         )
     }
 
