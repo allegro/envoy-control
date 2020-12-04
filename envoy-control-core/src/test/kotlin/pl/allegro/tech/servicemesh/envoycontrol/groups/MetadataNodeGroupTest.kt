@@ -319,7 +319,7 @@ class MetadataNodeGroupTest {
             .isThrownBy { nodeGroup.hash(NodeV2.newBuilder().setMetadata(metadata?.build()).build()) }
             .satisfies {
                 assertThat(it.status.description).isEqualTo(
-                    "Blocked service null from receiving updates. V2 resources are not supported by server."
+                    "Blocked service from receiving updates. V2 resources are not supported by server."
                 )
                 assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
             }

@@ -218,7 +218,7 @@ class NodeMetadataValidatorTest {
             .isThrownBy { validator.onV2StreamRequest(streamId = 123, request = request) }
             .satisfies {
                 assertThat(it.status.description).isEqualTo(
-                    "Blocked service my-service from receiving updates. V2 resources are not supported by server."
+                    "Blocked service from receiving updates. V2 resources are not supported by server."
                 )
                 assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
             }

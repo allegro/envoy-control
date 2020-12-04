@@ -67,14 +67,9 @@ class EnvoyClustersFactory(
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,
-        communicationMode: CommunicationMode,
-        resourceVersion: ResourceVersion
+        communicationMode: CommunicationMode
     ): List<Cluster> {
-        return if (resourceVersion == ResourceVersion.V2) {
-            services.map { edsCluster(it, communicationMode, ApiVersion.V2) }
-        } else {
-            services.map { edsCluster(it, communicationMode, ApiVersion.V3) }
-        }
+        return services.map { edsCluster(it, communicationMode) }
     }
 
     fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
@@ -95,6 +90,13 @@ class EnvoyClustersFactory(
             secureCluster.addAllTransportSocketMatches(listOf(matchTlsContext, matchPlaintextContext))
                 .build()
         }
+    }
+
+    fun mapToV2Clusters(
+        clusters: List<Cluster>,
+        communicationMode: CommunicationMode
+    ): List<Cluster> {
+        return clusters.map { mapToV2Cluster(it, communicationMode) }
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
@@ -121,6 +123,32 @@ class EnvoyClustersFactory(
             }
             is AllServicesGroup -> globalSnapshot.allServicesNames.mapNotNull {
                 clusters[it]
+            }
+        }
+    }
+
+    private fun mapToV2Cluster(cluster: Cluster, communicationMode: CommunicationMode): Cluster {
+        return cluster.let {
+            val v2Cluster = Cluster.newBuilder(it)
+            val v2EdsClusterConfig = Cluster.EdsClusterConfig.newBuilder(v2Cluster.edsClusterConfig)
+
+            when (communicationMode) {
+                ADS -> v2Cluster.setEdsClusterConfig(
+                    v2EdsClusterConfig.setEdsConfig(
+                        ConfigSource.newBuilder(v2EdsClusterConfig.edsConfig).setResourceApiVersion(ApiVersion.V2)
+                    )
+                ).build()
+                XDS ->
+                    v2Cluster.setEdsClusterConfig(
+                        v2EdsClusterConfig.setEdsConfig(
+                            ConfigSource.newBuilder(v2EdsClusterConfig.edsConfig)
+                                .setResourceApiVersion(ApiVersion.V2)
+                                .setApiConfigSource(
+                                    ApiConfigSource.newBuilder(v2EdsClusterConfig.edsConfig.apiConfigSource)
+                                        .setTransportApiVersion(ApiVersion.V2)
+                                )
+                        )
+                    ).build()
             }
         }
     }
@@ -232,8 +260,7 @@ class EnvoyClustersFactory(
 
     private fun edsCluster(
         clusterConfiguration: ClusterConfiguration,
-        communicationMode: CommunicationMode,
-        apiVersion: ApiVersion
+        communicationMode: CommunicationMode
     ): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
@@ -250,15 +277,15 @@ class EnvoyClustersFactory(
                     when (communicationMode) {
                         // here we do not have group information
                         ADS -> ConfigSource.newBuilder()
-                            .setResourceApiVersion(apiVersion)
+                            .setResourceApiVersion(ApiVersion.V3)
                             .setAds(AggregatedConfigSource.newBuilder())
                         XDS ->
                             ConfigSource.newBuilder()
-                                .setResourceApiVersion(apiVersion)
+                                .setResourceApiVersion(ApiVersion.V3)
                                 .setApiConfigSource(
                                     ApiConfigSource.newBuilder()
                                         .setApiType(ApiConfigSource.ApiType.GRPC)
-                                        .setTransportApiVersion(apiVersion)
+                                        .setTransportApiVersion(ApiVersion.V3)
                                         .addGrpcServices(
                                             0, GrpcService.newBuilder().setEnvoyGrpc(
                                                 GrpcService.EnvoyGrpc.newBuilder()

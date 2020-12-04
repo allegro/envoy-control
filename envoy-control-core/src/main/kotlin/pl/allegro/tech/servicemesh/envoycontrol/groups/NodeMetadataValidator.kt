@@ -12,8 +12,8 @@ import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
 
-class V2NotSupportedException(serviceName: String?) : NodeMetadataValidationException(
-    "Blocked service $serviceName from receiving updates. V2 resources are not supported by server."
+class V2NotSupportedException : NodeMetadataValidationException(
+    "Blocked service from receiving updates. V2 resources are not supported by server."
 )
 
 class AllDependenciesValidationException(serviceName: String?) : NodeMetadataValidationException(
@@ -77,14 +77,13 @@ class NodeMetadataValidator(
     }
 
     private fun validateV2Metadata(node: NodeV2) {
-        // Some validation logic is executed when NodeMetadata is created.
-        // This may throw NodeMetadataValidationException
-        val metadata = NodeMetadata(node.metadata, properties)
-
         if (properties.supportV2Configuration) {
+            // Some validation logic is executed when NodeMetadata is created.
+            // This may throw NodeMetadataValidationException
+            val metadata = NodeMetadata(node.metadata, properties)
             validateMetadata(metadata)
         } else {
-            throw V2NotSupportedException(metadata.serviceName)
+            throw V2NotSupportedException()
         }
     }
 

@@ -12,7 +12,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
@@ -41,20 +40,18 @@ class EnvoySnapshotFactory(
     ): GlobalSnapshot {
         val sample = Timer.start(meterRegistry)
 
+        val clusters = clustersFactory.getClustersForServices(
+            clusterConfigurations.values,
+            communicationMode
+        )
+        val securedClusters = clustersFactory.getSecuredClusters(clusters)
+
         var v2Clusters = emptyList<Cluster>()
         var v2SecuredClusters = emptyList<Cluster>()
         if (properties.supportV2Configuration) {
-            v2Clusters = clustersFactory.getClustersForServices(
-                clusterConfigurations.values, communicationMode,
-                ResourceVersion.V2
-            )
-            v2SecuredClusters = clustersFactory.getSecuredClusters(v2Clusters)
+            v2Clusters = clustersFactory.mapToV2Clusters(clusters, communicationMode)
+            v2SecuredClusters = clustersFactory.mapToV2Clusters(securedClusters, communicationMode)
         }
-        val clusters = clustersFactory.getClustersForServices(
-            clusterConfigurations.values, communicationMode,
-            ResourceVersion.V3
-        )
-        val securedClusters = clustersFactory.getSecuredClusters(clusters)
 
         val endpoints: List<ClusterLoadAssignment> = endpointsFactory.createLoadAssignment(
             clusters = clusterConfigurations.keys,

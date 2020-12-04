@@ -19,7 +19,7 @@ class MetadataNodeGroup(
         if (properties.supportV2Configuration) {
             return createV2Group(node)
         }
-        throw V2NotSupportedException(serviceName = null)
+        throw V2NotSupportedException()
     }
 
     override fun hash(node: NodeV3): Group {
