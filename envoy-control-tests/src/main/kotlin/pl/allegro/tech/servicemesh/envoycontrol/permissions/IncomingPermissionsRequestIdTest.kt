@@ -59,6 +59,7 @@ class IncomingPermissionsRequestIdTest {
     fun beforeEach() {
         consul.server.operations.registerServiceWithEnvoyOnIngress(echoEnvoy, name = "echo")
         echoEnvoy.container.logRecorder.recordLogs(::isRbacAccessLog)
+        echoEnvoy.waitForAvailableEndpoints("echo")
     }
 
     @AfterEach
@@ -68,9 +69,6 @@ class IncomingPermissionsRequestIdTest {
 
     @Test
     fun `incoming permissions logs should contain requestId if present`() {
-        // given
-        echoEnvoy.waitForAvailableEndpoints("echo")
-
         // when
         val response = echoEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path", headers = mapOf(
             "x-request-id" to "123"
@@ -86,9 +84,6 @@ class IncomingPermissionsRequestIdTest {
 
     @Test
     fun `should handle request id containing double quotes`() {
-        // given
-        echoEnvoy.waitForAvailableEndpoints("echo")
-
         // when
         val response = echoEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path", headers = mapOf(
             "x-request-id" to "\""
