@@ -8,7 +8,6 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionLog
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -69,35 +68,37 @@ class IncomingPermissionsRequestIdTest {
 
     @Test
     fun `incoming permissions logs should contain requestId if present`() {
-        untilAsserted {
-            // when
-            val response = echoEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path", headers = mapOf(
-                "x-request-id" to "123"
-            ))
+        // given
+        echoEnvoy.waitForAvailableEndpoints("echo")
 
-            // then
-            assertThat(response).isOk()
-            assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
-                protocol = "http",
-                requestId = "123"
-            )
-        }
+        // when
+        val response = echoEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path", headers = mapOf(
+            "x-request-id" to "123"
+        ))
+
+        // then
+        assertThat(response).isOk()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
+            protocol = "http",
+            requestId = "123"
+        )
     }
 
     @Test
     fun `should handle request id containing double quotes`() {
-        untilAsserted {
-            // when
-            val response = echoEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path", headers = mapOf(
-                "x-request-id" to "\""
-            ))
+        // given
+        echoEnvoy.waitForAvailableEndpoints("echo")
 
-            // then
-            assertThat(response).isOk()
-            assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
-                protocol = "http",
-                requestId = "\""
-            )
-        }
+        // when
+        val response = echoEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path", headers = mapOf(
+            "x-request-id" to "\""
+        ))
+
+        // then
+        assertThat(response).isOk()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
+            protocol = "http",
+            requestId = "\""
+        )
     }
 }
