@@ -56,11 +56,11 @@ internal class IncomingPermissionsEmptyEndpointsTest : EnvoyControlTestConfigura
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
         assertThat(echoEnvoy).hasOneAccessDenialWithActionLog(
-                protocol = "http",
-                path = "/some-endpoint",
-                method = "GET",
-                clientName = "",
-                clientIp = echoEnvoy.gatewayIp()
+            protocol = "http",
+            path = "/some-endpoint",
+            method = "GET",
+            clientName = "",
+            clientIp = echoEnvoy.gatewayIp()
         )
     }
 
