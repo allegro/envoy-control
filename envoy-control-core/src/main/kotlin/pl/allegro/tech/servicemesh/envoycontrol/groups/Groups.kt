@@ -17,7 +17,7 @@ data class ServicesGroup(
     override val serviceName: String = "",
     override val proxySettings: ProxySettings = ProxySettings(),
     override val listenersConfig: ListenersConfig? = null,
-    override val version: ResourceVersion = ResourceVersion.V2
+    override val version: ResourceVersion = ResourceVersion.V3
 ) : Group()
 
 data class AllServicesGroup(
@@ -25,7 +25,7 @@ data class AllServicesGroup(
     override val serviceName: String = "",
     override val proxySettings: ProxySettings = ProxySettings(),
     override val listenersConfig: ListenersConfig? = null,
-    override val version: ResourceVersion = ResourceVersion.V2
+    override val version: ResourceVersion = ResourceVersion.V3
 ) : Group()
 
 data class ListenersConfig(
