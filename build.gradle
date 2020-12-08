@@ -4,7 +4,7 @@ buildscript {
     }
     dependencies {
         classpath group: 'pl.allegro.tech.build',   name: 'axion-release-plugin', version: '1.10.2'
-        classpath 'io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.20.0'
+        classpath 'io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.22.0'
         classpath group: 'com.bmuschko', name: 'gradle-nexus-plugin', version: '2.3.1'
     }
 }
