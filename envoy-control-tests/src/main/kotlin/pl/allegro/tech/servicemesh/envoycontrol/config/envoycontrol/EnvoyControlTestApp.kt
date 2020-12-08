@@ -110,7 +110,7 @@ class EnvoyControlRunnerTestApp(
     override fun getSnapshot(nodeJson: String): SnapshotDebugResponse {
         val response = httpClient.newCall(
             Request.Builder()
-                .addHeader("Accept", "application/v2+json")
+                .addHeader("Accept", "application/v3+json")
                 .post(RequestBody.create(MediaType.get("application/json"), nodeJson))
                 .url("http://localhost:$appPort/snapshot")
                 .build()

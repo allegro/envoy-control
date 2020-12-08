@@ -39,6 +39,16 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
                             .build()
                         ).build()
                 )
+                .putFields("request_id_headers",
+                    Value.newBuilder()
+                        .setListValue(ListValue.newBuilder()
+                            .addAllValues(
+                                incomingPermissionsProperties.requestIdentificationHeaders
+                                    .map { Value.newBuilder().setStringValue(it).build() }
+                            )
+                            .build()
+                        ).build()
+                )
                 .putFields("trusted_client_identity_header",
                     Value.newBuilder()
                         .setStringValue(trustedClientIdentityHeader)

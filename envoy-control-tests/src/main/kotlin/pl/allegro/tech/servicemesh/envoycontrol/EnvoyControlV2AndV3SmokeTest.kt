@@ -7,13 +7,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
-import pl.allegro.tech.servicemesh.envoycontrol.config.AdsV3
+import pl.allegro.tech.servicemesh.envoycontrol.config.AdsV2
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-class EnvoyControlV2toV3MigrationSmokeTest {
+class EnvoyControlV2AndV3SmokeTest {
 
     companion object {
 
@@ -23,7 +23,9 @@ class EnvoyControlV2toV3MigrationSmokeTest {
 
         @JvmField
         @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul)
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.envoy.snapshot.support-v2-configuration" to true
+        ))
 
         @JvmField
         @RegisterExtension
@@ -35,11 +37,11 @@ class EnvoyControlV2toV3MigrationSmokeTest {
 
         @JvmField
         @RegisterExtension
-        val envoyV2 = EnvoyExtension(envoyControl, serviceEnvoyV2, Ads)
+        val envoyV2 = EnvoyExtension(envoyControl, serviceEnvoyV2, AdsV2)
 
         @JvmField
         @RegisterExtension
-        val envoyV3 = EnvoyExtension(envoyControl, serviceEnvoyV3, AdsV3)
+        val envoyV3 = EnvoyExtension(envoyControl, serviceEnvoyV3, Ads)
     }
 
     @Test
