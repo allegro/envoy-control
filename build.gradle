@@ -4,7 +4,7 @@ buildscript {
     }
     dependencies {
         classpath group: 'pl.allegro.tech.build',   name: 'axion-release-plugin', version: '1.10.2'
-        classpath 'io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.22.0'
+        classpath 'io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.12.0'
         classpath group: 'com.bmuschko', name: 'gradle-nexus-plugin', version: '2.3.1'
     }
 }
@@ -17,7 +17,6 @@ plugins {
     id "org.jlleitschuh.gradle.ktlint" version "9.4.0"
     id "org.jlleitschuh.gradle.ktlint-idea" version "9.4.0"
     id "io.gitlab.arturbosch.detekt" version "1.13.1"
-    id "de.marcphilipp.nexus-publish" version "0.4.0"
 }
 
 apply plugin: 'io.codearte.nexus-staging'
@@ -78,7 +77,6 @@ allprojects {
 subprojects {
 
     apply plugin: 'maven-publish'
-    apply plugin: "de.marcphilipp.nexus-publish"
     apply plugin: 'org.jlleitschuh.gradle.ktlint'
     apply plugin: 'io.gitlab.arturbosch.detekt'
 
