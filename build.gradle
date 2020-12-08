@@ -78,6 +78,7 @@ allprojects {
 subprojects {
 
     apply plugin: 'maven-publish'
+    apply plugin: "de.marcphilipp.nexus-publish"
     apply plugin: 'org.jlleitschuh.gradle.ktlint'
     apply plugin: 'io.gitlab.arturbosch.detekt'
 
