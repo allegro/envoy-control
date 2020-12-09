@@ -82,7 +82,7 @@ internal class IncomingPermissionsEmptyClientsTest : EnvoyControlTestConfigurati
             path = "/blocked-for-all",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = echoEnvoy.gatewayIp()
         )
     }
@@ -131,7 +131,7 @@ internal class IncomingPermissionsEmptyClientsTest : EnvoyControlTestConfigurati
             path = "/unlisted",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = echo2Envoy.gatewayIp()
         )
     }

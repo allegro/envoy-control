@@ -8,18 +8,18 @@ function envoy_on_request(handle)
     local request_id = first_header_value_from_list(request_id_header_names, handle)
     local trusted_header_name = handle:metadata():get("trusted_client_identity_header") or ""
     local client_name = ""
-    local trusted_client = "false"
+    local trusted_client = false
     if trusted_header_name ~= "" then
         client_name = handle:headers():get(trusted_header_name) or ""
-        if client_name ~= "" and handle:connection():ssl() ~= nil then
-            trusted_client = "true"
+        if client_name ~= "" then
+            trusted_client = true
         end
     end
 
     if client_name == "" then
         client_name = first_header_value_from_list(client_identity_header_names, handle)
         if trusted_header_name ~= "" and client_name ~= "" and handle:connection():ssl() ~= nil then
-            client_name = client_name .. " (NOT TRUSTED)"
+            client_name = client_name .. " (not trusted)"
         end
     end
 
@@ -51,7 +51,7 @@ function envoy_on_response(handle)
 
     local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
     local client_name = lua_metadata["request.info.client_name"] or ""
-    local trusted_client = lua_metadata["request.info.trusted_client"] or "false"
+    local trusted_client = lua_metadata["request.info.trusted_client"] or false
     local path = lua_metadata["request.info.path"] or ""
     local protocol = handle:connection():ssl() == nil and "http" or "https"
     local method = lua_metadata["request.info.method"] or ""
@@ -59,7 +59,7 @@ function envoy_on_response(handle)
     local source_ip = string.match(xff_header, '[^,]+$') or ""
     local request_id = lua_metadata["request.info.request_id"] or ""
     local statusCode = handle:headers():get(":status") or "0"
-    handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method.."\", \"path\": \""..path.."\", \"clientIp\": \""..source_ip.."\", \"clientName\": \""..escape(client_name).."\", \"trustedClient\": \""..trusted_client.."\", \"protocol\": \""..protocol.."\", \"requestId\": \""..escape(request_id).."\", \"statusCode\": "..statusCode.." }")
+    handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method.."\", \"path\": \""..path.."\", \"clientIp\": \""..source_ip.."\", \"clientName\": \""..escape(client_name).."\", \"trustedClient\": "..tostring(trusted_client)..", \"protocol\": \""..protocol.."\", \"requestId\": \""..escape(request_id).."\", \"statusCode\": "..statusCode.." }")
 end
 
 escapeList = {

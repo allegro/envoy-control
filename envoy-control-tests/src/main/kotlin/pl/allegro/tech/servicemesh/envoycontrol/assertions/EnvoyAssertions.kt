@@ -11,7 +11,7 @@ private class RbacLog(
     val path: String? = null,
     val method: String? = null,
     val clientName: String? = null,
-    val trustedClient: String? = null,
+    val trustedClient: Boolean? = null,
     val clientIp: String? = null,
     val statusCode: String? = null,
     val requestId: String? = null
@@ -38,7 +38,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
     path: String,
     method: String,
     clientName: String,
-    trustedClient: String,
+    trustedClient: Boolean,
     clientIp: String
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = true,
@@ -59,7 +59,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     path: String? = null,
     method: String? = null,
     clientName: String? = null,
-    trustedClient: String? = null,
+    trustedClient: Boolean? = null,
     clientIp: String? = null,
     requestId: String? = null
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(

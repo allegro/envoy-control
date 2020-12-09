@@ -192,7 +192,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo2",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echo2Envoy.ipAddress()
         )
     }
@@ -210,7 +210,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echoEnvoy.ipAddress()
         )
     }
@@ -250,7 +250,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = echoEnvoy.gatewayIp()
         )
     }
@@ -268,7 +268,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = echo2Envoy.gatewayIp()
         )
     }
@@ -308,6 +308,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "echo2",
+            trustedClient = true,
             clientIp = echo2Envoy.ipAddress()
         )
     }
@@ -420,7 +421,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "echo2",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echo2Envoy.ipAddress()
         )
     }
@@ -438,7 +439,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "echo",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echoEnvoy.ipAddress()
         )
     }
@@ -478,7 +479,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = echoEnvoy.gatewayIp()
         )
     }
@@ -496,7 +497,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = echo2Envoy.gatewayIp()
         )
     }
@@ -514,7 +515,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo3",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echo3Envoy.ipAddress()
         )
     }
@@ -532,7 +533,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo3",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echo3Envoy.ipAddress()
         )
     }
@@ -550,7 +551,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo2",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echo2Envoy.ipAddress()
         )
     }
@@ -568,7 +569,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echoEnvoy.ipAddress()
         )
     }
@@ -586,7 +587,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = sourceIpClient.ipAddress()
         )
     }
@@ -604,7 +605,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = sourceIpClient.ipAddress()
         )
     }
@@ -622,7 +623,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = echoEnvoy.gatewayIp()
         )
     }
@@ -640,7 +641,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
-            trustedClient = "false",
+            trustedClient = false,
             clientIp = echo2Envoy.gatewayIp()
         )
     }
@@ -658,7 +659,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/log-unlisted-clients",
             method = "POST",
             clientName = "echo3",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echo3Envoy.ipAddress()
         )
     }
@@ -676,7 +677,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             path = "/log-unlisted-clients",
             method = "POST",
             clientName = "echo3",
-            trustedClient = "true",
+            trustedClient = true,
             clientIp = echo3Envoy.ipAddress()
         )
     }
@@ -702,8 +703,8 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             protocol = "https",
             path = "/log-unlisted-clients",
             method = "GET",
-            clientName = "service-name-from-header (NOT TRUSTED)",
-            trustedClient = "false",
+            clientName = "service-name-from-header (not trusted)",
+            trustedClient = false,
             clientIp = echo2Envoy.gatewayIp()
         )
     }
