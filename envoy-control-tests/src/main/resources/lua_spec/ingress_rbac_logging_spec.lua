@@ -2,8 +2,8 @@ require("ingress_rbac_logging")
 
 local _ = match._
 local contains = function(substring) return match.matches(substring, nil, true) end
-local function formatLog(method, path, source_ip, client_name, protocol, request_id, status_code)
-    return "\nINCOMING_PERMISSIONS { \"method\": \"" .. method .. "\", \"path\": \"" .. path .. "\", \"clientIp\": \"" .. source_ip .. "\", \"clientName\": \"" .. client_name .. "\", \"protocol\": \"" .. protocol .. "\", \"requestId\": \"" .. request_id .. "\", \"statusCode\": " .. status_code .. " }"
+local function formatLog(method, path, source_ip, client_name, protocol, request_id, status_code, trusted_client)
+    return "\nINCOMING_PERMISSIONS { \"method\": \"" .. method .. "\", \"path\": \"" .. path .. "\", \"clientIp\": \"" .. source_ip .. "\", \"clientName\": \"" .. client_name .. "\", \"trustedClient\": \"" .. trusted_client .. "\", \"protocol\": \"" .. protocol .. "\", \"requestId\": \"" .. request_id .. "\", \"statusCode\": " .. status_code .. " }"
 end
 
 local function handlerMock(headers, dynamic_metadata, https, filter_metadata)
@@ -131,7 +131,7 @@ describe("envoy_on_request:", function()
 
     end)
 
-    it("should add not trusted to client_name if ssl available and name was not from certificate", function()
+    it("should add NOT TRUSTED to client_name if ssl available and name was not from certificate", function()
         -- given
         local headers = {
             [':path'] = '/path',
@@ -150,7 +150,8 @@ describe("envoy_on_request:", function()
         envoy_on_request(handle)
 
         -- then
-        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", 'lorem-service (not trusted)')
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", 'lorem-service (NOT TRUSTED)')
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.trusted_client", "false")
 
     end)
 
@@ -311,7 +312,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "", "403"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "", "403", "false"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -324,7 +325,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "http", "", "403"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "http", "", "403", "false"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -337,7 +338,8 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "", "200"))
+            local line =
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "", "200", "false"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -351,7 +353,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "", "0"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "", "0", "false"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -365,7 +367,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "", "0"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("", "", "", "", "https", "", "0", "false"))
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -378,7 +380,7 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "", "127.1.1.3", "service-first", "https", "", "403"))
+            assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "", "127.1.1.3", "service-first", "https", "", "403", "false"))
             assert.spy(handle.logInfo).was_called(1)
         end)
     end)
