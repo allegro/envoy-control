@@ -338,7 +338,6 @@ describe("envoy_on_response:", function()
             envoy_on_response(handle)
 
             -- then
-            local line =
             assert.spy(handle.logInfo).was_called_with(_, formatLog("POST", "/path?query=val", "127.1.1.3", "service-first", "https", "", "200", false))
             assert.spy(handle.logInfo).was_called(1)
         end)
