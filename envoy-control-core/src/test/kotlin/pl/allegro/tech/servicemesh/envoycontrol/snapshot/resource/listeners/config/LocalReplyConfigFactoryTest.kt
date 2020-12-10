@@ -43,7 +43,6 @@ class LocalReplyConfigFactoryTest {
             }, "Invalid configuration with responseFlagMatcher, headerMatcher defined"),
             Arguments.of(MatcherAndMapper().apply {
                 statusCodeToReturn = 500
-
             }, "Invalid configuration with no matcher defined")
         )
     }

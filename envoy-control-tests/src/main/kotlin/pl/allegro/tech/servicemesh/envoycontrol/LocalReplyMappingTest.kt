@@ -73,7 +73,6 @@ class LocalReplyMappingTest {
                 response.body()?.string()
             ).contains("""{"responseFlags":"UH","destination":"service-name: service-1, service-tag: not-existing"}""")
             assertThat(response).isUnreachable()
-
         }
     }
 
