@@ -41,7 +41,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config.LocalReplyConfigFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterSettings
 import com.google.protobuf.Any as ProtobufAny
 
 typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFilter?
@@ -61,6 +63,9 @@ class EnvoyListenersFactory(
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
     private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
     private val ingressRdsInitialFetchTimeout: Duration = durationInSeconds(30)
+    private val localReplyConfig = LocalReplyConfigFactory(
+        snapshotProperties.dynamicListeners.localReplyMapper
+    ).configuration
 
     private val tlsProperties = snapshotProperties.incomingPermissions.tlsAuthentication
     private val requireClientCertificate = BoolValue.of(tlsProperties.requireClientCertificate)
@@ -242,6 +247,10 @@ class EnvoyListenersFactory(
             )
         }
 
+        if (listenersFactoryProperties.localReplyMapper.enabled) {
+            connectionManagerBuilder.localReplyConfig = localReplyConfig
+        }
+
         return Filter.newBuilder()
                 .setName("envoy.filters.network.http_connection_manager")
                 .setTypedConfig(ProtobufAny.pack(
@@ -340,7 +349,7 @@ class EnvoyListenersFactory(
         }
     }
 
-    fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings.StatusCodeFilterSettings) {
+    fun AccessLog.Builder.buildFromSettings(settings: StatusCodeFilterSettings) {
         this.setFilter(
                 AccessLogFilter.newBuilder().setStatusCodeFilter(
                         StatusCodeFilter.newBuilder()
