@@ -11,6 +11,7 @@ private class RbacLog(
     val path: String? = null,
     val method: String? = null,
     val clientName: String? = null,
+    val trustedClient: Boolean? = null,
     val clientIp: String? = null,
     val statusCode: String? = null,
     val requestId: String? = null
@@ -31,11 +32,13 @@ fun ObjectAssert<EnvoyContainer>.hasNoRBACDenials(): ObjectAssert<EnvoyContainer
     assertThat(it.logRecorder.getRecordedLogs()).filteredOn(::isRbacAccessLog).isEmpty()
 }
 
+@Suppress("LongParameterList")
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
     protocol: String,
     path: String,
     method: String,
     clientName: String,
+    trustedClient: Boolean,
     clientIp: String
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = true,
@@ -45,6 +48,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
         path = path,
         method = method,
         clientName = clientName,
+        trustedClient = trustedClient,
         clientIp = clientIp,
         statusCode = "403"
     )
@@ -55,6 +59,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     path: String? = null,
     method: String? = null,
     clientName: String? = null,
+    trustedClient: Boolean? = null,
     clientIp: String? = null,
     requestId: String? = null
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
@@ -67,6 +72,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
         clientIp = clientIp,
         statusCode = "200",
         clientName = clientName,
+        trustedClient = trustedClient,
         requestId = requestId
     )
 )
@@ -108,6 +114,9 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLo
     }
     logPredicate.clientName?.let {
         assertThat(parsed.clientName).isEqualTo(logPredicate.clientName)
+    }
+    logPredicate.trustedClient?.let {
+        assertThat(parsed.trustedClient).isEqualTo(logPredicate.trustedClient)
     }
     logPredicate.statusCode?.let {
         assertThat(parsed.statusCode).isEqualTo(logPredicate.statusCode)
