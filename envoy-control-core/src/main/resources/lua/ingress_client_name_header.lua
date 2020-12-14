@@ -23,3 +23,6 @@ function envoy_on_request(handle)
         end
     end
 end
+
+function envoy_on_response(handle)
+end
