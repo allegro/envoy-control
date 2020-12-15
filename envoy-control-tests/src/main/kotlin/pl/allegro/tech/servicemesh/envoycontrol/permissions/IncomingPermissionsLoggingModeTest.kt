@@ -683,7 +683,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
     }
 
     @Test
-    fun `echo2 should allow unlisted client with client identity header over https and log client name as untrusted`() {
+    fun `echo2 should allow unlisted client with client identity header over https and log client trusted as false`() {
         // given
         val insecureClient = ClientsFactory.createInsecureClient()
 
@@ -703,7 +703,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             protocol = "https",
             path = "/log-unlisted-clients",
             method = "GET",
-            clientName = "service-name-from-header (not trusted)",
+            clientName = "service-name-from-header",
             trustedClient = false,
             clientIp = echo2Envoy.gatewayIp()
         )
