@@ -29,7 +29,11 @@ class LocalReplyMappingTest {
                 "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[0].header-matcher.exactMatch" to "/api",
                 "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[0].status-code-to-return" to 510,
                 "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[0].response-format.json-format" to mapOf(
-                    "destination" to "service-name: %REQ(:authority)%",
+                    "destination" to mapOf(
+                        "serviceName" to "%REQ(:authority)%",
+                        "serviceTag" to "%REQ(x-service-tag)%",
+                        "path" to "%REQ(:path)%"
+                    ),
                     "responseFlags" to "%RESPONSE_FLAGS%",
                     "body" to "%LOCAL_REPLY_BODY%",
                     "path" to "%REQ(:path)%"
@@ -99,7 +103,7 @@ class LocalReplyMappingTest {
 
             assertThat(
                 response.body()?.string()
-            ).contains("""{"path":"/api","body":"","responseFlags":"NR","destination":"service-name: service-2"}""")
+            ).contains("""{"destination":{"serviceTag":null,"path":"/api","serviceName":"service-2"},"path":"/api","body":"","responseFlags":"NR"}""")
             assertThat(response.code()).isEqualTo(510)
         }
     }

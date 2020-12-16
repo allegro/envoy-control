@@ -199,6 +199,38 @@ class LocalReplyConfigFactoryTest {
         assertThat(factory.configuration.toString().trimIndent()).isEqualTo(expected)
     }
 
+    @Test
+    fun `should create nested json format`() {
+        // given
+        val expected = expectedNestedResponseFormat
+        val properties = LocalReplyMapperProperties().apply {
+            enabled = true
+            responseFormat.apply {
+                jsonFormat = mapOf(
+                    "destination" to mapOf(
+                        "service-tag" to "test",
+                        "responseFlags" to listOf("UH", "UF"),
+                        "listOfIntegers" to listOf(1, 2, 3)
+                    ),
+                    "reason" to 1,
+                    "listOfMap" to listOf(
+                        mapOf(
+                            "test" to "test"
+                        ), mapOf(
+                            "test2" to "test2"
+                        )
+
+                    )
+                )
+            }
+        }
+        // when
+        val factory = LocalReplyConfigFactory(properties)
+
+        // then
+        assertThat(factory.configuration.toString().trimIndent()).isEqualTo(expected)
+    }
+
     @ParameterizedTest
     @MethodSource("invalidMatcherCombinations")
     fun `should throw exception when more then one matcher is defined in MatcherAndMapper`(
@@ -403,6 +435,86 @@ body_format {
       key: "statusCode"
       value {
         string_value: "%STATUS_CODE%"
+      }
+    }
+  }
+}""".trimIndent()
+
+    private val expectedNestedResponseFormat = """body_format {
+  json_format {
+    fields {
+      key: "destination"
+      value {
+        struct_value {
+          fields {
+            key: "service-tag"
+            value {
+              string_value: "test"
+            }
+          }
+          fields {
+            key: "responseFlags"
+            value {
+              list_value {
+                values {
+                  string_value: "UH"
+                }
+                values {
+                  string_value: "UF"
+                }
+              }
+            }
+          }
+          fields {
+            key: "listOfIntegers"
+            value {
+              list_value {
+                values {
+                  number_value: 1.0
+                }
+                values {
+                  number_value: 2.0
+                }
+                values {
+                  number_value: 3.0
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    fields {
+      key: "reason"
+      value {
+        number_value: 1.0
+      }
+    }
+    fields {
+      key: "listOfMap"
+      value {
+        list_value {
+          values {
+            struct_value {
+              fields {
+                key: "test"
+                value {
+                  string_value: "test"
+                }
+              }
+            }
+          }
+          values {
+            struct_value {
+              fields {
+                key: "test2"
+                value {
+                  string_value: "test2"
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config
 
+import com.google.protobuf.ListValue
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
@@ -119,7 +120,6 @@ class LocalReplyConfigFactory(
         return ResponseFlagFilter.newBuilder().addAllFlags(responseFlags)
     }
 
-    @SuppressWarnings("ReturnCount")
     private fun createHeaderFilter(headerMatcher: HeaderMatcher): HeaderFilter.Builder {
         val headerFilterBuilder = HeaderFilter.newBuilder()
         val headerMatcherBuilder = io.envoyproxy.envoy.config.route.v3.HeaderMatcher.newBuilder()
@@ -154,11 +154,72 @@ class LocalReplyConfigFactory(
             val newBuilder = SubstitutionFormatString.newBuilder()
             val responseBody = Struct.newBuilder()
             responseFormat.jsonFormat.forEach {
-                responseBody.putFields(it.key, Value.newBuilder().setStringValue(it.value).build())
+                setJsonResponseField(responseBody, it.key, it.value)
             }
             return newBuilder.setJsonFormat(responseBody.build()).build()
         }
         return null
+    }
+
+    private fun setJsonResponseField(
+        responseBody: Struct.Builder,
+        key: String,
+        value: Any
+    ) {
+        when (value) {
+            is Map<*, *> -> {
+                val map = value as Map<String, Any>
+                val struct = Struct.newBuilder()
+                map.forEach {
+                    struct.putFields(it.key, getValueField(it.value))
+                }
+                responseBody.putFields(key, Value.newBuilder().setStructValue(struct).build())
+            }
+            is List<*> -> {
+                responseBody.putFields(key, getValueField(value))
+            }
+            is String -> {
+                responseBody.putFields(key, Value.newBuilder().setStringValue(value).build())
+            }
+            is Number -> {
+                responseBody.putFields(key, Value.newBuilder().setNumberValue(value.toDouble()).build())
+            }
+            else -> {
+                throw IllegalArgumentException("Wrong data has been passed")
+            }
+        }
+    }
+
+    @SuppressWarnings("ReturnCount")
+    private fun getValueField(
+        value: Any?
+    ): Value {
+        when (value) {
+            is Map<*, *> -> {
+                val map = value as Map<String, Any>
+                val struct = Struct.newBuilder()
+                map.forEach {
+                    struct.putFields(it.key, getValueField(it.value))
+                }
+                return Value.newBuilder().setStructValue(struct).build()
+            }
+            is List<*> -> {
+                val list = ListValue.newBuilder()
+                value.forEach {
+                    list.addValues(getValueField(it))
+                }
+                return Value.newBuilder().setListValue(list).build()
+            }
+            is String -> {
+                return Value.newBuilder().setStringValue(value).build()
+            }
+            is Number -> {
+                return Value.newBuilder().setNumberValue(value.toDouble()).build()
+            }
+            else -> {
+                throw IllegalArgumentException("Wrong data has been passed")
+            }
+        }
     }
 
     private fun validateMatchersDefinition(matcherAndMapper: MatcherAndMapper) {
