@@ -145,18 +145,19 @@ class LocalReplyConfigFactory(
 
     @SuppressWarnings("ReturnCount")
     private fun createResponseFormat(responseFormat: ResponseFormat): SubstitutionFormatString? {
+        val responseFormatBuilder = SubstitutionFormatString.newBuilder()
+        if (responseFormat.contentType.isNotEmpty()) {
+            responseFormatBuilder.contentType = responseFormat.contentType
+        }
         if (responseFormat.textFormat.isNotEmpty()) {
-            return SubstitutionFormatString.newBuilder()
-                .setTextFormat(responseFormat.textFormat)
-                .build()
+            return responseFormatBuilder.setTextFormat(responseFormat.textFormat).build()
         }
         if (responseFormat.jsonFormat.isNotEmpty()) {
-            val newBuilder = SubstitutionFormatString.newBuilder()
             val responseBody = Struct.newBuilder()
             responseFormat.jsonFormat.forEach {
                 setJsonResponseField(responseBody, it.key, it.value)
             }
-            return newBuilder.setJsonFormat(responseBody.build()).build()
+            return responseFormatBuilder.setJsonFormat(responseBody.build()).build()
         }
         return null
     }

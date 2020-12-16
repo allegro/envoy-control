@@ -45,9 +45,11 @@ class LocalReplyMappingTest {
                 "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[1].body-to-return" to "my-custom no route body",
                 "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[1].response-format.text-format" to
                     "Request to service: %REQ(:authority)% responseFlags:%RESPONSE_FLAGS% body: %LOCAL_REPLY_BODY%",
+                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.response-format.content-type" to "application/envoy+json",
                 "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.response-format.json-format" to mapOf(
                     "destination" to "service-name: %REQ(:authority)%, service-tag: %REQ(x-service-tag)%",
-                    "responseFlags" to "%RESPONSE_FLAGS%"
+                    "responseFlags" to "%RESPONSE_FLAGS%",
+                    "body" to "%LOCAL_REPLY_BODY%"
                 )
             )
         )
@@ -75,7 +77,8 @@ class LocalReplyMappingTest {
 
             assertThat(
                 response.body()?.string()
-            ).contains("""{"responseFlags":"UH","destination":"service-name: service-1, service-tag: not-existing"}""")
+            ).contains("""{"body":"no healthy upstream","responseFlags":"UH","destination":"service-name: service-1, service-tag: not-existing"}""")
+            assertThat(response.header("content-type")).isEqualTo("application/envoy+json")
             assertThat(response).isUnreachable()
         }
     }

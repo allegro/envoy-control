@@ -200,12 +200,13 @@ class LocalReplyConfigFactoryTest {
     }
 
     @Test
-    fun `should create nested json format`() {
+    fun `should create nested json format with custom content type`() {
         // given
         val expected = expectedNestedResponseFormat
         val properties = LocalReplyMapperProperties().apply {
             enabled = true
             responseFormat.apply {
+                contentType = "application/envoy+json"
                 jsonFormat = mapOf(
                     "destination" to mapOf(
                         "service-tag" to "test",
@@ -518,5 +519,6 @@ body_format {
       }
     }
   }
+  content_type: "application/envoy+json"
 }""".trimIndent()
 }
