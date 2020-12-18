@@ -72,12 +72,6 @@ class EnvoyClustersFactory(
         return services.map { edsCluster(it, communicationMode) }
     }
 
-    fun mapToV3Cluster(
-        clusters: List<Cluster>
-    ): List<Cluster> {
-        return clusters.map { mapClusterToV3(it) }
-    }
-
     fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
         return insecureClusters.map { cluster ->
             val upstreamTlsContext = createTlsContextWithSdsSecretConfig(cluster.name)
@@ -86,14 +80,23 @@ class EnvoyClustersFactory(
             val matchTlsContext = Cluster.TransportSocketMatch.newBuilder()
                 .setName("mtls_match")
                 .setMatch(tlsContextMatch)
-                .setTransportSocket(TransportSocket.newBuilder()
-                    .setName("envoy.transport_sockets.tls")
-                    .setTypedConfig(Any.pack(upstreamTlsContext)))
+                .setTransportSocket(
+                    TransportSocket.newBuilder()
+                        .setName("envoy.transport_sockets.tls")
+                        .setTypedConfig(Any.pack(upstreamTlsContext))
+                )
                 .build()
 
             secureCluster.addAllTransportSocketMatches(listOf(matchTlsContext, matchPlaintextContext))
                 .build()
         }
+    }
+
+    fun mapToV2Clusters(
+        clusters: List<Cluster>,
+        communicationMode: CommunicationMode
+    ): List<Cluster> {
+        return clusters.map { mapToV2Cluster(it, communicationMode) }
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
@@ -102,15 +105,15 @@ class EnvoyClustersFactory(
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
             if (group.version == ResourceVersion.V3) {
-                globalSnapshot.v3SecuredClusters.resources()
-            } else {
                 globalSnapshot.securedClusters.resources()
+            } else {
+                globalSnapshot.v2SecuredClusters.resources()
             }
         } else {
             if (group.version == ResourceVersion.V3) {
-                globalSnapshot.v3Clusters.resources()
-            } else {
                 globalSnapshot.clusters.resources()
+            } else {
+                globalSnapshot.v2Clusters.resources()
             }
         }
 
@@ -124,16 +127,29 @@ class EnvoyClustersFactory(
         }
     }
 
-    private fun mapClusterToV3(cluster: Cluster): Cluster {
+    private fun mapToV2Cluster(cluster: Cluster, communicationMode: CommunicationMode): Cluster {
         return cluster.let {
-            val v3Cluster = Cluster.newBuilder(it)
-            val v3EdsClusterConfig = Cluster.EdsClusterConfig.newBuilder(v3Cluster.edsClusterConfig)
+            val v2Cluster = Cluster.newBuilder(it)
+            val v2EdsClusterConfig = Cluster.EdsClusterConfig.newBuilder(v2Cluster.edsClusterConfig)
 
-            v3Cluster.setEdsClusterConfig(
-                v3EdsClusterConfig.setEdsConfig(
-                    ConfigSource.newBuilder(v3EdsClusterConfig.edsConfig).setResourceApiVersion(ApiVersion.V3)
-                )
-            ).build()
+            when (communicationMode) {
+                ADS -> v2Cluster.setEdsClusterConfig(
+                    v2EdsClusterConfig.setEdsConfig(
+                        ConfigSource.newBuilder(v2EdsClusterConfig.edsConfig).setResourceApiVersion(ApiVersion.V2)
+                    )
+                ).build()
+                XDS ->
+                    v2Cluster.setEdsClusterConfig(
+                        v2EdsClusterConfig.setEdsConfig(
+                            ConfigSource.newBuilder(v2EdsClusterConfig.edsConfig)
+                                .setResourceApiVersion(ApiVersion.V2)
+                                .setApiConfigSource(
+                                    ApiConfigSource.newBuilder(v2EdsClusterConfig.edsConfig.apiConfigSource)
+                                        .setTransportApiVersion(ApiVersion.V2)
+                                )
+                        )
+                    ).build()
+            }
         }
     }
 
@@ -156,17 +172,21 @@ class EnvoyClustersFactory(
     private fun createTlsContextWithSdsSecretConfig(serviceName: String): UpstreamTlsContext {
         val sanMatch = sanUriMatcher.createSanUriMatcher(serviceName)
         return UpstreamTlsContext.newBuilder()
-            .setCommonTlsContext(CommonTlsContext.newBuilder()
-                .setTlsParams(commonTlsParams)
-                .setCombinedValidationContext(CommonTlsContext.CombinedCertificateValidationContext.newBuilder()
-                    .setDefaultValidationContext(CertificateValidationContext.newBuilder()
-                        .addAllMatchSubjectAltNames(listOf(sanMatch))
-                        .build())
-                    .setValidationContextSdsSecretConfig(validationContextSecretConfig)
+            .setCommonTlsContext(
+                CommonTlsContext.newBuilder()
+                    .setTlsParams(commonTlsParams)
+                    .setCombinedValidationContext(
+                        CommonTlsContext.CombinedCertificateValidationContext.newBuilder()
+                            .setDefaultValidationContext(
+                                CertificateValidationContext.newBuilder()
+                                    .addAllMatchSubjectAltNames(listOf(sanMatch))
+                                    .build()
+                            )
+                            .setValidationContextSdsSecretConfig(validationContextSecretConfig)
+                            .build()
+                    )
+                    .addTlsCertificateSdsSecretConfigs(tlsCertificateSecretConfig)
                     .build()
-                )
-                .addTlsCertificateSdsSecretConfigs(tlsCertificateSecretConfig)
-                .build()
             )
             .build()
     }
@@ -221,9 +241,11 @@ class EnvoyClustersFactory(
 
             val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext).build()
             val transportSocket = TransportSocket.newBuilder()
-                .setTypedConfig(Any.pack(
-                    upstreamTlsContext
-                ))
+                .setTypedConfig(
+                    Any.pack(
+                        upstreamTlsContext
+                    )
+                )
                 .setName("envoy.transport_sockets.tls").build()
 
             clusterBuilder
@@ -254,16 +276,23 @@ class EnvoyClustersFactory(
                 Cluster.EdsClusterConfig.newBuilder().setEdsConfig(
                     when (communicationMode) {
                         // here we do not have group information
-                        ADS -> ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
+                        ADS -> ConfigSource.newBuilder()
+                            .setResourceApiVersion(ApiVersion.V3)
+                            .setAds(AggregatedConfigSource.newBuilder())
                         XDS ->
-                            ConfigSource.newBuilder().setApiConfigSource(
-                                ApiConfigSource.newBuilder().setApiType(ApiConfigSource.ApiType.GRPC)
-                                    .addGrpcServices(0, GrpcService.newBuilder().setEnvoyGrpc(
-                                        GrpcService.EnvoyGrpc.newBuilder()
-                                            .setClusterName(properties.xdsClusterName)
-                                    )
-                                    )
-                            )
+                            ConfigSource.newBuilder()
+                                .setResourceApiVersion(ApiVersion.V3)
+                                .setApiConfigSource(
+                                    ApiConfigSource.newBuilder()
+                                        .setApiType(ApiConfigSource.ApiType.GRPC)
+                                        .setTransportApiVersion(ApiVersion.V3)
+                                        .addGrpcServices(
+                                            0, GrpcService.newBuilder().setEnvoyGrpc(
+                                                GrpcService.EnvoyGrpc.newBuilder()
+                                                    .setClusterName(properties.xdsClusterName)
+                                            )
+                                        )
+                                )
                     }
                 ).setServiceName(clusterConfiguration.serviceName)
             )
@@ -301,15 +330,18 @@ class EnvoyClustersFactory(
             .setDefaultSubset(defaultSubset)
             .apply {
                 if (canaryEnabled) {
-                    addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
-                        .addKeys(properties.loadBalancing.canary.metadataKey)
+                    addSubsetSelectors(
+                        Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+                            .addKeys(properties.loadBalancing.canary.metadataKey)
                     )
                 }
                 if (tagsEnabled) {
-                    addSubsetSelectors(Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
-                        .addKeys(properties.routing.serviceTags.metadataKey)
-                        .setFallbackPolicy(
-                            Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                    addSubsetSelectors(
+                        Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()
+                            .addKeys(properties.routing.serviceTags.metadataKey)
+                            .setFallbackPolicy(
+                                Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK
+                            )
                     )
                     setListAsAny(true) // allowing for an endpoint to have multiple tags
                 }
@@ -327,12 +359,14 @@ class EnvoyClustersFactory(
             .run {
                 if (properties.loadBalancing.useKeysSubsetFallbackPolicy) {
                     setFallbackPolicy(
-                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.KEYS_SUBSET)
+                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.KEYS_SUBSET
+                    )
                     addFallbackKeysSubset(properties.routing.serviceTags.metadataKey)
                 } else {
                     // optionally don't use KEYS_SUBSET for compatibility with envoy version <= 1.12.x
                     setFallbackPolicy(
-                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK)
+                        Cluster.LbSubsetConfig.LbSubsetSelector.LbSubsetSelectorFallbackPolicy.NO_FALLBACK
+                    )
                 }
             }
     )
@@ -366,8 +400,10 @@ class EnvoyClustersFactory(
                     .setInterval(Durations.fromMillis(properties.clusterOutlierDetection.interval.toMillis()))
                     .setMaxEjectionPercent(UInt32Value.of(properties.clusterOutlierDetection.maxEjectionPercent))
                     .setEnforcingSuccessRate(UInt32Value.of(properties.clusterOutlierDetection.enforcingSuccessRate))
-                    .setBaseEjectionTime(Durations.fromMillis(
-                        properties.clusterOutlierDetection.baseEjectionTime.toMillis())
+                    .setBaseEjectionTime(
+                        Durations.fromMillis(
+                            properties.clusterOutlierDetection.baseEjectionTime.toMillis()
+                        )
                     )
                     .setEnforcingConsecutive5Xx(
                         UInt32Value.of(properties.clusterOutlierDetection.enforcingConsecutive5xx)

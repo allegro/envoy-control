@@ -24,6 +24,7 @@ import io.envoyproxy.envoy.config.listener.v3.Filter
 import io.envoyproxy.envoy.config.listener.v3.FilterChain
 import io.envoyproxy.envoy.config.listener.v3.FilterChainMatch
 import io.envoyproxy.envoy.config.listener.v3.Listener
+import io.envoyproxy.envoy.config.listener.v3.ListenerFilter
 import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
@@ -88,6 +89,8 @@ class EnvoyListenersFactory(
             .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
             .build()
 
+    private val tlsInspectorFilter = ListenerFilter.newBuilder().setName("envoy.filters.listener.tls_inspector").build()
+
     private enum class TransportProtocol(
         value: String,
         val filterChainMatch: FilterChainMatch = FilterChainMatch.newBuilder().setTransportProtocol(value).build()
@@ -96,11 +99,13 @@ class EnvoyListenersFactory(
         TLS("tls")
     }
 
-    val defaultApiConfigSource: ApiConfigSource = apiConfigSource()
+    val defaultApiConfigSourceV2: ApiConfigSource = apiConfigSource(ApiVersion.V2)
+    val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource(ApiVersion.V3)
 
-    fun apiConfigSource(): ApiConfigSource {
+    fun apiConfigSource(apiVersion: ApiVersion): ApiConfigSource {
         return ApiConfigSource.newBuilder()
                 .setApiType(ApiConfigSource.ApiType.GRPC)
+                .setTransportApiVersion(apiVersion)
                 .addGrpcServices(GrpcService.newBuilder()
                         .setEnvoyGrpc(
                                 GrpcService.EnvoyGrpc.newBuilder()
@@ -157,6 +162,10 @@ class EnvoyListenersFactory(
                                         .setAddress(listenersConfig.ingressHost)
                         )
                 )
+
+        if (securedIngressChain != null) {
+            listener.addListenerFilters(tlsInspectorFilter)
+        }
 
         listOfNotNull(securedIngressChain, insecureIngressChain).forEach {
             listener.addFilterChains(it.build())
@@ -264,7 +273,7 @@ class EnvoyListenersFactory(
 
         when (communicationMode) {
             ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-            XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
+            XDS -> setXdsConfigSourceVersion(version, configSource)
         }
 
         return Rds.newBuilder()
@@ -321,13 +330,21 @@ class EnvoyListenersFactory(
 
         when (communicationMode) {
             ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-            XDS -> configSource.setApiConfigSource(defaultApiConfigSource)
+            XDS -> setXdsConfigSourceVersion(version, configSource)
         }
 
         return Rds.newBuilder()
                 .setRouteConfigName("ingress_secured_routes")
                 .setConfigSource(configSource.build())
                 .build()
+    }
+
+    private fun setXdsConfigSourceVersion(version: ResourceVersion, configSource: ConfigSource.Builder) {
+        if (version == ResourceVersion.V3) {
+            configSource.apiConfigSource = defaultApiConfigSourceV3
+        } else {
+            configSource.apiConfigSource = defaultApiConfigSourceV2
+        }
     }
 
     fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings.StatusCodeFilterSettings) {

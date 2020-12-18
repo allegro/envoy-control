@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.infrastructure
 
 import com.ecwid.consul.v1.ConsulClient
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -42,6 +43,13 @@ import java.net.URI
 class ControlPlaneConfig {
     init {
         Schedulers.enableMetrics()
+    }
+
+    @Bean
+    fun objectMapper(): ObjectMapper {
+        val objectMapper = ObjectMapper()
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        return objectMapper
     }
 
     @Bean

@@ -1,19 +1,24 @@
 package pl.allegro.tech.servicemesh.envoycontrol.assertions
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 
-private class RbacLogDescription(
+private class RbacLog(
     val protocol: String,
-    val path: String,
-    val method: String,
-    val clientName: String,
-    val clientIp: String,
-    val statusCode: String
+    val path: String? = null,
+    val method: String? = null,
+    val clientName: String? = null,
+    val trustedClient: Boolean? = null,
+    val clientIp: String? = null,
+    val statusCode: String? = null,
+    val requestId: String? = null
 )
 
 private const val RBAC_LOG_PREFIX = "INCOMING_PERMISSIONS"
+private val mapper = jacksonObjectMapper()
 
 fun isRbacAccessLog(log: String) = log.startsWith(RBAC_LOG_PREFIX)
 
@@ -27,20 +32,23 @@ fun ObjectAssert<EnvoyContainer>.hasNoRBACDenials(): ObjectAssert<EnvoyContainer
     assertThat(it.logRecorder.getRecordedLogs()).filteredOn(::isRbacAccessLog).isEmpty()
 }
 
+@Suppress("LongParameterList")
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
     protocol: String,
     path: String,
     method: String,
     clientName: String,
+    trustedClient: Boolean,
     clientIp: String
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = true,
     protocol = protocol,
-    logDescription = RbacLogDescription(
+    logPredicate = RbacLog(
         protocol = protocol,
         path = path,
         method = method,
         clientName = clientName,
+        trustedClient = trustedClient,
         clientIp = clientIp,
         statusCode = "403"
     )
@@ -48,27 +56,31 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
 
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     protocol: String,
-    path: String,
-    method: String,
-    clientName: String,
-    clientIp: String
+    path: String? = null,
+    method: String? = null,
+    clientName: String? = null,
+    trustedClient: Boolean? = null,
+    clientIp: String? = null,
+    requestId: String? = null
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = false,
     protocol = protocol,
-    logDescription = RbacLogDescription(
+    logPredicate = RbacLog(
         protocol = protocol,
         path = path,
         method = method,
         clientIp = clientIp,
         statusCode = "200",
-        clientName = clientName
+        clientName = clientName,
+        trustedClient = trustedClient,
+        requestId = requestId
     )
 )
 
 private fun ObjectAssert<EnvoyContainer>.hasOneAccessDenial(
     requestBlocked: Boolean,
     protocol: String,
-    logDescription: RbacLogDescription
+    logPredicate: RbacLog
 ) = satisfies {
     val admin = it.admin()
     val blockedRequestsCount = admin.statValue("http.ingress_$protocol.rbac.denied")?.toInt()
@@ -83,16 +95,33 @@ private fun ObjectAssert<EnvoyContainer>.hasOneAccessDenial(
 
     assertThat(it.logRecorder.getRecordedLogs()).filteredOn(::isRbacAccessLog)
         .hasSize(1).first()
-        .matchesRbacAccessDeniedLog(logDescription)
+        .matchesRbacAccessDeniedLog(logPredicate)
 }
 
-private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logDescription: RbacLogDescription) = satisfies {
-    val logLine = "$RBAC_LOG_PREFIX { " +
-            "\"method\": \"${logDescription.method}\", " +
-            "\"path\": \"${logDescription.path}\", " +
-            "\"clientIp\": \"${logDescription.clientIp}\", " +
-            "\"clientName\": \"${logDescription.clientName}\", " +
-            "\"protocol\": \"${logDescription.protocol}\", " +
-            "\"statusCode\": ${logDescription.statusCode} }\n"
-    assertThat(it).isEqualTo(logLine)
+private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLog) = satisfies {
+    val parsed = mapper.readValue<RbacLog>(it.removePrefix(RBAC_LOG_PREFIX))
+    // protocol is required because we check metrics
+    assertThat(parsed.protocol).isEqualTo(logPredicate.protocol)
+
+    logPredicate.method?.let {
+        assertThat(parsed.method).isEqualTo(logPredicate.method)
+    }
+    logPredicate.path?.let {
+        assertThat(parsed.path).isEqualTo(logPredicate.path)
+    }
+    logPredicate.clientIp?.let {
+        assertThat(parsed.clientIp).isEqualTo(logPredicate.clientIp)
+    }
+    logPredicate.clientName?.let {
+        assertThat(parsed.clientName).isEqualTo(logPredicate.clientName)
+    }
+    logPredicate.trustedClient?.let {
+        assertThat(parsed.trustedClient).isEqualTo(logPredicate.trustedClient)
+    }
+    logPredicate.statusCode?.let {
+        assertThat(parsed.statusCode).isEqualTo(logPredicate.statusCode)
+    }
+    logPredicate.requestId?.let {
+        assertThat(parsed.requestId).isEqualTo(logPredicate.requestId)
+    }
 }

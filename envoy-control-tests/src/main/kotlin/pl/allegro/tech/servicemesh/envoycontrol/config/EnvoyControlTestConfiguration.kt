@@ -37,7 +37,7 @@ val AdsAllDependencies = EnvoyConfig("envoy/config_ads_all_dependencies.yaml")
 val AdsCustomHealthCheck = EnvoyConfig("envoy/config_ads_custom_health_check.yaml")
 val FaultyConfig = EnvoyConfig("envoy/bad_config.yaml")
 val Ads = EnvoyConfig("envoy/config_ads.yaml")
-val AdsV3 = EnvoyConfig("envoy/config_ads_v3.yaml")
+val AdsV2 = EnvoyConfig("envoy/config_ads_v2.yaml")
 val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml")
 val Echo2EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
     serviceName = "echo2",
@@ -211,8 +211,18 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             }
         }
 
-        fun callEnvoyIngress(envoy: EnvoyContainer = envoyContainer1, path: String, useSsl: Boolean = false): Response =
-            call(address = envoy.ingressListenerUrl(secured = useSsl), pathAndQuery = path)
+        fun callEnvoyIngress(
+            envoy: EnvoyContainer = envoyContainer1,
+            path: String,
+            useSsl: Boolean = false,
+            client: OkHttpClient = defaultClient,
+            headers: Map<String, String> = emptyMap()
+        ): Response = call(
+            address = envoy.ingressListenerUrl(secured = useSsl),
+            pathAndQuery = path,
+            client = client,
+            headers = headers
+        )
 
         fun callEcho(address: String = envoyContainer1.egressListenerUrl()): Response =
             call("echo", address)
@@ -345,12 +355,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             assertThat(response).isOk().isFrom(target)
         }
     }
-
-    /**
-     * We have to retrieve the bean manually instead of @Autowired because the app is created in manual way
-     * instead of using the JUnit Spring Extension
-     */
-    inline fun <reified T> bean(): T = envoyControl1.bean(T::class.java)
 
     fun waitForReadyServices(vararg serviceNames: String) {
         serviceNames.forEach {

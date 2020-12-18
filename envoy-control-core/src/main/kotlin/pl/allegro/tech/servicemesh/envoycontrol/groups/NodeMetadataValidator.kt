@@ -1,40 +1,40 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
-import io.envoyproxy.envoy.api.v2.core.Node
-import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
+import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
+import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
 
-class AllDependenciesValidationException(serviceName: String?)
-    : NodeMetadataValidationException(
+class V2NotSupportedException : NodeMetadataValidationException(
+    "Blocked service from receiving updates. V2 resources are not supported by server."
+)
+
+class AllDependenciesValidationException(serviceName: String?) : NodeMetadataValidationException(
     "Blocked service $serviceName from using all dependencies. Only defined services can use all dependencies"
 )
 
-class WildcardPrincipalValidationException(serviceName: String?)
-    : NodeMetadataValidationException(
-        "Blocked service $serviceName from allowing everyone in incoming permissions. " +
-                "Only defined services can use that."
+class WildcardPrincipalValidationException(serviceName: String?) : NodeMetadataValidationException(
+    "Blocked service $serviceName from allowing everyone in incoming permissions. " +
+        "Only defined services can use that."
 )
 
-class WildcardPrincipalMixedWithOthersValidationException(serviceName: String?)
-    : NodeMetadataValidationException(
-        "Blocked service $serviceName from allowing everyone in incoming permissions. " +
-                "Either a wildcard or a list of clients must be provided."
+class WildcardPrincipalMixedWithOthersValidationException(serviceName: String?) : NodeMetadataValidationException(
+    "Blocked service $serviceName from allowing everyone in incoming permissions. " +
+        "Either a wildcard or a list of clients must be provided."
 )
 
-class InvalidHttpMethodValidationException(serviceName: String?, method: String)
-    : NodeMetadataValidationException(
-        "Service: $serviceName defined an unknown method: $method in endpoint permissions."
+class InvalidHttpMethodValidationException(serviceName: String?, method: String) : NodeMetadataValidationException(
+    "Service: $serviceName defined an unknown method: $method in endpoint permissions."
 )
 
-class ConfigurationModeNotSupportedException(serviceName: String?, mode: String)
-    : NodeMetadataValidationException(
+class ConfigurationModeNotSupportedException(serviceName: String?, mode: String) : NodeMetadataValidationException(
     "Blocked service $serviceName from receiving updates. $mode is not supported by server."
 )
 
@@ -53,22 +53,22 @@ class NodeMetadataValidator(
 
     override fun onStreamOpen(streamId: Long, typeUrl: String?) {}
 
-    override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
+    override fun onV3StreamRequest(streamId: Long, request: DiscoveryRequestV3?) {
         request?.node?.let { validateV3Metadata(it) }
     }
 
-    override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequest?) {
+    override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequestV2?) {
         request?.node?.let { validateV2Metadata(it) }
     }
 
     override fun onStreamResponse(
         streamId: Long,
-        request: DiscoveryRequest?,
+        request: DiscoveryRequestV2?,
         response: DiscoveryResponse?
     ) {
     }
 
-    private fun validateV3Metadata(node: io.envoyproxy.envoy.config.core.v3.Node) {
+    private fun validateV3Metadata(node: NodeV3) {
         // Some validation logic is executed when NodeMetadata is created.
         // This may throw NodeMetadataValidationException
         val metadata = NodeMetadata(node.metadata, properties)
@@ -76,12 +76,15 @@ class NodeMetadataValidator(
         validateMetadata(metadata)
     }
 
-    private fun validateV2Metadata(node: Node) {
-        // Some validation logic is executed when NodeMetadata is created.
-        // This may throw NodeMetadataValidationException
-        val metadata = NodeMetadata(node.metadata, properties)
-
-        validateMetadata(metadata)
+    private fun validateV2Metadata(node: NodeV2) {
+        if (properties.supportV2Configuration) {
+            // Some validation logic is executed when NodeMetadata is created.
+            // This may throw NodeMetadataValidationException
+            val metadata = NodeMetadata(node.metadata, properties)
+            validateMetadata(metadata)
+        } else {
+            throw V2NotSupportedException()
+        }
     }
 
     private fun validateMetadata(metadata: NodeMetadata) {
@@ -109,9 +112,11 @@ class NodeMetadataValidator(
             val clients = incomingEndpoint.clients.map { it.name }
 
             if (clients.isEmpty() && incomingEndpoint.unlistedClientsPolicy != Incoming.UnlistedPolicy.LOG) {
-                logger.warn("An incoming endpoint definition for service: ${metadata.serviceName}" +
-                    ", path: ${incomingEndpoint.path} does not have any clients defined." +
-                    "It means that no one will be able to contact that endpoint")
+                logger.warn(
+                    "An incoming endpoint definition for service: ${metadata.serviceName}" +
+                        ", path: ${incomingEndpoint.path} does not have any clients defined." +
+                        "It means that no one will be able to contact that endpoint"
+                )
             }
 
             if (clients.contains(tlsProperties.wildcardClientIdentifier)) {
