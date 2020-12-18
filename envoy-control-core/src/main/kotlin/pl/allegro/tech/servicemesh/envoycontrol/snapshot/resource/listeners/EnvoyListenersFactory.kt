@@ -218,6 +218,8 @@ class EnvoyListenersFactory(
                 .setStatPrefix("egress_http")
                 .setRds(egressRds(group.communicationMode, group.version))
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
+                .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
+                .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
 
         addHttpFilters(connectionManagerBuilder, egressFilters, group, globalSnapshot)
 
