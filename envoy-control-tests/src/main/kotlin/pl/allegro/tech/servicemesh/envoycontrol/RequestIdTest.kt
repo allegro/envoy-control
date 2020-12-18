@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import okhttp3.Headers
-import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.RegisterExtension
