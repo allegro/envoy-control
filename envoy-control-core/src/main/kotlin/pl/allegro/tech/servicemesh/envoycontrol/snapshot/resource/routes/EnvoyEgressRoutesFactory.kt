@@ -103,6 +103,13 @@ class EnvoyEgressRoutesFactory(
                     )
                 }
             }
+
+        when {
+            properties.egress.headersToRemove.isNotEmpty() -> {
+                routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
+            }
+        }
+
         if (addUpstreamAddressHeader) {
             routeConfiguration = routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
         }

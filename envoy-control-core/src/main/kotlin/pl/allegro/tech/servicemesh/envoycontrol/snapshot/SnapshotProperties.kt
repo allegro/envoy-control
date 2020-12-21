@@ -226,6 +226,7 @@ class EgressProperties {
     var commonHttp = CommonHttpProperties()
     var neverRemoveClusters = true
     var hostHeaderRewriting = HostHeaderRewritingProperties()
+    var headersToRemove = mutableListOf<String>()
 }
 
 class IngressProperties {
