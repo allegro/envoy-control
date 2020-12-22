@@ -33,7 +33,7 @@ static_resources:
           access_log:
             name: envoy.file_access_log
             config:
-              path: "./envoy/ingress-access.log"
+              path: "/home/envoy/ingress-access.log"
               format: >
                 [%START_TIME%] %PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% %RESPONSE_CODE% %RESPONSE_FLAGS%
                 %BYTES_RECEIVED%b %BYTES_SENT%b %DURATION%ms "%DOWNSTREAM_REMOTE_ADDRESS%" -> "%UPSTREAM_HOST%"
@@ -118,10 +118,13 @@ static_resources:
 
 dynamic_resources:
   lds_config:
+    resource_api_version: V3
     ads: {}
   cds_config:
+    resource_api_version: V3
     ads: {}
   ads_config:
+    transport_api_version: V3
     api_type: GRPC
     grpc_services:
       envoy_grpc:

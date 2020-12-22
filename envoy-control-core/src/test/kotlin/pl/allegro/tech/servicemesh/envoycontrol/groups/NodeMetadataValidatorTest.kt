@@ -1,8 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest
+import com.google.protobuf.Value
+import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Test
@@ -12,6 +14,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnabledCommunicationMod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OutgoingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
 
 class NodeMetadataValidatorTest {
 
@@ -29,15 +33,15 @@ class NodeMetadataValidatorTest {
     @Test
     fun `should fail if service has no privilege to use incoming wildcard`() {
         // given
-        val node = node(
+        val node = nodeV3(
                 serviceName = "regular-1",
                 incomingSettings = true,
                 clients = listOf("*")
         )
-        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
         // when
-        val exception = catchThrowable { validator.onV2StreamRequest(streamId = 123, request = request) }
+        val exception = catchThrowable { validator.onV3StreamRequest(streamId = 123, request = request) }
 
         // then
         assertThat(exception).isInstanceOf(WildcardPrincipalValidationException::class.java)
@@ -51,15 +55,15 @@ class NodeMetadataValidatorTest {
     @Test
     fun `should fail if service mixes incoming wildcard and normal permissions`() {
         // given
-        val node = node(
+        val node = nodeV3(
                 serviceName = "vis-1",
                 incomingSettings = true,
                 clients = listOf("*", "something")
         )
-        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
         // when
-        val exception = catchThrowable { validator.onV2StreamRequest(streamId = 123, request = request) }
+        val exception = catchThrowable { validator.onV3StreamRequest(streamId = 123, request = request) }
 
         // expects
         assertThat(exception).isInstanceOf(WildcardPrincipalMixedWithOthersValidationException::class.java)
@@ -73,14 +77,14 @@ class NodeMetadataValidatorTest {
     @Test
     fun `should fail if service has no privilege to use outgoing wildcard`() {
         // given
-        val node = node(
+        val node = nodeV3(
             serviceDependencies = setOf("*", "a", "b", "c"),
             serviceName = "regular-1"
         )
-        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
         // when
-        val exception = catchThrowable { validator.onV2StreamRequest(streamId = 123, request = request) }
+        val exception = catchThrowable { validator.onV3StreamRequest(streamId = 123, request = request) }
 
         // expects
         assertThat(exception).isInstanceOf(AllDependenciesValidationException::class.java)
@@ -94,30 +98,30 @@ class NodeMetadataValidatorTest {
     @Test
     fun `should not fail if service has privilege to use incoming wildcard`() {
         // given
-        val node = node(
+        val node = nodeV3(
                 serviceName = "vis-1",
                 incomingSettings = true,
                 clients = listOf("*")
         )
 
-        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { validator.onV2StreamRequest(123, request = request) }
+        assertDoesNotThrow { validator.onV3StreamRequest(123, request = request) }
     }
 
     @Test
     fun `should not fail if service has privilege to use outgoing wildcard`() {
         // given
-        val node = node(
+        val node = nodeV3(
             serviceDependencies = setOf("*", "a", "b", "c"),
             serviceName = "vis-1"
         )
 
-        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { validator.onV2StreamRequest(123, request = request) }
+        assertDoesNotThrow { validator.onV3StreamRequest(123, request = request) }
     }
 
     @Test
@@ -126,14 +130,14 @@ class NodeMetadataValidatorTest {
         val permissionsDisabledValidator = NodeMetadataValidator(SnapshotProperties().apply {
             outgoingPermissions = createOutgoingPermissions(enabled = false, servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2"))
         })
-        val node = node(
+        val node = nodeV3(
             serviceDependencies = setOf("*", "a", "b", "c"),
             serviceName = "regular-1"
         )
-        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { permissionsDisabledValidator.onV2StreamRequest(123, request = request) }
+        assertDoesNotThrow { permissionsDisabledValidator.onV3StreamRequest(123, request = request) }
     }
 
     @ParameterizedTest
@@ -154,15 +158,15 @@ class NodeMetadataValidatorTest {
             enabledCommunicationModes = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
         })
 
-        val node = node(
+        val node = nodeV3(
             ads = ads,
             serviceDependencies = setOf("a", "b", "c"),
             serviceName = "regular-1"
         )
-        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
         // when
-        val exception = catchThrowable { configurationModeValidator.onV2StreamRequest(streamId = 123, request = request) }
+        val exception = catchThrowable { configurationModeValidator.onV3StreamRequest(streamId = 123, request = request) }
 
         // expects
         assertThat(exception).isInstanceOf(ConfigurationModeNotSupportedException::class.java)
@@ -190,15 +194,34 @@ class NodeMetadataValidatorTest {
             enabledCommunicationModes = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
         })
 
-        val node = node(
+        val node = nodeV3(
             ads = ads,
             serviceDependencies = setOf("a", "b", "c"),
             serviceName = "regular-1"
         )
-        val request = DiscoveryRequest.newBuilder().setNode(node).build()
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
         // then
-        assertDoesNotThrow { configurationModeValidator.onV2StreamRequest(123, request = request) }
+        assertDoesNotThrow { configurationModeValidator.onV3StreamRequest(123, request = request) }
+    }
+
+    @Test
+    fun `should fail on V2 node`() {
+        // given
+        val metadata = NodeV2.newBuilder()
+            .metadataBuilder.putFields("service_name", Value.newBuilder().setStringValue("my-service").build())
+        val node = NodeV2.newBuilder().setId("id").setMetadata(metadata).build()
+        val request = DiscoveryRequestV2.newBuilder().setNode(node).build()
+
+        // expects
+        assertThatExceptionOfType(V2NotSupportedException::class.java)
+            .isThrownBy { validator.onV2StreamRequest(streamId = 123, request = request) }
+            .satisfies {
+                assertThat(it.status.description).isEqualTo(
+                    "Blocked service from receiving updates. V2 resources are not supported by server."
+                )
+                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+            }
     }
 
     private fun createIncomingPermissions(

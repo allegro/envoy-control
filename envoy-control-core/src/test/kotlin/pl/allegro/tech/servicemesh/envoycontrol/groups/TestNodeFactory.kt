@@ -6,9 +6,10 @@ import com.google.protobuf.NullValue
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.api.v2.core.Node
+import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
+import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
-fun node(
+fun nodeV2(
     serviceDependencies: Set<String> = emptySet(),
     ads: Boolean? = null,
     serviceName: String? = null,
@@ -19,8 +20,8 @@ fun node(
     connectionIdleTimeout: String? = null,
     healthCheckPath: String? = null,
     healthCheckClusterName: String? = null
-): Node {
-    val meta = Node.newBuilder().metadataBuilder
+): NodeV2 {
+    val meta = NodeV2.newBuilder().metadataBuilder
 
     serviceName?.let {
         meta.putFields("service_name", string(serviceName))
@@ -47,7 +48,51 @@ fun node(
         )
     }
 
-    return Node.newBuilder()
+    return NodeV2.newBuilder()
+        .setMetadata(meta)
+        .build()
+}
+
+fun nodeV3(
+    serviceDependencies: Set<String> = emptySet(),
+    ads: Boolean? = null,
+    serviceName: String? = null,
+    incomingSettings: Boolean = false,
+    clients: List<String> = listOf("client1"),
+    idleTimeout: String? = null,
+    responseTimeout: String? = null,
+    connectionIdleTimeout: String? = null,
+    healthCheckPath: String? = null,
+    healthCheckClusterName: String? = null
+): NodeV3 {
+    val meta = NodeV3.newBuilder().metadataBuilder
+
+    serviceName?.let {
+        meta.putFields("service_name", string(serviceName))
+    }
+
+    ads?.let {
+        meta.putFields("ads", Value.newBuilder().setBoolValue(ads).build())
+    }
+
+    if (incomingSettings || serviceDependencies.isNotEmpty()) {
+        meta.putFields(
+            "proxy_settings",
+            proxySettingsProto(
+                path = "/endpoint",
+                clients = clients,
+                serviceDependencies = serviceDependencies,
+                incomingSettings = incomingSettings,
+                idleTimeout = idleTimeout,
+                responseTimeout = responseTimeout,
+                connectionIdleTimeout = connectionIdleTimeout,
+                healthCheckPath = healthCheckPath,
+                healthCheckClusterName = healthCheckClusterName
+            )
+        )
+    }
+
+    return NodeV3.newBuilder()
         .setMetadata(meta)
         .build()
 }

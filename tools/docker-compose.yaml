@@ -25,8 +25,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "9999:9999"
-      - "31000:80"
-      - "31001:8080"
+      - "31000:31000"
+      - "31001:31001"
 
   envoy-control:
     container_name: envoy-control

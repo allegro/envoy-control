@@ -40,10 +40,18 @@ class EnvoySnapshotFactory(
     ): GlobalSnapshot {
         val sample = Timer.start(meterRegistry)
 
-        val clusters = clustersFactory.getClustersForServices(clusterConfigurations.values, communicationMode)
+        val clusters = clustersFactory.getClustersForServices(
+            clusterConfigurations.values,
+            communicationMode
+        )
         val securedClusters = clustersFactory.getSecuredClusters(clusters)
-        val v3Clusters = clustersFactory.mapToV3Cluster(clusters)
-        val v3SecuredClusters = clustersFactory.mapToV3Cluster(clusters)
+
+        var v2Clusters = emptyList<Cluster>()
+        var v2SecuredClusters = emptyList<Cluster>()
+        if (properties.supportV2Configuration) {
+            v2Clusters = clustersFactory.mapToV2Clusters(clusters, communicationMode)
+            v2SecuredClusters = clustersFactory.mapToV2Clusters(securedClusters, communicationMode)
+        }
 
         val endpoints: List<ClusterLoadAssignment> = endpointsFactory.createLoadAssignment(
             clusters = clusterConfigurations.keys,
@@ -56,8 +64,8 @@ class EnvoySnapshotFactory(
             securedClusters = securedClusters,
             endpoints = endpoints,
             properties = properties.outgoingPermissions,
-            v3Clusters = v3Clusters,
-            v3SecuredClusters = v3SecuredClusters
+            v2Clusters = v2Clusters,
+            v2SecuredClusters = v2SecuredClusters
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 

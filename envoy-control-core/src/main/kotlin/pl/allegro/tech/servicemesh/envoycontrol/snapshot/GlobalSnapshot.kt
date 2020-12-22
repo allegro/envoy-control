@@ -10,8 +10,8 @@ data class GlobalSnapshot(
     val endpoints: SnapshotResources<ClusterLoadAssignment>,
     val clusterConfigurations: Map<String, ClusterConfiguration>,
     val securedClusters: SnapshotResources<Cluster>,
-    val v3Clusters: SnapshotResources<Cluster>,
-    val v3SecuredClusters: SnapshotResources<Cluster>
+    val v2Clusters: SnapshotResources<Cluster>,
+    val v2SecuredClusters: SnapshotResources<Cluster>
 )
 
 @Suppress("LongParameterList")
@@ -21,13 +21,13 @@ internal fun globalSnapshot(
     properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties(),
     clusterConfigurations: Map<String, ClusterConfiguration>,
     securedClusters: List<Cluster>,
-    v3Clusters: List<Cluster>,
-    v3SecuredClusters: List<Cluster>
+    v2Clusters: List<Cluster>,
+    v2SecuredClusters: List<Cluster>
 ): GlobalSnapshot {
     val clusters = SnapshotResources.create(clusters, "")
     val securedClusters = SnapshotResources.create(securedClusters, "")
-    val v3Clusters = SnapshotResources.create(v3Clusters, "")
-    val v3SecuredClusters = SnapshotResources.create(v3SecuredClusters, "")
+    val v2Clusters = SnapshotResources.create(v2Clusters, "")
+    val v2SecuredClusters = SnapshotResources.create(v2SecuredClusters, "")
     val allServicesNames = getClustersForAllServicesGroups(clusters.resources(), properties)
     val endpoints = SnapshotResources.create(endpoints, "")
     return GlobalSnapshot(
@@ -36,8 +36,8 @@ internal fun globalSnapshot(
         endpoints = endpoints,
         allServicesNames = allServicesNames,
         clusterConfigurations = clusterConfigurations,
-        v3Clusters = v3Clusters,
-        v3SecuredClusters = v3SecuredClusters
+        v2Clusters = v2Clusters,
+        v2SecuredClusters = v2SecuredClusters
     )
 }
 

@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
@@ -15,7 +15,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class EnvoyExtension(
-    envoyControl: EnvoyControlExtension,
+    private val envoyControl: EnvoyControlExtension,
     private val localService: ServiceExtension<*>? = null,
     config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
@@ -35,6 +35,7 @@ class EnvoyExtension(
 
     override fun beforeAll(context: ExtensionContext) {
         localService?.beforeAll(context)
+        envoyControl.beforeAll(context)
 
         try {
             container.start()
@@ -56,8 +57,17 @@ class EnvoyExtension(
         serviceNames.forEach {
             untilAsserted {
                 egressOperations.callService(it).also {
-                    Assertions.assertThat(it).isOk()
+                    assertThat(it).isOk()
                 }
+            }
+        }
+    }
+
+    fun waitForAvailableEndpoints(vararg serviceNames: String) {
+        val admin = container.admin()
+        serviceNames.forEach {
+            untilAsserted {
+                assertThat(admin.numOfEndpoints(it)).isGreaterThan(0)
             }
         }
     }

@@ -16,7 +16,10 @@ class MetadataNodeGroup(
     private val logger by logger()
 
     override fun hash(node: NodeV2): Group {
-        return createV2Group(node)
+        if (properties.supportV2Configuration) {
+            return createV2Group(node)
+        }
+        throw V2NotSupportedException()
     }
 
     override fun hash(node: NodeV3): Group {
@@ -47,7 +50,7 @@ class MetadataNodeGroup(
         }
 
         if (egressHostValue == null) {
-            logger.warn("Node $id has no egerss host configured, falling back to static listeners.")
+            logger.warn("Node $id has no egress host configured, falling back to static listeners.")
             return null
         }
 
@@ -85,11 +88,11 @@ class MetadataNodeGroup(
         )
 
         val listenersHostPort = metadataToListenersHostPort(
-                id,
-                ingressHostValue,
-                ingressPortValue,
-                egressHostValue,
-                egressPortValue
+            id,
+            ingressHostValue,
+            ingressPortValue,
+            egressHostValue,
+            egressPortValue
         )
 
         if (listenersHostPort == null) {
@@ -97,33 +100,33 @@ class MetadataNodeGroup(
         }
 
         val useRemoteAddress = metadata.fieldsMap["use_remote_address"]?.boolValue
-                ?: ListenersConfig.defaultUseRemoteAddress
+            ?: ListenersConfig.defaultUseRemoteAddress
         val accessLogEnabled = metadata.fieldsMap["access_log_enabled"]?.boolValue
-                ?: ListenersConfig.defaultAccessLogEnabled
+            ?: ListenersConfig.defaultAccessLogEnabled
         val enableLuaScript = metadata.fieldsMap["enable_lua_script"]?.boolValue
-                ?: ListenersConfig.defaultEnableLuaScript
+            ?: ListenersConfig.defaultEnableLuaScript
         val accessLogPath = metadata.fieldsMap["access_log_path"]?.stringValue
-                ?: ListenersConfig.defaultAccessLogPath
+            ?: ListenersConfig.defaultAccessLogPath
         val resourcesDir = metadata.fieldsMap["resources_dir"]?.stringValue
-                ?: ListenersConfig.defaultResourcesDir
+            ?: ListenersConfig.defaultResourcesDir
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
 
         return ListenersConfig(
-                listenersHostPort.ingressHost,
-                listenersHostPort.ingressPort,
-                listenersHostPort.egressHost,
-                listenersHostPort.egressPort,
-                useRemoteAddress,
-                accessLogEnabled,
-                enableLuaScript,
-                accessLogPath,
-                resourcesDir,
-                addUpstreamExternalAddressHeader,
-                accessLogFilterSettings,
-                hasStaticSecretsDefined
+            listenersHostPort.ingressHost,
+            listenersHostPort.ingressPort,
+            listenersHostPort.egressHost,
+            listenersHostPort.egressPort,
+            useRemoteAddress,
+            accessLogEnabled,
+            enableLuaScript,
+            accessLogPath,
+            resourcesDir,
+            addUpstreamExternalAddressHeader,
+            accessLogFilterSettings,
+            hasStaticSecretsDefined
         )
     }
 
@@ -145,19 +148,19 @@ class MetadataNodeGroup(
         return when {
             hasAllServicesDependencies(nodeMetadata) ->
                 AllServicesGroup(
-                        nodeMetadata.communicationMode,
-                        serviceName,
-                        proxySettings,
-                        listenersConfig,
-                        version
+                    nodeMetadata.communicationMode,
+                    serviceName,
+                    proxySettings,
+                    listenersConfig,
+                    version
                 )
             else ->
                 ServicesGroup(
-                        nodeMetadata.communicationMode,
-                        serviceName,
-                        proxySettings,
-                        listenersConfig,
-                        version
+                    nodeMetadata.communicationMode,
+                    serviceName,
+                    proxySettings,
+                    listenersConfig,
+                    version
                 )
         }
     }

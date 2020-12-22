@@ -3,9 +3,14 @@ admin:
   address:
     socket_address: { address: 0.0.0.0, port_value: 10000 }
 dynamic_resources:
-  lds_config: {ads: {}}
-  cds_config: {ads: {}}
+  lds_config:
+    resource_api_version: V3
+    ads: {}
+  cds_config:
+    resource_api_version: V3
+    ads: {}
   ads_config:
+    transport_api_version: V3
     api_type: GRPC
     grpc_services:
       envoy_grpc:
@@ -29,20 +34,20 @@ node:
 static_resources:
   clusters:
   - connect_timeout: 1s
-  load_assignment:
-    cluster_name: envoy-control-xds
-    endpoints:
-      - lb_endpoints:
-          - endpoint:
-              address:
-                socket_address:
-                  address: HOST_IP
-                  port_value: HOST_PORT
-          - endpoint:
-              address:
-                socket_address:
-                  address: HOST_IP
-                  port_value: HOST2_PORT
+    load_assignment:
+      cluster_name: envoy-control-xds
+      endpoints:
+        - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: HOST_IP
+                    port_value: HOST_PORT
+            - endpoint:
+                address:
+                  socket_address:
+                    address: HOST_IP
+                    port_value: HOST2_PORT
     http2_protocol_options: {}
     name: envoy-control-xds
   - name: local_service
