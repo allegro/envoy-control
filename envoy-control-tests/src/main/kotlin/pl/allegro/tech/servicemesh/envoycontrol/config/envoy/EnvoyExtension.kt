@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
@@ -16,7 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 class EnvoyExtension(
     private val envoyControl: EnvoyControlExtension,
     private val localService: ServiceExtension<*>? = null,
-    config: EnvoyConfig = RandomConfigFile
+    private val config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     companion object {
@@ -59,5 +60,9 @@ class EnvoyExtension(
                 assertThat(admin.numOfEndpoints(it)).isGreaterThan(0)
             }
         }
+    }
+
+    fun recordRBACLogs() {
+        container.logRecorder.recordLogs(::isRbacAccessLog)
     }
 }
