@@ -203,13 +203,13 @@ internal class TlsBasedAuthenticationTest {
                 assertNoErrors = true,
                 minRepeat = 2,
                 maxRepeat = 2,
-                stats = CallStats(listOf(service1.container(), service2.container()))
+                stats = CallStats(listOf(service1, service2))
         )
 
         // then
         assertThat(callStats.failedHits).isEqualTo(0)
-        assertThat(callStats.hits(service1.container())).isEqualTo(1)
-        assertThat(callStats.hits(service2.container())).isEqualTo(1)
+        assertThat(callStats.hits(service1)).isEqualTo(1)
+        assertThat(callStats.hits(service2)).isEqualTo(1)
 
         val defaultToPlaintextMatchesCount = echo1Envoy.container.admin().statValue("cluster.echo2.plaintext_match.total_match_count")?.toInt()
         assertThat(defaultToPlaintextMatchesCount).isEqualTo(1)

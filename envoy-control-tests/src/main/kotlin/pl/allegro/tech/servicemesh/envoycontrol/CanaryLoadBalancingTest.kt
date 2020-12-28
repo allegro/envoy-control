@@ -138,7 +138,7 @@ open class CanaryLoadBalancingTest {
         assertThat(stats.canaryHits).isGreaterThan(0)
     }
 
-    protected open fun callStats() = CallStats(listOf(canaryContainer.container(), regularContainer.container()))
+    protected open fun callStats() = CallStats(listOf(canaryContainer, regularContainer))
 
     fun callEchoServiceRepeatedly(
         minRepeat: Int,
@@ -159,7 +159,7 @@ open class CanaryLoadBalancingTest {
     }
 
     val CallStats.regularHits: Int
-        get() = this.hits(regularContainer.container())
+        get() = this.hits(regularContainer)
     val CallStats.canaryHits: Int
-        get() = this.hits(canaryContainer.container())
+        get() = this.hits(canaryContainer)
 }

@@ -47,9 +47,9 @@ open class EndpointMetadataMergingTests {
         val dolomStats = callEchoServiceRepeatedly(repeat = 1, tag = "dolom")
 
         // then
-        assertThat(ipsumStats.hits(service.container())).isEqualTo(1)
-        assertThat(loremStats.hits(service.container())).isEqualTo(1)
-        assertThat(dolomStats.hits(service.container())).isEqualTo(1)
+        assertThat(ipsumStats.hits(service)).isEqualTo(1)
+        assertThat(loremStats.hits(service)).isEqualTo(1)
+        assertThat(dolomStats.hits(service)).isEqualTo(1)
     }
 
     protected open fun callEchoServiceRepeatedly(
@@ -57,7 +57,7 @@ open class EndpointMetadataMergingTests {
         tag: String? = null,
         assertNoErrors: Boolean = true
     ): CallStats {
-        val stats = CallStats(listOf(service.container()))
+        val stats = CallStats(listOf(service))
         envoy.egressOperations.callServiceRepeatedly(
             service = "echo",
             stats = stats,
