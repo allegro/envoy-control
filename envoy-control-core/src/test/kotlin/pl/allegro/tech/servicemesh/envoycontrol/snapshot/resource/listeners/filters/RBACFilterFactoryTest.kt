@@ -1308,7 +1308,7 @@ internal class RBACFilterFactoryTest {
 
     private fun principalSourceIp(address: String, prefixLen: Int = 32): String {
         return """{
-                "source_ip": {
+                "direct_remote_ip": {
                   "address_prefix": "$address",
                   "prefix_len": $prefixLen
                 }

@@ -257,7 +257,7 @@ class RBACFilterFactory(
             val principals = it.value.map { ipWithPrefix ->
                 val (ip, prefixLength) = ipWithPrefix.split("/")
 
-                Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                Principal.newBuilder().setDirectRemoteIp(CidrRange.newBuilder()
                         .setAddressPrefix(ip)
                         .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
                         .build()
@@ -291,7 +291,7 @@ class RBACFilterFactory(
             }
         }.orEmpty().map { address ->
             Principal.newBuilder()
-                    .setSourceIp(CidrRange.newBuilder()
+                    .setDirectRemoteIp(CidrRange.newBuilder()
                             .setAddressPrefix(address.socketAddress.address)
                             .setPrefixLen(EXACT_IP_MASK).build())
                     .build()
