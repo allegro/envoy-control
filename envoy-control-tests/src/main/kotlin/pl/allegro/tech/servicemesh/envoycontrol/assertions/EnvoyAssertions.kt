@@ -12,6 +12,7 @@ private class RbacLog(
     val method: String? = null,
     val clientName: String? = null,
     val trustedClient: Boolean? = null,
+    val allowedClient: Boolean? = null,
     val clientIp: String? = null,
     val statusCode: String? = null,
     val requestId: String? = null
@@ -60,6 +61,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     method: String? = null,
     clientName: String? = null,
     trustedClient: Boolean? = null,
+    allowedClient: Boolean? = null,
     clientIp: String? = null,
     requestId: String? = null
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
@@ -73,6 +75,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
         statusCode = "200",
         clientName = clientName,
         trustedClient = trustedClient,
+        allowedClient = allowedClient,
         requestId = requestId
     )
 )
@@ -117,6 +120,9 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLo
     }
     logPredicate.trustedClient?.let {
         assertThat(parsed.trustedClient).isEqualTo(logPredicate.trustedClient)
+    }
+    logPredicate.allowedClient?.let {
+        assertThat(parsed.allowedClient).isEqualTo(logPredicate.allowedClient)
     }
     logPredicate.statusCode?.let {
         assertThat(parsed.statusCode).isEqualTo(logPredicate.statusCode)

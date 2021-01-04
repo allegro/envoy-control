@@ -77,7 +77,7 @@ class EnvoyAdmin(
         val configDump = configDump()
         val bootstrapConfigDump = bootstrapConfigDump(configDump)
         val node = bootstrapConfigDump.at("/bootstrap/node")
-        // (node as ObjectNode).remove("hidden_envoy_deprecated_build_version")
+        (node as ObjectNode).remove("hidden_envoy_deprecated_build_version")
         return objectMapper.writeValueAsString(node)
     }
 

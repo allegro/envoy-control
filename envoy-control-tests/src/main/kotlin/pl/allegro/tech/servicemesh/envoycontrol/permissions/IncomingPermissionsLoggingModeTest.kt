@@ -32,7 +32,8 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
                 "$sourceClientIp/32",
             "$prefix.routes.status.create-virtual-cluster" to true,
             "$prefix.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
-            "$prefix.routes.status.enabled" to true
+            "$prefix.routes.status.enabled" to true,
+            "$prefix.incoming-permissions.clients-allowed-to-all-endpoints" to listOf("allowed-client")
         ) }
 
         // language=yaml
@@ -691,20 +692,21 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         val echo2Response = callEnvoyIngress(
             envoy = echo2Envoy,
             path = "/log-unlisted-clients",
-            headers = mapOf("x-service-name" to "service-name-from-header"),
-            useSsl = true,
+            headers = mapOf("x-service-name" to "allowed-client"),
+            useSsl = false,
             client = insecureClient
         )
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
+        // assertThat(echo2Envoy.ingressSslRequests).isOne()
         assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
-            protocol = "https",
+            protocol = "http",
             path = "/log-unlisted-clients",
             method = "GET",
-            clientName = "service-name-from-header (not trusted)",
+            clientName = "allowed-client",
             trustedClient = false,
+            allowedClient = true,
             clientIp = echo2Envoy.gatewayIp()
         )
     }
