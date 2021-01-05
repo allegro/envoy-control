@@ -706,7 +706,7 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             method = "GET",
             clientName = "allowed-client",
             trustedClient = false,
-            allowedClient = true,
+            clientAllowedToAllEndpoints = true,
             clientIp = echo2Envoy.gatewayIp()
         )
     }
