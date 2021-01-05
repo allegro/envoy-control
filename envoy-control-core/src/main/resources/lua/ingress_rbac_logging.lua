@@ -13,6 +13,9 @@ function envoy_on_request(handle)
     local trusted_client = false
     if trusted_header_name ~= "" then
         client_name = handle:headers():get(trusted_header_name) or ""
+        if is_allowed_client(client_name, clients_allowed_to_all_endpoints) then
+            allowed_client = true
+        end
         if client_name ~= "" then
             trusted_client = true
         end

@@ -699,7 +699,6 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        // assertThat(echo2Envoy.ingressSslRequests).isOne()
         assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
             protocol = "http",
             path = "/log-unlisted-clients",
