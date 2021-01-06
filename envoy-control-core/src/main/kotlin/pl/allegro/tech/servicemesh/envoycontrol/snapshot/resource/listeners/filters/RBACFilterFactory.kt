@@ -52,6 +52,7 @@ class RBACFilterFactory(
     companion object {
         private val logger by logger()
         private const val ALLOW_UNLISTED_POLICY_NAME = "ALLOW_UNLISTED_POLICY"
+        private const val ALLOW_LOGGED_ENDPOINTS_POLICY_NAME = "ALLOW_LOGGED_ENDPOINTS_POLICY"
         private const val STATUS_ROUTE_POLICY_NAME = "STATUS_ALLOW_ALL_POLICY"
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
@@ -161,7 +162,7 @@ class RBACFilterFactory(
             return mapOf()
         }
 
-        return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
+        return mapOf(ALLOW_LOGGED_ENDPOINTS_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
             .addPermissions(anyOf(allLoggedEndpointsPermissions))
             .build()
