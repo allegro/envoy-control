@@ -52,7 +52,6 @@ class RBACFilterFactory(
     companion object {
         private val logger by logger()
         private const val ALLOW_UNLISTED_POLICY_NAME = "ALLOW_UNLISTED_POLICY"
-        private const val ALLOW_LOGGED_ENDPOINTS_POLICY_NAME = "ALLOW_LOGGED_ENDPOINTS_POLICY"
         private const val STATUS_ROUTE_POLICY_NAME = "STATUS_ALLOW_ALL_POLICY"
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
@@ -94,8 +93,17 @@ class RBACFilterFactory(
     ): Rules {
 
         val incomingEndpointsPolicies = getIncomingEndpointPolicies(
-                serviceName, incomingPermissions, snapshot, roles
+            serviceName, incomingPermissions, snapshot, roles
         )
+
+        val incomingWithAnyPrincipalsInLoggedEndpoints = incomingEndpointsPolicies.asSequence()
+            .map { (endpoint, policy) ->
+                "$endpoint" to
+                    if (endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG)
+                        policy.clone().clearPrincipals().addAllPrincipals(listOf(anyPrincipal)).build()
+                    else
+                        policy.build()
+            }.toMap()
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
             .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG }
@@ -114,15 +122,15 @@ class RBACFilterFactory(
         )
 
         val shadowPolicies = commonPolicies + loggedEndpointsPolicies
-        val actualPolicies = commonPolicies + allowUnlistedPolicies
+        val actualPolicies = statusRoutePolicy + incomingWithAnyPrincipalsInLoggedEndpoints + allowUnlistedPolicies
 
         val actualRules = RBAC.newBuilder()
             .setAction(RBAC.Action.ALLOW)
             .putAllPolicies(actualPolicies)
 
         val shadowRules = RBAC.newBuilder()
-                .setAction(RBAC.Action.ALLOW)
-                .putAllPolicies(shadowPolicies)
+            .setAction(RBAC.Action.ALLOW)
+            .putAllPolicies(shadowPolicies)
 
         return Rules(shadowRules = shadowRules, actualRules = actualRules)
     }
@@ -162,7 +170,7 @@ class RBACFilterFactory(
             return mapOf()
         }
 
-        return mapOf(ALLOW_LOGGED_ENDPOINTS_POLICY_NAME to Policy.newBuilder()
+        return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
             .addPermissions(anyOf(allLoggedEndpointsPermissions))
             .build()
