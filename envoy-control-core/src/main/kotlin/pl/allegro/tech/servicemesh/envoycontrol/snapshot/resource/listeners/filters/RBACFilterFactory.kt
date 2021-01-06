@@ -62,7 +62,6 @@ class RBACFilterFactory(
     data class EndpointWithPolicy(val endpoint: IncomingEndpoint, val policy: Policy.Builder)
 
     private fun getIncomingEndpointPolicies(
-        serviceName: String,
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
         roles: List<Role>
@@ -86,14 +85,13 @@ class RBACFilterFactory(
     data class Rules(val shadowRules: RBAC.Builder, val actualRules: RBAC.Builder)
 
     private fun getRules(
-        serviceName: String,
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
         roles: List<Role>
     ): Rules {
 
         val incomingEndpointsPolicies = getIncomingEndpointPolicies(
-            serviceName, incomingPermissions, snapshot, roles
+            incomingPermissions, snapshot, roles
         )
 
         val incomingWithAnyPrincipalsInLoggedEndpoints = incomingEndpointsPolicies.asSequence()
@@ -331,7 +329,6 @@ class RBACFilterFactory(
     fun createHttpFilter(group: Group, snapshot: GlobalSnapshot): HttpFilter? {
         return if (incomingPermissionsProperties.enabled && group.proxySettings.incoming.permissionsEnabled) {
             val rules = getRules(
-                group.serviceName,
                 group.proxySettings.incoming,
                 snapshot,
                 group.proxySettings.incoming.roles
