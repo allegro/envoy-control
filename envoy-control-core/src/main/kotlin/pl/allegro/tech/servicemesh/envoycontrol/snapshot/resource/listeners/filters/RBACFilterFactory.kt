@@ -97,10 +97,11 @@ class RBACFilterFactory(
         val incomingWithAnyPrincipalsInLoggedEndpoints = incomingEndpointsPolicies.asSequence()
             .map { (endpoint, policy) ->
                 "$endpoint" to
-                    if (endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG)
+                    if (endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG) {
                         policy.clone().clearPrincipals().addAllPrincipals(listOf(anyPrincipal)).build()
-                    else
+                    } else {
                         policy.build()
+                    }
             }.toMap()
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
