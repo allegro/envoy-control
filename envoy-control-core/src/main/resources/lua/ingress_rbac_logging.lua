@@ -44,8 +44,10 @@ end
 
 function envoy_on_response(handle)
     local rbacMetadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.rbac")
+    local statusCode = handle:headers():get(":status") or "0"
+    local upstream_request_time = handle:headers():get("x-envoy-upstream-service-time")
 
-    if rbacMetadata == nil or rbacMetadata["shadow_engine_result"] ~= "denied" then
+    if rbacMetadata == nil or rbacMetadata["shadow_engine_result"] ~= "denied" or (statusCode == "403" and upstream_request_time ~= nil) then
         return
     end
 
@@ -58,7 +60,6 @@ function envoy_on_response(handle)
     local xff_header = lua_metadata["request.info.xff_header"] or ""
     local source_ip = string.match(xff_header, '[^,]+$') or ""
     local request_id = lua_metadata["request.info.request_id"] or ""
-    local statusCode = handle:headers():get(":status") or "0"
     handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method.."\", \"path\": \""..path.."\", \"clientIp\": \""..source_ip.."\", \"clientName\": \""..escape(client_name).."\", \"trustedClient\": "..tostring(trusted_client)..", \"protocol\": \""..protocol.."\", \"requestId\": \""..escape(request_id).."\", \"statusCode\": "..statusCode.." }")
 end
 

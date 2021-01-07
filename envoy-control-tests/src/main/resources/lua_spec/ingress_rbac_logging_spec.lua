@@ -413,6 +413,26 @@ describe("envoy_on_response:", function()
             assert.spy(handle.logInfo).was_not_called()
             assert.spy(metadataMock.get).was_not_called_with(_, 'envoy.filters.http.lua')
         end)
+
+        it("when 403 comes from upstream service", function()
+            -- given
+            headers = {
+                [':path'] = '/path',
+                [':method'] = 'GET',
+                [':status'] = '403',
+                ['x-service-name'] = 'lorem-service',
+                ['x-envoy-upstream-service-time'] = '40'
+            }
+            local handle = handlerMock(headers, metadata, ssl)
+            local metadataMock = handle:streamInfo():dynamicMetadata()
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_not_called()
+            assert.spy(metadataMock.get).was_not_called_with(_, 'envoy.filters.http.lua')
+        end)
     end)
 
     describe("should handle x-forwarded-for formats:", function ()
