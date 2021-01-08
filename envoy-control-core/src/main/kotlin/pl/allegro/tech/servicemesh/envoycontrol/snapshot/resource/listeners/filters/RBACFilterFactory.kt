@@ -63,7 +63,6 @@ class RBACFilterFactory(
     data class EndpointWithPolicy(val endpoint: IncomingEndpoint, val policy: Policy.Builder)
 
     private fun getIncomingEndpointPolicies(
-        serviceName: String,
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
         roles: List<Role>
@@ -87,14 +86,13 @@ class RBACFilterFactory(
     data class Rules(val shadowRules: RBAC.Builder, val actualRules: RBAC.Builder)
 
     private fun getRules(
-        serviceName: String,
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
         roles: List<Role>
     ): Rules {
 
         val incomingEndpointsPolicies = getIncomingEndpointPolicies(
-                serviceName, incomingPermissions, snapshot, roles
+                incomingPermissions, snapshot, roles
         )
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
@@ -133,8 +131,12 @@ class RBACFilterFactory(
         loggedEndpointsPolicies: Iterable<Policy>
     ): Map<String, Policy> {
         return if (incomingPermissions.unlistedEndpointsPolicy == Incoming.UnlistedPolicy.LOG) {
-            allowLoggedEndpointsPolicy(loggedEndpointsPolicies) +
+            if (incomingPermissionsProperties.overlappingPathsFix) {
+                allowLoggedEndpointsPolicy(loggedEndpointsPolicies) +
+                    allowUnlistedEndpointsPolicy(restrictedEndpointsPolicies)
+            } else {
                 allowUnlistedEndpointsPolicy(restrictedEndpointsPolicies)
+            }
         } else {
             allowLoggedEndpointsPolicy(loggedEndpointsPolicies)
         }
@@ -324,7 +326,6 @@ class RBACFilterFactory(
     fun createHttpFilter(group: Group, snapshot: GlobalSnapshot): HttpFilter? {
         return if (incomingPermissionsProperties.enabled && group.proxySettings.incoming.permissionsEnabled) {
             val rules = getRules(
-                group.serviceName,
                 group.proxySettings.incoming,
                 snapshot,
                 group.proxySettings.incoming.roles

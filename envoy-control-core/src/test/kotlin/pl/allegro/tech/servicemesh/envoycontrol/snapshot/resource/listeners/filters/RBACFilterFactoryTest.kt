@@ -31,7 +31,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 @Suppress("LargeClass") // TODO: https://github.com/allegro/envoy-control/issues/121
 internal class RBACFilterFactoryTest {
     private val rbacFilterFactory = RBACFilterFactory(
-            IncomingPermissionsProperties().also { it.enabled = true },
+            IncomingPermissionsProperties().also {
+                it.enabled = true
+                it.overlappingPathsFix = true
+            },
             StatusRouteProperties()
     )
     private val rbacFilterFactoryWithSourceIpAuth = RBACFilterFactory(
