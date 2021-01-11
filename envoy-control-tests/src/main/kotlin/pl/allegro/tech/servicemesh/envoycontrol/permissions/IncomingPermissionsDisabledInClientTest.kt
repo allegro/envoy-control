@@ -13,7 +13,8 @@ internal class IncomingPermissionsDisabledInClientTest : EnvoyControlTestConfigu
     companion object {
 
         private val properties = mapOf(
-            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true
+            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true
         )
 
         @JvmStatic

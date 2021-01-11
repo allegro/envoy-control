@@ -32,7 +32,8 @@ class ClientNameTrustedHeaderTest {
             "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.require-client-certificate" to false,
             "envoy-control.envoy.snapshot.incoming-permissions.trusted-client-identity-header" to "x-client-name-trusted",
             "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.san-uri-format" to "spiffe://{service-name}",
-            "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.service-name-wildcard-regex" to ".+"
+            "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.service-name-wildcard-regex" to ".+",
+            "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true
         ))
 
         @JvmField
