@@ -25,6 +25,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         private const val prefix = "envoy-control.envoy.snapshot"
         private val properties = { mapOf(
             "$prefix.incoming-permissions.enabled" to true,
+            "$prefix.incoming-permissions.overlapping-paths-fix" to true,
             "$prefix.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo"),
             "$prefix.incoming-permissions.source-ip-authentication.ip-from-service-discovery.enabled-for-incoming-services" to
                     listOf("echo"),

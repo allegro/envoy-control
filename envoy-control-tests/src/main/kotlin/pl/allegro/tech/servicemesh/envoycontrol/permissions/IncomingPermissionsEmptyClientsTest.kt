@@ -17,7 +17,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 internal class IncomingPermissionsEmptyClientsTest : EnvoyControlTestConfiguration() {
     companion object {
         private val properties = mapOf(
-            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true
+            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true
         )
 
         // language=yaml
