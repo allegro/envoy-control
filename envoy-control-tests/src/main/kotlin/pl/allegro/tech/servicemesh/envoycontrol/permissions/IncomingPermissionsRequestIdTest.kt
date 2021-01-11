@@ -43,6 +43,7 @@ class IncomingPermissionsRequestIdTest {
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(consul, mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
             "envoy-control.envoy.snapshot.incoming-permissions.request-identification-headers" to listOf("x-request-id")
         ))
 
