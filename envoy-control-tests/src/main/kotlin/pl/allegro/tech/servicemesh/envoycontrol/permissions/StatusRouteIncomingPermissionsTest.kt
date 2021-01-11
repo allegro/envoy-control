@@ -14,6 +14,7 @@ internal class StatusRouteIncomingPermissionsTest : EnvoyControlTestConfiguratio
 
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
             "envoy-control.envoy.snapshot.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
