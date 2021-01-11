@@ -70,10 +70,10 @@ class LocalReplyConfigFactoryTest {
         val properties = LocalReplyMapperProperties().apply {
             enabled = true
             responseFormat = ResponseFormat().apply {
-                jsonFormat = mapOf(
-                    "body" to "%BODY%",
-                    "statusCode" to "%STATUS_CODE%"
-                )
+                jsonFormat = """{
+                    "body":"%BODY%",
+                    "statusCode":"%STATUS_CODE%"
+                }""".trimIndent()
             }
         }
         // when
@@ -95,17 +95,17 @@ class LocalReplyConfigFactoryTest {
                     bodyToReturn = "Something went wrong and matched with 400"
                     statusCodeMatcher = "EQ:400"
                     responseFormat = ResponseFormat().apply {
-                        jsonFormat = mapOf(
-                            "body" to "status code body"
-                        )
+                        jsonFormat = """{
+                            "body":"status code body"
+                        }"""
                     }
                 }
             )
             responseFormat = ResponseFormat().apply {
-                jsonFormat = mapOf(
-                    "body" to "%BODY%",
-                    "statusCode" to "%STATUS_CODE%"
-                )
+                jsonFormat = """{ 
+                    "body":"%BODY%",
+                    "statusCode":"%STATUS_CODE%"
+                }"""
             }
         }
         // when
@@ -207,22 +207,22 @@ class LocalReplyConfigFactoryTest {
             enabled = true
             responseFormat.apply {
                 contentType = "application/envoy+json"
-                jsonFormat = mapOf(
-                    "destination" to mapOf(
-                        "service-tag" to "test",
-                        "responseFlags" to listOf("UH", "UF"),
-                        "listOfIntegers" to listOf(1, 2, 3)
-                    ),
-                    "reason" to 1,
-                    "listOfMap" to listOf(
-                        mapOf(
-                            "test" to "test"
-                        ), mapOf(
-                            "test2" to "test2"
-                        )
-
-                    )
-                )
+                jsonFormat = """{
+                    "destination":{
+                        "service-tag":"test",
+                        "responseFlags":["UH","UF"],
+                        "listOfIntegers":[1, 2, 3]
+                    },
+                    "reason":1,
+                    "listOfMap":[
+                        {
+                            "test":"test"
+                        },
+                        {
+                            "test2":"test2"
+                        }
+                    ]
+                }""".trimIndent()
             }
         }
         // when
@@ -285,9 +285,9 @@ class LocalReplyConfigFactoryTest {
         val properties = LocalReplyMapperProperties().apply {
             enabled = true
             responseFormat = ResponseFormat().apply {
-                jsonFormat = mapOf(
-                    "body" to "custom response body"
-                )
+                jsonFormat = """{
+                    "body":"custom response body"
+                }"""
                 textFormat = "custom response body"
             }
         }
@@ -315,9 +315,9 @@ class LocalReplyConfigFactoryTest {
                     }
                     responseFormat = ResponseFormat().apply {
                         textFormat = "custom response body"
-                        jsonFormat = mapOf(
-                            "body" to "custom response body"
-                        )
+                        jsonFormat = """{
+                            "body":"custom response body"
+                        }"""
                     }
                 }
             )

@@ -13,6 +13,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtens
 class LocalReplyMappingTest {
 
     companion object {
+        private const val prefix = "envoy-control.envoy.snapshot"
+        private const val localReplyPrefix = "$prefix.dynamic-listeners.local-reply-mapper"
 
         @JvmField
         @RegisterExtension
@@ -22,35 +24,35 @@ class LocalReplyMappingTest {
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(
             consul, mapOf(
-                "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
-                "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.enabled" to true,
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[0].header-matcher.name" to ":path",
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[0].header-matcher.exactMatch" to "/api",
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[0].status-code-to-return" to 510,
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[0].response-format.json-format" to mapOf(
-                    "destination" to mapOf(
-                        "serviceName" to "%REQ(:authority)%",
-                        "serviceTag" to "%REQ(x-service-tag)%",
-                        "path" to "%REQ(:path)%"
-                    ),
-                    "responseFlags" to "%RESPONSE_FLAGS%",
-                    "body" to "%LOCAL_REPLY_BODY%",
-                    "path" to "%REQ(:path)%"
-                ),
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[1].response-flag-matcher" to listOf(
+                "$prefix.routing.service-tags.enabled" to true,
+                "$prefix.routing.service-tags.metadata-key" to "tag",
+                "$localReplyPrefix.enabled" to true,
+                "$localReplyPrefix.matchers[0].header-matcher.name" to ":path",
+                "$localReplyPrefix.matchers[0].header-matcher.exactMatch" to "/api",
+                "$localReplyPrefix.matchers[0].status-code-to-return" to 510,
+                "$localReplyPrefix.matchers[0].response-format.json-format" to """{
+                    "destination":{
+                        "serviceName":"%REQ(:authority)%",
+                        "serviceTag":"%REQ(x-service-tag)%",
+                        "path":"%REQ(:path)%"
+                    },
+                    "responseFlags":"%RESPONSE_FLAGS%",
+                    "body":"%LOCAL_REPLY_BODY%",
+                    "path":"%REQ(:path)%"
+                }""",
+                "$localReplyPrefix.matchers[1].response-flag-matcher" to listOf(
                     "NR"
                 ),
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[1].status-code-to-return" to 522,
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[1].body-to-return" to "my-custom no route body",
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.matchers[1].response-format.text-format" to
+                "$localReplyPrefix.matchers[1].status-code-to-return" to 522,
+                "$localReplyPrefix.matchers[1].body-to-return" to "my-custom no route body",
+                "$localReplyPrefix.matchers[1].response-format.text-format" to
                     "Request to service: %REQ(:authority)% responseFlags:%RESPONSE_FLAGS% body: %LOCAL_REPLY_BODY%",
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.response-format.content-type" to "application/envoy+json",
-                "envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.response-format.json-format" to mapOf(
-                    "destination" to "service-name: %REQ(:authority)%, service-tag: %REQ(x-service-tag)%",
-                    "responseFlags" to "%RESPONSE_FLAGS%",
-                    "body" to "%LOCAL_REPLY_BODY%"
-                )
+                "$localReplyPrefix.response-format.content-type" to "application/envoy+json",
+                "$localReplyPrefix.response-format.json-format" to """{
+                    "destination":"service-name: %REQ(:authority)%, service-tag: %REQ(x-service-tag)%",
+                    "responseFlags":"%RESPONSE_FLAGS%",
+                    "body":"%LOCAL_REPLY_BODY%"
+                }"""
             )
         )
 

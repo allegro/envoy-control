@@ -1,23 +1,24 @@
 # Local reply modification configuration
 
-Envoy control allows defining custom format for responses returned by Envoy. Thanks to [Envoy functionality](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/local_reply) 
+Envoy Control allows defining custom format for responses returned by Envoy. Thanks to [Envoy functionality](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/local_reply) 
 it is possible to configure the custom format, status code for specific responses.
 
 ## Define default response format for responses returned by Envoy
 
-It is possible to define a custom format for all responses returned by Envoy. Envoy can return responsse either
-in a text format or json format. It is possible to define only one of: `textFormat` and `jsonFormat`. 
+It is possible to define a custom format for all responses returned by Envoy. Envoy can return response either
+in a text format or JSON format. It is possible to define only one of: `textFormat` and `jsonFormat`.
+If the format isn't specified, then default from Envoy is returned.
 
 ### Configure text format response
 
-Property `envoy-control.envoy.snapshot.dynamicListeners.localReplyMapper.responseFormat.textFormat` allows configuring text response format.
+Property `envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.response-format.text-format` allows configuring text response format.
 Text format supports [command operators](https://www.envoyproxy.io/docs/envoy/latest/configuration/observability/access_log/usage#config-access-log-command-operators) that allows
 operating on request/response data.
 
 An example configuration: 
 
 ```yaml
-envoy-control.envoy.snapshot.dynamicListeners.localReplyMapper.responseFormat.textFormat: "my custom response with flags: %RESPONSE_FLAGS%"
+envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.response-format.text-format: "my custom response with flags: %RESPONSE_FLAGS%"
 ```
 
 Response:
@@ -26,10 +27,10 @@ Response:
 "my custom response with flags: UF"
 ```
 
-### Configure json format response
+### Configure JSON format response
 
-Property `envoy-control.envoy.snapshot.dynamicListeners.localReplyMapper.responseFormat.jsonFormat` allows configuring json response format.
-It accepts a map of `key:value`, where key will be a json key and value might contains constant string or [command operators](https://www.envoyproxy.io/docs/envoy/latest/configuration/observability/access_log/usage#config-access-log-command-operators).
+Property `envoy-control.envoy.snapshot.dynamic-listeners.local-reply-mapper.response-format.json-format` allows configuring JSON response format.
+It accepts a JSON formatted string with constant string and  [command operators](https://www.envoyproxy.io/docs/envoy/latest/configuration/observability/access_log/usage#config-access-log-command-operators).
 
 An example configuration:
 
@@ -37,14 +38,14 @@ An example configuration:
 envoy-control:
   envoy:
     snapshot:
-      dynamicListeners:
-        localReplyMapper:
-          responseFormat:
-            jsonFormat:
-              myKey: "My custom body"
-              responseFlags: "%RESPONSE_FLAGS%"
-              host: "%REQ(:authority)%"
-  
+      dynamic-listeners:
+        local-reply-mapper:
+          response-format:
+            json-format: """{
+              "myKey":"My custom body",
+              "responseFlags":"%RESPONSE_FLAGS%",
+              "host":"%REQ(:authority)%"
+            }"""
 ```
 
 Response:
@@ -84,6 +85,8 @@ Example:
 statusCodeMatcher: "EQ:400"
 ```
 
+By default, it is an empty string which means that matcher is disabled.
+
 ### Header matcher
 
 Allows filtering responses based on header presence or value. Only one of: `exactMatch`, `regexMatch` can be used. If none is used
@@ -97,6 +100,8 @@ Example:
     exactMatch: "service1"
 ```
 
+By default, all fields are equals to empty string which means that matcher is disabled.
+
 ### Response flags matcher
 
 Allows filtering responses based on response flags (refer to [Envoy docs](https://www.envoyproxy.io/docs/envoy/latest/configuration/observability/access_log/usage#config-access-log-format-response-flags)).
@@ -109,18 +114,22 @@ Example:
       - "NR"
 ```
 
+By default, it is set an empty list which means there is no filtering by response flags.
+
 ### Status code override
 
-When response will be matched and property `statusCodeToReturn` for this matcher is defined then Envoy will change response status code 
-to value of the property `statusCodeToReturn`.
+When response is matched and property `statusCodeToReturn` for this matcher is defined then Envoy will change response status code 
+to value of the property `statusCodeToReturn`. By default, it is set to 0 which means that status code won't be overridden.
 
 ### Custom body
 
-When response will be matched and property `bodyToReturn` for this matcher is defined then Envoy will set body to value of the property `bodyToReturn`.
+When response is matched and property `bodyToReturn` for this matcher is defined then Envoy will set body to value of the property `bodyToReturn`.
 If you defined custom format then the value can be accessed by using placeholder `%LOCAL_REPLY_BODY%` (refer to [Envoy docs](https://www.envoyproxy.io/docs/envoy/latest/configuration/observability/access_log/usage#config-access-log-format-filter-state)).
+
+By default, it is an empty string which means that body won't be overridden.
 
 ### Different response format for different matchers
 
 It is possible to configure different response formats for different matchers. If matcher configuration has `responseFormat` configuration then 
-it will be used instead of response format defined at `localReplyMapper` level.
+it will be used instead of response format defined at `localReplyMapper` level. When there is no configuration, default Envoy's format will be returned.
 

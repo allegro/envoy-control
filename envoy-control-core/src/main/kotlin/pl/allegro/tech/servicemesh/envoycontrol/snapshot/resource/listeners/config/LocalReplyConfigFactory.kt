@@ -1,9 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config
 
-import com.google.protobuf.ListValue
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
-import com.google.protobuf.Value
+import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLogFilter
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
 import io.envoyproxy.envoy.config.accesslog.v3.HeaderFilter
@@ -12,21 +11,24 @@ import io.envoyproxy.envoy.config.accesslog.v3.StatusCodeFilter
 import io.envoyproxy.envoy.config.core.v3.DataSource
 import io.envoyproxy.envoy.config.core.v3.RuntimeUInt32
 import io.envoyproxy.envoy.config.core.v3.SubstitutionFormatString
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.LocalReplyConfig
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.ResponseMapper
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HeaderMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HeaderMatcher as HeaderMatcherProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalReplyMapperProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.MatcherAndMapper
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ResponseFormat
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterParser
 
 class LocalReplyConfigFactory(
-    localReplyMapperProperties: LocalReplyMapperProperties
+    localReplyMapperProperties: LocalReplyMapperProperties,
+    private val jsonParser: JsonFormat.Parser = JsonFormat.parser()
 ) {
     var configuration: LocalReplyConfig = LocalReplyConfig.getDefaultInstance()
 
     init {
+
         if (localReplyMapperProperties.enabled) {
             validateResponseFormatProperties(localReplyMapperProperties.responseFormat)
             localReplyMapperProperties.matchers.forEach {
@@ -50,7 +52,6 @@ class LocalReplyConfigFactory(
         return localReplyBuilder.build()
     }
 
-    @SuppressWarnings("ReturnCount")
     private fun createFilteredResponseMapper(matcherAndMapper: MatcherAndMapper): ResponseMapper.Builder {
         val responseMapperBuilder = ResponseMapper.newBuilder()
         createResponseFormat(matcherAndMapper.responseFormat)?.let {
@@ -59,29 +60,33 @@ class LocalReplyConfigFactory(
         setResponseBody(matcherAndMapper, responseMapperBuilder)
         setStatusCode(matcherAndMapper, responseMapperBuilder)
 
-        if (matcherAndMapper.headerMatcher.name.isNotEmpty()) {
-            responseMapperBuilder.setFilter(
-                AccessLogFilter.newBuilder().setHeaderFilter(createHeaderFilter(matcherAndMapper.headerMatcher))
-            )
-            return responseMapperBuilder
-        }
-        if (matcherAndMapper.responseFlagMatcher.isNotEmpty()) {
-            responseMapperBuilder.setFilter(
-                AccessLogFilter.newBuilder().setResponseFlagFilter(
-                    createResponseFlagFilter(matcherAndMapper.responseFlagMatcher)
+        return when {
+            matcherAndMapper.headerMatcher.name.isNotEmpty() -> {
+                responseMapperBuilder.setFilter(
+                    AccessLogFilter.newBuilder().setHeaderFilter(createHeaderFilter(matcherAndMapper.headerMatcher))
                 )
-            )
-            return responseMapperBuilder
-        }
-        if (matcherAndMapper.statusCodeMatcher.isNotEmpty()) {
-            responseMapperBuilder.setFilter(
-                AccessLogFilter.newBuilder().setStatusCodeFilter(
-                    createStatusCodeFilter(matcherAndMapper.statusCodeMatcher)
+                responseMapperBuilder
+            }
+            matcherAndMapper.responseFlagMatcher.isNotEmpty() -> {
+                responseMapperBuilder.setFilter(
+                    AccessLogFilter.newBuilder().setResponseFlagFilter(
+                        createResponseFlagFilter(matcherAndMapper.responseFlagMatcher)
+                    )
                 )
-            )
-            return responseMapperBuilder
+                responseMapperBuilder
+            }
+            matcherAndMapper.statusCodeMatcher.isNotEmpty() -> {
+                responseMapperBuilder.setFilter(
+                    AccessLogFilter.newBuilder().setStatusCodeFilter(
+                        createStatusCodeFilter(matcherAndMapper.statusCodeMatcher)
+                    )
+                )
+                responseMapperBuilder
+            }
+            else -> {
+                responseMapperBuilder
+            }
         }
-        return responseMapperBuilder
     }
 
     private fun setStatusCode(
@@ -120,9 +125,9 @@ class LocalReplyConfigFactory(
         return ResponseFlagFilter.newBuilder().addAllFlags(responseFlags)
     }
 
-    private fun createHeaderFilter(headerMatcher: HeaderMatcher): HeaderFilter.Builder {
+    private fun createHeaderFilter(headerMatcher: HeaderMatcherProperties): HeaderFilter.Builder {
         val headerFilterBuilder = HeaderFilter.newBuilder()
-        val headerMatcherBuilder = io.envoyproxy.envoy.config.route.v3.HeaderMatcher.newBuilder()
+        val headerMatcherBuilder = HeaderMatcher.newBuilder()
             .setName(headerMatcher.name)
         return when {
             headerMatcher.regexMatch.isNotEmpty() -> {
@@ -143,108 +148,49 @@ class LocalReplyConfigFactory(
         }
     }
 
-    @SuppressWarnings("ReturnCount")
     private fun createResponseFormat(responseFormat: ResponseFormat): SubstitutionFormatString? {
         val responseFormatBuilder = SubstitutionFormatString.newBuilder()
         if (responseFormat.contentType.isNotEmpty()) {
             responseFormatBuilder.contentType = responseFormat.contentType
         }
-        if (responseFormat.textFormat.isNotEmpty()) {
-            return responseFormatBuilder.setTextFormat(responseFormat.textFormat).build()
-        }
-        if (responseFormat.jsonFormat.isNotEmpty()) {
-            val responseBody = Struct.newBuilder()
-            responseFormat.jsonFormat.forEach {
-                setJsonResponseField(responseBody, it.key, it.value)
-            }
-            return responseFormatBuilder.setJsonFormat(responseBody.build()).build()
-        }
-        return null
-    }
 
-    private fun setJsonResponseField(
-        responseBody: Struct.Builder,
-        key: String,
-        value: Any
-    ) {
-        when (value) {
-            is Map<*, *> -> {
-                val map = value as Map<String, Any>
-                val struct = Struct.newBuilder()
-                map.forEach {
-                    struct.putFields(it.key, getValueField(it.value))
-                }
-                responseBody.putFields(key, Value.newBuilder().setStructValue(struct).build())
+        return when {
+            responseFormat.textFormat.isNotEmpty() -> {
+                responseFormatBuilder.setTextFormat(responseFormat.textFormat).build()
             }
-            is List<*> -> {
-                responseBody.putFields(key, getValueField(value))
-            }
-            is String -> {
-                responseBody.putFields(key, Value.newBuilder().setStringValue(value).build())
-            }
-            is Number -> {
-                responseBody.putFields(key, Value.newBuilder().setNumberValue(value.toDouble()).build())
+            responseFormat.jsonFormat.isNotEmpty() -> {
+                val responseBody = Struct.newBuilder()
+                jsonParser.merge(responseFormat.jsonFormat, responseBody)
+                responseFormatBuilder.setJsonFormat(responseBody.build()).build()
             }
             else -> {
-                throw IllegalArgumentException("Wrong data has been passed")
-            }
-        }
-    }
-
-    @SuppressWarnings("ReturnCount")
-    private fun getValueField(
-        value: Any?
-    ): Value {
-        when (value) {
-            is Map<*, *> -> {
-                val map = value as Map<String, Any>
-                val struct = Struct.newBuilder()
-                map.forEach {
-                    struct.putFields(it.key, getValueField(it.value))
-                }
-                return Value.newBuilder().setStructValue(struct).build()
-            }
-            is List<*> -> {
-                val list = ListValue.newBuilder()
-                value.forEach {
-                    list.addValues(getValueField(it))
-                }
-                return Value.newBuilder().setListValue(list).build()
-            }
-            is String -> {
-                return Value.newBuilder().setStringValue(value).build()
-            }
-            is Number -> {
-                return Value.newBuilder().setNumberValue(value.toDouble()).build()
-            }
-            else -> {
-                throw IllegalArgumentException("Wrong data has been passed")
+                null
             }
         }
     }
 
     private fun validateMatchersDefinition(matcherAndMapper: MatcherAndMapper) {
-        var matcherSet = 0
+        var definitions = 0
+
         if (matcherAndMapper.statusCodeMatcher.isNotEmpty()) {
-            matcherSet = 1
+            definitions += 1
         }
+
         if (matcherAndMapper.responseFlagMatcher.isNotEmpty()) {
-            matcherSet = matcherSet xor (1 shl 1)
+            definitions += 1
         }
         if (matcherAndMapper.headerMatcher.name.isNotBlank()) {
-            matcherSet = matcherSet xor (1 shl 2)
+            definitions += 1
             validateHeaderMatcher(matcherAndMapper.headerMatcher)
         }
-        // Check if one and only one value is defined.
-        // (matcherSet and (matcherSet - 1) check if matcherSet has only one bit set.
-        if (matcherSet == 0 || (matcherSet and (matcherSet - 1) != 0)) {
+
+        if (definitions != 1) {
             throw IllegalArgumentException(
-                "One and only one of: headerMatcher, responseFlagMatcher, statusCodeMatcher has to be defined."
-            )
+                "One and only one of: headerMatcher, responseFlagMatcher, statusCodeMatcher has to be defined.")
         }
     }
 
-    private fun validateHeaderMatcher(headerMatcher: HeaderMatcher) {
+    private fun validateHeaderMatcher(headerMatcher: HeaderMatcherProperties) {
         if (headerMatcher.exactMatch.isNotEmpty() && headerMatcher.regexMatch.isNotEmpty()) {
             throw IllegalArgumentException(
                 "Only one of: exactMatch, regexMatch can be defined."

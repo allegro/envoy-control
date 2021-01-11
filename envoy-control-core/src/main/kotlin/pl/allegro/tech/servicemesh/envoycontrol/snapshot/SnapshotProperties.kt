@@ -290,6 +290,6 @@ class HeaderMatcher {
 
 class ResponseFormat {
     var textFormat = ""
-    var jsonFormat = emptyMap<String, Any>()
+    var jsonFormat = ""
     var contentType = ""
 }
