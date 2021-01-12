@@ -72,7 +72,7 @@ open class ServiceTagsTest {
     open fun `should route requests to instance with tag ipsum`() {
         // given
         registerServices()
-        envoy.waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum")
@@ -88,7 +88,7 @@ open class ServiceTagsTest {
     open fun `should route requests to instances with tag lorem`() {
         // given
         registerServices()
-        envoy.waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 20, tag = "lorem")
@@ -105,7 +105,7 @@ open class ServiceTagsTest {
     open fun `should route requests to all instances`() {
         // given
         registerServices()
-        envoy.waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 20)
@@ -128,7 +128,7 @@ open class ServiceTagsTest {
     open fun `should return 503 if instance with requested tag is not found`() {
         // given
         registerServices()
-        envoy.waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "dolom", assertNoErrors = false)
@@ -145,7 +145,7 @@ open class ServiceTagsTest {
     open fun `should return 503 if requested tag is blacklisted`() {
         // given
         registerServices()
-        envoy.waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "blacklisted", assertNoErrors = false)
@@ -173,7 +173,7 @@ open class ServiceTagsTest {
             tags = listOf("version:v1.5", "hardware:c64", "role:master")
         )
 
-        envoy.waitForReadyServices("service-1")
+        envoy().waitForReadyServices("service-1")
 
         // when
         val stats = callServiceRepeatedly(
@@ -196,7 +196,7 @@ open class ServiceTagsTest {
             tags = listOf("version:v1.5", "hardware:c32", "role:master")
         )
 
-        envoy.waitForReadyServices("service-3")
+        envoy().waitForReadyServices("service-3")
 
         // when
         val threeTagsStats = callServiceRepeatedly(
@@ -238,7 +238,7 @@ open class ServiceTagsTest {
             tags = listOf("version:v1.5", "hardware:c32", "role:master")
         )
 
-        envoy.waitForReadyServices("service-1", "service-2")
+        envoy().waitForReadyServices("service-1", "service-2")
 
         // when
         val service1Stats = callServiceRepeatedly(
@@ -283,7 +283,7 @@ open class ServiceTagsTest {
             tags = listOf("version:v2.0", "hardware:c32", "role:secondary")
         )
 
-        envoy.waitForReadyServices("service-1", "service-2")
+        envoy().waitForReadyServices("service-1", "service-2")
 
         // when
         val service1Stats = callServiceRepeatedly(
@@ -317,7 +317,7 @@ open class ServiceTagsTest {
             tags = listOf("version:v1.5", "hardware:c32", "role:master")
         )
 
-        envoy.waitForReadyServices("service-2")
+        envoy().waitForReadyServices("service-2")
 
         // when
         val stats = callServiceRepeatedly(
@@ -352,7 +352,7 @@ open class ServiceTagsTest {
         assertNoErrors: Boolean = true
     ): CallStats {
         val stats = callStats()
-        envoy.egressOperations.callServiceRepeatedly(
+        envoy().egressOperations.callServiceRepeatedly(
             service = service,
             stats = stats,
             minRepeat = repeat,
@@ -362,4 +362,8 @@ open class ServiceTagsTest {
         )
         return stats
     }
+
+    open fun envoy() = envoy
+
+    open fun envoyControl() = envoyControl
 }

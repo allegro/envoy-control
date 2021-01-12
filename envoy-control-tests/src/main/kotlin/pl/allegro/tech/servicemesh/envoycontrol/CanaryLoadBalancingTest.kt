@@ -52,7 +52,7 @@ open class CanaryLoadBalancingTest {
         consul.server.operations.registerService(name = "echo", extension = regularContainer, tags = listOf("weight:20"))
 
         untilAsserted {
-            envoy.egressOperations.callService("echo").also {
+            envoy().egressOperations.callService("echo").also {
                 assertThat(it).isOk()
             }
         }
@@ -96,7 +96,7 @@ open class CanaryLoadBalancingTest {
         consul.server.operations.registerService(name = "echo", extension = regularContainer, tags = listOf("weight:20"))
 
         untilAsserted {
-            envoy.egressOperations.callService("echo").also {
+            envoy().egressOperations.callService("echo").also {
                 assertThat(it).isOk()
             }
         }
@@ -120,7 +120,7 @@ open class CanaryLoadBalancingTest {
         consul.server.operations.registerService(name = "echo", extension = regularContainer, tags = listOf("weight:20"))
 
         untilAsserted {
-            envoy.egressOperations.callService("echo").also {
+            envoy().egressOperations.callService("echo").also {
                 assertThat(it).isOk()
             }
         }
@@ -147,7 +147,7 @@ open class CanaryLoadBalancingTest {
         headers: Map<String, String> = mapOf()
     ): CallStats {
         val stats = callStats()
-        envoy.egressOperations.callServiceRepeatedly(
+        envoy().egressOperations.callServiceRepeatedly(
             service = "echo",
             stats = stats,
             minRepeat = minRepeat,
@@ -162,4 +162,8 @@ open class CanaryLoadBalancingTest {
         get() = this.hits(regularContainer)
     val CallStats.canaryHits: Int
         get() = this.hits(canaryContainer)
+
+    open fun envoyControl() = envoyControl
+
+    open fun envoy() = envoy
 }
