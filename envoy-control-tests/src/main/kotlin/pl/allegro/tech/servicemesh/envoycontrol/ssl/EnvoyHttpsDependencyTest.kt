@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasSNI
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
@@ -12,9 +13,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasSNI
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoResponse
 
 class EnvoyHttpsDependencyTest {
     companion object {
@@ -63,6 +62,6 @@ class EnvoyHttpsDependencyTest {
         }
 
         // then
-        assertThat(response).hasSNI("my.example.com")
+        assertThat(HttpsEchoResponse(response)).hasSNI("my.example.com")
     }
 }
