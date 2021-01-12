@@ -12,8 +12,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoResponse
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.hasSNI
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasSNI
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
 
 class EnvoyHttpsDependencyTest {
     companion object {
@@ -62,6 +63,6 @@ class EnvoyHttpsDependencyTest {
         }
 
         // then
-        assertThat(HttpsEchoResponse(response)).hasSNI("my.example.com")
+        assertThat(response).hasSNI("my.example.com")
     }
 }

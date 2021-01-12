@@ -5,6 +5,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
@@ -15,8 +16,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoResponse
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
 import java.time.Duration
 
 class ClientNameTrustedHeaderTest {
@@ -116,66 +116,56 @@ class ClientNameTrustedHeaderTest {
         val response = envoy2.ingressOperations.callLocalService(
             "/endpoint",
             Headers.of(mapOf("x-client-name-trusted" to "fake-service"))
-        )
+        ).asHttpsEchoResponse()
 
         // then
         assertThat(response).isOk()
-        HttpsEchoResponse(response).also {
-            assertThat(it).isFrom(service.container())
-            assertThat(it.requestHeaders["x-client-name-trusted"]).isNull()
-        }
+        assertThat(response).isFrom(service.container())
+        assertThat(response.requestHeaders).doesNotContainKey("x-client-name-trusted")
     }
 
     @Test
     fun `should add trusted client identity header to ingress request to local service`() {
         // when
-        val response = envoy2.egressOperations.callService("echo", emptyMap(), "/endpoint")
+        val response = envoy2.egressOperations.callService("echo", emptyMap(), "/endpoint").asHttpsEchoResponse()
 
         // then
         assertThat(response).isOk()
-        HttpsEchoResponse(response).also {
-            assertThat(it).isFrom(service.container())
-            assertThat(it.requestHeaders["x-client-name-trusted"]).isEqualTo("echo2")
-        }
+        assertThat(response).isFrom(service.container())
+        assertThat(response.requestHeaders).containsEntry("x-client-name-trusted", "echo2")
     }
 
     @Test
     fun `should override trusted client identity header in ingress request to local service`() {
         // when
         val headers = mapOf("x-client-name-trusted" to "fake-service")
-        val response = envoy2.egressOperations.callService("echo", headers, "/endpoint")
+        val response = envoy2.egressOperations.callService("echo", headers, "/endpoint").asHttpsEchoResponse()
 
         // then
         assertThat(response).isOk()
-        HttpsEchoResponse(response).also {
-            assertThat(it).isFrom(service.container())
-            assertThat(it.requestHeaders["x-client-name-trusted"]).isEqualTo("echo2")
-        }
+        assertThat(response).isFrom(service.container())
+        assertThat(response.requestHeaders).containsEntry("x-client-name-trusted", "echo2")
     }
 
     @Test
     fun `should set trusted client identity header based on all URIs in certificate SAN field`() {
         // when
-        val response = envoy4MultipleSANs.egressOperations.callService("echo", emptyMap(), "/endpoint")
+        val response = envoy4MultipleSANs.egressOperations.callService("echo", emptyMap(), "/endpoint").asHttpsEchoResponse()
 
         // then
         assertThat(response).isOk()
-        HttpsEchoResponse(response).also {
-            assertThat(it).isFrom(service.container())
-            assertThat(it.requestHeaders["x-client-name-trusted"]).isEqualTo("echo4, echo4-special, echo4-admin")
-        }
+        assertThat(response).isFrom(service.container())
+        assertThat(response.requestHeaders).containsEntry("x-client-name-trusted", "echo4, echo4-special, echo4-admin")
     }
 
     @Test
     fun `should not set trusted client identity header based on URIs in certificate SAN fields having invalid format`() {
         // when
-        val response = envoy5InvalidSANs.egressOperations.callService("echo", emptyMap(), "/endpoint")
+        val response = envoy5InvalidSANs.egressOperations.callService("echo", emptyMap(), "/endpoint").asHttpsEchoResponse()
 
         // then
         assertThat(response).isOk()
-        HttpsEchoResponse(response).also {
-            assertThat(it).isFrom(service.container())
-            assertThat(it.requestHeaders["x-client-name-trusted"]).isNull()
-        }
+        assertThat(response).isFrom(service.container())
+        assertThat(response.requestHeaders).doesNotContainKey("x-client-name-trusted")
     }
 }
