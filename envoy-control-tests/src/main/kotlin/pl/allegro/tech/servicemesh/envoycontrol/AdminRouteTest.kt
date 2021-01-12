@@ -5,18 +5,19 @@ import okhttp3.MediaType
 import okhttp3.RequestBody
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SecuredRoute
 import java.util.stream.Stream
 
-internal class AdminRouteTest : EnvoyControlTestConfiguration() {
+internal class AdminRouteTest {
     companion object {
 
         private val properties = mapOf(
@@ -32,16 +33,21 @@ internal class AdminRouteTest : EnvoyControlTestConfiguration() {
             )
         )
 
-        @JvmStatic
-        @BeforeAll
-        fun setupAdminRoutesTest() {
-            setup(appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) })
-        }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
-        @BeforeEach
-        fun stopLocalService() {
-            localServiceContainer.stop()
-        }
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, properties)
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, service)
 
         @JvmStatic
         fun disableOnHeaderTestCases(): Stream<Arguments> {
@@ -49,44 +55,44 @@ internal class AdminRouteTest : EnvoyControlTestConfiguration() {
 
             return Stream.of(
                 Arguments.of("admin root", {
-                    callLocalService(
+                    envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy/",
                         headers = Headers.of(mapOf(disableHeader))
                     )
                 }),
                 Arguments.of("admin root without trailing slash", {
-                    callLocalService(
+                    envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy",
                         headers = Headers.of(mapOf(disableHeader))
                     )
                 }),
                 Arguments.of("clusters", {
-                    callLocalService(
+                    envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy/clusters",
                         headers = Headers.of(mapOf(disableHeader))
                     )
                 }),
                 Arguments.of("config dump as unauthorized", {
-                    callLocalService(
+                    envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy/config_dump",
                         headers = Headers.of(mapOf(disableHeader))
                     )
                 }),
                 Arguments.of("config dump as authorized", {
-                    callLocalService(
+                    envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy/config_dump",
                         headers = Headers.of(mapOf(disableHeader, "authorization" to "admin_secret_token"))
                     )
                 }),
                 Arguments.of("reset counters as unauthorized", {
-                    callPostLocalService(
+                    envoy.ingressOperations.callPostLocalService(
                         endpoint = "/status/envoy/reset_counters",
                         headers = Headers.of(mapOf(disableHeader)),
                         body = RequestBody.create(MediaType.get("application/json"), "{}")
                     )
                 }),
                 Arguments.of("reset counters as authorized", {
-                    callPostLocalService(
+                    envoy.ingressOperations.callPostLocalService(
                         endpoint = "/status/envoy/reset_counters",
                         headers = Headers.of(mapOf(disableHeader, "authorization" to "admin_secret_token")),
                         body = RequestBody.create(MediaType.get("application/json"), "{}")
@@ -99,7 +105,7 @@ internal class AdminRouteTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should get admin redirected port on ingress port when enabled`() {
         // when
-        val response = callLocalService(endpoint = "/status/envoy", headers = Headers.of(emptyMap()))
+        val response = envoy.ingressOperations.callLocalService(endpoint = "/status/envoy", headers = Headers.of(emptyMap()))
 
         // then
         assertThat(response.isSuccessful).isTrue()
@@ -108,20 +114,20 @@ internal class AdminRouteTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should get access to secured endpoints when authorized only`() {
         // when
-        val configDumpResponseUnauthorized = callLocalService(
+        val configDumpResponseUnauthorized = envoy.ingressOperations.callLocalService(
             endpoint = "/status/envoy/config_dump",
             headers = Headers.of(emptyMap())
         )
-        val configDumpResponseAuthorized = callLocalService(
+        val configDumpResponseAuthorized = envoy.ingressOperations.callLocalService(
             endpoint = "/status/envoy/config_dump",
             headers = Headers.of(mapOf("authorization" to "admin_secret_token"))
         )
-        val resetCountersResponseUnauthorized = callPostLocalService(
+        val resetCountersResponseUnauthorized = envoy.ingressOperations.callPostLocalService(
             endpoint = "/status/envoy/reset_counters",
             headers = Headers.of(emptyMap()),
             body = RequestBody.create(MediaType.get("application/json"), "{}")
         )
-        val resetCountersResponseAuthorized = callPostLocalService(
+        val resetCountersResponseAuthorized = envoy.ingressOperations.callPostLocalService(
             endpoint = "/status/envoy/reset_counters",
             headers = Headers.of(mapOf("authorization" to "admin_secret_token")),
             body = RequestBody.create(MediaType.get("application/json"), "{}")

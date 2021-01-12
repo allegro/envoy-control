@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
@@ -51,6 +52,16 @@ class EnvoyExtension(
 
     override fun afterEach(context: ExtensionContext?) {
         container.admin().resetCounters()
+    }
+
+    fun waitForReadyServices(vararg serviceNames: String) {
+        serviceNames.forEach {
+            untilAsserted {
+                egressOperations.callService(it).also {
+                    assertThat(it).isOk()
+                }
+            }
+        }
     }
 
     fun waitForAvailableEndpoints(vararg serviceNames: String) {
