@@ -48,8 +48,8 @@ open class CanaryLoadBalancingTest {
     @Test
     fun `should balance load according to weights`() {
         // given
-        consul.server.operations.registerService(name = "echo", extension = canaryContainer, tags = listOf("canary", "weight:1"))
-        consul.server.operations.registerService(name = "echo", extension = regularContainer, tags = listOf("weight:20"))
+        consul.server.operations.registerService(name = "echo", extension = canaryContainer(), tags = listOf("canary", "weight:1"))
+        consul.server.operations.registerService(name = "echo", extension = regularContainer(), tags = listOf("weight:20"))
 
         untilAsserted {
             envoy().egressOperations.callService("echo").also {
@@ -61,7 +61,7 @@ open class CanaryLoadBalancingTest {
         val stats = callEchoServiceRepeatedly(
             minRepeat = 30,
             maxRepeat = 200,
-            repeatUntil = { response -> response.isFrom(canaryContainer.container()) }
+            repeatUntil = { response -> response.isFrom(canaryContainer().container()) }
         )
 
         // then
@@ -92,8 +92,8 @@ open class CanaryLoadBalancingTest {
     @Test
     fun `should route request to canary instance only`() {
         // given
-        consul.server.operations.registerService(name = "echo", extension = canaryContainer, tags = listOf("canary", "weight:1"))
-        consul.server.operations.registerService(name = "echo", extension = regularContainer, tags = listOf("weight:20"))
+        consul.server.operations.registerService(name = "echo", extension = canaryContainer(), tags = listOf("canary", "weight:1"))
+        consul.server.operations.registerService(name = "echo", extension = regularContainer(), tags = listOf("weight:20"))
 
         untilAsserted {
             envoy().egressOperations.callService("echo").also {
@@ -116,8 +116,8 @@ open class CanaryLoadBalancingTest {
 
     @Test
     open fun `should route to both canary and regular instances when canary weight is 0`() {
-        consul.server.operations.registerService(name = "echo", extension = canaryContainer, tags = listOf("canary", "weight:0"))
-        consul.server.operations.registerService(name = "echo", extension = regularContainer, tags = listOf("weight:20"))
+        consul.server.operations.registerService(name = "echo", extension = canaryContainer(), tags = listOf("canary", "weight:0"))
+        consul.server.operations.registerService(name = "echo", extension = regularContainer(), tags = listOf("weight:20"))
 
         untilAsserted {
             envoy().egressOperations.callService("echo").also {
@@ -129,7 +129,7 @@ open class CanaryLoadBalancingTest {
         val stats = callEchoServiceRepeatedly(
             minRepeat = 30,
             maxRepeat = 200,
-            repeatUntil = { response -> response.isFrom(canaryContainer.container()) }
+            repeatUntil = { response -> response.isFrom(canaryContainer().container()) }
         )
 
         // then
@@ -138,7 +138,7 @@ open class CanaryLoadBalancingTest {
         assertThat(stats.canaryHits).isGreaterThan(0)
     }
 
-    protected open fun callStats() = CallStats(listOf(canaryContainer, regularContainer))
+    protected open fun callStats() = CallStats(listOf(canaryContainer(), regularContainer()))
 
     fun callEchoServiceRepeatedly(
         minRepeat: Int,
@@ -159,11 +159,17 @@ open class CanaryLoadBalancingTest {
     }
 
     val CallStats.regularHits: Int
-        get() = this.hits(regularContainer)
+        get() = this.hits(regularContainer())
     val CallStats.canaryHits: Int
-        get() = this.hits(canaryContainer)
+        get() = this.hits(canaryContainer())
 
     open fun envoyControl() = envoyControl
 
     open fun envoy() = envoy
+
+    open fun consul() = consul
+
+    open fun canaryContainer() = canaryContainer
+
+    open fun regularContainer() = regularContainer
 }

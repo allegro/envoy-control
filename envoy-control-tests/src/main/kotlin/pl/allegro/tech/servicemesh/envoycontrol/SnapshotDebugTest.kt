@@ -38,7 +38,7 @@ open class SnapshotDebugTest {
 
         untilAsserted {
             // when
-            val snapshot = envoyControl.app.getSnapshot(nodeMetadata)
+            val snapshot = envoyControl().app.getSnapshot(nodeMetadata)
             val edsVersion = envoy().container.admin().statValue("cluster.echo.version")
             val cdsVersion = envoy().container.admin().statValue("cluster_manager.cds.version")
             val rdsVersion = envoy().container.admin().statValue("http.egress_http.rds.default_routes.version")
