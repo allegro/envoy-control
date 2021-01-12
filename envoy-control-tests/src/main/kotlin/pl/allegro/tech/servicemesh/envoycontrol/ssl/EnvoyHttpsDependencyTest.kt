@@ -7,8 +7,9 @@ import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoResponse
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.hasSNI
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasSNI
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
 
 class EnvoyCurrentVersionHttpsDependencyTest : EnvoyHttpsDependencyTest() {
     companion object {
@@ -46,13 +47,13 @@ abstract class EnvoyHttpsDependencyTest : EnvoyControlTestConfiguration() {
     fun `should include SNI in request to upstream`() {
         // when
         val response = untilAsserted {
-            val response = callDomain("my.example.com")
+            val response = callDomain("my.example.com").asHttpsEchoResponse()
 
             assertThat(response).isOk()
             response
         }
 
         // then
-        assertThat(HttpsEchoResponse(response)).hasSNI("my.example.com")
+        assertThat(response).hasSNI("my.example.com")
     }
 }
