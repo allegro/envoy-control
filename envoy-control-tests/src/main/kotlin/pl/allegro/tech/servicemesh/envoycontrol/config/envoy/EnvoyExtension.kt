@@ -73,6 +73,15 @@ class EnvoyExtension(
         }
     }
 
+    fun waitForNoAvailableEndpoints(vararg serviceNames: String) {
+        val admin = container.admin()
+        serviceNames.forEach {
+            untilAsserted {
+                assertThat(admin.numOfEndpoints(it)).isEqualTo(0)
+            }
+        }
+    }
+
     fun recordRBACLogs() {
         container.logRecorder.recordLogs(::isRbacAccessLog)
     }
