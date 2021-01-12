@@ -34,6 +34,8 @@ data class ListenersConfig(
     val egressHost: String,
     val egressPort: Int,
     val useRemoteAddress: Boolean = defaultUseRemoteAddress,
+    val generateRequestId: Boolean = defaultGenerateRequestId,
+    val preserveExternalRequestId: Boolean = defaultPreserveExternalRequestId,
     val accessLogEnabled: Boolean = defaultAccessLogEnabled,
     val enableLuaScript: Boolean = defaultEnableLuaScript,
     val accessLogPath: String = defaultAccessLogPath,
@@ -46,6 +48,8 @@ data class ListenersConfig(
     companion object {
         const val defaultAccessLogPath = "/dev/stdout"
         const val defaultUseRemoteAddress = false
+        const val defaultGenerateRequestId = false
+        const val defaultPreserveExternalRequestId = false
         const val defaultAccessLogEnabled = false
         const val defaultEnableLuaScript = false
         const val defaultAddUpstreamExternalAddressHeader = false
