@@ -21,7 +21,9 @@ internal class StatusRouteIncomingPermissionsTest {
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
             "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
-            "envoy-control.envoy.snapshot.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
+            "envoy-control.envoy.snapshot.routes.status.endpoints" to mutableListOf(EndpointMatch().also {
+                it.path = "/status/"
+            }),
             "envoy-control.envoy.snapshot.routes.status.enabled" to true
         )
 
@@ -48,7 +50,7 @@ internal class StatusRouteIncomingPermissionsTest {
             // when
             val response = envoy.ingressOperations.callLocalService("/status/", Headers.of())
             val statusUpstreamOk = envoy.container.admin().statValue(
-                    "vhost.secured_local_service.vcluster.status.upstream_rq_200"
+                "vhost.secured_local_service.vcluster.status.upstream_rq_200"
             )?.toInt()
 
             // then
