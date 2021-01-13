@@ -13,9 +13,7 @@ function envoy_on_request(handle)
     local trusted_client = false
     if trusted_header_name ~= "" then
         client_name = handle:headers():get(trusted_header_name) or ""
-        if is_allowed_client(client_name, clients_allowed_to_all_endpoints) then
-            allowed_client = true
-        end
+        allowed_client = is_allowed_client(client_name, clients_allowed_to_all_endpoints)
         if client_name ~= "" then
             trusted_client = true
         end
@@ -23,9 +21,7 @@ function envoy_on_request(handle)
 
     if client_name == "" then
         client_name = first_header_value_from_list(client_identity_header_names, handle)
-        if is_allowed_client(client_name, clients_allowed_to_all_endpoints) then
-            allowed_client = true
-        end
+        allowed_client = is_allowed_client(client_name, clients_allowed_to_all_endpoints)
         if trusted_header_name ~= "" and client_name ~= "" and handle:connection():ssl() ~= nil then
             client_name = client_name .. " (not trusted)"
         end

@@ -692,18 +692,46 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         val echo2Response = callEnvoyIngress(
             envoy = echo2Envoy,
             path = "/log-unlisted-clients",
-            headers = mapOf("x-service-name" to "allowed-client"),
-            useSsl = false,
+            headers = mapOf("x-service-name" to "service-name-from-header"),
+            useSsl = true,
             client = insecureClient
         )
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.ingressSslRequests).isOne()
         assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
-            protocol = "http",
+            protocol = "https",
             path = "/log-unlisted-clients",
             method = "GET",
-            clientName = "allowed-client",
+            clientName = "service-name-from-header (not trusted)",
+            trustedClient = false,
+            clientIp = echo2Envoy.gatewayIp()
+        )
+    }
+
+    @Test
+    fun `echo2 should allow special client with client identity header over https and log request`() {
+        // given
+        val insecureClient = ClientsFactory.createInsecureClient()
+
+        // when
+        val echo2Response = callEnvoyIngress(
+            envoy = echo2Envoy,
+            path = "/log-special-clients",
+            headers = mapOf("x-service-name" to "allowed-client"),
+            useSsl = true,
+            client = insecureClient
+        )
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.ingressSslRequests).isOne()
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/log-special-clients",
+            method = "GET",
+            clientName = "allowed-client (not trusted)",
             trustedClient = false,
             clientAllowedToAllEndpoints = true,
             clientIp = echo2Envoy.gatewayIp()
