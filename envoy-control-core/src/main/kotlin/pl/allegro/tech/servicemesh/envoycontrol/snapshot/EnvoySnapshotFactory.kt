@@ -227,7 +227,8 @@ class EnvoySnapshotFactory(
         val routes = listOf(
             egressRoutesFactory.createEgressRouteConfig(
                 group.serviceName, egressRouteSpecification,
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
+                group.version
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )

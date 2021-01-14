@@ -24,6 +24,7 @@ class TlsClientCertRequiredTest {
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(consul, mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
             "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.require-client-certificate" to true,
             "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo")
         ))
