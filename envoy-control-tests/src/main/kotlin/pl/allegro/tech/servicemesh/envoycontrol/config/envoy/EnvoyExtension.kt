@@ -6,6 +6,8 @@ import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
@@ -16,7 +18,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 class EnvoyExtension(
     private val envoyControl: EnvoyControlExtension,
     private val localService: ServiceExtension<*>? = null,
-    config: EnvoyConfig = RandomConfigFile
+    private val config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     companion object {
@@ -52,6 +54,16 @@ class EnvoyExtension(
         container.admin().resetCounters()
     }
 
+    fun waitForReadyServices(vararg serviceNames: String) {
+        serviceNames.forEach {
+            untilAsserted {
+                egressOperations.callService(it).also {
+                    assertThat(it).isOk()
+                }
+            }
+        }
+    }
+
     fun waitForAvailableEndpoints(vararg serviceNames: String) {
         val admin = container.admin()
         serviceNames.forEach {
@@ -59,5 +71,18 @@ class EnvoyExtension(
                 assertThat(admin.numOfEndpoints(it)).isGreaterThan(0)
             }
         }
+    }
+
+    fun waitForNoAvailableEndpoints(vararg serviceNames: String) {
+        val admin = container.admin()
+        serviceNames.forEach {
+            untilAsserted {
+                assertThat(admin.numOfEndpoints(it)).isEqualTo(0)
+            }
+        }
+    }
+
+    fun recordRBACLogs() {
+        container.logRecorder.recordLogs(::isRbacAccessLog)
     }
 }

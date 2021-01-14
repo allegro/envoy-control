@@ -16,7 +16,8 @@ class EnvoyContainer(
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
     private val logLevel: String = "info",
     image: String = DEFAULT_IMAGE
-) : SSLGenericContainer<EnvoyContainer>(dockerfileBuilder = DockerfileBuilder()
+) : SSLGenericContainer<EnvoyContainer>(
+    dockerfileBuilder = DockerfileBuilder()
         .from(image)
         .run("apt-get update && apt-get install -y curl iproute2 iptables")
 ) {

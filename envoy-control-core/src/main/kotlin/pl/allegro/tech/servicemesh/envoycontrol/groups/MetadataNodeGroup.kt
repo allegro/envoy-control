@@ -99,6 +99,10 @@ class MetadataNodeGroup(
 
         val useRemoteAddress = metadata.fieldsMap["use_remote_address"]?.boolValue
             ?: ListenersConfig.defaultUseRemoteAddress
+        val generateRequestId = metadata.fieldsMap["generate_request_id"]?.boolValue
+            ?: ListenersConfig.defaultGenerateRequestId
+        val preserveExternalRequestId = metadata.fieldsMap["preserve_external_request_id"]?.boolValue
+            ?: ListenersConfig.defaultPreserveExternalRequestId
         val accessLogEnabled = metadata.fieldsMap["access_log_enabled"]?.boolValue
             ?: ListenersConfig.defaultAccessLogEnabled
         val enableLuaScript = metadata.fieldsMap["enable_lua_script"]?.boolValue
@@ -118,6 +122,8 @@ class MetadataNodeGroup(
             listenersHostPort.egressHost,
             listenersHostPort.egressPort,
             useRemoteAddress,
+            generateRequestId,
+            preserveExternalRequestId,
             accessLogEnabled,
             enableLuaScript,
             accessLogPath,

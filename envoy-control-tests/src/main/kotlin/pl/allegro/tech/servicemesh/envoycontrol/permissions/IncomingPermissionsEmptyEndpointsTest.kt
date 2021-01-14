@@ -2,81 +2,79 @@ package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionLog
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-internal class IncomingPermissionsEmptyEndpointsTest : EnvoyControlTestConfiguration() {
+internal class IncomingPermissionsEmptyEndpointsTest {
     companion object {
-        private val properties = mapOf(
-            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true
-        )
 
         // language=yaml
-        private val echoConfig = Echo1EnvoyAuthConfig.copy(configOverride = """
+        private val echoConfig = Echo1EnvoyAuthConfig.copy(
+            configOverride = """
             node:
               metadata:
                 proxy_settings:
                   incoming:
                     unlistedEndpointsPolicy: log
                     endpoints: []
-        """.trimIndent())
+        """.trimIndent()
+        )
 
-        private val echoEnvoy by lazy { envoyContainer1 }
-        private val echoLocalService by lazy { localServiceContainer }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(appFactoryForEc1 = { consulPort ->
-                EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort) },
-                envoyConfig = echoConfig
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(
+            consul, mapOf(
+                "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+                "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true
             )
-            waitForEnvoysInitialized()
-        }
+        )
 
-        private fun waitForEnvoysInitialized() {
-            untilAsserted {
-                assertThat(echoEnvoy.admin().isIngressReady()).isTrue()
-            }
-        }
+        @JvmField
+        @RegisterExtension
+        val echo = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, localService = echo, config = echoConfig)
     }
 
     @Test
     fun `echo should allow any client to access any endpoint and log request`() {
         // when
-        val echoResponse = callEnvoyIngress(envoy = echoEnvoy, path = "/some-endpoint")
+        val echoResponse = envoy.ingressOperations.callLocalService("/some-endpoint")
 
         // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionLog(
+        assertThat(echoResponse).isOk().isFrom(echo)
+        assertThat(envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
             path = "/some-endpoint",
             method = "GET",
             clientName = "",
-            clientIp = echoEnvoy.gatewayIp()
+            clientIp = envoy.container.gatewayIp()
         )
     }
 
     @BeforeEach
     fun startRecordingRBACLogs() {
-        echoEnvoy.recordRBACLogs()
+        envoy.recordRBACLogs()
     }
 
     @AfterEach
-    override fun cleanupTest() {
-        echoEnvoy.admin().resetCounters()
-        echoEnvoy.logRecorder.stopRecording()
-    }
-
-    private fun EnvoyContainer.recordRBACLogs() {
-        logRecorder.recordLogs(::isRbacAccessLog)
+    fun cleanupTest() {
+        envoy.container.admin().resetCounters()
+        envoy.container.logRecorder.stopRecording()
     }
 }

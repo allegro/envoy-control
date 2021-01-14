@@ -223,6 +223,8 @@ class EnvoyListenersFactory(
                 .setStatPrefix("egress_http")
                 .setRds(egressRds(group.communicationMode, group.version))
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
+                .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
+                .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
 
         addHttpFilters(connectionManagerBuilder, egressFilters, group, globalSnapshot)
 
@@ -305,6 +307,8 @@ class EnvoyListenersFactory(
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
                 .setStatPrefix(statPrefix)
                 .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
+                .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
+                .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCommonHttpProtocolOptions(httpProtocolOptions)
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
