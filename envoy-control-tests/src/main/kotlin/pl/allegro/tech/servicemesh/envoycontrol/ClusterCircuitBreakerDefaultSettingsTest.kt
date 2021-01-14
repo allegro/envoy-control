@@ -1,13 +1,18 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
 
-internal class ClusterCircuitBreakerDefaultSettingsTest : EnvoyControlTestConfiguration() {
+internal class ClusterCircuitBreakerDefaultSettingsTest {
 
     companion object {
         private val properties = mapOf(
@@ -25,25 +30,35 @@ internal class ClusterCircuitBreakerDefaultSettingsTest : EnvoyControlTestConfig
             }
         )
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) })
-        }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, properties)
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, service)
     }
 
     @Test
     fun `should enable setting circuit breaker threstholds setting`() {
         // given
-        registerService(name = "echo")
+        consul.server.operations.registerService(name = "echo", extension = service)
         untilAsserted {
-            val response = callEcho()
-            assertThat(response).isOk().isFrom(echoContainer)
+            val response = envoy.egressOperations.callService("echo")
+            assertThat(response).isOk().isFrom(service)
         }
 
         // when
-        val maxRequestsSetting = envoyContainer1.admin().circuitBreakerSetting("echo", "max_requests", "default_priority")
-        val maxRetriesSetting = envoyContainer1.admin().circuitBreakerSetting("echo", "max_retries", "high_priority")
+        val maxRequestsSetting = envoy.container.admin().circuitBreakerSetting("echo", "max_requests", "default_priority")
+        val maxRetriesSetting = envoy.container.admin().circuitBreakerSetting("echo", "max_retries", "high_priority")
 
         // then
         assertThat(maxRequestsSetting).isEqualTo(3)

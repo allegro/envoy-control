@@ -1,15 +1,15 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-open class ServiceTagsTest : EnvoyControlTestConfiguration() {
+open class ServiceTagsTest {
 
     companion object {
         private val properties = mapOf(
@@ -25,95 +25,110 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
             "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to false
         )
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(appFactoryForEc1 = { consulPort ->
-                EnvoyControlRunnerTestApp(properties = properties, consulPort = consulPort)
-            })
-        }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
-        val regularContainer = echoContainer
-        val loremContainer = echoContainer2
-        val loremIpsumContainer = EchoContainer()
-        val genericContainer = EchoContainer()
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, properties)
 
-        private val containersToStart = listOf(loremIpsumContainer, genericContainer)
+        @JvmField
+        @RegisterExtension
+        val regularService = EchoServiceExtension()
 
-        @JvmStatic
-        @BeforeAll
-        fun startContainers() {
-            containersToStart.parallelStream().forEach { it.start() }
-        }
+        @JvmField
+        @RegisterExtension
+        val loremService = EchoServiceExtension()
 
-        @JvmStatic
-        @AfterAll
-        fun cleanup() {
-            containersToStart.parallelStream().forEach { it.stop() }
-        }
+        @JvmField
+        @RegisterExtension
+        val loremIpsumService = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val genericService = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, regularService)
     }
 
     protected fun registerServices() {
-        registerService(name = "echo", container = regularContainer, tags = listOf())
-        registerService(name = "echo", container = loremContainer, tags = listOf("lorem", "blacklisted"))
-        registerService(name = "echo", container = loremIpsumContainer, tags = listOf("lorem", "ipsum"))
+        consul.server.operations.registerService(name = "echo", extension = regularService, tags = emptyList())
+        consul.server.operations.registerService(
+            name = "echo",
+            extension = loremService,
+            tags = listOf("lorem", "blacklisted")
+        )
+        consul.server.operations.registerService(
+            name = "echo",
+            extension = loremIpsumService,
+            tags = listOf("lorem", "ipsum")
+        )
     }
 
     @Test
     open fun `should route requests to instance with tag ipsum`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "ipsum")
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.hits(regularContainer)).isEqualTo(0)
-        assertThat(stats.hits(loremContainer)).isEqualTo(0)
-        assertThat(stats.hits(loremIpsumContainer)).isEqualTo(10)
+        assertThat(stats.hits(regularService)).isEqualTo(0)
+        assertThat(stats.hits(loremService)).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumService)).isEqualTo(10)
     }
 
     @Test
     open fun `should route requests to instances with tag lorem`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 20, tag = "lorem")
 
         // then
         assertThat(stats.totalHits).isEqualTo(20)
-        assertThat(stats.hits(regularContainer)).isEqualTo(0)
-        assertThat(stats.hits(loremContainer)).isGreaterThan(2)
-        assertThat(stats.hits(loremIpsumContainer)).isGreaterThan(2)
-        assertThat(stats.hits(loremContainer) + stats.hits(loremIpsumContainer)).isEqualTo(20)
+        assertThat(stats.hits(regularService)).isEqualTo(0)
+        assertThat(stats.hits(loremService)).isGreaterThan(2)
+        assertThat(stats.hits(loremIpsumService)).isGreaterThan(2)
+        assertThat(stats.hits(loremService) + stats.hits(loremIpsumService)).isEqualTo(20)
     }
 
     @Test
     open fun `should route requests to all instances`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 20)
 
         // then
         assertThat(stats.totalHits).isEqualTo(20)
-        assertThat(stats.hits(regularContainer)).isGreaterThan(1)
-        assertThat(stats.hits(loremContainer)).isGreaterThan(1)
-        assertThat(stats.hits(loremIpsumContainer)).isGreaterThan(1)
-        assertThat(stats.hits(regularContainer) + stats.hits(loremContainer) + stats.hits(loremIpsumContainer)).isEqualTo(20)
+        assertThat(stats.hits(regularService)).isGreaterThan(1)
+        assertThat(stats.hits(loremService)).isGreaterThan(1)
+        assertThat(stats.hits(loremIpsumService)).isGreaterThan(1)
+        assertThat(
+            stats.hits(regularService) + stats.hits(loremService) + stats.hits(
+                loremIpsumService
+            )
+        ).isEqualTo(
+            20
+        )
     }
 
     @Test
     open fun `should return 503 if instance with requested tag is not found`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "dolom", assertNoErrors = false)
@@ -121,16 +136,16 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.hits(regularContainer)).isEqualTo(0)
-        assertThat(stats.hits(loremContainer)).isEqualTo(0)
-        assertThat(stats.hits(loremIpsumContainer)).isEqualTo(0)
+        assertThat(stats.hits(regularService)).isEqualTo(0)
+        assertThat(stats.hits(loremService)).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumService)).isEqualTo(0)
     }
 
     @Test
     open fun `should return 503 if requested tag is blacklisted`() {
         // given
         registerServices()
-        waitForReadyServices("echo")
+        envoy().waitForReadyServices("echo")
 
         // when
         val stats = callEchoServiceRepeatedly(repeat = 10, tag = "blacklisted", assertNoErrors = false)
@@ -138,164 +153,188 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.hits(regularContainer)).isEqualTo(0)
-        assertThat(stats.hits(loremContainer)).isEqualTo(0)
-        assertThat(stats.hits(loremIpsumContainer)).isEqualTo(0)
+        assertThat(stats.hits(regularService)).isEqualTo(0)
+        assertThat(stats.hits(loremService)).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumService)).isEqualTo(0)
     }
 
     @Test
     open fun `should route request with three tags if combination is valid`() {
         // given
-        val matchingContainer = loremContainer
-        val notMatchingContainer = loremIpsumContainer
+        val matching = loremService
+        val notMatching = loremIpsumService
 
-        registerService(
-            name = "service-1", container = matchingContainer,
-            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
-        registerService(
-            name = "service-1", container = notMatchingContainer,
-            tags = listOf("version:v1.5", "hardware:c64", "role:master"))
+        consul.server.operations.registerService(
+            name = "service-1", extension = matching,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master")
+        )
+        consul.server.operations.registerService(
+            name = "service-1", extension = notMatching,
+            tags = listOf("version:v1.5", "hardware:c64", "role:master")
+        )
 
-        waitForReadyServices("service-1")
+        envoy().waitForReadyServices("service-1")
 
         // when
         val stats = callServiceRepeatedly(
-            service = "service-1", repeat = 10, tag = "hardware:c32,role:master,version:v1.5")
+            service = "service-1", repeat = 10, tag = "hardware:c32,role:master,version:v1.5"
+        )
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.hits(matchingContainer)).isEqualTo(10)
-        assertThat(stats.hits(notMatchingContainer)).isEqualTo(0)
+        assertThat(stats.hits(matching)).isEqualTo(10)
+        assertThat(stats.hits(notMatching)).isEqualTo(0)
     }
 
     @Test
     open fun `should not route request with multiple tags if service is not whitelisted`() {
         // given
-        val matchingContainer = loremContainer
+        val matching = loremService
 
-        registerService(
-            name = "service-3", container = matchingContainer,
-            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
+        consul.server.operations.registerService(
+            name = "service-3", extension = matching,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master")
+        )
 
-        waitForReadyServices("service-3")
+        envoy().waitForReadyServices("service-3")
 
         // when
         val threeTagsStats = callServiceRepeatedly(
-            service = "service-3", repeat = 10, tag = "hardware:c32,role:master,version:v1.5", assertNoErrors = false)
+            service = "service-3", repeat = 10, tag = "hardware:c32,role:master,version:v1.5", assertNoErrors = false
+        )
         val twoTagsStats = callServiceRepeatedly(
-            service = "service-3", repeat = 10, tag = "hardware:c32,role:master", assertNoErrors = false)
+            service = "service-3", repeat = 10, tag = "hardware:c32,role:master", assertNoErrors = false
+        )
         val oneTagStats = callServiceRepeatedly(
-            service = "service-3", repeat = 10, tag = "role:master")
+            service = "service-3", repeat = 10, tag = "role:master"
+        )
 
         // then
         assertThat(threeTagsStats.totalHits).isEqualTo(10)
         assertThat(threeTagsStats.failedHits).isEqualTo(10)
-        assertThat(threeTagsStats.hits(matchingContainer)).isEqualTo(0)
+        assertThat(threeTagsStats.hits(matching)).isEqualTo(0)
 
         assertThat(twoTagsStats.totalHits).isEqualTo(10)
         assertThat(twoTagsStats.failedHits).isEqualTo(10)
-        assertThat(twoTagsStats.hits(matchingContainer)).isEqualTo(0)
+        assertThat(twoTagsStats.hits(matching)).isEqualTo(0)
 
         assertThat(oneTagStats.totalHits).isEqualTo(10)
         assertThat(oneTagStats.failedHits).isEqualTo(0)
-        assertThat(oneTagStats.hits(matchingContainer)).isEqualTo(10)
+        assertThat(oneTagStats.hits(matching)).isEqualTo(10)
     }
 
     @Test
     open fun `should not route request with three tags if combination is not allowed`() {
         // given
-        val service1MatchingContainer = loremContainer
-        val service2MatchingContainer = loremIpsumContainer
+        val service1Matching = loremService
+        val service2Matching = loremIpsumService
 
-        registerService(
-            name = "service-1", container = service1MatchingContainer,
-            tags = listOf("version:v1.5", "hardware:c32", "ram:512"))
-        registerService(
-            name = "service-2", container = service2MatchingContainer,
-            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
+        consul.server.operations.registerService(
+            name = "service-1", extension = service1Matching,
+            tags = listOf("version:v1.5", "hardware:c32", "ram:512")
+        )
+        consul.server.operations.registerService(
+            name = "service-2", extension = service2Matching,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master")
+        )
 
-        waitForReadyServices("service-1", "service-2")
+        envoy().waitForReadyServices("service-1", "service-2")
 
         // when
         val service1Stats = callServiceRepeatedly(
-            service = "service-1", repeat = 10, tag = "hardware:c32,ram:512,version:v1.5", assertNoErrors = false)
+            service = "service-1", repeat = 10, tag = "hardware:c32,ram:512,version:v1.5", assertNoErrors = false
+        )
         val service2Stats = callServiceRepeatedly(
-            service = "service-2", repeat = 10, tag = "hardware:c32,role:master,version:v1.5", assertNoErrors = false)
+            service = "service-2", repeat = 10, tag = "hardware:c32,role:master,version:v1.5", assertNoErrors = false
+        )
 
         // then
         assertThat(service1Stats.totalHits).isEqualTo(10)
         assertThat(service1Stats.failedHits).isEqualTo(10)
-        assertThat(service1Stats.hits(service1MatchingContainer)).isEqualTo(0)
+        assertThat(service1Stats.hits(service1Matching)).isEqualTo(0)
 
         assertThat(service2Stats.totalHits).isEqualTo(10)
         assertThat(service2Stats.failedHits).isEqualTo(10)
-        assertThat(service2Stats.hits(service1MatchingContainer)).isEqualTo(0)
+        assertThat(service2Stats.hits(service1Matching)).isEqualTo(0)
     }
 
     @Test
     open fun `should route request with two tags if combination is valid`() {
         // given
-        val service1MatchingContainer = loremContainer
-        val service1NotMatchingContainer = regularContainer
-        val service2MasterContainer = loremIpsumContainer
-        val service2SecondaryContainer = genericContainer
+        val service1Matching = loremService
+        val service1NotMatching = regularService
+        val service2Master = loremIpsumService
+        val service2Secondary = genericService
 
-        registerService(
-            name = "service-1", container = service1MatchingContainer,
-            tags = listOf("version:v2.0", "hardware:c32", "role:master"))
-        registerService(
-            name = "service-1", container = service1NotMatchingContainer,
-            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
-        registerService(
-            name = "service-2", container = service2MasterContainer,
-            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
-        registerService(
-            name = "service-2", container = service2SecondaryContainer,
-            tags = listOf("version:v2.0", "hardware:c32", "role:secondary"))
+        consul.server.operations.registerService(
+            name = "service-1", extension = service1Matching,
+            tags = listOf("version:v2.0", "hardware:c32", "role:master")
+        )
+        consul.server.operations.registerService(
+            name = "service-1", extension = service1NotMatching,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master")
+        )
+        consul.server.operations.registerService(
+            name = "service-2", extension = service2Master,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master")
+        )
+        consul.server.operations.registerService(
+            name = "service-2", extension = service2Secondary,
+            tags = listOf("version:v2.0", "hardware:c32", "role:secondary")
+        )
 
-        waitForReadyServices("service-1", "service-2")
+        envoy().waitForReadyServices("service-1", "service-2")
 
         // when
         val service1Stats = callServiceRepeatedly(
-            service = "service-1", repeat = 10, tag = "hardware:c32,version:v2.0")
+            service = "service-1", repeat = 10, tag = "hardware:c32,version:v2.0"
+        )
         val service2MasterStats = callServiceRepeatedly(
-            service = "service-2", repeat = 10, tag = "hardware:c32,version:v1.5")
+            service = "service-2", repeat = 10, tag = "hardware:c32,version:v1.5"
+        )
         val service2SecondaryStats = callServiceRepeatedly(
-            service = "service-2", repeat = 10, tag = "role:secondary,version:v2.0")
+            service = "service-2", repeat = 10, tag = "role:secondary,version:v2.0"
+        )
 
         // then
         assertThat(service1Stats.totalHits).isEqualTo(10)
-        assertThat(service1Stats.hits(service1MatchingContainer)).isEqualTo(10)
+        assertThat(service1Stats.hits(service1Matching)).isEqualTo(10)
 
         assertThat(service2MasterStats.totalHits).isEqualTo(10)
-        assertThat(service2MasterStats.hits(service2MasterContainer)).isEqualTo(10)
+        assertThat(service2MasterStats.hits(service2Master)).isEqualTo(10)
 
         assertThat(service2SecondaryStats.totalHits).isEqualTo(10)
-        assertThat(service2SecondaryStats.hits(service2SecondaryContainer)).isEqualTo(10)
+        assertThat(service2SecondaryStats.hits(service2Secondary)).isEqualTo(10)
     }
 
     @Test
     open fun `should not route request with two tags if combination is not allowed`() {
         // given
-        val matchingContainer = loremContainer
+        val matching = loremService
 
-        registerService(
-            name = "service-2", container = matchingContainer,
-            tags = listOf("version:v1.5", "hardware:c32", "role:master"))
+        consul.server.operations.registerService(
+            name = "service-2", extension = matching,
+            tags = listOf("version:v1.5", "hardware:c32", "role:master")
+        )
 
-        waitForReadyServices("service-2")
+        envoy().waitForReadyServices("service-2")
 
         // when
         val stats = callServiceRepeatedly(
-            service = "service-2", repeat = 10, tag = "hardware:c32,role:master", assertNoErrors = false)
+            service = "service-2", repeat = 10, tag = "hardware:c32,role:master", assertNoErrors = false
+        )
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.hits(matchingContainer)).isEqualTo(0)
+        assertThat(stats.hits(matching)).isEqualTo(0)
     }
 
-    protected fun callEchoServiceRepeatedly(repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
+    protected fun callEchoServiceRepeatedly(
+        repeat: Int,
+        tag: String? = null,
+        assertNoErrors: Boolean = true
+    ): CallStats {
         return callServiceRepeatedly(
             service = "echo",
             repeat = repeat,
@@ -304,11 +343,16 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         )
     }
 
-    protected open fun callStats() = CallStats(listOf(regularContainer, loremContainer) + containersToStart)
+    protected open fun callStats() = CallStats(listOf(regularService, loremService, loremIpsumService, genericService))
 
-    protected open fun callServiceRepeatedly(service: String, repeat: Int, tag: String? = null, assertNoErrors: Boolean = true): CallStats {
+    protected open fun callServiceRepeatedly(
+        service: String,
+        repeat: Int,
+        tag: String? = null,
+        assertNoErrors: Boolean = true
+    ): CallStats {
         val stats = callStats()
-        callServiceRepeatedly(
+        envoy().egressOperations.callServiceRepeatedly(
             service = service,
             stats = stats,
             minRepeat = repeat,
@@ -318,4 +362,8 @@ open class ServiceTagsTest : EnvoyControlTestConfiguration() {
         )
         return stats
     }
+
+    open fun envoy() = envoy
+
+    open fun envoyControl() = envoyControl
 }

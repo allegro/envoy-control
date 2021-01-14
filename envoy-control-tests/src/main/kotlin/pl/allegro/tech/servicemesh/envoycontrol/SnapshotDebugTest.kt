@@ -33,16 +33,16 @@ open class SnapshotDebugTest {
     @Test
     open fun `should return snapshot debug info containing snapshot versions`() {
         // given
-        consul.server.operations.registerService(service, name = "echo")
-        val nodeMetadata = envoy.container.admin().nodeInfo()
+        consul().server.operations.registerService(service(), name = "echo")
+        val nodeMetadata = envoy().container.admin().nodeInfo()
 
         untilAsserted {
             // when
-            val snapshot = envoyControl.app.getSnapshot(nodeMetadata)
-            val edsVersion = envoy.container.admin().statValue("cluster.echo.version")
-            val cdsVersion = envoy.container.admin().statValue("cluster_manager.cds.version")
-            val rdsVersion = envoy.container.admin().statValue("http.egress_http.rds.default_routes.version")
-            val ldsVersion = envoy.container.admin().statValue("listener_manager.lds.version")
+            val snapshot = envoyControl().app.getSnapshot(nodeMetadata)
+            val edsVersion = envoy().container.admin().statValue("cluster.echo.version")
+            val cdsVersion = envoy().container.admin().statValue("cluster_manager.cds.version")
+            val rdsVersion = envoy().container.admin().statValue("http.egress_http.rds.default_routes.version")
+            val ldsVersion = envoy().container.admin().statValue("listener_manager.lds.version")
 
             // then
             assertThat(snapshot.versions!!.clusters.metric).isEqualTo(cdsVersion)
@@ -55,12 +55,12 @@ open class SnapshotDebugTest {
     @Test
     open fun `should return snapshot debug info containing snapshot contents`() {
         // given
-        consul.server.operations.registerService(service, name = "echo")
-        val nodeMetadata = envoy.container.admin().nodeInfo()
+        consul().server.operations.registerService(service(), name = "echo")
+        val nodeMetadata = envoy().container.admin().nodeInfo()
 
         untilAsserted {
             // when
-            val snapshot = envoyControl.app.getSnapshot(nodeMetadata)
+            val snapshot = envoyControl().app.getSnapshot(nodeMetadata)
 
             // then
             assertThat(snapshot.snapshot!!["clusters"]).isNotEmpty()
@@ -105,7 +105,7 @@ open class SnapshotDebugTest {
     @Test
     open fun `should inform about missing snapshot when given node does not exist`() {
         // when
-        val snapshot = envoyControl.app.getSnapshot(missingNodeJson)
+        val snapshot = envoyControl().app.getSnapshot(missingNodeJson)
 
         // then
         assertThat(snapshot.found).isFalse()
@@ -115,7 +115,7 @@ open class SnapshotDebugTest {
     open fun `should return global snapshot debug info from xds`() {
         untilAsserted {
             // when
-            val snapshot = envoyControl.app.getGlobalSnapshot(xds = true)
+            val snapshot = envoyControl().app.getGlobalSnapshot(xds = true)
 
             // then
             assertThat(snapshot.snapshot!!["clusters"]).isNotEmpty()
@@ -128,8 +128,8 @@ open class SnapshotDebugTest {
     open fun `should return global snapshot debug info from ads`() {
         untilAsserted {
             // when
-            val snapshotXdsNull = envoyControl.app.getGlobalSnapshot(xds = null)
-            val snapshotXdsFalse = envoyControl.app.getGlobalSnapshot(xds = false)
+            val snapshotXdsNull = envoyControl().app.getGlobalSnapshot(xds = null)
+            val snapshotXdsFalse = envoyControl().app.getGlobalSnapshot(xds = false)
 
             // then
             assertThat(snapshotXdsNull.snapshot!!["clusters"]).isNotEmpty()
@@ -144,4 +144,12 @@ open class SnapshotDebugTest {
             )
         }
     }
+
+    open fun consul() = consul
+
+    open fun envoyControl() = envoyControl
+
+    open fun envoy() = envoy
+
+    open fun service() = service
 }
