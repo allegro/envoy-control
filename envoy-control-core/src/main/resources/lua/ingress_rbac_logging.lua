@@ -58,20 +58,23 @@ function is_allowed_client(client_name, clients_allowed_to_all_endpoints)
 end
 
 function envoy_on_response(handle)
-    local rbacMetadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.rbac")
+    local rbacMetadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.rbac") or {}
     local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
     local allowed_client = lua_metadata["request.info.allowed_client"] or false
 
-    if rbacMetadata == nil then
-        return
-    elseif rbacMetadata["shadow_engine_result"] ~= "denied" and allowed_client == true then
+    if should_log_request(rbacMetadata, allowed_client) then
         log_request(lua_metadata, handle)
-        return
-    elseif rbacMetadata["shadow_engine_result"] ~= "denied" then
-        return
     end
+end
 
-    log_request(lua_metadata, handle)
+function should_log_request(rbacMetadata, allowed_client)
+    local is_shadow_denied = (rbacMetadata["shadow_engine_result"] or "") == "denied"
+
+    if (not is_shadow_denied) and allowed_client == true then
+        return true
+    else
+        return is_shadow_denied
+    end
 end
 
 function log_request(lua_metadata, handle)
