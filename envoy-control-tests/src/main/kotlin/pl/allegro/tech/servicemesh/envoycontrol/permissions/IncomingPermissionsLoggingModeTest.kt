@@ -33,7 +33,8 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
                 "$sourceClientIp/32",
             "$prefix.routes.status.create-virtual-cluster" to true,
             "$prefix.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
-            "$prefix.routes.status.enabled" to true
+            "$prefix.routes.status.enabled" to true,
+            "$prefix.incoming-permissions.clients-allowed-to-all-endpoints" to listOf("allowed-client")
         ) }
 
         // language=yaml
@@ -706,6 +707,34 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             method = "GET",
             clientName = "service-name-from-header (not trusted)",
             trustedClient = false,
+            clientIp = echo2Envoy.gatewayIp()
+        )
+    }
+
+    @Test
+    fun `echo2 should allow special client with client identity header over https and log request`() {
+        // given
+        val insecureClient = ClientsFactory.createInsecureClient()
+
+        // when
+        val echo2Response = callEnvoyIngress(
+            envoy = echo2Envoy,
+            path = "/log-special-clients",
+            headers = mapOf("x-service-name" to "allowed-client"),
+            useSsl = true,
+            client = insecureClient
+        )
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.ingressSslRequests).isOne()
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/log-special-clients",
+            method = "GET",
+            clientName = "allowed-client (not trusted)",
+            trustedClient = false,
+            clientAllowedToAllEndpoints = true,
             clientIp = echo2Envoy.gatewayIp()
         )
     }
