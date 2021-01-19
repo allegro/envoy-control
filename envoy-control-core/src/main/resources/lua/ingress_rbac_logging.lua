@@ -48,8 +48,11 @@ function first_header_value_from_list(header_list, handle)
 end
 
 function is_allowed_client(client_name, clients_allowed_to_all_endpoints)
+    if client_name == "" then
+        return false
+    end
     for _,h in ipairs(clients_allowed_to_all_endpoints) do
-        if client_name ~= "" and h ~= "" and client_name == h then
+        if h ~= "" and client_name == h then
             return true
         end
     end
