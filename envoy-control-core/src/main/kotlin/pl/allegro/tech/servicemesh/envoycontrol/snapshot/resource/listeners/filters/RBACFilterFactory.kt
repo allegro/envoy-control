@@ -39,6 +39,9 @@ class RBACFilterFactory(
 
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
     private val denyForAllPrincipal = Principal.newBuilder().setNotId(anyPrincipal).build()
+    private val fullAccessClients = incomingPermissionsProperties.clientsAllowedToAllEndpoints.map {
+        ClientWithSelector(name = it)
+    }
     private val sanUriMatcherFactory = SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
 
     init {
@@ -199,7 +202,7 @@ class RBACFilterFactory(
             roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
         }
         // sorted order ensures that we do not duplicate rules
-        return clients.toSortedSet()
+        return (clients + fullAccessClients).toSortedSet()
     }
 
     private fun mapClientWithSelectorToPrincipals(
@@ -258,7 +261,7 @@ class RBACFilterFactory(
             val principals = it.value.map { ipWithPrefix ->
                 val (ip, prefixLength) = ipWithPrefix.split("/")
 
-                Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                Principal.newBuilder().setDirectRemoteIp(CidrRange.newBuilder()
                         .setAddressPrefix(ip)
                         .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
                         .build()
@@ -292,7 +295,7 @@ class RBACFilterFactory(
             }
         }.orEmpty().map { address ->
             Principal.newBuilder()
-                    .setSourceIp(CidrRange.newBuilder()
+                    .setDirectRemoteIp(CidrRange.newBuilder()
                             .setAddressPrefix(address.socketAddress.address)
                             .setPrefixLen(EXACT_IP_MASK).build())
                     .build()
