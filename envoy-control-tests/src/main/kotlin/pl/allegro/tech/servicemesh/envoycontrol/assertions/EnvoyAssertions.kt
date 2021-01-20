@@ -12,9 +12,11 @@ private class RbacLog(
     val method: String? = null,
     val clientName: String? = null,
     val trustedClient: Boolean? = null,
+    val clientAllowedToAllEndpoints: Boolean? = null,
     val clientIp: String? = null,
     val statusCode: String? = null,
-    val requestId: String? = null
+    val requestId: String? = null,
+    val rbacAction: String? = null
 )
 
 private const val RBAC_LOG_PREFIX = "INCOMING_PERMISSIONS"
@@ -50,6 +52,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
         clientName = clientName,
         trustedClient = trustedClient,
         clientIp = clientIp,
+        clientAllowedToAllEndpoints = false,
         statusCode = "403"
     )
 )
@@ -60,8 +63,10 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     method: String? = null,
     clientName: String? = null,
     trustedClient: Boolean? = null,
+    clientAllowedToAllEndpoints: Boolean? = null,
     clientIp: String? = null,
-    requestId: String? = null
+    requestId: String? = null,
+    rbacAction: String? = null
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = false,
     protocol = protocol,
@@ -73,7 +78,9 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
         statusCode = "200",
         clientName = clientName,
         trustedClient = trustedClient,
-        requestId = requestId
+        clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
+        requestId = requestId,
+        rbacAction = rbacAction
     )
 )
 
@@ -118,10 +125,16 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLo
     logPredicate.trustedClient?.let {
         assertThat(parsed.trustedClient).isEqualTo(logPredicate.trustedClient)
     }
+    logPredicate.clientAllowedToAllEndpoints?.let {
+        assertThat(parsed.clientAllowedToAllEndpoints).isEqualTo(logPredicate.clientAllowedToAllEndpoints)
+    }
     logPredicate.statusCode?.let {
         assertThat(parsed.statusCode).isEqualTo(logPredicate.statusCode)
     }
     logPredicate.requestId?.let {
         assertThat(parsed.requestId).isEqualTo(logPredicate.requestId)
+    }
+    logPredicate.rbacAction?.let {
+        assertThat(parsed.rbacAction).isEqualTo(logPredicate.rbacAction)
     }
 }
