@@ -67,7 +67,7 @@ class IncomingPermissionsRbacActionTest {
     }
 
     @Test
-    fun `incoming permissions logs should contain requestId if present`() {
+    fun `incoming permissions logs should contain rbacAction`() {
         // when
         val response = echoEnvoy.egressOperations.callService(service = "echo", pathAndQuery = "/path")
 
