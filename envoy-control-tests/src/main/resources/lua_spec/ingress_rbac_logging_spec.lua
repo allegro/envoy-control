@@ -3,16 +3,16 @@ require("ingress_rbac_logging")
 local _ = match._
 local contains = function(substring) return match.matches(substring, nil, true) end
 local function formatLog(method, path, source_ip, client_name, protocol, request_id, status_code, trusted_client, allowed_client, rbac_action)
-    return "\nINCOMING_PERMISSIONS { \"method\": \"" .. method ..
-        "\", \"path\": \"" .. path ..
-        "\", \"clientIp\": \"" .. source_ip ..
-        "\", \"clientName\": \"" .. client_name ..
-        "\", \"trustedClient\": " .. tostring(trusted_client) ..
-        ", \"clientAllowedToAllEndpoints\": " .. tostring(allowed_client) ..
-        ", \"protocol\": \"" .. protocol ..
-        "\", \"requestId\": \"" .. request_id ..
-        "\", \"statusCode\": " .. status_code ..
-        ", \"rbacAction\": \"" .. rbac_action .. "\" }"
+    return "\nINCOMING_PERMISSIONS { \"method\": \""..method..
+        "\", \"path\": \""..path..
+        "\", \"clientIp\": \""..source_ip..
+        "\", \"clientName\": \""..escape(client_name)..
+        "\", \"trustedClient\": "..tostring(trusted_client)..
+        ", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..
+        ", \"protocol\": \""..protocol..
+        "\", \"requestId\": \""..escape(request_id)..
+        "\", \"statusCode\": "..status_code..
+        ", \"rbacAction\": \""..rbac_action.."\" }"
 end
 
 local function handlerMock(headers, dynamic_metadata, https, filter_metadata)

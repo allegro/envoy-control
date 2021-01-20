@@ -48,8 +48,11 @@ function first_header_value_from_list(header_list, handle)
 end
 
 function is_allowed_client(client_name, clients_allowed_to_all_endpoints)
+    if client_name == "" then
+        return false
+    end
     for _,h in ipairs(clients_allowed_to_all_endpoints) do
-        if client_name ~= "" and h ~= "" and client_name == h then
+        if h ~= "" and client_name == h then
             return true
         end
     end
@@ -92,7 +95,7 @@ function log_request(lua_metadata, handle, rbac_action)
     local xff_header = lua_metadata["request.info.xff_header"] or ""
     local source_ip = string.match(xff_header, '[^,]+$') or ""
     local request_id = lua_metadata["request.info.request_id"] or ""
-    local statusCode = handle:headers():get(":status") or "0"
+    local status_code = handle:headers():get(":status") or "0"
     handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method..
         "\", \"path\": \""..path..
         "\", \"clientIp\": \""..source_ip..
@@ -101,7 +104,7 @@ function log_request(lua_metadata, handle, rbac_action)
         ", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..
         ", \"protocol\": \""..protocol..
         "\", \"requestId\": \""..escape(request_id)..
-        "\", \"statusCode\": "..statusCode..
+        "\", \"statusCode\": "..status_code..
         ", \"rbacAction\": \""..rbac_action.."\" }")
 end
 
