@@ -53,7 +53,8 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
         trustedClient = trustedClient,
         clientIp = clientIp,
         clientAllowedToAllEndpoints = false,
-        statusCode = "403"
+        statusCode = "403",
+        rbacAction = "denied"
     )
 )
 
@@ -66,7 +67,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     clientAllowedToAllEndpoints: Boolean? = null,
     clientIp: String? = null,
     requestId: String? = null,
-    rbacAction: String? = null
+    rbacAction: String? = "shadow_denied"
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = false,
     protocol = protocol,
