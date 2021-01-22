@@ -69,7 +69,7 @@ function envoy_on_response(handle)
     if should_log_request(is_shadow_denied, allowed_client) then
         local upstream_request_time = handle:headers():get("x-envoy-upstream-service-time")
         local rbac_action = "allowed"
-        if is_shadow_denied then
+        if is_shadow_denied and not allowed_client then
             if upstream_request_time == nil then
                 rbac_action = "denied"
             else
