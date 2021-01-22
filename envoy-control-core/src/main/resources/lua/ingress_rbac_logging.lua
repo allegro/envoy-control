@@ -68,12 +68,15 @@ function envoy_on_response(handle)
 
     if should_log_request(is_shadow_denied, allowed_client) then
         local upstream_request_time = handle:headers():get("x-envoy-upstream-service-time")
-        local rbac_action = "shadow_denied"
-
-        if is_shadow_denied and upstream_request_time == nil then
-            rbac_action = "denied"
+        local rbac_action = "allowed"
+        if is_shadow_denied then
+            if upstream_request_time == nil then
+                rbac_action = "denied"
+            else
+                rbac_action = "shadow_denied"
+            end
         end
-        log_request(lua_metadata, handle, rbac_action)
+        log_request(lua_metadata, handle, rbac_action, allowed_client)
     end
 end
 
@@ -85,10 +88,9 @@ function should_log_request(is_shadow_denied, allowed_client)
     end
 end
 
-function log_request(lua_metadata, handle, rbac_action)
+function log_request(lua_metadata, handle, rbac_action, allowed_client)
     local client_name = lua_metadata["request.info.client_name"] or ""
     local trusted_client = lua_metadata["request.info.trusted_client"] or false
-    local allowed_client = lua_metadata["request.info.allowed_client"] or false
     local path = lua_metadata["request.info.path"] or ""
     local protocol = handle:connection():ssl() == nil and "http" or "https"
     local method = lua_metadata["request.info.method"] or ""

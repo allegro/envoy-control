@@ -522,7 +522,7 @@ describe("envoy_on_response:", function()
                 "403",
                 false,
                 true,
-                "shadow_denied"
+                "allowed"
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)

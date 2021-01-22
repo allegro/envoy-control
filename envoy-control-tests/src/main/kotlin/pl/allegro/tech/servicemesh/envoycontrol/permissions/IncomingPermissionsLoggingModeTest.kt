@@ -735,7 +735,8 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             clientName = "allowed-client (not trusted)",
             trustedClient = false,
             clientAllowedToAllEndpoints = true,
-            clientIp = echo2Envoy.gatewayIp()
+            clientIp = echo2Envoy.gatewayIp(),
+            rbacAction = "allowed"
         )
     }
 
