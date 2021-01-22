@@ -736,7 +736,31 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             trustedClient = false,
             clientAllowedToAllEndpoints = true,
             clientIp = echo2Envoy.gatewayIp(),
-            rbacAction = "allowed"
+            rbacAction = "shadow_denied"
+        )
+    }
+
+    @Test
+    fun `echo2 should allow special client with client identity header over http and log request`() {
+        // when
+        val echo2Response = callEnvoyIngress(
+            envoy = echo2Envoy,
+            path = "/log-special-clients",
+            headers = mapOf("x-service-name" to "allowed-client")
+        )
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+            protocol = "http",
+            path = "/log-special-clients",
+            method = "GET",
+            clientName = "allowed-client",
+            trustedClient = false,
+            clientAllowedToAllEndpoints = true,
+            clientIp = echo2Envoy.gatewayIp(),
+            rbacAction = "shadow_denied"
         )
     }
 

@@ -504,8 +504,9 @@ describe("envoy_on_response:", function()
 
         it("with globally allowed client", function ()
             -- given
-            metadata['envoy.filters.http.rbac']['shadow_engine_result'] = 'allowed'
+            metadata['envoy.filters.http.rbac']['shadow_engine_result'] = 'denied'
             metadata['envoy.filters.http.lua']['request.info.allowed_client'] = true
+            headers['x-envoy-upstream-service-time'] = '10'
             local handle = handlerMock(headers, metadata, ssl)
 
             -- when
@@ -522,7 +523,7 @@ describe("envoy_on_response:", function()
                 "403",
                 false,
                 true,
-                "allowed"
+                "shadow_denied"
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)

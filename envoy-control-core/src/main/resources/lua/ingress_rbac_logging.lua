@@ -64,31 +64,18 @@ function envoy_on_response(handle)
     local rbacMetadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.rbac") or {}
     local is_shadow_denied = (rbacMetadata["shadow_engine_result"] or "") == "denied"
     local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
-    local allowed_client = lua_metadata["request.info.allowed_client"] or false
 
-    if should_log_request(is_shadow_denied, allowed_client) then
+    if is_shadow_denied then
         local upstream_request_time = handle:headers():get("x-envoy-upstream-service-time")
-        local rbac_action = "allowed"
-        if is_shadow_denied and not allowed_client then
-            if upstream_request_time == nil then
-                rbac_action = "denied"
-            else
-                rbac_action = "shadow_denied"
-            end
+        local rbac_action = "shadow_denied"
+        if upstream_request_time == nil then
+            rbac_action = "denied"
         end
         log_request(lua_metadata, handle, rbac_action, allowed_client)
     end
 end
 
-function should_log_request(is_shadow_denied, allowed_client)
-    if (not is_shadow_denied) and allowed_client == true then
-        return true
-    else
-        return is_shadow_denied
-    end
-end
-
-function log_request(lua_metadata, handle, rbac_action, allowed_client)
+function log_request(lua_metadata, handle, rbac_action)
     local client_name = lua_metadata["request.info.client_name"] or ""
     local trusted_client = lua_metadata["request.info.trusted_client"] or false
     local path = lua_metadata["request.info.path"] or ""
@@ -98,6 +85,7 @@ function log_request(lua_metadata, handle, rbac_action, allowed_client)
     local source_ip = string.match(xff_header, '[^,]+$') or ""
     local request_id = lua_metadata["request.info.request_id"] or ""
     local status_code = handle:headers():get(":status") or "0"
+    local allowed_client = lua_metadata["request.info.allowed_client"] or false
     handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method..
         "\", \"path\": \""..path..
         "\", \"clientIp\": \""..source_ip..
