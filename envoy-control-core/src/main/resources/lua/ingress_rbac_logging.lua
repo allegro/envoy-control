@@ -64,6 +64,7 @@ function envoy_on_response(handle)
     local rbacMetadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.rbac") or {}
     local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
     local allowed_client = lua_metadata["request.info.allowed_client"] or false
+    handle:logInfo("shadow_engine_result: " .. (rbacMetadata["shadow_engine_result"] or ""))
 
     if should_log_request(rbacMetadata, allowed_client) then
         log_request(lua_metadata, handle)
