@@ -14,7 +14,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
+import pl.allegro.tech.servicemesh.envoycontrol.config.Echo3EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
@@ -30,7 +32,7 @@ internal class IncomingPermissionsAllowedClientTest {
             "$prefix.routes.status.create-virtual-cluster" to true,
             "$prefix.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
             "$prefix.routes.status.enabled" to true,
-            "$prefix.incoming-permissions.clients-allowed-to-all-endpoints" to listOf("echo2")
+            "$prefix.incoming-permissions.clients-allowed-to-all-endpoints" to listOf("echo3")
         )
 
         // language=yaml
@@ -53,20 +55,25 @@ internal class IncomingPermissionsAllowedClientTest {
         """.trimIndent()
 
         // language=yaml
-        private val echo2Yaml = """
+        private val echo3Yaml = """
             node:
               metadata:
                 proxy_settings:
                   outgoing:
                     dependencies:
                       - service: "echo"
+                      - service: "echo2"
         """.trimIndent()
 
         private val echoConfig = Echo1EnvoyAuthConfig.copy(
             configOverride = proxySettings(unlistedEndpointsPolicy = "blockAndLog")
         )
 
-        private val envoy2Config = Echo2EnvoyAuthConfig.copy(configOverride = echo2Yaml)
+        private val echo2Config = Echo2EnvoyAuthConfig.copy(
+            configOverride = proxySettings(unlistedEndpointsPolicy = "log")
+        )
+
+        private val envoy3Config = Echo3EnvoyAuthConfig.copy(configOverride = echo3Yaml)
 
         @JvmField
         @RegisterExtension
@@ -86,7 +93,11 @@ internal class IncomingPermissionsAllowedClientTest {
 
         @JvmField
         @RegisterExtension
-        val envoy2 = EnvoyExtension(envoyControl, config = envoy2Config)
+        val echo2Envoy = EnvoyExtension(envoyControl, localService = service, config = echo2Config)
+
+        @JvmField
+        @RegisterExtension
+        val envoy3 = EnvoyExtension(envoyControl, config = envoy3Config)
     }
 
     @Test
@@ -97,10 +108,10 @@ internal class IncomingPermissionsAllowedClientTest {
             extension = echoEnvoy,
             tags = listOf("mtls:enabled")
         )
-        envoy2.waitForAvailableEndpoints("echo")
+        envoy3.waitForAvailableEndpoints("echo")
 
         // when
-        val echoResponse = envoy2.egressOperations.callService(
+        val echoResponse = envoy3.egressOperations.callService(
             service = "echo",
             pathAndQuery = "/log-unlisted-clients",
             headers = mapOf("x-service-name" to "allowed-client")
@@ -112,10 +123,10 @@ internal class IncomingPermissionsAllowedClientTest {
             protocol = "https",
             path = "/log-unlisted-clients",
             method = "GET",
-            clientName = "echo2",
+            clientName = "echo3",
             trustedClient = true,
             clientAllowedToAllEndpoints = true,
-            clientIp = envoy2.container.ipAddress()
+            clientIp = envoy3.container.ipAddress()
         )
     }
 
@@ -127,10 +138,10 @@ internal class IncomingPermissionsAllowedClientTest {
             extension = echoEnvoy,
             tags = listOf("mtls:enabled")
         )
-        envoy2.waitForAvailableEndpoints("echo")
+        envoy3.waitForAvailableEndpoints("echo")
 
         // when
-        val echoResponse = envoy2.egressOperations.callService(
+        val echoResponse = envoy3.egressOperations.callService(
             service = "echo",
             pathAndQuery = "/block-unlisted-clients"
         )
@@ -141,10 +152,10 @@ internal class IncomingPermissionsAllowedClientTest {
             protocol = "https",
             path = "/block-unlisted-clients",
             method = "GET",
-            clientName = "echo2",
+            clientName = "echo3",
             trustedClient = true,
             clientAllowedToAllEndpoints = true,
-            clientIp = envoy2.container.ipAddress()
+            clientIp = envoy3.container.ipAddress()
         )
     }
 
@@ -156,12 +167,12 @@ internal class IncomingPermissionsAllowedClientTest {
             extension = echoEnvoy,
             tags = listOf("mtls:enabled")
         )
-        envoy2.waitForAvailableEndpoints("echo")
+        envoy3.waitForAvailableEndpoints("echo")
 
         // when
         val echoResponse = echoEnvoy.ingressOperations.callLocalService(
             endpoint = "/log-unlisted-clients",
-            headers = Headers.of(mapOf("x-service-name" to "echo2"))
+            headers = Headers.of(mapOf("x-service-name" to "echo3"))
         )
 
         // then
@@ -170,7 +181,7 @@ internal class IncomingPermissionsAllowedClientTest {
             protocol = "http",
             path = "/log-unlisted-clients",
             method = "GET",
-            clientName = "echo2",
+            clientName = "echo3",
             trustedClient = false,
             clientAllowedToAllEndpoints = true,
             clientIp = echoEnvoy.container.gatewayIp()
@@ -185,12 +196,12 @@ internal class IncomingPermissionsAllowedClientTest {
             extension = echoEnvoy,
             tags = listOf("mtls:enabled")
         )
-        envoy2.waitForAvailableEndpoints("echo")
+        envoy3.waitForAvailableEndpoints("echo")
 
         // when
         val echoResponse = echoEnvoy.ingressOperations.callLocalService(
             endpoint = "/block-unlisted-clients",
-            headers = Headers.of(mapOf("x-service-name" to "echo2"))
+            headers = Headers.of(mapOf("x-service-name" to "echo3"))
         )
 
         // then
@@ -199,7 +210,53 @@ internal class IncomingPermissionsAllowedClientTest {
             protocol = "http",
             path = "/block-unlisted-clients",
             method = "GET",
-            clientName = "echo2",
+            clientName = "echo3",
+            trustedClient = false,
+            clientAllowedToAllEndpoints = true,
+            clientIp = echoEnvoy.container.gatewayIp()
+        )
+    }
+
+    @Test
+    fun `echo2 should allow special client with client identity header over https and log request when unlistedEndpointsPolicy is log`() {
+        // when
+        val echo2Response = echo2Envoy.ingressOperations.callLocalServiceInsecure(
+            endpoint = "/log-unlisted-endpoint",
+            headers = Headers.of(mapOf("x-service-name" to "echo3")),
+            useTls = true
+        )
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(service)
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/log-unlisted-endpoint",
+            method = "GET",
+            clientName = "echo3 (not trusted)",
+            trustedClient = false,
+            clientAllowedToAllEndpoints = true,
+            clientIp = echo2Envoy.container.gatewayIp()
+        )
+    }
+
+    @Test
+    fun `echo should block special client with client identity header over https and log request when unlistedEndpointsPolicy is blockAndLog`() {
+        // when
+        val echoResponse = echoEnvoy.ingressOperations.callLocalServiceInsecure(
+            endpoint = "/block-and-log-unlisted-endpoint",
+            headers = Headers.of(mapOf("x-service-name" to "echo3")),
+            useTls = true
+        )
+
+        // then
+        assertThat(echoResponse).isForbidden()
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/block-and-log-unlisted-endpoint",
+            method = "GET",
+            clientName = "echo3 (not trusted)",
             trustedClient = false,
             clientAllowedToAllEndpoints = true,
             clientIp = echoEnvoy.container.gatewayIp()
@@ -209,11 +266,17 @@ internal class IncomingPermissionsAllowedClientTest {
     @BeforeEach
     fun startRecordingRBACLogs() {
         echoEnvoy.recordRBACLogs()
+        echo2Envoy.recordRBACLogs()
     }
 
     @AfterEach
     fun cleanupTest() {
         echoEnvoy.container.admin().resetCounters()
         echoEnvoy.container.logRecorder.stopRecording()
+        echo2Envoy.container.admin().resetCounters()
+        echo2Envoy.container.logRecorder.stopRecording()
     }
+
+    private val EnvoyContainer.ingressSslRequests: Int?
+        get() = this.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()
 }
