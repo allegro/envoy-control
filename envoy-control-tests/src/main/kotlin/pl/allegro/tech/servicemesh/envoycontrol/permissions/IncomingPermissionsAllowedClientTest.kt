@@ -218,7 +218,7 @@ internal class IncomingPermissionsAllowedClientTest {
     }
 
     @Test
-    fun `echo2 should allow special client with client identity header over https and log request when unlistedEndpointsPolicy is log`() {
+    fun `echo2 should allow special client with name from header over https and log request when unlistedEndpointsPolicy is log`() {
         // when
         val echo2Response = echo2Envoy.ingressOperations.callLocalServiceInsecure(
             endpoint = "/log-unlisted-endpoint",
@@ -228,7 +228,7 @@ internal class IncomingPermissionsAllowedClientTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(service)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.ingressTlsRequests()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/log-unlisted-endpoint",
@@ -241,7 +241,7 @@ internal class IncomingPermissionsAllowedClientTest {
     }
 
     @Test
-    fun `echo should block special client with client identity header over https and log request when unlistedEndpointsPolicy is blockAndLog`() {
+    fun `echo should block special client with name from header over https and log request when unlistedEndpointsPolicy is blockAndLog`() {
         // when
         val echoResponse = echoEnvoy.ingressOperations.callLocalServiceInsecure(
             endpoint = "/block-and-log-unlisted-endpoint",
@@ -251,7 +251,7 @@ internal class IncomingPermissionsAllowedClientTest {
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.ingressTlsRequests()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/block-and-log-unlisted-endpoint",
@@ -277,6 +277,6 @@ internal class IncomingPermissionsAllowedClientTest {
         echo2Envoy.container.logRecorder.stopRecording()
     }
 
-    private val EnvoyContainer.ingressSslRequests: Int?
-        get() = this.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()
+    private fun EnvoyContainer.ingressTlsRequests() =
+        this.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()
 }
