@@ -107,10 +107,8 @@ class EnvoyEgressRoutesFactory(
                 }
             }
 
-        when {
-            properties.egress.headersToRemove.isNotEmpty() -> {
-                routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
-            }
+        if (properties.egress.headersToRemove.isNotEmpty()) {
+            routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
         }
 
         if (addUpstreamAddressHeader) {
