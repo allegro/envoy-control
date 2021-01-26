@@ -63,9 +63,9 @@ end
 function envoy_on_response(handle)
     local rbacMetadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.rbac") or {}
     local is_shadow_denied = (rbacMetadata["shadow_engine_result"] or "") == "denied"
-    local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
 
     if is_shadow_denied then
+        local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
         local upstream_request_time = handle:headers():get("x-envoy-upstream-service-time")
         local rbac_action = "shadow_denied"
         if upstream_request_time == nil then
