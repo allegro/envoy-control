@@ -83,6 +83,13 @@ internal class RBACFilterFactoryTest {
         },
         StatusRouteProperties()
     )
+    private val rbacFilterFactoryWithAllowAllEndpointsForClient = RBACFilterFactory(
+        IncomingPermissionsProperties().also {
+            it.enabled = true
+            it.clientsAllowedToAllEndpoints = mutableListOf("allowed-client")
+        },
+        StatusRouteProperties()
+    )
 
     val snapshot = GlobalSnapshot(
         SnapshotResources.create(listOf(), ""),
@@ -702,6 +709,30 @@ internal class RBACFilterFactoryTest {
         assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
+    @Test
+    fun `should generate RBAC rules for incoming permissions with client allowed to all endpoints`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedEndpointPermissionsWithAllowedClientForAllEndpoints)
+        val incomingPermission = Incoming(
+            permissionsEnabled = true,
+            endpoints = listOf(IncomingEndpoint(
+                "/example",
+                PathMatchingType.PATH,
+                setOf("GET"),
+                setOf(ClientWithSelector("client1"))
+            ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithAllowAllEndpointsForClient.createHttpFilter(
+            createGroup(incomingPermission),
+            snapshotForSourceIpAuth
+        )
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
     private val expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson = """
         {
           "policies": {
@@ -1262,6 +1293,33 @@ internal class RBACFilterFactoryTest {
         }
     """
 
+    private val expectedEndpointPermissionsWithAllowedClientForAllEndpoints = """
+        {
+          "policies": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG)": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${authenticatedPrincipal("allowed-client")}, ${authenticatedPrincipal("client1")}
+              ]
+            }
+          }
+        }
+    """
+
     private fun pathRule(path: String): String {
         return """{
             "url_path": {
@@ -1293,7 +1351,7 @@ internal class RBACFilterFactoryTest {
 
     private fun principalSourceIp(address: String, prefixLen: Int = 32): String {
         return """{
-                "source_ip": {
+                "direct_remote_ip": {
                   "address_prefix": "$address",
                   "prefix_len": $prefixLen
                 }

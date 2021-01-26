@@ -73,6 +73,7 @@ class IncomingPermissionsProperties {
     var sourceIpAuthentication = SourceIpAuthenticationProperties()
     var selectorMatching: MutableMap<Client, SelectorMatching> = mutableMapOf()
     var tlsAuthentication = TlsAuthenticationProperties()
+    var clientsAllowedToAllEndpoints = mutableListOf<String>()
     var overlappingPathsFix = false // TODO: to be removed when proved it did not mess up anything
 }
 
