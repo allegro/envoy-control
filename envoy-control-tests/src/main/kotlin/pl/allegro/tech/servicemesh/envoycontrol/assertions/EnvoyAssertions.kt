@@ -40,7 +40,8 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
     method: String,
     clientName: String,
     trustedClient: Boolean,
-    clientIp: String
+    clientIp: String,
+    clientAllowedToAllEndpoints: Boolean = false
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = true,
     protocol = protocol,
@@ -51,8 +52,34 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
         clientName = clientName,
         trustedClient = trustedClient,
         clientIp = clientIp,
-        clientAllowedToAllEndpoints = false,
+        clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
         statusCode = "403"
+    )
+)
+
+fun ObjectAssert<EnvoyContainer>.hasOneAccessAllowedWithActionLog(
+    protocol: String,
+    path: String? = null,
+    method: String? = null,
+    clientName: String? = null,
+    trustedClient: Boolean? = null,
+    clientAllowedToAllEndpoints: Boolean? = null,
+    clientIp: String? = null,
+    requestId: String? = null
+): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
+    requestBlocked = false,
+    protocol = protocol,
+    shadowDenied = false,
+    logPredicate = RbacLog(
+        protocol = protocol,
+        path = path,
+        method = method,
+        clientIp = clientIp,
+        statusCode = "200",
+        clientName = clientName,
+        trustedClient = trustedClient,
+        clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
+        requestId = requestId
     )
 )
 
@@ -84,7 +111,8 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
 private fun ObjectAssert<EnvoyContainer>.hasOneAccessDenial(
     requestBlocked: Boolean,
     protocol: String,
-    logPredicate: RbacLog
+    logPredicate: RbacLog,
+    shadowDenied: Boolean = true
 ) = satisfies {
     val admin = it.admin()
     val blockedRequestsCount = admin.statValue("http.ingress_$protocol.rbac.denied")?.toInt()
@@ -95,7 +123,9 @@ private fun ObjectAssert<EnvoyContainer>.hasOneAccessDenial(
     } else {
         assertThat(blockedRequestsCount).isZero()
     }
-    assertThat(loggedRequestsCount).isOne()
+    if (shadowDenied) {
+        assertThat(loggedRequestsCount).isOne()
+    }
 
     assertThat(it.logRecorder.getRecordedLogs()).filteredOn(::isRbacAccessLog)
         .hasSize(1).first()
