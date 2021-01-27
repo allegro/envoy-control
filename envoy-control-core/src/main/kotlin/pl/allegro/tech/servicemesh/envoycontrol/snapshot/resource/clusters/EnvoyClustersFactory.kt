@@ -15,6 +15,7 @@ import io.envoyproxy.envoy.config.core.v3.ApiVersion
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.DataSource
 import io.envoyproxy.envoy.config.core.v3.GrpcService
+import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.Http2ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.RoutingPriority
@@ -30,6 +31,8 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+import io.envoyproxy.envoy.extensions.upstreams.http.v3.HttpProtocolOptions as HttpProtocolOptionsExtension
+import io.envoyproxy.envoy.extensions.upstreams.http.v3.HttpProtocolOptions.ExplicitHttpConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -250,8 +253,17 @@ class EnvoyClustersFactory(
 
             clusterBuilder
                 .setTransportSocket(transportSocket)
-                .setUpstreamHttpProtocolOptions(
-                    UpstreamHttpProtocolOptions.newBuilder().setAutoSanValidation(true).setAutoSni(true).build()
+                .putTypedExtensionProtocolOptions(
+                    "envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+                    Any.pack(
+                        HttpProtocolOptionsExtension.newBuilder()
+                            .setUpstreamHttpProtocolOptions(
+                                UpstreamHttpProtocolOptions.newBuilder()
+                                    .setAutoSanValidation(true)
+                                    .setAutoSni(true)
+                            )
+                            .setAutoConfig(HttpProtocolOptionsExtension.AutoHttpConfig.getDefaultInstance()).build()
+                    )
                 )
         }
 
@@ -298,14 +310,22 @@ class EnvoyClustersFactory(
             )
             .setLbPolicy(properties.loadBalancing.policy)
             .configureLbSubsets()
+        cluster.circuitBreakers = allThresholds
 
-        cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
-        cluster.setCircuitBreakers(allThresholds)
+        val httpProtocolOptionsBuilder = HttpProtocolOptionsExtension.newBuilder()
+        val explicitHttpConfigBuilder = ExplicitHttpConfig.newBuilder()
+        httpProtocolOptionsBuilder.commonHttpProtocolOptions = httpProtocolOptions
 
         if (clusterConfiguration.http2Enabled) {
-            cluster.setHttp2ProtocolOptions(Http2ProtocolOptions.getDefaultInstance())
+            explicitHttpConfigBuilder.http2ProtocolOptions = Http2ProtocolOptions.getDefaultInstance()
+        } else {
+            explicitHttpConfigBuilder.httpProtocolOptions = Http1ProtocolOptions.getDefaultInstance()
         }
 
+        cluster.putTypedExtensionProtocolOptions(
+            "envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+            Any.pack(httpProtocolOptionsBuilder.setExplicitHttpConfig(explicitHttpConfigBuilder).build())
+        )
         return cluster.build()
     }
 

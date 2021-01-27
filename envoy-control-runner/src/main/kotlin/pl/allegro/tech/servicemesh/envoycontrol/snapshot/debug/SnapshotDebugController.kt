@@ -19,6 +19,7 @@ import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+import io.envoyproxy.envoy.extensions.upstreams.http.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
 import org.springframework.boot.jackson.JsonComponent
@@ -120,6 +121,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             .add(StringMatcher.getDescriptor())
             .add(UpstreamTlsContext.getDescriptor())
             .add(Lua.getDescriptor())
+            .add(HttpProtocolOptions.getDescriptor())
             .build()
 
         val printer: JsonFormat.Printer = JsonFormat.printer().usingTypeRegistry(typeRegistry)

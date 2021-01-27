@@ -33,7 +33,7 @@ class EnvoyContainer(
 
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
-        const val DEFAULT_IMAGE = "allegro/envoy-dev:v1.16.1-dev-lua-segfault-fix-1-16-0-backport-20201118-df9dc819"
+        const val DEFAULT_IMAGE = "envoyproxy/envoy-dev:5c801b25cae04f06bf48248c90e87d623d7a6283"
         private const val ADMIN_PORT = 10000
     }
 

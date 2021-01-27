@@ -9,6 +9,7 @@ import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.controlplane.cache.XdsRequest
 import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
+import io.envoyproxy.envoy.extensions.upstreams.http.v3.HttpProtocolOptions
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
@@ -79,12 +80,16 @@ class SnapshotUpdaterTest {
     val clusterWithEnvoyInstances = ClusterState(
         ServicesState(
             serviceNameToInstances = mapOf(
-                "service" to ServiceInstances("service", setOf(ServiceInstance(
-                    id = "id",
-                    tags = setOf("envoy"),
-                    address = "127.0.0.3",
-                    port = 4444
-                )))
+                "service" to ServiceInstances(
+                    "service", setOf(
+                        ServiceInstance(
+                            id = "id",
+                            tags = setOf("envoy"),
+                            address = "127.0.0.3",
+                            port = 4444
+                        )
+                    )
+                )
             )
         ),
         Locality.LOCAL, "cluster"
@@ -94,20 +99,30 @@ class SnapshotUpdaterTest {
     fun `should generate allServicesGroup snapshots with timeouts from proxySettings`() {
         val cache = MockCache()
 
-        val allServicesGroup = AllServicesGroup(communicationMode = XDS, proxySettings = ProxySettings(outgoing = Outgoing(
-            serviceDependencies = listOf(ServiceDependency(
-                service = "existingService1",
-                settings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-                    idleTimeout = Durations.parse("10s"),
-                    requestTimeout = Durations.parse("9s")
-                ))
-            )),
-            defaultServiceSettings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.parse("8s"),
-                requestTimeout = Durations.parse("7s")
-            )),
-            allServicesDependencies = true
-        )))
+        val allServicesGroup = AllServicesGroup(
+            communicationMode = XDS, proxySettings = ProxySettings(
+                outgoing = Outgoing(
+                    serviceDependencies = listOf(
+                        ServiceDependency(
+                            service = "existingService1",
+                            settings = DependencySettings(
+                                timeoutPolicy = Outgoing.TimeoutPolicy(
+                                    idleTimeout = Durations.parse("10s"),
+                                    requestTimeout = Durations.parse("9s")
+                                )
+                            )
+                        )
+                    ),
+                    defaultServiceSettings = DependencySettings(
+                        timeoutPolicy = Outgoing.TimeoutPolicy(
+                            idleTimeout = Durations.parse("8s"),
+                            requestTimeout = Durations.parse("7s")
+                        )
+                    ),
+                    allServicesDependencies = true
+                )
+            )
+        )
 
         cache.setSnapshot(allServicesGroup, uninitializedSnapshot)
 
@@ -141,10 +156,12 @@ class SnapshotUpdaterTest {
             cache.setSnapshot(it, uninitializedSnapshot)
         }
 
-        cache.setSnapshot(groupOf(
-            services = serviceDependencies("existingService1", "existingService2"),
-            domains = domainDependencies("http://domain")
-        ), uninitializedSnapshot)
+        cache.setSnapshot(
+            groupOf(
+                services = serviceDependencies("existingService1", "existingService2"),
+                domains = domainDependencies("http://domain")
+            ), uninitializedSnapshot
+        )
 
         cache.setSnapshot(groupOf(services = serviceDependencies("nonExistingService3")), uninitializedSnapshot)
 
@@ -175,10 +192,12 @@ class SnapshotUpdaterTest {
         hasSnapshot(cache, groupWithServiceName)
             .hasOnlyClustersFor("existingService2")
 
-        hasSnapshot(cache, groupOf(
-            services = serviceDependencies("existingService1", "existingService2"),
-            domains = domainDependencies("http://domain")
-        )).hasOnlyClustersFor("existingService1", "existingService2", "domain_80")
+        hasSnapshot(
+            cache, groupOf(
+                services = serviceDependencies("existingService1", "existingService2"),
+                domains = domainDependencies("http://domain")
+            )
+        ).hasOnlyClustersFor("existingService1", "existingService2", "domain_80")
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("nonExistingService3")))
             .withoutClusters()
@@ -237,7 +256,8 @@ class SnapshotUpdaterTest {
         assertThat(snapshot.routes().resources().values).hasSize(2)
         // two fallbacks: proxying direct IP requests and 503 for missing services
         assertThat(snapshot.routes().resources().values
-            .first { it.name == "default_routes" }.virtualHostsCount)
+            .first { it.name == "default_routes" }.virtualHostsCount
+        )
             .isEqualTo(2)
     }
 
@@ -260,8 +280,10 @@ class SnapshotUpdaterTest {
         // then
         val snapshot = cache.getSnapshot(servicesGroup)
         assertThat(snapshot).isEqualTo(null)
-        assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
-            .counter()?.count()).isEqualTo(1.0)
+        assertThat(
+            simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
+                .counter()?.count()
+        ).isEqualTo(1.0)
     }
 
     @Test
@@ -286,11 +308,13 @@ class SnapshotUpdaterTest {
 
         // when
         val results = updater
-            .services(Flux
-                .just(
-                    clusterWithEnvoyInstances,
-                    clusterWithNoInstances)
-                .delayElements(Duration.ofMillis(10))
+            .services(
+                Flux
+                    .just(
+                        clusterWithEnvoyInstances,
+                        clusterWithNoInstances
+                    )
+                    .delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
@@ -369,12 +393,16 @@ class SnapshotUpdaterTest {
         val clusterLocal = ClusterState(
             ServicesState(
                 serviceNameToInstances = mapOf(
-                    "service" to ServiceInstances("service", setOf(ServiceInstance(
-                        id = "id",
-                        tags = setOf("envoy"),
-                        address = "127.0.0.3",
-                        port = 4444
-                    ))),
+                    "service" to ServiceInstances(
+                        "service", setOf(
+                            ServiceInstance(
+                                id = "id",
+                                tags = setOf("envoy"),
+                                address = "127.0.0.3",
+                                port = 4444
+                            )
+                        )
+                    ),
                     "servicePresentInJustOneRemote" to ServiceInstances("servicePresentInJustOneRemote", setOf())
                 )
             ),
@@ -402,21 +430,25 @@ class SnapshotUpdaterTest {
 
         // when
         val resultsRemoteWithBothServices = updater
-            .services(Flux
-                .just(
-                    clusterLocal,
-                    remoteClusterWithBothServices)
-                .delayElements(Duration.ofMillis(10))
+            .services(
+                Flux
+                    .just(
+                        clusterLocal,
+                        remoteClusterWithBothServices
+                    )
+                    .delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
         // when
         val resultsRemoteWithJustOneService = updater
-            .services(Flux
-                .just(
-                    clusterLocal,
-                    remoteClusterWithJustOneService)
-                .delayElements(Duration.ofMillis(10))
+            .services(
+                Flux
+                    .just(
+                        clusterLocal,
+                        remoteClusterWithJustOneService
+                    )
+                    .delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
@@ -457,11 +489,12 @@ class SnapshotUpdaterTest {
 
         // when
         val results = updater
-            .services(Flux
-                .just(
-                    clusterWithEnvoyInstances,
-                    stateWithNoServices
-                ).delayElements(Duration.ofMillis(10))
+            .services(
+                Flux
+                    .just(
+                        clusterWithEnvoyInstances,
+                        stateWithNoServices
+                    ).delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
@@ -506,9 +539,11 @@ class SnapshotUpdaterTest {
         val expectedWhitelistedServices = setOf("s1", "mockito", "s2", "frontend").toTypedArray()
 
         // when
-        updater.start(fluxOfServices(
-            "s1", "mockito", "regression-tests", "s2", "frontend", "mock-service"
-        )).collectList().block()
+        updater.start(
+            fluxOfServices(
+                "s1", "mockito", "regression-tests", "s2", "frontend", "mock-service"
+            )
+        ).collectList().block()
 
         // then
         hasSnapshot(cache, allServicesGroup)
@@ -662,7 +697,8 @@ class SnapshotUpdaterTest {
 
     private fun Snapshot.hasVirtualHostConfig(name: String, idleTimeout: String, requestTimeout: String): Snapshot {
         val routeAction = this.routes()
-            .resources()["default_routes"]!!.virtualHostsList.singleOrNull { it.name == name }?.routesList?.map { it.route }
+            .resources()["default_routes"]!!.virtualHostsList.singleOrNull { it.name == name }
+            ?.routesList?.map { it.route }
             ?.singleOrNull()
         assertThat(routeAction).overridingErrorMessage("Expecting virtualHost for $name").isNotNull
         assertThat(routeAction?.timeout).isEqualTo(Durations.parse(requestTimeout))
@@ -683,7 +719,11 @@ class SnapshotUpdaterTest {
     private fun GlobalSnapshot.hasHttp2Cluster(clusterName: String): GlobalSnapshot {
         val cluster = this.clusters.resources()[clusterName]
         assertThat(cluster).isNotNull
-        assertThat(cluster!!.hasHttp2ProtocolOptions()).isTrue()
+        val typedExtensionProtocolOption = cluster!!
+            .typedExtensionProtocolOptionsMap["envoy.extensions.upstreams.http.v3.HttpProtocolOptions"]
+        assertThat(typedExtensionProtocolOption).isNotNull
+        val httpProtocolOptions = typedExtensionProtocolOption!!.unpack(HttpProtocolOptions::class.java)
+        assertThat(httpProtocolOptions.explicitHttpConfig.hasHttp2ProtocolOptions()).isTrue()
         return this
     }
 
@@ -763,10 +803,12 @@ fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
     serviceNames.map {
         ServiceDependency(
             service = it,
-            settings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.fromSeconds(120L),
-                requestTimeout = Durations.fromSeconds(120L)
-            ))
+            settings = DependencySettings(
+                timeoutPolicy = Outgoing.TimeoutPolicy(
+                    idleTimeout = Durations.fromSeconds(120L),
+                    requestTimeout = Durations.fromSeconds(120L)
+                )
+            )
         )
     }.toSet()
 
@@ -774,9 +816,11 @@ fun domainDependencies(vararg serviceNames: String): Set<DomainDependency> =
     serviceNames.map {
         DomainDependency(
             domain = it,
-            settings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.fromSeconds(120L),
-                requestTimeout = Durations.fromSeconds(120L)
-            ))
+            settings = DependencySettings(
+                timeoutPolicy = Outgoing.TimeoutPolicy(
+                    idleTimeout = Durations.fromSeconds(120L),
+                    requestTimeout = Durations.fromSeconds(120L)
+                )
+            )
         )
     }.toSet()
