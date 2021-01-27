@@ -161,7 +161,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                 localServiceIp = { localServiceIp },
                 envoyControl1XdsPort = envoyControl1XdsPort,
                 envoyControl2XdsPort = envoyControl2XdsPort,
-                image = envoyImage
+                image = envoyImage,
+                apiVersion = 3
             ).withNetwork(network)
         }
 
@@ -171,7 +172,8 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             return EnvoyContainer(
                 echo3EnvoyConfig,
                 { localServiceContainer.ipAddress() },
-                envoyControl1.grpcPort
+                envoyControl1.grpcPort,
+                apiVersion = 3
             ).withNetwork(network)
         }
 

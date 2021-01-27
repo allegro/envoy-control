@@ -26,7 +26,8 @@ class SnapshotUpdaterBadConfigTest {
 
         @JvmField
         @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul, mapOf(
+        val envoyControl = EnvoyControlExtension(
+            consul, mapOf(
                 "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true
             )
         )
@@ -69,7 +70,8 @@ class SnapshotUpdaterBadConfigTest {
         EnvoyContainer(
             FaultyConfig,
             { service.container().ipAddress() },
-            envoyControl.app.grpcPort
+            envoyControl.app.grpcPort,
+            apiVersion = 3
         )
             .withNetwork(Network.SHARED)
             .withStartupTimeout(Duration.ofSeconds(10))
