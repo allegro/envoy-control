@@ -120,10 +120,10 @@ class RBACFilterFactory(
             .setAction(RBAC.Action.ALLOW)
             .putAllPolicies(shadowPolicies)
             .build()
-        // build needs to be called before any modifications happen
+        // build needs to be called before any modifications happen so we do not have to clone it
 
         val actualPolicies = (statusRoutePolicy + restrictedEndpointsPolicies.mapValues {
-            it.value.addAllPrincipals(fullAccessClients.flatMap { tlsPrincipals(it.name) })
+            addFullAccessClients(it.value)
         } + allowUnlistedPolicies).map { (endpoint, policy) -> endpoint to policy.build() }.toMap()
         val actualRules = RBAC.newBuilder()
             .setAction(RBAC.Action.ALLOW)
@@ -131,6 +131,12 @@ class RBACFilterFactory(
             .build()
 
         return Rules(shadowRules = shadowRules, actualRules = actualRules)
+    }
+
+    private fun addFullAccessClients(policyBuilder: Policy.Builder): Policy.Builder {
+        return policyBuilder.addAllPrincipals(fullAccessClients.flatMap { clientWithSelector ->
+            tlsPrincipals(clientWithSelector.name)
+        })
     }
 
     private fun unlistedAndLoggedEndpointsPolicies(

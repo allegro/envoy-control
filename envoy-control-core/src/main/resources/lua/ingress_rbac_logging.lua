@@ -71,7 +71,7 @@ function envoy_on_response(handle)
         if upstream_request_time == nil then
             rbac_action = "denied"
         end
-        log_request(lua_metadata, handle, rbac_action, allowed_client)
+        log_request(lua_metadata, handle, rbac_action)
     end
 end
 
