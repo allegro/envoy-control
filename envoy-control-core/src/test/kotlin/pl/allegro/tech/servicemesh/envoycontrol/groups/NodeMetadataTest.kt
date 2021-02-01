@@ -12,7 +12,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
 
 @Suppress("LargeClass")
 class NodeMetadataTest {
@@ -625,9 +624,7 @@ class NodeMetadataTest {
         val proto = accessLogFilterProto(statusCodeFilter = input)
 
         // when
-        val statusCodeFilterSettings = proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
-            AccessLogFilterFactory()
-        )
+        val statusCodeFilterSettings = proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter()
 
         // expects
         assertThat(statusCodeFilterSettings?.comparisonCode).isEqualTo(code)
@@ -642,9 +639,7 @@ class NodeMetadataTest {
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> {
-            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
-                AccessLogFilterFactory()
-            )
+            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter()
         }
         assertThat(exception.status.description)
             .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
@@ -658,9 +653,7 @@ class NodeMetadataTest {
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> {
-            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter(
-                AccessLogFilterFactory()
-            )
+            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter()
         }
         assertThat(exception.status.description)
             .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
