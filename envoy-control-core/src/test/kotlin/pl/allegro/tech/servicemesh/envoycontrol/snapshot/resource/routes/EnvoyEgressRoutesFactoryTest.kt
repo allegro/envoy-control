@@ -6,11 +6,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomIdleTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomRequestTimeout
-import pl.allegro.tech.servicemesh.envoycontrol.groups.hostRewriteHeaderIsEmpty
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasHostRewriteHeader
-import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRequestHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeadersToRemove
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hostRewriteHeaderIsEmpty
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
@@ -137,5 +138,19 @@ internal class EnvoyEgressRoutesFactoryTest {
             .routesList[0]
             .route
             .hasHostRewriteHeader(snapshotProperties.egress.hostHeaderRewriting.customHostHeader)
+    }
+
+    @Test
+    fun `should create route config with headers to remove`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
+            egress.headersToRemove = mutableListOf("x-special-case-header", "x-custom")
+        })
+
+        // when
+        val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
+
+        // then
+        routeConfig.hasRequestHeadersToRemove(listOf("x-special-case-header", "x-custom"))
     }
 }
