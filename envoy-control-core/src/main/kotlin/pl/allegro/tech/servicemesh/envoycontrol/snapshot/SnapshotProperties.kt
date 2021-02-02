@@ -36,6 +36,7 @@ class MetricsProperties {
 class ListenersFactoryProperties {
     var enabled = true
     var httpFilters = HttpFiltersProperties()
+    var localReplyMapper = LocalReplyMapperProperties()
 }
 
 class HttpFiltersProperties {
@@ -86,6 +87,7 @@ class TlsAuthenticationProperties {
     var servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
     var tlsContextMetadataMatchKey = "acceptMTLS"
     var protocol = TlsProtocolProperties()
+
     /** if true, a request without a cert will be rejected during handshake and will not reach RBAC filter */
     var requireClientCertificate: Boolean = false
     var validationContextSecretName: String = "validation_context"
@@ -266,4 +268,31 @@ class EnabledCommunicationModes {
 class HostHeaderRewritingProperties {
     var enabled = false
     var customHostHeader = "x-envoy-original-host"
+}
+
+class LocalReplyMapperProperties {
+    var enabled = false
+    var responseFormat = ResponseFormat()
+    var matchers = emptyList<MatcherAndMapper>()
+}
+
+class MatcherAndMapper {
+    var statusCodeMatcher = ""
+    var headerMatcher = HeaderMatcher()
+    var responseFlagMatcher = emptyList<String>()
+    var responseFormat = ResponseFormat()
+    var statusCodeToReturn = 0
+    var bodyToReturn = ""
+}
+
+class HeaderMatcher {
+    var name = ""
+    var exactMatch: String = ""
+    var regexMatch: String = ""
+}
+
+class ResponseFormat {
+    var textFormat = ""
+    var jsonFormat = ""
+    var contentType = ""
 }
