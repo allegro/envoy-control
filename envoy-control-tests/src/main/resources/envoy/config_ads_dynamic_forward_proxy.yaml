@@ -36,6 +36,7 @@ node:
           - service: "consul"
           - service: "echo"
           - domainPattern: "*.com"
+          - domainPattern: "*.pl"
 
 static_resources:
   clusters:

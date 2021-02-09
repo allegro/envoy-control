@@ -170,20 +170,18 @@ class EnvoySnapshotFactory(
         return group.proxySettings.outgoing.getDomainDependencies().map {
             RouteSpecification(
                 clusterName = it.getClusterName(),
-                routeDomain = it.getRouteDomain(),
+                routeDomains = listOf(it.getRouteDomain()),
                 settings = it.settings
             )
         }
     }
 
-    private fun getDomainPatternRouteSpecifications(group: Group): List<RouteSpecification> {
-        return group.proxySettings.outgoing.getDomainPatternDependencies().map {
-            RouteSpecification(
-                clusterName = properties.dynamicForwardProxy.clusterName,
-                routeDomain = it.domainPattern,
-                settings = it.settings
-            )
-        }
+    private fun getDomainPatternRouteSpecifications(group: Group): RouteSpecification {
+        return RouteSpecification(
+            clusterName = properties.dynamicForwardProxy.clusterName,
+            routeDomains = group.proxySettings.outgoing.getDomainPatternDependencies().map { it.domainPattern },
+            settings = group.proxySettings.outgoing.defaultServiceSettings
+        )
     }
 
     private fun getServiceRouteSpecifications(
@@ -193,7 +191,7 @@ class EnvoySnapshotFactory(
         val definedServicesRoutes = group.proxySettings.outgoing.getServiceDependencies().map {
             RouteSpecification(
                 clusterName = it.service,
-                routeDomain = it.service,
+                routeDomains = listOf(it.service),
                 settings = it.settings
             )
         }
@@ -206,7 +204,7 @@ class EnvoySnapshotFactory(
                 val allServicesRoutes = globalSnapshot.allServicesNames.subtract(servicesNames).map {
                     RouteSpecification(
                         clusterName = it,
-                        routeDomain = it,
+                        routeDomains = listOf(it),
                         settings = group.proxySettings.outgoing.defaultServiceSettings
                     )
                 }
@@ -299,6 +297,6 @@ data class ClusterConfiguration(
 
 class RouteSpecification(
     val clusterName: String,
-    val routeDomain: String,
+    val routeDomains: List<String>,
     val settings: DependencySettings
 )

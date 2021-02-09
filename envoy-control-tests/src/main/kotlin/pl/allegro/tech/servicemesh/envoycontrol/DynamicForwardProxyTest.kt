@@ -43,9 +43,11 @@ class DynamicForwardProxyTest {
         untilAsserted {
             // when
             val reachableDomainResponse = envoy.egressOperations.callDomain("www.example.com")
+            val reachableDomainResponse2 = envoy.egressOperations.callDomain("www.wp.pl")
 
             // then
             assertThat(reachableDomainResponse).isOk()
+            assertThat(reachableDomainResponse2).isOk()
         }
     }
 

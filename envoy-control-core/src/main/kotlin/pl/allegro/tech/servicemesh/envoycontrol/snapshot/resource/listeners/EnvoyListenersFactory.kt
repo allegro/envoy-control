@@ -235,6 +235,10 @@ class EnvoyListenersFactory(
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
             .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
 
+        if (group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()) {
+            connectionManagerBuilder.addHttpFilters(dynamicForwardProxyFilter)
+        }
+
         addHttpFilters(connectionManagerBuilder, egressFilters, group, globalSnapshot)
 
         return createFilter(connectionManagerBuilder, "egress", listenersConfig)
@@ -246,9 +250,6 @@ class EnvoyListenersFactory(
         group: Group,
         globalSnapshot: GlobalSnapshot
     ) {
-        if (group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()) {
-            connectionManagerBuilder.addHttpFilters(dynamicForwardProxyFilter)
-        }
         filterFactories.forEach { filterFactory ->
             val filter = filterFactory(group, globalSnapshot)
             if (filter != null) {
