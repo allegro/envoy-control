@@ -35,7 +35,7 @@ node:
         dependencies:
           - service: "consul"
           - service: "echo"
-          - domainPrefix: "*.com"
+          - domainPattern: "*.com"
 
 static_resources:
   clusters:

@@ -163,7 +163,7 @@ class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot
     ): Collection<RouteSpecification> {
         return getServiceRouteSpecifications(group, globalSnapshot) +
-            getDomainRouteSpecifications(group) + getDomainPrefixRouteSpecifications(group)
+            getDomainRouteSpecifications(group) + getDomainPatternRouteSpecifications(group)
     }
 
     private fun getDomainRouteSpecifications(group: Group): List<RouteSpecification> {
@@ -176,7 +176,7 @@ class EnvoySnapshotFactory(
         }
     }
 
-    private fun getDomainPrefixRouteSpecifications(group: Group): List<RouteSpecification> {
+    private fun getDomainPatternRouteSpecifications(group: Group): List<RouteSpecification> {
         return group.proxySettings.outgoing.getDomainPatternDependencies().map {
             RouteSpecification(
                 clusterName = properties.dynamicForwardProxy.clusterName,

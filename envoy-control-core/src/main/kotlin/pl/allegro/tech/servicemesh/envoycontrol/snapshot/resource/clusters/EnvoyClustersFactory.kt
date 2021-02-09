@@ -53,7 +53,7 @@ class EnvoyClustersFactory(
         Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
     ).build()
 
-    private val dynamicForwardProxyCluster: Cluster = getDynamicForwardProxyCluster()
+    private val dynamicForwardProxyCluster: Cluster = createDynamicForwardProxyCluster()
     private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
     private val tlsProperties = properties.incomingPermissions.tlsAuthentication
@@ -121,20 +121,23 @@ class EnvoyClustersFactory(
             }
         }
 
-        val defaultClusters = emptyList<Cluster>().toMutableList()
-        if (group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()) {
-            defaultClusters += dynamicForwardProxyCluster
-        }
-
-        return when (group) {
+        val clustersForGroup = when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().mapNotNull {
                 clusters[it.service]
-            } + defaultClusters
+            }
             is AllServicesGroup -> globalSnapshot.allServicesNames.mapNotNull {
                 clusters[it]
-            } + defaultClusters
+            }
         }
+
+        if (shouldAddDynamicForwardProxyCluster(group)) {
+            return listOf(dynamicForwardProxyCluster) + clustersForGroup
+        }
+        return clustersForGroup
     }
+
+    private fun shouldAddDynamicForwardProxyCluster(group: Group) =
+        group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()
 
     private fun mapToV2Cluster(cluster: Cluster, communicationMode: CommunicationMode): Cluster {
         return cluster.let {
@@ -435,7 +438,7 @@ class EnvoyClustersFactory(
             )
     }
 
-    private fun getDynamicForwardProxyCluster(): Cluster {
+    private fun createDynamicForwardProxyCluster(): Cluster {
         return Cluster.newBuilder()
             .setName(properties.dynamicForwardProxy.clusterName)
             .setConnectTimeout(Duration.newBuilder().setSeconds(1))

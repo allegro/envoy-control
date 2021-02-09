@@ -3,14 +3,12 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import com.google.protobuf.Struct
-import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLog
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLogFilter
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
 import io.envoyproxy.envoy.config.accesslog.v3.StatusCodeFilter
-import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.core.v3.Address
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ApiConfigSource
@@ -28,8 +26,6 @@ import io.envoyproxy.envoy.config.listener.v3.FilterChainMatch
 import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.listener.v3.ListenerFilter
 import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
-import io.envoyproxy.envoy.extensions.common.dynamic_forward_proxy.v3.DnsCacheConfig
-import io.envoyproxy.envoy.extensions.filters.http.dynamic_forward_proxy.v3.FilterConfig
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
@@ -47,6 +43,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config.LocalReplyConfigFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.DynamicForwardProxyFilter
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterSettings
 import com.google.protobuf.Any as ProtobufAny
@@ -74,28 +71,9 @@ class EnvoyListenersFactory(
 
     private val tlsProperties = snapshotProperties.incomingPermissions.tlsAuthentication
     private val requireClientCertificate = BoolValue.of(tlsProperties.requireClientCertificate)
-
-    private val dynamicForwardProxyFilter = HttpFilter.newBuilder()
-        .setName("envoy.filters.http.dynamic_forward_proxy")
-        .setTypedConfig(
-            com.google.protobuf.Any.pack(
-                FilterConfig.newBuilder()
-                    .setDnsCacheConfig(
-                        DnsCacheConfig.newBuilder()
-                            .setName("dynamic_forward_proxy_cache_config")
-                            .setDnsLookupFamily(snapshotProperties.dynamicForwardProxy.dnsLookupFamily)
-                            .setHostTtl(
-                                Durations.fromMillis(
-                                    snapshotProperties.dynamicForwardProxy.maxHostTtl.toMillis()
-                                )
-                            )
-                            .setMaxHosts(
-                                UInt32Value.of(snapshotProperties.dynamicForwardProxy.maxCachedHosts)
-                            )
-                    ).build()
-            )
-        )
-
+    private val dynamicForwardProxyFilter = DynamicForwardProxyFilter(
+        snapshotProperties.dynamicForwardProxy
+    ).filter
     private val downstreamTlsContext = DownstreamTlsContext.newBuilder()
         .setRequireClientCertificate(requireClientCertificate)
         .setCommonTlsContext(

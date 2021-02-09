@@ -298,9 +298,9 @@ class ResponseFormat {
     var contentType = ""
 }
 
-class DynamicForwardProxyProperties{
+class DynamicForwardProxyProperties {
     var clusterName = "dynamic_forward_proxy_cluster"
     var dnsLookupFamily = Cluster.DnsLookupFamily.V4_ONLY
-    var maxCachedHosts = 1024 //default Envoy's value
-    var maxHostTtl = Duration.ofSeconds(300) //default Envoy's value
+    var maxCachedHosts = 1024 // default Envoy's value
+    var maxHostTtl = Duration.ofSeconds(300) // default Envoy's value
 }

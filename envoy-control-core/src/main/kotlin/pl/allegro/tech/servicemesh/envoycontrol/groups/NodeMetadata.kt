@@ -85,7 +85,7 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
         .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
         .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
     val domainPatterns = rawDependencies.filter { it.domainPattern != null }
-        .onEach { validateDomainPrefixFormat(it) }
+        .onEach { validateDomainPatternFormat(it) }
         .map { DomainPatternDependency(it.domainPattern.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
     return Outgoing(
         serviceDependencies = services,
@@ -100,7 +100,7 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
 private fun toRawDependency(it: Value): RawDependency {
     val service = it.field("service")?.stringValue
     val domain = it.field("domain")?.stringValue
-    val domainPattern = it.field("domainPrefix")?.stringValue
+    val domainPattern = it.field("domainPattern")?.stringValue
     var count = 0
     if (!service.isNullOrBlank()) {
         count += 1
@@ -113,7 +113,7 @@ private fun toRawDependency(it: Value): RawDependency {
     }
     if (count != 1) {
         throw NodeMetadataValidationException(
-            "Define one of: 'service', 'domain' or 'domainPrefix' as an outgoing dependency"
+            "Define one of: 'service', 'domain' or 'domainPattern' as an outgoing dependency"
         )
     }
     return RawDependency(
@@ -141,13 +141,13 @@ private fun validateDomainFormat(
     }
 }
 
-private fun validateDomainPrefixFormat(
+private fun validateDomainPatternFormat(
     it: RawDependency
 ) {
-    val domain = it.domain.orEmpty()
-    if (domain.startsWith("http://") || domain.startsWith("https://")) {
+    val domainPattern = it.domainPattern.orEmpty()
+    if (domainPattern.startsWith("http://") || domainPattern.startsWith("https://")) {
         throw NodeMetadataValidationException(
-            "Unsupported format for domainPrefix"
+            "Unsupported format for domainPattern"
         )
     }
 }
