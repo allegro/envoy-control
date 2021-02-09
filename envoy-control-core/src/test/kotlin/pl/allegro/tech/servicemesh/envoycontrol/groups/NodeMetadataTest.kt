@@ -168,7 +168,7 @@ class NodeMetadataTest {
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
         assertThat(exception.status.description)
-            .isEqualTo("Define either 'service' or 'domain' as an outgoing dependency")
+            .isEqualTo("Define one of: 'service', 'domain' or 'domainPattern' as an outgoing dependency")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -182,7 +182,7 @@ class NodeMetadataTest {
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
         assertThat(exception.status.description)
-            .isEqualTo("Define either 'service' or 'domain' as an outgoing dependency")
+            .isEqualTo("Define one of: 'service', 'domain' or 'domainPattern' as an outgoing dependency")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -333,6 +333,35 @@ class NodeMetadataTest {
         val dependency = outgoing.getDomainDependencies().single()
         assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
         assertThat(dependency.getRouteDomain()).isEqualTo("domain.pl:80")
+    }
+
+    @Test
+    fun `should accept domain pattern dependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomainPattern(pattern = "*.example.com")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainPatternDependencies().single()
+        assertThat(dependency.domainPattern).isEqualTo("*.example.com")
+    }
+
+    @Test
+    fun `should reject domain pattern dependency with schema`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomainPattern(pattern = "http://example.com")
+        }
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
+        assertThat(exception.status.description)
+            .isEqualTo("Unsupported format for domainPattern")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test

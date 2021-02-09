@@ -35,6 +35,7 @@ data class EnvoyConfig(
 )
 val AdsAllDependencies = EnvoyConfig("envoy/config_ads_all_dependencies.yaml")
 val AdsCustomHealthCheck = EnvoyConfig("envoy/config_ads_custom_health_check.yaml")
+val AdsDynamicForwardProxy = EnvoyConfig("envoy/config_ads_dynamic_forward_proxy.yaml")
 val FaultyConfig = EnvoyConfig("envoy/bad_config.yaml")
 val Ads = EnvoyConfig("envoy/config_ads.yaml")
 val AdsV2 = EnvoyConfig("envoy/config_ads_v2.yaml")
