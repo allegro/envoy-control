@@ -180,7 +180,7 @@ fun proxySettingsProto(
 }
 
 class OutgoingDependenciesProtoScope {
-    class Dependency(val service: String? = null, val domain: String? = null, val idleTimeout: String? = null, val requestTimeout: String? = null, val handleInternalRedirect: Boolean? = null)
+    class Dependency(val service: String? = null, val domain: String? = null, val domainPattern: String? = null, val idleTimeout: String? = null, val requestTimeout: String? = null, val handleInternalRedirect: Boolean? = null)
 
     val dependencies = mutableListOf<Dependency>()
 
@@ -216,6 +216,18 @@ class OutgoingDependenciesProtoScope {
         )
     )
 
+    fun withDomainPattern(
+        pattern: String,
+        idleTimeout: String? = null,
+        requestTimeout: String? = null
+    ) = dependencies.add(
+        Dependency(
+            domainPattern = pattern,
+            idleTimeout = idleTimeout,
+            requestTimeout = requestTimeout
+        )
+    )
+
     fun withInvalid(service: String? = null, domain: String? = null) = dependencies.add(
         Dependency(
             service = service,
@@ -235,6 +247,7 @@ fun outgoingDependenciesProto(
                     outgoingDependencyProto(
                         service = it.service,
                         domain = it.domain,
+                        domainPattern = it.domainPattern,
                         idleTimeout = it.idleTimeout,
                         requestTimeout = it.requestTimeout,
                         handleInternalRedirect = it.handleInternalRedirect
@@ -248,12 +261,14 @@ fun outgoingDependenciesProto(
 fun outgoingDependencyProto(
     service: String? = null,
     domain: String? = null,
+    domainPattern: String? = null,
     handleInternalRedirect: Boolean? = null,
     idleTimeout: String? = null,
     requestTimeout: String? = null
 ) = struct {
     service?.also { putFields("service", string(service)) }
     domain?.also { putFields("domain", string(domain)) }
+    domainPattern?.also { putFields("domainPattern", string(domainPattern)) }
     handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(handleInternalRedirect)) }
     if (idleTimeout != null || requestTimeout != null) {
         putFields("timeoutPolicy", outgoingTimeoutPolicy(idleTimeout, requestTimeout))

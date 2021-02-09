@@ -4,6 +4,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnreachable
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsDynamicForwardProxy
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
@@ -45,6 +46,18 @@ class DynamicForwardProxyTest {
 
             // then
             assertThat(reachableDomainResponse).isOk()
+        }
+    }
+
+    @Test
+    fun `should not request domains with suffix org`() {
+        // given
+        untilAsserted {
+            // when
+            val reachableDomainResponse = envoy.egressOperations.callDomain("www.example.org")
+
+            // then
+            assertThat(reachableDomainResponse).isUnreachable()
         }
     }
 }

@@ -336,6 +336,35 @@ class NodeMetadataTest {
     }
 
     @Test
+    fun `should accept domain pattern dependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomainPattern(pattern = "*.example.com")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainPatternDependencies().single()
+        assertThat(dependency.domainPattern).isEqualTo("*.example.com")
+    }
+
+    @Test
+    fun `should reject domain pattern dependency with schema`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomainPattern(pattern = "http://example.com")
+        }
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
+        assertThat(exception.status.description)
+            .isEqualTo("Unsupported format for domainPattern")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
     fun `should accept service dependency with redirect policy defined`() {
         // given
         val proto = outgoingDependenciesProto {
