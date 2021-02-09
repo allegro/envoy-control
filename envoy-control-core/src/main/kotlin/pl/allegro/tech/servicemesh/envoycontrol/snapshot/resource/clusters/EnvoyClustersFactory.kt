@@ -122,7 +122,7 @@ class EnvoyClustersFactory(
         }
 
         val defaultClusters = emptyList<Cluster>().toMutableList()
-        if (group.proxySettings.outgoing.getDomainPrefixDependencies().isNotEmpty()) {
+        if (group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()) {
             defaultClusters += dynamicForwardProxyCluster
         }
 
@@ -437,7 +437,7 @@ class EnvoyClustersFactory(
 
     private fun getDynamicForwardProxyCluster(): Cluster {
         return Cluster.newBuilder()
-            .setName("dynamic_forward_proxy_cluster")
+            .setName(properties.dynamicForwardProxy.clusterName)
             .setConnectTimeout(Duration.newBuilder().setSeconds(1))
             .setLbPolicy(Cluster.LbPolicy.CLUSTER_PROVIDED)
             .setClusterType(
@@ -449,7 +449,15 @@ class EnvoyClustersFactory(
                                 .setDnsCacheConfig(
                                     DnsCacheConfig.newBuilder()
                                         .setName("dynamic_forward_proxy_cache_config")
-                                        .setDnsLookupFamily(Cluster.DnsLookupFamily.V4_ONLY)
+                                        .setDnsLookupFamily(properties.dynamicForwardProxy.dnsLookupFamily)
+                                        .setHostTtl(
+                                            Durations.fromMillis(
+                                                properties.dynamicForwardProxy.maxHostTtl.toMillis()
+                                            )
+                                        )
+                                        .setMaxHosts(
+                                            UInt32Value.of(properties.dynamicForwardProxy.maxCachedHosts)
+                                        )
                                 )
                                 .build()
 

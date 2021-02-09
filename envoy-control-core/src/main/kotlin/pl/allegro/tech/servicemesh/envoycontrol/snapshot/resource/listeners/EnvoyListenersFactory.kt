@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import com.google.protobuf.Struct
+import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLog
@@ -82,7 +83,15 @@ class EnvoyListenersFactory(
                     .setDnsCacheConfig(
                         DnsCacheConfig.newBuilder()
                             .setName("dynamic_forward_proxy_cache_config")
-                            .setDnsLookupFamily(Cluster.DnsLookupFamily.V4_ONLY)
+                            .setDnsLookupFamily(snapshotProperties.dynamicForwardProxy.dnsLookupFamily)
+                            .setHostTtl(
+                                Durations.fromMillis(
+                                    snapshotProperties.dynamicForwardProxy.maxHostTtl.toMillis()
+                                )
+                            )
+                            .setMaxHosts(
+                                UInt32Value.of(snapshotProperties.dynamicForwardProxy.maxCachedHosts)
+                            )
                     ).build()
             )
         )
@@ -259,7 +268,7 @@ class EnvoyListenersFactory(
         group: Group,
         globalSnapshot: GlobalSnapshot
     ) {
-        if (group.proxySettings.outgoing.getDomainPrefixDependencies().isNotEmpty()) {
+        if (group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()) {
             connectionManagerBuilder.addHttpFilters(dynamicForwardProxyFilter)
         }
         filterFactories.forEach { filterFactory ->

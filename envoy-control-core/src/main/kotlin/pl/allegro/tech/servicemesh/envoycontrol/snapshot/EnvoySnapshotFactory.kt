@@ -177,10 +177,10 @@ class EnvoySnapshotFactory(
     }
 
     private fun getDomainPrefixRouteSpecifications(group: Group): List<RouteSpecification> {
-        return group.proxySettings.outgoing.getDomainPrefixDependencies().map {
+        return group.proxySettings.outgoing.getDomainPatternDependencies().map {
             RouteSpecification(
-                clusterName = "dynamic_forward_proxy_cluster",
-                routeDomain = it.domainPrefix,
+                clusterName = properties.dynamicForwardProxy.clusterName,
+                routeDomain = it.domainPattern,
                 settings = it.settings
             )
         }
