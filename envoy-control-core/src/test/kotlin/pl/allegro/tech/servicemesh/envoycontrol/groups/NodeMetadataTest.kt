@@ -168,7 +168,7 @@ class NodeMetadataTest {
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
         assertThat(exception.status.description)
-            .isEqualTo("Define either 'service' or 'domain' as an outgoing dependency")
+            .isEqualTo("Define one of: 'service', 'domain' or 'domainPrefix' as an outgoing dependency")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -182,7 +182,7 @@ class NodeMetadataTest {
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
         assertThat(exception.status.description)
-            .isEqualTo("Define either 'service' or 'domain' as an outgoing dependency")
+            .isEqualTo("Define one of: 'service', 'domain' or 'domainPrefix' as an outgoing dependency")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 

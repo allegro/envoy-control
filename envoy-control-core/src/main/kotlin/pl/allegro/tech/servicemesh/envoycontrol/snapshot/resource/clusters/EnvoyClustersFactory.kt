@@ -1,10 +1,12 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters
 
 import com.google.protobuf.Any
+import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
+import io.envoyproxy.envoy.extensions.clusters.dynamic_forward_proxy.v3.ClusterConfig
 import io.envoyproxy.envoy.config.cluster.v3.CircuitBreakers
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.cluster.v3.OutlierDetection
@@ -25,6 +27,7 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.endpoint.v3.Endpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
+import io.envoyproxy.envoy.extensions.common.dynamic_forward_proxy.v3.DnsCacheConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CertificateValidationContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
@@ -50,6 +53,7 @@ class EnvoyClustersFactory(
         Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
     ).build()
 
+    private val dynamicForwardProxyCluster: Cluster = getDynamicForwardProxyCluster()
     private val thresholds: List<CircuitBreakers.Thresholds> = mapPropertiesToThresholds()
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
     private val tlsProperties = properties.incomingPermissions.tlsAuthentication
@@ -117,13 +121,18 @@ class EnvoyClustersFactory(
             }
         }
 
+        val defaultClusters = emptyList<Cluster>().toMutableList()
+        if (group.proxySettings.outgoing.getDomainPrefixDependencies().isNotEmpty()) {
+            defaultClusters += dynamicForwardProxyCluster
+        }
+
         return when (group) {
             is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().mapNotNull {
                 clusters[it.service]
-            }
+            } + defaultClusters
             is AllServicesGroup -> globalSnapshot.allServicesNames.mapNotNull {
                 clusters[it]
-            }
+            } + defaultClusters
         }
     }
 
@@ -424,5 +433,47 @@ class EnvoyClustersFactory(
                         UInt32Value.of(properties.clusterOutlierDetection.enforcingConsecutiveGatewayFailure)
                     )
             )
+    }
+
+    private fun getDynamicForwardProxyCluster(): Cluster {
+        return Cluster.newBuilder()
+            .setName("dynamic_forward_proxy_cluster")
+            .setConnectTimeout(Duration.newBuilder().setSeconds(1))
+            .setLbPolicy(Cluster.LbPolicy.CLUSTER_PROVIDED)
+            .setClusterType(
+                Cluster.CustomClusterType.newBuilder()
+                    .setName("envoy.clusters.dynamic_forward_proxy")
+                    .setTypedConfig(
+                        Any.pack(
+                            ClusterConfig.newBuilder()
+                                .setDnsCacheConfig(
+                                    DnsCacheConfig.newBuilder()
+                                        .setName("dynamic_forward_proxy_cache_config")
+                                        .setDnsLookupFamily(Cluster.DnsLookupFamily.V4_ONLY)
+                                )
+                                .build()
+
+                        )
+                    )
+            )
+            .setTransportSocket(
+                TransportSocket.newBuilder()
+                    .setName("envoy.transport_sockets.tls")
+                    .setTypedConfig(
+                        Any.pack(
+                            UpstreamTlsContext.newBuilder()
+                                .setCommonTlsContext(
+                                    CommonTlsContext.newBuilder()
+                                        .setValidationContext(
+                                            CertificateValidationContext.newBuilder()
+                                                .setTrustedCa(
+                                                    DataSource.newBuilder().setFilename(properties.trustedCaFile)
+                                                        .build()
+                                                )
+                                        )
+                                ).build()
+                        )
+                    )
+            ).build()
     }
 }

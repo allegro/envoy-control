@@ -65,7 +65,7 @@ fun Value?.toStatusCodeFilter(): StatusCodeFilterSettings? {
     }
 }
 
-private class RawDependency(val service: String?, val domain: String?, val value: Value)
+private class RawDependency(val service: String?, val domain: String?, val domainPrefix: String?, val value: Value)
 
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val allServiceDependenciesIdentifier = properties.outgoingPermissions.allServicesDependencies.identifier
@@ -84,9 +84,13 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val domains = rawDependencies.filter { it.domain != null }
         .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
         .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
+    val domainPrefixes = rawDependencies.filter { it.domainPrefix != null }
+        .onEach { validateDomainPrefixFormat(it) }
+        .map { DomainPrefixDependency(it.domainPrefix.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
     return Outgoing(
         serviceDependencies = services,
         domainDependencies = domains,
+        domainPrefixDependencies = domainPrefixes,
         defaultServiceSettings = allServicesDefaultSettings,
         allServicesDependencies = allServicesDependencies != null
     )
@@ -96,14 +100,26 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
 private fun toRawDependency(it: Value): RawDependency {
     val service = it.field("service")?.stringValue
     val domain = it.field("domain")?.stringValue
-    if (service == null && domain == null || service != null && domain != null) {
+    val domainPrefix = it.field("domainPrefix")?.stringValue
+    var count = 0
+    if (!service.isNullOrBlank()) {
+        count += 1
+    }
+    if (!domain.isNullOrBlank()) {
+        count += 1
+    }
+    if (!domainPrefix.isNullOrBlank()) {
+        count += 1
+    }
+    if (count != 1) {
         throw NodeMetadataValidationException(
-            "Define either 'service' or 'domain' as an outgoing dependency"
+            "Define one of: 'service', 'domain' or 'domainPrefix' as an outgoing dependency"
         )
     }
     return RawDependency(
         service = service,
         domain = domain,
+        domainPrefix = domainPrefix,
         value = it
     )
 }
@@ -121,6 +137,17 @@ private fun validateDomainFormat(
     if (!domain.startsWith("http://") && !domain.startsWith("https://")) {
         throw NodeMetadataValidationException(
             "Unsupported protocol for domain dependency for domain $domain"
+        )
+    }
+}
+
+private fun validateDomainPrefixFormat(
+    it: RawDependency
+) {
+    val domain = it.domain.orEmpty()
+    if (domain.startsWith("http://") || domain.startsWith("https://")) {
+        throw NodeMetadataValidationException(
+            "Unsupported format for domainPrefix"
         )
     }
 }
@@ -284,6 +311,7 @@ data class Incoming(
 data class Outgoing(
     private val serviceDependencies: List<ServiceDependency> = emptyList(),
     private val domainDependencies: List<DomainDependency> = emptyList(),
+    private val domainPrefixDependencies: List<DomainPrefixDependency> = emptyList(),
     val allServicesDependencies: Boolean = false,
     val defaultServiceSettings: DependencySettings = DependencySettings()
 ) {
@@ -297,8 +325,13 @@ data class Outgoing(
         .map { it.service to it }
         .toMap().values.toList()
 
+    private val deduplicatedDomainPrefixDependencies: List<DomainPrefixDependency> = domainPrefixDependencies
+        .map { it.domainPrefix to it }
+        .toMap().values.toList()
+
     fun getDomainDependencies(): List<DomainDependency> = deduplicatedDomainDependencies
     fun getServiceDependencies(): List<ServiceDependency> = deduplicatedServiceDependencies
+    fun getDomainPrefixDependencies(): List<DomainPrefixDependency> = deduplicatedDomainPrefixDependencies
 
     data class TimeoutPolicy(
         val idleTimeout: Duration? = null,
@@ -332,6 +365,11 @@ data class DomainDependency(
 
     fun getRouteDomain(): String = if (uri.port != -1) getHost() + ":" + getPort() else getHost()
 }
+
+data class DomainPrefixDependency(
+    val domainPrefix: String,
+    val settings: DependencySettings = DependencySettings()
+) : Dependency
 
 data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
