@@ -10,7 +10,7 @@ internal class ServiceTagFilterTest {
 
     private val filter = ServiceTagMetadataGenerator(ServiceTagsProperties().apply {
         enabled = true
-        routingExcludedTags = mutableListOf(".*id.*", "port:.*", "envoy")
+        routingExcludedTags = mutableListOf("sid.*", "service-id.*", "id.*", "port:.*", "envoy")
         allowedTagsCombinations = mutableListOf(
                 ServiceTagsCombinationsProperties().apply {
                     serviceName = "two-tags-allowed-service"

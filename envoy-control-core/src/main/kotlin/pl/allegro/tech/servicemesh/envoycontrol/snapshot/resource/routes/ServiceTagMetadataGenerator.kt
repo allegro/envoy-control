@@ -115,7 +115,7 @@ class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTag
         .asSequence()
 
     private fun filterTagsForRouting(tags: Set<String>): Set<String> = tags
-        .filter { tag -> tagsBlacklist.any {
+        .filter { tag -> !tagsBlacklist.any {
             when (it.type) {
                 ListTagType.EXACT -> it.tagMatcher == tag
                 ListTagType.PREFIX -> tag.startsWith(it.tagMatcher)
