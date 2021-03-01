@@ -211,6 +211,7 @@ class ServiceTagsProperties {
     var metadataKey = "tag"
     var header = "x-service-tag"
     var routingExcludedTags: MutableList<String> = mutableListOf()
+    var routingIncludedTags: MutableList<String> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
 }
 

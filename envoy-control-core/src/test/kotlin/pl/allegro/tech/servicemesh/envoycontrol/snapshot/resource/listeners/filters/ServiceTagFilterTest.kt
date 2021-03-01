@@ -11,6 +11,7 @@ internal class ServiceTagFilterTest {
     private val filter = ServiceTagMetadataGenerator(ServiceTagsProperties().apply {
         enabled = true
         routingExcludedTags = mutableListOf("sid.*", "service-id.*", "id.*", "port:.*", "envoy")
+        routingIncludedTags = mutableListOf("included-tag")
         allowedTagsCombinations = mutableListOf(
                 ServiceTagsCombinationsProperties().apply {
                     serviceName = "two-tags-allowed-service"
@@ -28,7 +29,7 @@ internal class ServiceTagFilterTest {
     })
 
     @Test
-    fun `should return filtered tags without combinations`() {
+    fun `should return filtered tags and included tags without combinations`() {
         // when
         val routingTags = filter.getAllTagsForRouting(
             "regular-service",
@@ -41,7 +42,8 @@ internal class ServiceTagFilterTest {
                     "port:1244",
                     "gport:1245",
                     "envoy",
-                    "envoy-test"
+                    "envoy-test",
+                    "included-tag"
             )
         )
         // then
@@ -52,7 +54,8 @@ internal class ServiceTagFilterTest {
             "version:v0.9",
             "env12",
             "gport:1245",
-            "envoy-test"
+            "envoy-test",
+            "included-tag"
         ))
     }
 

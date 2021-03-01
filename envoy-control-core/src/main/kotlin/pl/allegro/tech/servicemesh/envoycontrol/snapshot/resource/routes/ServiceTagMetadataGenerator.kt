@@ -13,13 +13,8 @@ class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTag
         EXACT, PREFIX
     }
 
-    private val tagsBlacklist = properties.routingExcludedTags.map {
-        if (it.endsWith(".*")) {
-            ListTag(it.removeSuffix(".*"), ListTagType.PREFIX)
-        } else {
-            ListTag(it, ListTagType.EXACT)
-        }
-    }
+    private val excludedTagsPredicates = properties.routingExcludedTags.map(this::mapTags)
+    private val includedTagsPredicates = properties.routingIncludedTags.map(this::mapTags)
 
     private val twoTagsCombinationsByService: Map<String, List<Pair<Regex, Regex>>>
     private val threeTagsCombinationsByService: Map<String, List<Triple<Regex, Regex, Regex>>>
@@ -66,7 +61,9 @@ class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTag
      * instance's metadata.
      */
     fun getAllTagsForRouting(serviceName: String, instanceTags: Set<String>): Sequence<String>? {
-        val tags = filterTagsForRouting(instanceTags)
+        val tags = filterTagsForRouting(instanceTags, excludedTagsPredicates, include = false) +
+            filterTagsForRouting(instanceTags, includedTagsPredicates, include = true)
+
         if (tags.isEmpty()) {
             return null
         }
@@ -89,6 +86,12 @@ class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTag
 
         // concatenating sequences avoids unnecessary list allocation
         return tags.asSequence() + tagsPairsJoined + tagsTriplesJoined
+    }
+
+    private fun mapTags(it: String) = if (it.endsWith(".*")) {
+        ListTag(it.removeSuffix(".*"), ListTagType.PREFIX)
+    } else {
+        ListTag(it, ListTagType.EXACT)
     }
 
     private fun generatePairs(tags: Set<String>, serviceName: String): List<Pair<String, String>> = tags
@@ -114,14 +117,24 @@ class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTag
         }
         .asSequence()
 
-    private fun filterTagsForRouting(tags: Set<String>): Set<String> = tags
-        .filter { tag -> !tagsBlacklist.any {
-            when (it.type) {
-                ListTagType.EXACT -> it.tagMatcher == tag
-                ListTagType.PREFIX -> tag.startsWith(it.tagMatcher)
+    private fun filterTagsForRouting(
+        tags: Set<String>,
+        predicateList: List<ListTag>,
+        include: Boolean = false
+    ): Set<String> {
+        return tags
+            .filter { tag ->
+                val result = predicateList.any {
+                    when (it.type) {
+                        ListTagType.EXACT -> it.tagMatcher == tag
+                        ListTagType.PREFIX -> tag.startsWith(it.tagMatcher)
+                    }
+                }
+
+                if (include) result else result.not()
             }
-        } }
-        .toSet()
+            .toSet()
+    }
 
     private fun isAllowedToMatchOnTwoTags(serviceName: String): Boolean = twoTagsCombinationsByService
         .contains(serviceName)
