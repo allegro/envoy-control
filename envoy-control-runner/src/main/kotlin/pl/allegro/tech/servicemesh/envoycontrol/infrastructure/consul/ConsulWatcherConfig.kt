@@ -44,13 +44,13 @@ open class ConsulWatcherConfig {
     }
 
     protected fun createConsulWatcher(
-        properties: ConsulProperties,
+        consulProperties: ConsulProperties,
         objectMapper: ObjectMapper,
         client: OkHttpClient,
         watcherPool: ExecutorService
     ): ConsulWatcher {
         return ConsulRecipes.consulRecipes()
-            .withAgentUri(URI("http://${properties.host}:${properties.port}"))
+            .withAgentUri(URI("http://${consulProperties.host}:${consulProperties.port}"))
             .withJsonDeserializer(JacksonJsonDeserializer(objectMapper))
             .withJsonSerializer(JacksonJsonSerializer(objectMapper))
             .withWatchesHttpClient(client)

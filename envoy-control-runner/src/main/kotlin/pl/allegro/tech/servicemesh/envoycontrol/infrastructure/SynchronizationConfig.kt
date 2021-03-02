@@ -53,10 +53,10 @@ class SynchronizationConfig {
 
     @Bean
     fun instanceFetcher(
-        consulProperties: ConsulProperties,
+        consulSyncProperties: ConsulProperties,
         envoyControlProperties: EnvoyControlProperties
     ) = SimpleConsulInstanceFetcher(
-        ConsulClient(consulProperties.host, consulProperties.port),
+        ConsulClient(consulSyncProperties.host, consulSyncProperties.port),
         envoyControlProperties.sync.envoyControlAppName
     )
 }

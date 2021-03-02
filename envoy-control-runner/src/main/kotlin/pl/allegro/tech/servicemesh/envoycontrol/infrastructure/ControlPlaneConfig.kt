@@ -53,6 +53,10 @@ class ControlPlaneConfig {
     fun consulProperties() = ConsulProperties()
 
     @Bean
+    @ConfigurationProperties("envoy-control.source.sync.consul")
+    fun consulSyncProperties() = ConsulProperties()
+
+    @Bean
     @ConditionalOnMissingBean(ControlPlane::class)
     fun controlPlane(
         properties: EnvoyControlProperties,
@@ -68,10 +72,10 @@ class ControlPlaneConfig {
 
     @Bean
     @ConditionalOnMissingBean(ConsulServiceMapper::class)
-    fun consulServiceMapper(properties: ConsulProperties) = ConsulServiceMapper(
-        canaryTag = properties.tags.canary,
-        weightTag = properties.tags.weight,
-        defaultWeight = properties.tags.defaultWeight
+    fun consulServiceMapper(consulProperties: ConsulProperties) = ConsulServiceMapper(
+        canaryTag = consulProperties.tags.canary,
+        weightTag = consulProperties.tags.weight,
+        defaultWeight = consulProperties.tags.defaultWeight
     )
 
     @Bean
@@ -96,13 +100,13 @@ class ControlPlaneConfig {
     )
 
     @Bean
-    fun consulDatacenterReader(consulProperties: ConsulProperties, objectMapper: ObjectMapper): ConsulDatacenterReader =
+    fun consulDatacenterReader(consulSyncProperties: ConsulProperties, objectMapper: ObjectMapper): ConsulDatacenterReader =
         ConsulRecipes.consulRecipes()
             .withJsonDeserializer(JacksonJsonDeserializer(objectMapper))
             .withJsonSerializer(JacksonJsonSerializer(objectMapper))
             .build()
             .consulDatacenterReader()
-            .withAgentUri(URI("http://${consulProperties.host}:${consulProperties.port}"))
+            .withAgentUri(URI("http://${consulSyncProperties.host}:${consulSyncProperties.port}"))
             .build()
 
     @Bean
@@ -137,8 +141,8 @@ class ControlPlaneConfig {
         return EnvoyHttpFilters.defaultFilters(properties.envoy.snapshot)
     }
 
-    fun localDatacenter(properties: ConsulProperties) =
-        ConsulClient(properties.host, properties.port).agentSelf.value?.config?.datacenter ?: "local"
+    fun localDatacenter(consulSyncProperties: ConsulProperties) =
+        ConsulClient(consulSyncProperties.host, consulSyncProperties.port).agentSelf.value?.config?.datacenter ?: "local"
 
     fun controlPlaneMetrics(meterRegistry: MeterRegistry) =
         DefaultEnvoyControlMetrics(meterRegistry = meterRegistry).also {
