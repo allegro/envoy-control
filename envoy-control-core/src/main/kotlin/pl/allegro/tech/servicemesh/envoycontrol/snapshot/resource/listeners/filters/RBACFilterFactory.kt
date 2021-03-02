@@ -95,7 +95,7 @@ class RBACFilterFactory(
     ): Rules {
 
         val incomingEndpointsPolicies = getIncomingEndpointPolicies(
-                incomingPermissions, snapshot, roles
+            incomingPermissions, snapshot, roles
         )
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
@@ -106,29 +106,31 @@ class RBACFilterFactory(
             .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG }
             .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
 
-        val commonPolicies = statusRoutePolicy + restrictedEndpointsPolicies
-
         val allowUnlistedPolicies = unlistedAndLoggedEndpointsPolicies(
             incomingPermissions,
-            commonPolicies.values,
+            (statusRoutePolicy + restrictedEndpointsPolicies).values,
             loggedEndpointsPolicies.values
         )
 
-        val shadowPolicies = (commonPolicies + loggedEndpointsPolicies)
+        val restrictedEndpointsPoliciesWithFullAccessClient = restrictedEndpointsPolicies.mapValues {
+            addFullAccessClients(it.value)
+        }
+
+        val shadowPolicies = (statusRoutePolicy + restrictedEndpointsPolicies + loggedEndpointsPolicies)
             .map { (endpoint, policy) -> endpoint to policy.build() }.toMap()
+        val actualPolicies = (statusRoutePolicy + restrictedEndpointsPoliciesWithFullAccessClient + allowUnlistedPolicies)
+            .map { (endpoint, policy) -> endpoint to policy.build() }.toMap()
+
+        val actualRules = RBAC.newBuilder()
+            .setAction(RBAC.Action.ALLOW)
+            .putAllPolicies(actualPolicies)
+            .build()
+
         val shadowRules = RBAC.newBuilder()
             .setAction(RBAC.Action.ALLOW)
             .putAllPolicies(shadowPolicies)
             .build()
         // build needs to be called before any modifications happen so we do not have to clone it
-
-        val actualPolicies = (statusRoutePolicy + restrictedEndpointsPolicies.mapValues {
-            addFullAccessClients(it.value)
-        } + allowUnlistedPolicies).map { (endpoint, policy) -> endpoint to policy.build() }.toMap()
-        val actualRules = RBAC.newBuilder()
-            .setAction(RBAC.Action.ALLOW)
-            .putAllPolicies(actualPolicies)
-            .build()
 
         return Rules(shadowRules = shadowRules, actualRules = actualRules)
     }
