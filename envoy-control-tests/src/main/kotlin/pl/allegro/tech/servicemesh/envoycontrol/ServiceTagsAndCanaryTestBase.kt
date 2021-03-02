@@ -114,9 +114,7 @@ interface ServiceTagsAndCanaryTestBase {
         }
     }
 
-    fun callStats() = CallStats(listOf(
-            loremCanaryService.container(), loremRegularService.container(), ipsumRegularService.container()
-    ))
+    fun callStats() = CallStats(listOf(loremCanaryService, loremRegularService, ipsumRegularService))
 
     fun callEchoServiceRepeatedly(
         repeat: Int,
@@ -140,9 +138,9 @@ interface ServiceTagsAndCanaryTestBase {
     }
 
     val CallStats.loremCanaryHits: Int
-        get() = this.hits(loremCanaryService.container())
+        get() = this.hits(loremCanaryService)
     val CallStats.loremRegularHits: Int
-        get() = this.hits(loremRegularService.container())
+        get() = this.hits(loremRegularService)
     val CallStats.ipsumRegularHits: Int
-        get() = this.hits(ipsumRegularService.container())
+        get() = this.hits(ipsumRegularService)
 }

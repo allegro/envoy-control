@@ -5,11 +5,13 @@ import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
 import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
 import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
+import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
 import io.envoyproxy.envoy.config.route.v3.Route
 import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
@@ -67,7 +69,8 @@ class EnvoyEgressRoutesFactory(
     fun createEgressRouteConfig(
         serviceName: String,
         routes: Collection<RouteSpecification>,
-        addUpstreamAddressHeader: Boolean
+        addUpstreamAddressHeader: Boolean,
+        resourceVersion: ResourceVersion = ResourceVersion.V3
     ): RouteConfiguration {
         val virtualHosts = routes.map { routeSpecification ->
             VirtualHost.newBuilder()
@@ -81,7 +84,7 @@ class EnvoyEgressRoutesFactory(
                                 .build()
                         )
                         .setRoute(
-                            createRouteAction(routeSpecification)
+                            createRouteAction(routeSpecification, resourceVersion)
                         ).build()
                 )
                 .build()
@@ -103,6 +106,11 @@ class EnvoyEgressRoutesFactory(
                     )
                 }
             }
+
+        if (properties.egress.headersToRemove.isNotEmpty()) {
+            routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
+        }
+
         if (addUpstreamAddressHeader) {
             routeConfiguration = routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
         }
@@ -110,7 +118,10 @@ class EnvoyEgressRoutesFactory(
         return routeConfiguration.build()
     }
 
-    private fun createRouteAction(routeSpecification: RouteSpecification): RouteAction.Builder {
+    private fun createRouteAction(
+        routeSpecification: RouteSpecification,
+        resourceVersion: ResourceVersion
+    ): RouteAction.Builder {
         val routeAction = RouteAction.newBuilder()
             .setCluster(routeSpecification.clusterName)
 
@@ -120,7 +131,12 @@ class EnvoyEgressRoutesFactory(
         }
 
         if (routeSpecification.settings.handleInternalRedirect) {
-            routeAction.internalRedirectAction = RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT
+            when (resourceVersion) {
+                ResourceVersion.V2 ->
+                    routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
+                ResourceVersion.V3 ->
+                    routeAction.internalRedirectPolicy = InternalRedirectPolicy.newBuilder().build()
+            }
         }
 
         if (properties.egress.hostHeaderRewriting.enabled && routeSpecification.settings.rewriteHostHeader) {

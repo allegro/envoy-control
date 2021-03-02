@@ -42,7 +42,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config.LocalReplyConfigFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterSettings
 import com.google.protobuf.Any as ProtobufAny
 
 typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFilter?
@@ -62,6 +64,9 @@ class EnvoyListenersFactory(
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
     private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
     private val ingressRdsInitialFetchTimeout: Duration = durationInSeconds(30)
+    private val localReplyConfig = LocalReplyConfigFactory(
+        snapshotProperties.dynamicListeners.localReplyMapper
+    ).configuration
 
     private val tlsProperties = snapshotProperties.incomingPermissions.tlsAuthentication
     private val requireClientCertificate = BoolValue.of(tlsProperties.requireClientCertificate)
@@ -218,6 +223,8 @@ class EnvoyListenersFactory(
                 .setStatPrefix("egress_http")
                 .setRds(egressRds(group.communicationMode, group.version))
                 .setHttpProtocolOptions(egressHttp1ProtocolOptions())
+                .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
+                .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
 
         addHttpFilters(connectionManagerBuilder, egressFilters, group, globalSnapshot)
 
@@ -247,6 +254,10 @@ class EnvoyListenersFactory(
             connectionManagerBuilder.addAccessLog(
                 accessLog(listenersConfig.accessLogPath, accessLogType, listenersConfig.accessLogFilterSettings)
             )
+        }
+
+        if (listenersFactoryProperties.localReplyMapper.enabled) {
+            connectionManagerBuilder.localReplyConfig = localReplyConfig
         }
 
         return Filter.newBuilder()
@@ -296,6 +307,8 @@ class EnvoyListenersFactory(
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
                 .setStatPrefix(statPrefix)
                 .setUseRemoteAddress(boolValue(listenersConfig.useRemoteAddress))
+                .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
+                .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
                 .setDelayedCloseTimeout(durationInSeconds(0))
                 .setCommonHttpProtocolOptions(httpProtocolOptions)
                 .setCodecType(HttpConnectionManager.CodecType.AUTO)
@@ -347,7 +360,7 @@ class EnvoyListenersFactory(
         }
     }
 
-    fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings.StatusCodeFilterSettings) {
+    fun AccessLog.Builder.buildFromSettings(settings: StatusCodeFilterSettings) {
         this.setFilter(
                 AccessLogFilter.newBuilder().setStatusCodeFilter(
                         StatusCodeFilter.newBuilder()

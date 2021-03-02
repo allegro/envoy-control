@@ -25,7 +25,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
@@ -135,7 +134,7 @@ class EnvoySnapshotFactoryTest {
             ingressPort = INGRESS_PORT,
             egressHost = EGRESS_HOST,
             egressPort = EGRESS_PORT,
-            accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFilterFactory())
+            accessLogFilterSettings = AccessLogFilterSettings(null)
         )
     }
 

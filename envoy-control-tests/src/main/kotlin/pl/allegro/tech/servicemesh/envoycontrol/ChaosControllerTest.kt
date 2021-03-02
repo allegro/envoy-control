@@ -7,13 +7,14 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 import org.springframework.http.HttpStatus
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.ExperimentsListResponse
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelayResponse
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import java.util.UUID
 
 private val sampleNetworkDelayRequest = NetworkDelay(
@@ -24,24 +25,26 @@ private val sampleNetworkDelayRequest = NetworkDelay(
 )
 private val sampleNetworkDelayId = UUID.randomUUID().toString()
 
-internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
+internal class ChaosControllerTest {
 
     private val objectMapper: ObjectMapper = ObjectMapper()
         .registerModule(KotlinModule())
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     companion object {
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup()
-        }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul)
     }
 
     @Test
     fun `should return UNAUTHORIZED for invalid user`() {
         // when
-        val response = envoyControl1.postChaosFaultRequest(
+        val response = envoyControl.app.postChaosFaultRequest(
             username = "bad-user",
             password = "wrong-pass",
             networkDelay = sampleNetworkDelayRequest
@@ -55,7 +58,7 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
     fun `should post a chaos fault request and get response with storage object`() {
         // when
         val response = convertResponseToNetworkDelayResponse(
-            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+            envoyControl.app.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
         )
 
         // then
@@ -71,7 +74,7 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should accept delete request and return NO_CONTENT (204)`() {
         // when
-        val response = envoyControl1.deleteChaosFaultRequest(faultId = sampleNetworkDelayId)
+        val response = envoyControl.app.deleteChaosFaultRequest(faultId = sampleNetworkDelayId)
 
         // then
         assertThat(response.code()).isEqualTo(HttpStatus.NO_CONTENT.value())
@@ -80,7 +83,7 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
     @Test
     fun `should return experiment list with OK (200) status`() {
         // when
-        val response = envoyControl1.getExperimentsListRequest()
+        val response = envoyControl.app.getExperimentsListRequest()
 
         // then
         assertThat(response.code()).isEqualTo(HttpStatus.OK.value())
@@ -90,7 +93,7 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
     fun `should return empty experiment list when no experiment is running`() {
         // when
         val response: ExperimentsListResponse = convertResponseToExperimentsListResponse(
-            envoyControl1.getExperimentsListRequest()
+            envoyControl.app.getExperimentsListRequest()
         )
 
         // then
@@ -102,15 +105,15 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
         // given
         removeAllFromStorage()
         val item1 = convertResponseToNetworkDelayResponse(
-            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+            envoyControl.app.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
         )
         val item2 = convertResponseToNetworkDelayResponse(
-            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+            envoyControl.app.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
         )
 
         // when
         val itemsList = convertResponseToExperimentsListResponse(
-            envoyControl1.getExperimentsListRequest()
+            envoyControl.app.getExperimentsListRequest()
         )
 
         // then
@@ -125,25 +128,25 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
         // given
         removeAllFromStorage()
         val item1 = convertResponseToNetworkDelayResponse(
-            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+            envoyControl.app.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
         )
         val item2 = convertResponseToNetworkDelayResponse(
-            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+            envoyControl.app.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
         )
         val item3 = convertResponseToNetworkDelayResponse(
-            envoyControl1.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
+            envoyControl.app.postChaosFaultRequest(networkDelay = sampleNetworkDelayRequest)
         )
         val itemsList = convertResponseToExperimentsListResponse(
-            envoyControl1.getExperimentsListRequest()
+            envoyControl.app.getExperimentsListRequest()
         )
         assertThat(itemsList.experimentList.size).isEqualTo(3)
 
         // when
-        val response = envoyControl1.deleteChaosFaultRequest(faultId = item2.id)
+        val response = envoyControl.app.deleteChaosFaultRequest(faultId = item2.id)
 
         // then
         val resultItemsList = convertResponseToExperimentsListResponse(
-            envoyControl1.getExperimentsListRequest()
+            envoyControl.app.getExperimentsListRequest()
         )
         with(resultItemsList.experimentList) {
             assertThat(size).isEqualTo(2)
@@ -153,15 +156,15 @@ internal class ChaosControllerTest : EnvoyControlTestConfiguration() {
 
     private fun removeAllFromStorage() {
         var response = convertResponseToExperimentsListResponse(
-            envoyControl1.getExperimentsListRequest()
+            envoyControl.app.getExperimentsListRequest()
         )
 
         for (item in response.experimentList) {
-            envoyControl1.deleteChaosFaultRequest(faultId = item.id)
+            envoyControl.app.deleteChaosFaultRequest(faultId = item.id)
         }
 
         response = convertResponseToExperimentsListResponse(
-            envoyControl1.getExperimentsListRequest()
+            envoyControl.app.getExperimentsListRequest()
         )
         assertThat(response.experimentList.size).isEqualTo(0)
     }

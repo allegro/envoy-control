@@ -5,10 +5,10 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
-import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterParser
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterSettings
 import java.net.URL
 import java.text.ParseException
 
@@ -25,17 +25,9 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
 }
 
-data class AccessLogFilterSettings(
-    val statusCodeFilterSettings: StatusCodeFilterSettings?
-) {
-    constructor(proto: Value?, accessLogFilterFactory: AccessLogFilterFactory) : this(
-        statusCodeFilterSettings = proto?.field("status_code_filter").toStatusCodeFilter(accessLogFilterFactory)
-    )
-
-    data class StatusCodeFilterSettings(
-        val comparisonOperator: ComparisonFilter.Op,
-        val comparisonCode: Int
-    )
+data class AccessLogFilterSettings(val proto: Value?) {
+    val statusCodeFilterSettings: StatusCodeFilterSettings? = proto?.field("status_code_filter")
+        .toStatusCodeFilter()
 }
 
 data class ProxySettings(
@@ -67,10 +59,9 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
     }
 }
 
-fun Value?.toStatusCodeFilter(accessLogFilterFactory: AccessLogFilterFactory):
-    AccessLogFilterSettings.StatusCodeFilterSettings? {
+fun Value?.toStatusCodeFilter(): StatusCodeFilterSettings? {
     return this?.stringValue?.let {
-        accessLogFilterFactory.parseStatusCodeFilter(it.toUpperCase())
+        StatusCodeFilterParser.parseStatusCodeFilter(it.toUpperCase())
     }
 }
 

@@ -28,11 +28,13 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
         private const val prefix = "envoy-control.envoy.snapshot"
         private val properties = { sourceClientIp: String -> mapOf(
             "$prefix.incoming-permissions.enabled" to true,
+            "$prefix.incoming-permissions.overlapping-paths-fix" to true,
             "$prefix.incoming-permissions.source-ip-authentication.ip-from-range.source-ip-client" to
                 "$sourceClientIp/32",
             "$prefix.routes.status.create-virtual-cluster" to true,
             "$prefix.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
-            "$prefix.routes.status.enabled" to true
+            "$prefix.routes.status.enabled" to true,
+            "$prefix.incoming-permissions.clients-allowed-to-all-endpoints" to listOf("allowed-client")
         ) }
 
         // language=yaml

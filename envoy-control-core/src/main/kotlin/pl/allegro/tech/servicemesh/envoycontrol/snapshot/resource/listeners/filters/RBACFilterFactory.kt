@@ -39,6 +39,9 @@ class RBACFilterFactory(
 
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
     private val denyForAllPrincipal = Principal.newBuilder().setNotId(anyPrincipal).build()
+    private val fullAccessClients = incomingPermissionsProperties.clientsAllowedToAllEndpoints.map {
+        ClientWithSelector(name = it)
+    }
     private val sanUriMatcherFactory = SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
 
     init {
@@ -52,6 +55,7 @@ class RBACFilterFactory(
     companion object {
         private val logger by logger()
         private const val ALLOW_UNLISTED_POLICY_NAME = "ALLOW_UNLISTED_POLICY"
+        private const val ALLOW_LOGGED_POLICY_NAME = "ALLOW_LOGGED_POLICY"
         private const val STATUS_ROUTE_POLICY_NAME = "STATUS_ALLOW_ALL_POLICY"
         private val EXACT_IP_MASK = UInt32Value.of(32)
     }
@@ -62,7 +66,6 @@ class RBACFilterFactory(
     data class EndpointWithPolicy(val endpoint: IncomingEndpoint, val policy: Policy.Builder)
 
     private fun getIncomingEndpointPolicies(
-        serviceName: String,
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
         roles: List<Role>
@@ -86,14 +89,13 @@ class RBACFilterFactory(
     data class Rules(val shadowRules: RBAC.Builder, val actualRules: RBAC.Builder)
 
     private fun getRules(
-        serviceName: String,
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
         roles: List<Role>
     ): Rules {
 
         val incomingEndpointsPolicies = getIncomingEndpointPolicies(
-                serviceName, incomingPermissions, snapshot, roles
+                incomingPermissions, snapshot, roles
         )
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
@@ -132,7 +134,12 @@ class RBACFilterFactory(
         loggedEndpointsPolicies: Iterable<Policy>
     ): Map<String, Policy> {
         return if (incomingPermissions.unlistedEndpointsPolicy == Incoming.UnlistedPolicy.LOG) {
-            allowUnlistedEndpointsPolicy(restrictedEndpointsPolicies)
+            if (incomingPermissionsProperties.overlappingPathsFix) {
+                allowLoggedEndpointsPolicy(loggedEndpointsPolicies) +
+                    allowUnlistedEndpointsPolicy(restrictedEndpointsPolicies)
+            } else {
+                allowUnlistedEndpointsPolicy(restrictedEndpointsPolicies)
+            }
         } else {
             allowLoggedEndpointsPolicy(loggedEndpointsPolicies)
         }
@@ -161,7 +168,7 @@ class RBACFilterFactory(
             return mapOf()
         }
 
-        return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
+        return mapOf(ALLOW_LOGGED_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
             .addPermissions(anyOf(allLoggedEndpointsPermissions))
             .build()
@@ -195,7 +202,7 @@ class RBACFilterFactory(
             roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
         }
         // sorted order ensures that we do not duplicate rules
-        return clients.toSortedSet()
+        return (clients + fullAccessClients).toSortedSet()
     }
 
     private fun mapClientWithSelectorToPrincipals(
@@ -254,7 +261,7 @@ class RBACFilterFactory(
             val principals = it.value.map { ipWithPrefix ->
                 val (ip, prefixLength) = ipWithPrefix.split("/")
 
-                Principal.newBuilder().setSourceIp(CidrRange.newBuilder()
+                Principal.newBuilder().setDirectRemoteIp(CidrRange.newBuilder()
                         .setAddressPrefix(ip)
                         .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
                         .build()
@@ -288,7 +295,7 @@ class RBACFilterFactory(
             }
         }.orEmpty().map { address ->
             Principal.newBuilder()
-                    .setSourceIp(CidrRange.newBuilder()
+                    .setDirectRemoteIp(CidrRange.newBuilder()
                             .setAddressPrefix(address.socketAddress.address)
                             .setPrefixLen(EXACT_IP_MASK).build())
                     .build()
@@ -322,7 +329,6 @@ class RBACFilterFactory(
     fun createHttpFilter(group: Group, snapshot: GlobalSnapshot): HttpFilter? {
         return if (incomingPermissionsProperties.enabled && group.proxySettings.incoming.permissionsEnabled) {
             val rules = getRules(
-                group.serviceName,
                 group.proxySettings.incoming,
                 snapshot,
                 group.proxySettings.incoming.roles

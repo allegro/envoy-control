@@ -31,7 +31,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 @Suppress("LargeClass") // TODO: https://github.com/allegro/envoy-control/issues/121
 internal class RBACFilterFactoryTest {
     private val rbacFilterFactory = RBACFilterFactory(
-            IncomingPermissionsProperties().also { it.enabled = true },
+            IncomingPermissionsProperties().also {
+                it.enabled = true
+                it.overlappingPathsFix = true
+            },
             StatusRouteProperties()
     )
     private val rbacFilterFactoryWithSourceIpAuth = RBACFilterFactory(
@@ -77,6 +80,13 @@ internal class RBACFilterFactoryTest {
                 "client1" to SelectorMatching().also { it.header = "x-secret-header" },
                 "client2" to SelectorMatching().also { it.header = "x-secret-header" }
             )
+        },
+        StatusRouteProperties()
+    )
+    private val rbacFilterFactoryWithAllowAllEndpointsForClient = RBACFilterFactory(
+        IncomingPermissionsProperties().also {
+            it.enabled = true
+            it.clientsAllowedToAllEndpoints = mutableListOf("allowed-client")
         },
         StatusRouteProperties()
     )
@@ -542,7 +552,7 @@ internal class RBACFilterFactoryTest {
         val expectedActual = """
         {
           "policies": {
-            "ALLOW_UNLISTED_POLICY": {
+            "ALLOW_LOGGED_POLICY": {
               "permissions": [{
                 "or_rules": {
                   "rules": [{
@@ -693,6 +703,30 @@ internal class RBACFilterFactoryTest {
         val generated = rbacFilterFactoryWithSourceIpWithSelectorAuth.createHttpFilter(
                 createGroup(incomingPermission),
                 snapshotForSourceIpAuth
+        )
+
+        // then
+        assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with client allowed to all endpoints`() {
+        // given
+        val expectedRbacBuilder = getRBACFilter(expectedEndpointPermissionsWithAllowedClientForAllEndpoints)
+        val incomingPermission = Incoming(
+            permissionsEnabled = true,
+            endpoints = listOf(IncomingEndpoint(
+                "/example",
+                PathMatchingType.PATH,
+                setOf("GET"),
+                setOf(ClientWithSelector("client1"))
+            ))
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithAllowAllEndpointsForClient.createHttpFilter(
+            createGroup(incomingPermission),
+            snapshotForSourceIpAuth
         )
 
         // then
@@ -1042,6 +1076,46 @@ internal class RBACFilterFactoryTest {
     private val expectedAnyPermissionJson = """
         {
           "policies": {
+            "ALLOW_LOGGED_POLICY": {
+              "permissions": [{
+                "or_rules": {
+                  "rules": [
+                    {
+                      "and_rules": {
+                        "rules": [
+                          {
+                            "url_path": {
+                              "path": {
+                                "exact": "/example"
+                              }
+                            }
+                          },
+                          {
+                            "or_rules": {
+                              "rules": [
+                                {
+                                  "header": {
+                                    "name": ":method",
+                                    "exact_match": "GET"
+                                  }
+                                },
+                                {
+                                  "header": {
+                                    "name": ":method",
+                                    "exact_match": "POST"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }],
+              "principals": [ $anyTrue ]
+            },
             "ALLOW_UNLISTED_POLICY": {
               "permissions": [
                 $anyTrue
@@ -1072,7 +1146,7 @@ internal class RBACFilterFactoryTest {
     """
 
     private val expectedUnlistedClientsPermissions = """{ "policies": {
-            "ALLOW_UNLISTED_POLICY": {
+            "ALLOW_LOGGED_POLICY": {
               "permissions": [
               {
                   "or_rules": {
@@ -1219,6 +1293,33 @@ internal class RBACFilterFactoryTest {
         }
     """
 
+    private val expectedEndpointPermissionsWithAllowedClientForAllEndpoints = """
+        {
+          "policies": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG)": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule("/example")},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [
+                ${authenticatedPrincipal("allowed-client")}, ${authenticatedPrincipal("client1")}
+              ]
+            }
+          }
+        }
+    """
+
     private fun pathRule(path: String): String {
         return """{
             "url_path": {
@@ -1250,7 +1351,7 @@ internal class RBACFilterFactoryTest {
 
     private fun principalSourceIp(address: String, prefixLen: Int = 32): String {
         return """{
-                "source_ip": {
+                "direct_remote_ip": {
                   "address_prefix": "$address",
                   "prefix_len": $prefixLen
                 }

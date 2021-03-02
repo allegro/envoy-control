@@ -31,6 +31,7 @@ internal class TlsBasedAuthenticationTest {
 
         private val ecProperties = mapOf(
             "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
             "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.services-allowed-to-use-wildcard" to listOf("echo3"),
             "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo"),
             "envoy-control.envoy.snapshot.routes.status.create-virtual-cluster" to true,
@@ -203,13 +204,13 @@ internal class TlsBasedAuthenticationTest {
                 assertNoErrors = true,
                 minRepeat = 2,
                 maxRepeat = 2,
-                stats = CallStats(listOf(service1.container(), service2.container()))
+                stats = CallStats(listOf(service1, service2))
         )
 
         // then
         assertThat(callStats.failedHits).isEqualTo(0)
-        assertThat(callStats.hits(service1.container())).isEqualTo(1)
-        assertThat(callStats.hits(service2.container())).isEqualTo(1)
+        assertThat(callStats.hits(service1)).isEqualTo(1)
+        assertThat(callStats.hits(service2)).isEqualTo(1)
 
         val defaultToPlaintextMatchesCount = echo1Envoy.container.admin().statValue("cluster.echo2.plaintext_match.total_match_count")?.toInt()
         assertThat(defaultToPlaintextMatchesCount).isEqualTo(1)

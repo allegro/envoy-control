@@ -5,13 +5,11 @@ import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.AccessLogFilterFactory
 import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 class MetadataNodeGroup(
-    val properties: SnapshotProperties,
-    val accessLogFilterFactory: AccessLogFilterFactory
+    val properties: SnapshotProperties
 ) : NodeGroup<Group> {
     private val logger by logger()
 
@@ -84,7 +82,7 @@ class MetadataNodeGroup(
         val egressHostValue = metadata.fieldsMap["egress_host"]
         val egressPortValue = metadata.fieldsMap["egress_port"]
         val accessLogFilterSettings = AccessLogFilterSettings(
-            metadata.fieldsMap["access_log_filter"], accessLogFilterFactory
+            metadata.fieldsMap["access_log_filter"]
         )
 
         val listenersHostPort = metadataToListenersHostPort(
@@ -101,6 +99,10 @@ class MetadataNodeGroup(
 
         val useRemoteAddress = metadata.fieldsMap["use_remote_address"]?.boolValue
             ?: ListenersConfig.defaultUseRemoteAddress
+        val generateRequestId = metadata.fieldsMap["generate_request_id"]?.boolValue
+            ?: ListenersConfig.defaultGenerateRequestId
+        val preserveExternalRequestId = metadata.fieldsMap["preserve_external_request_id"]?.boolValue
+            ?: ListenersConfig.defaultPreserveExternalRequestId
         val accessLogEnabled = metadata.fieldsMap["access_log_enabled"]?.boolValue
             ?: ListenersConfig.defaultAccessLogEnabled
         val enableLuaScript = metadata.fieldsMap["enable_lua_script"]?.boolValue
@@ -120,6 +122,8 @@ class MetadataNodeGroup(
             listenersHostPort.egressHost,
             listenersHostPort.egressPort,
             useRemoteAddress,
+            generateRequestId,
+            preserveExternalRequestId,
             accessLogEnabled,
             enableLuaScript,
             accessLogPath,

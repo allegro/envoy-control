@@ -49,16 +49,27 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
                             .build()
                         ).build()
                 )
-                .putFields("trusted_client_identity_header",
+                .putFields(
+                    "trusted_client_identity_header",
                     Value.newBuilder()
                         .setStringValue(trustedClientIdentityHeader)
                         .build()
                 )
-                .putFields("san_uri_lua_pattern",
+                .putFields(
+                    "san_uri_lua_pattern",
                     Value.newBuilder()
                         .setStringValue(
                             SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
                                 .sanUriWildcardRegexForLua
+                        ).build()
+                ).putFields("clients_allowed_to_all_endpoints",
+                    Value.newBuilder()
+                        .setListValue(ListValue.newBuilder()
+                            .addAllValues(
+                                incomingPermissionsProperties.clientsAllowedToAllEndpoints
+                                    .map { Value.newBuilder().setStringValue(it).build() }
+                            )
+                            .build()
                         ).build()
                 )
                 .build()
@@ -68,13 +79,13 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
         ingressRbacLoggingFilter.takeIf { group.proxySettings.incoming.permissionsEnabled }
 
     private val ingressClientNameHeaderScript: String = this::class.java.classLoader
-            .getResource("lua/ingress_client_name_header.lua")!!.readText()
+        .getResource("lua/ingress_client_name_header.lua")!!.readText()
 
     private val ingressClientNameHeaderFilter: HttpFilter =
         HttpFilter.newBuilder()
-                .setName("ingress.client.lua")
-                .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientNameHeaderScript).build()))
-                .build()
+            .setName("ingress.client.lua")
+            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientNameHeaderScript).build()))
+            .build()
 
     fun ingressClientNameHeaderFilter(): HttpFilter? =
         ingressClientNameHeaderFilter.takeIf { trustedClientIdentityHeader.isNotEmpty() }
