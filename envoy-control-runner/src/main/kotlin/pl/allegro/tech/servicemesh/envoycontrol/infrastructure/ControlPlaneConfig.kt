@@ -100,7 +100,9 @@ class ControlPlaneConfig {
     )
 
     @Bean
-    fun consulDatacenterReader(consulSyncProperties: ConsulProperties, objectMapper: ObjectMapper): ConsulDatacenterReader =
+    fun consulDatacenterReader(
+        consulSyncProperties: ConsulProperties, objectMapper: ObjectMapper
+    ): ConsulDatacenterReader =
         ConsulRecipes.consulRecipes()
             .withJsonDeserializer(JacksonJsonDeserializer(objectMapper))
             .withJsonSerializer(JacksonJsonSerializer(objectMapper))
@@ -142,7 +144,8 @@ class ControlPlaneConfig {
     }
 
     fun localDatacenter(consulSyncProperties: ConsulProperties) =
-        ConsulClient(consulSyncProperties.host, consulSyncProperties.port).agentSelf.value?.config?.datacenter ?: "local"
+        ConsulClient(consulSyncProperties.host, consulSyncProperties.port).agentSelf.value?.config?.datacenter
+            ?: "local"
 
     fun controlPlaneMetrics(meterRegistry: MeterRegistry) =
         DefaultEnvoyControlMetrics(meterRegistry = meterRegistry).also {
