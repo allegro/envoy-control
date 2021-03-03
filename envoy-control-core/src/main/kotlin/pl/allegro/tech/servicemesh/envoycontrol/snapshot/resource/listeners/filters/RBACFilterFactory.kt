@@ -118,8 +118,9 @@ class RBACFilterFactory(
 
         val shadowPolicies = (statusRoutePolicy + restrictedEndpointsPolicies + loggedEndpointsPolicies)
             .map { (endpoint, policy) -> endpoint to policy.build() }.toMap()
-        val actualPolicies = (statusRoutePolicy + restrictedEndpointsPoliciesWithFullAccessClient + allowUnlistedPolicies)
-            .map { (endpoint, policy) -> endpoint to policy.build() }.toMap()
+        val actualPolicies =
+            (statusRoutePolicy + restrictedEndpointsPoliciesWithFullAccessClient + allowUnlistedPolicies)
+                .map { (endpoint, policy) -> endpoint to policy.build() }.toMap()
 
         val actualRules = RBAC.newBuilder()
             .setAction(RBAC.Action.ALLOW)
