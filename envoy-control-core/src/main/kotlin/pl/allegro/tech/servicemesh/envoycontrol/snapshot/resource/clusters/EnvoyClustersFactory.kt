@@ -1,12 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters
 
 import com.google.protobuf.Any
-import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.extensions.clusters.dynamic_forward_proxy.v3.ClusterConfig
 import io.envoyproxy.envoy.config.cluster.v3.CircuitBreakers
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.cluster.v3.OutlierDetection
@@ -27,6 +25,7 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.endpoint.v3.Endpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
+import io.envoyproxy.envoy.extensions.clusters.dynamic_forward_proxy.v3.ClusterConfig
 import io.envoyproxy.envoy.extensions.common.dynamic_forward_proxy.v3.DnsCacheConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CertificateValidationContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
@@ -441,7 +440,7 @@ class EnvoyClustersFactory(
     private fun createDynamicForwardProxyCluster(): Cluster {
         return Cluster.newBuilder()
             .setName(properties.dynamicForwardProxy.clusterName)
-            .setConnectTimeout(Duration.newBuilder().setSeconds(1))
+            .setConnectTimeout(Durations.fromMillis(properties.dynamicForwardProxy.connectionTimeout.toMillis()))
             .setLbPolicy(Cluster.LbPolicy.CLUSTER_PROVIDED)
             .setClusterType(
                 Cluster.CustomClusterType.newBuilder()
