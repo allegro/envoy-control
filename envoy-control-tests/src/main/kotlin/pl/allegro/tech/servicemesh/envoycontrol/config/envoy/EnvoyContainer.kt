@@ -75,6 +75,11 @@ class EnvoyContainer(
         execInContainer("sh", "-c", "/etc/init.d/dnsmasq restart")
     }
 
+    fun removeDnsEntry(host: String) {
+        execInContainer("sh", "-c", "sed -i 's/.*$host.*//' /etc/dnsmasq.conf")
+        execInContainer("sh", "-c", "/etc/init.d/dnsmasq restart")
+    }
+
     override fun containerIsStarting(containerInfo: InspectContainerResponse?) {
         followOutput(Slf4jLogConsumer(logger).withPrefix("ENVOY"))
         super.containerIsStarting(containerInfo)

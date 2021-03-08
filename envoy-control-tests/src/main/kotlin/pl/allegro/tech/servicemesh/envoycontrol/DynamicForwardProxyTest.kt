@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -14,7 +15,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControl
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
-import java.time.Duration
 
 class DynamicForwardProxyTest {
 
@@ -50,12 +50,18 @@ class DynamicForwardProxyTest {
         fun setup() {
             envoy.container.addDnsEntry("my.example.com", httpsService.container().ipAddress())
         }
+
+        @JvmStatic
+        @AfterAll
+        fun cleanup() {
+            envoy.container.removeDnsEntry("my.example.com")
+        }
     }
 
     @Test
     fun `should allow to request domains with suffix com`() {
         // given
-        untilAsserted(wait = Duration.ofSeconds(1200)) {
+        untilAsserted {
             // when
             val reachableDomainResponse = envoy.egressOperations.callDomain("my.example.com")
 
