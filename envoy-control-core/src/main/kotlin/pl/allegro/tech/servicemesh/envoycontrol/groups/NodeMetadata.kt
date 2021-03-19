@@ -147,7 +147,7 @@ private fun validateDomainPatternFormat(
     val domainPattern = it.domainPattern.orEmpty()
     if (domainPattern.startsWith("http://") || domainPattern.startsWith("https://")) {
         throw NodeMetadataValidationException(
-            "Unsupported format for domainPattern"
+            "Unsupported format for domainPattern: domainPattern cannot contain a schema like http:// or https://"
         )
     }
 }
