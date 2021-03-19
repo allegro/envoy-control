@@ -61,7 +61,8 @@ class NodeMetadataTest {
         outgoingPermissions.allServicesDependencies.identifier = allServicesDependenciesIdentifier
         egress.handleInternalRedirect = handleInternalRedirect
         egress.commonHttp.idleTimeout = java.time.Duration.ofNanos(Durations.toNanos(Durations.parse(idleTimeout)))
-        egress.commonHttp.requestTimeout = java.time.Duration.ofNanos(Durations.toNanos(Durations.parse(requestTimeout)))
+        egress.commonHttp.requestTimeout =
+            java.time.Duration.ofNanos(Durations.toNanos(Durations.parse(requestTimeout)))
     }
 
     @Test
@@ -359,8 +360,9 @@ class NodeMetadataTest {
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
-        assertThat(exception.status.description)
-            .isEqualTo("Unsupported format for domainPattern")
+        assertThat(exception.status.description).isEqualTo(
+            "Unsupported format for domainPattern: domainPattern cannot contain a schema like http:// or https://"
+        )
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -689,11 +691,16 @@ class NodeMetadataTest {
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
-    fun ObjectAssert<DependencySettings>.hasTimeouts(idleTimeout: String, requestTimeout: String): ObjectAssert<DependencySettings> {
-        this.extracting { it.timeoutPolicy }.isEqualTo(Outgoing.TimeoutPolicy(
-            idleTimeout = Durations.parse(idleTimeout),
-            requestTimeout = Durations.parse(requestTimeout)
-        ))
+    fun ObjectAssert<DependencySettings>.hasTimeouts(
+        idleTimeout: String,
+        requestTimeout: String
+    ): ObjectAssert<DependencySettings> {
+        this.extracting { it.timeoutPolicy }.isEqualTo(
+            Outgoing.TimeoutPolicy(
+                idleTimeout = Durations.parse(idleTimeout),
+                requestTimeout = Durations.parse(requestTimeout)
+            )
+        )
         return this
     }
 
