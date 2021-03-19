@@ -21,7 +21,8 @@ open class ServiceTagsTest {
             "envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations[1].tags" to "version:.*,role:.*",
             "envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations[2].service-name" to "service-2",
             "envoy-control.envoy.snapshot.routing.service-tags.allowed-tags-combinations[2].tags" to "version:.*,hardware:.*",
-            "envoy-control.envoy.snapshot.routing.service-tags.routing-excluded-tags" to "blacklist.*",
+            "envoy-control.envoy.snapshot.routing.service-tags.routing-excluded-tags[0].value" to "blacklist",
+            "envoy-control.envoy.snapshot.routing.service-tags.routing-excluded-tags[0].type" to "PREFIX",
             "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to false
         )
 
