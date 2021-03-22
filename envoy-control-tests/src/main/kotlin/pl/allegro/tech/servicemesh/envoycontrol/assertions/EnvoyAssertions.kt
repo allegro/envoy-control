@@ -15,7 +15,8 @@ private class RbacLog(
     val clientAllowedToAllEndpoints: Boolean? = null,
     val clientIp: String? = null,
     val statusCode: String? = null,
-    val requestId: String? = null
+    val requestId: String? = null,
+    val rbacAction: String? = null
 )
 
 private const val RBAC_LOG_PREFIX = "INCOMING_PERMISSIONS"
@@ -53,7 +54,8 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
         trustedClient = trustedClient,
         clientIp = clientIp,
         clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
-        statusCode = "403"
+        statusCode = "403",
+        rbacAction = "denied"
     )
 )
 
@@ -95,6 +97,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = false,
     protocol = protocol,
+    shadowDenied = false,
     logPredicate = RbacLog(
         protocol = protocol,
         path = path,
@@ -105,6 +108,33 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
         trustedClient = trustedClient,
         clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
         requestId = requestId
+    )
+)
+
+fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
+    protocol: String,
+    path: String? = null,
+    method: String? = null,
+    clientName: String? = null,
+    trustedClient: Boolean? = null,
+    clientAllowedToAllEndpoints: Boolean? = null,
+    clientIp: String? = null,
+    requestId: String? = null,
+    rbacAction: String? = "shadow_denied"
+): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
+    requestBlocked = false,
+    protocol = protocol,
+    logPredicate = RbacLog(
+        protocol = protocol,
+        path = path,
+        method = method,
+        clientIp = clientIp,
+        statusCode = "200",
+        clientName = clientName,
+        trustedClient = trustedClient,
+        clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
+        requestId = requestId,
+        rbacAction = rbacAction
     )
 )
 
@@ -160,5 +190,8 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLo
     }
     logPredicate.requestId?.let {
         assertThat(parsed.requestId).isEqualTo(logPredicate.requestId)
+    }
+    logPredicate.rbacAction?.let {
+        assertThat(parsed.rbacAction).isEqualTo(logPredicate.rbacAction)
     }
 }

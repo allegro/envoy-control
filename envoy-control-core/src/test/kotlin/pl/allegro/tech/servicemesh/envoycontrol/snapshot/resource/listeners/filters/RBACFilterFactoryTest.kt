@@ -712,7 +712,7 @@ internal class RBACFilterFactoryTest {
     @Test
     fun `should generate RBAC rules for incoming permissions with client allowed to all endpoints`() {
         // given
-        val expectedRbacBuilder = getRBACFilter(expectedEndpointPermissionsWithAllowedClientForAllEndpoints)
+        val expectedRbacBuilder = getRBACFilterWithShadowRules(expectedRulesForAllowedClient, expectedShadowRulesForAllowedClient)
         val incomingPermission = Incoming(
             permissionsEnabled = true,
             endpoints = listOf(IncomingEndpoint(
@@ -1293,7 +1293,15 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private val expectedEndpointPermissionsWithAllowedClientForAllEndpoints = """
+    private val expectedRulesForAllowedClient = expectedPoliciesForAllowedClient(
+        "${authenticatedPrincipal("client1")}, ${authenticatedPrincipal("allowed-client")}"
+    )
+
+    private val expectedShadowRulesForAllowedClient = expectedPoliciesForAllowedClient(
+        authenticatedPrincipal("client1")
+    )
+
+    private fun expectedPoliciesForAllowedClient(principals: String) = """
         {
           "policies": {
             "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG)": {
@@ -1312,9 +1320,7 @@ internal class RBACFilterFactoryTest {
                     ]
                   }
                 }
-              ], "principals": [
-                ${authenticatedPrincipal("allowed-client")}, ${authenticatedPrincipal("client1")}
-              ]
+              ], "principals": [ $principals ]
             }
           }
         }

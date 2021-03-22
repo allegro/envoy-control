@@ -86,7 +86,7 @@ class RBACFilterFactory(
         }
     }
 
-    data class Rules(val shadowRules: RBAC.Builder, val actualRules: RBAC.Builder)
+    data class Rules(val shadowRules: RBAC, val actualRules: RBAC)
 
     private fun getRules(
         incomingPermissions: Incoming,
@@ -95,44 +95,58 @@ class RBACFilterFactory(
     ): Rules {
 
         val incomingEndpointsPolicies = getIncomingEndpointPolicies(
-                incomingPermissions, snapshot, roles
+            incomingPermissions, snapshot, roles
         )
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
             .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG }
-            .map { (endpoint, policy) -> "$endpoint" to policy.build() }.toMap()
+            .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
 
         val loggedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
             .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG }
-            .map { (endpoint, policy) -> "$endpoint" to policy.build() }.toMap()
-
-        val commonPolicies = statusRoutePolicy + restrictedEndpointsPolicies
+            .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
 
         val allowUnlistedPolicies = unlistedAndLoggedEndpointsPolicies(
             incomingPermissions,
-            commonPolicies.values,
+            (statusRoutePolicy + restrictedEndpointsPolicies).values,
             loggedEndpointsPolicies.values
         )
 
-        val shadowPolicies = commonPolicies + loggedEndpointsPolicies
-        val actualPolicies = commonPolicies + allowUnlistedPolicies
+        val shadowPolicies = (statusRoutePolicy + restrictedEndpointsPolicies + loggedEndpointsPolicies)
+            .map { (endpoint, policy) -> endpoint to policy.build() }.toMap()
+
+        val shadowRules = RBAC.newBuilder()
+            .setAction(RBAC.Action.ALLOW)
+            .putAllPolicies(shadowPolicies)
+            .build()
+        // build needs to be called before any modifications happen so we do not have to clone it
+
+        val restrictedEndpointsPoliciesWithFullAccessClient = restrictedEndpointsPolicies.mapValues {
+            addFullAccessClients(it.value)
+        }
+        val actualPolicies =
+            (statusRoutePolicy + restrictedEndpointsPoliciesWithFullAccessClient + allowUnlistedPolicies)
+                .map { (endpoint, policy) -> endpoint to policy.build() }.toMap()
 
         val actualRules = RBAC.newBuilder()
             .setAction(RBAC.Action.ALLOW)
             .putAllPolicies(actualPolicies)
-
-        val shadowRules = RBAC.newBuilder()
-                .setAction(RBAC.Action.ALLOW)
-                .putAllPolicies(shadowPolicies)
+            .build()
 
         return Rules(shadowRules = shadowRules, actualRules = actualRules)
     }
 
+    private fun addFullAccessClients(policyBuilder: Policy.Builder): Policy.Builder {
+        return policyBuilder.addAllPrincipals(fullAccessClients.flatMap { clientWithSelector ->
+            tlsPrincipals(clientWithSelector.name)
+        })
+    }
+
     private fun unlistedAndLoggedEndpointsPolicies(
         incomingPermissions: Incoming,
-        restrictedEndpointsPolicies: Iterable<Policy>,
-        loggedEndpointsPolicies: Iterable<Policy>
-    ): Map<String, Policy> {
+        restrictedEndpointsPolicies: Collection<Policy.Builder>,
+        loggedEndpointsPolicies: Collection<Policy.Builder>
+    ): Map<String, Policy.Builder> {
         return if (incomingPermissions.unlistedEndpointsPolicy == Incoming.UnlistedPolicy.LOG) {
             if (incomingPermissionsProperties.overlappingPathsFix) {
                 allowLoggedEndpointsPolicy(loggedEndpointsPolicies) +
@@ -145,8 +159,9 @@ class RBACFilterFactory(
         }
     }
 
-    private fun allowUnlistedEndpointsPolicy(allowedEndpointsPolicies: Iterable<Policy>): Map<String, Policy> {
-
+    private fun allowUnlistedEndpointsPolicy(
+        allowedEndpointsPolicies: Collection<Policy.Builder>
+    ): Map<String, Policy.Builder> {
         val allDefinedEndpointsPermissions = allowedEndpointsPolicies.asSequence()
             .flatMap { it.permissionsList.asSequence() }
             .toList()
@@ -154,12 +169,12 @@ class RBACFilterFactory(
         return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
             .addPermissions(noneOf(allDefinedEndpointsPermissions))
-            .build()
         )
     }
 
-    private fun allowLoggedEndpointsPolicy(loggedEndpointsPolicies: Iterable<Policy>): Map<String, Policy> {
-
+    private fun allowLoggedEndpointsPolicy(
+        loggedEndpointsPolicies: Collection<Policy.Builder>
+    ): Map<String, Policy.Builder> {
         val allLoggedEndpointsPermissions = loggedEndpointsPolicies.asSequence()
             .flatMap { it.permissionsList.asSequence() }
             .toList()
@@ -171,11 +186,10 @@ class RBACFilterFactory(
         return mapOf(ALLOW_LOGGED_POLICY_NAME to Policy.newBuilder()
             .addPrincipals(anyPrincipal)
             .addPermissions(anyOf(allLoggedEndpointsPermissions))
-            .build()
         )
     }
 
-    private fun createStatusRoutePolicy(statusRouteProperties: StatusRouteProperties): Map<String, Policy> {
+    private fun createStatusRoutePolicy(statusRouteProperties: StatusRouteProperties): Map<String, Policy.Builder> {
         return if (statusRouteProperties.enabled) {
             val permissions = statusRouteProperties.endpoints
                 .map {
@@ -187,7 +201,6 @@ class RBACFilterFactory(
             val policy = Policy.newBuilder()
                 .addPrincipals(anyPrincipal)
                 .addPermissions(anyOf(permissions))
-                .build()
             mapOf(STATUS_ROUTE_POLICY_NAME to policy)
         } else {
             mapOf()
@@ -202,7 +215,7 @@ class RBACFilterFactory(
             roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
         }
         // sorted order ensures that we do not duplicate rules
-        return (clients + fullAccessClients).toSortedSet()
+        return clients.toSortedSet()
     }
 
     private fun mapClientWithSelectorToPrincipals(
