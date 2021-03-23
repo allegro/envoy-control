@@ -62,36 +62,40 @@ end
 
 function envoy_on_response(handle)
     local rbacMetadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.rbac") or {}
-    local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
-    local allowed_client = lua_metadata["request.info.allowed_client"] or false
-
-    if should_log_request(rbacMetadata, allowed_client) then
-        log_request(lua_metadata, handle)
-    end
-end
-
-function should_log_request(rbacMetadata, allowed_client)
     local is_shadow_denied = (rbacMetadata["shadow_engine_result"] or "") == "denied"
 
-    if (not is_shadow_denied) and allowed_client == true then
-        return true
+    if is_shadow_denied then
+        local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
+        local upstream_request_time = handle:headers():get("x-envoy-upstream-service-time")
+        local rbac_action = "shadow_denied"
+        if upstream_request_time == nil then
+            rbac_action = "denied"
+        end
+        log_request(lua_metadata, handle, rbac_action)
     end
-
-    return is_shadow_denied
 end
 
-function log_request(lua_metadata, handle)
+function log_request(lua_metadata, handle, rbac_action)
     local client_name = lua_metadata["request.info.client_name"] or ""
     local trusted_client = lua_metadata["request.info.trusted_client"] or false
-    local allowed_client = lua_metadata["request.info.allowed_client"] or false
     local path = lua_metadata["request.info.path"] or ""
     local protocol = handle:connection():ssl() == nil and "http" or "https"
     local method = lua_metadata["request.info.method"] or ""
     local xff_header = lua_metadata["request.info.xff_header"] or ""
     local source_ip = string.match(xff_header, '[^,]+$') or ""
     local request_id = lua_metadata["request.info.request_id"] or ""
-    local statusCode = handle:headers():get(":status") or "0"
-    handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method.."\", \"path\": \""..path.."\", \"clientIp\": \""..source_ip.."\", \"clientName\": \""..escape(client_name).."\", \"trustedClient\": "..tostring(trusted_client)..", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..", \"protocol\": \""..protocol.."\", \"requestId\": \""..escape(request_id).."\", \"statusCode\": "..statusCode.." }")
+    local status_code = handle:headers():get(":status") or "0"
+    local allowed_client = lua_metadata["request.info.allowed_client"] or false
+    handle:logInfo("\nINCOMING_PERMISSIONS { \"method\": \""..method..
+        "\", \"path\": \""..path..
+        "\", \"clientIp\": \""..source_ip..
+        "\", \"clientName\": \""..escape(client_name)..
+        "\", \"trustedClient\": "..tostring(trusted_client)..
+        ", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..
+        ", \"protocol\": \""..protocol..
+        "\", \"requestId\": \""..escape(request_id)..
+        "\", \"statusCode\": "..status_code..
+        ", \"rbacAction\": \""..rbac_action.."\" }")
 end
 
 escapeList = {
