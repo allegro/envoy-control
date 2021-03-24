@@ -4,13 +4,20 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsCombinationsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StringMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StringMatcherType
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 
 internal class ServiceTagFilterTest {
 
     private val filter = ServiceTagMetadataGenerator(ServiceTagsProperties().apply {
         enabled = true
-        routingExcludedTags = mutableListOf(".*id.*", "port:.*", "envoy")
+        routingExcludedTags = mutableListOf(
+            StringMatcher().also { it.value = ".*id.*"; it.type = StringMatcherType.REGEX },
+            StringMatcher().also { it.value = "port:"; it.type = StringMatcherType.PREFIX },
+            StringMatcher().also { it.value = "envoy"; it.type = StringMatcherType.EXACT }
+        )
+
         allowedTagsCombinations = mutableListOf(
                 ServiceTagsCombinationsProperties().apply {
                     serviceName = "two-tags-allowed-service"

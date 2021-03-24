@@ -2,15 +2,22 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.re2j.Pattern
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StringMatcherType
 
 /**
  * Used for cluster endpoints to provide subset routing
  */
 class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTagsProperties()) {
 
-    private val tagsBlacklist: Pattern = properties.routingExcludedTags
-            .joinToString("|")
-            .let { Pattern.compile(it) }
+    private val tagsFilteringPredicates = properties.routingExcludedTags
+            .map {
+                when (it.type) {
+                    StringMatcherType.REGEX -> StringMatcher.RegexMatcher(Pattern.compile(it.value))
+                    StringMatcherType.EXACT -> StringMatcher.ExactMatcher(it.value)
+                    StringMatcherType.PREFIX -> StringMatcher.PrefixMatcher(it.value)
+                }
+            }
+
     private val twoTagsCombinationsByService: Map<String, List<Pair<Regex, Regex>>>
     private val threeTagsCombinationsByService: Map<String, List<Triple<Regex, Regex, Regex>>>
 
@@ -105,7 +112,7 @@ class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTag
         .asSequence()
 
     private fun filterTagsForRouting(tags: Set<String>): Set<String> = tags
-        .filter { tag -> !tagsBlacklist.matches(tag) }
+        .filter { tag -> !tagsFilteringPredicates.any { it.matches(tag) } }
         .toSet()
 
     private fun isAllowedToMatchOnTwoTags(serviceName: String): Boolean = twoTagsCombinationsByService
@@ -140,5 +147,27 @@ class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTag
             this.first to this.third,
             this.second to this.third
         )
+    }
+}
+
+sealed class StringMatcher {
+    abstract fun matches(tag: String): Boolean
+
+    class RegexMatcher(val value: Pattern) : StringMatcher() {
+        override fun matches(tag: String): Boolean {
+            return value.matches(tag)
+        }
+    }
+
+    class ExactMatcher(val value: String) : StringMatcher() {
+        override fun matches(tag: String): Boolean {
+            return tag == value
+        }
+    }
+
+    class PrefixMatcher(val prefix: String) : StringMatcher() {
+        override fun matches(tag: String): Boolean {
+            return tag.startsWith(prefix)
+        }
     }
 }

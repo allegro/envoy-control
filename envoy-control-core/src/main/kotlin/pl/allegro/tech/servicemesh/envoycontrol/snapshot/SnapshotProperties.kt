@@ -211,8 +211,17 @@ class ServiceTagsProperties {
     var enabled = false
     var metadataKey = "tag"
     var header = "x-service-tag"
-    var routingExcludedTags: MutableList<String> = mutableListOf()
+    var routingExcludedTags: MutableList<StringMatcher> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
+}
+
+class StringMatcher {
+    var type: StringMatcherType = StringMatcherType.PREFIX
+    var value: String = ""
+}
+
+enum class StringMatcherType {
+    PREFIX, EXACT, REGEX
 }
 
 class ServiceTagsCombinationsProperties {
