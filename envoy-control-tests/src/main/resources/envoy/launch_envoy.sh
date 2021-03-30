@@ -2,6 +2,11 @@
 
 set -eu
 
+echo server=`cat /etc/resolv.conf | grep "^nameserver" | sed -n -e 's/^nameserver //p'` >> /etc/dnsmasq.conf
+cat /etc/resolv.conf | sed 's/^nameserver.*/nameserver 127.0.0.1/' > /tmp/resolv.conf
+cat /tmp/resolv.conf > /etc/resolv.conf
+/etc/init.d/dnsmasq restart
+
 HOST_IP=$(bash /usr/local/bin/host_ip.sh)
 HOST_PORT=$1
 HOST2_PORT=$2

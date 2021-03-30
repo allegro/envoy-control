@@ -27,6 +27,7 @@ class SnapshotProperties {
     var enabledCommunicationModes = EnabledCommunicationModes()
     var shouldSendMissingEndpoints = false
     var metrics: MetricsProperties = MetricsProperties()
+    var dynamicForwardProxy = DynamicForwardProxyProperties()
 }
 
 class MetricsProperties {
@@ -304,4 +305,12 @@ class ResponseFormat {
     var textFormat = ""
     var jsonFormat = ""
     var contentType = ""
+}
+
+class DynamicForwardProxyProperties {
+    var clusterName = "dynamic_forward_proxy_cluster"
+    var dnsLookupFamily = Cluster.DnsLookupFamily.V4_ONLY
+    var maxCachedHosts = 1024 // default Envoy's value
+    var maxHostTtl = Duration.ofSeconds(300) // default Envoy's value
+    var connectionTimeout = Duration.ofSeconds(1)
 }

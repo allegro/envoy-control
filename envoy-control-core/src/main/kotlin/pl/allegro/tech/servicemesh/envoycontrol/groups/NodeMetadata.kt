@@ -65,7 +65,7 @@ fun Value?.toStatusCodeFilter(): StatusCodeFilterSettings? {
     }
 }
 
-private class RawDependency(val service: String?, val domain: String?, val value: Value)
+private class RawDependency(val service: String?, val domain: String?, val domainPattern: String?, val value: Value)
 
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val allServiceDependenciesIdentifier = properties.outgoingPermissions.allServicesDependencies.identifier
@@ -84,9 +84,13 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val domains = rawDependencies.filter { it.domain != null }
         .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
         .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
+    val domainPatterns = rawDependencies.filter { it.domainPattern != null }
+        .onEach { validateDomainPatternFormat(it) }
+        .map { DomainPatternDependency(it.domainPattern.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
     return Outgoing(
         serviceDependencies = services,
         domainDependencies = domains,
+        domainPatternDependencies = domainPatterns,
         defaultServiceSettings = allServicesDefaultSettings,
         allServicesDependencies = allServicesDependencies != null
     )
@@ -96,14 +100,26 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
 private fun toRawDependency(it: Value): RawDependency {
     val service = it.field("service")?.stringValue
     val domain = it.field("domain")?.stringValue
-    if (service == null && domain == null || service != null && domain != null) {
+    val domainPattern = it.field("domainPattern")?.stringValue
+    var count = 0
+    if (!service.isNullOrBlank()) {
+        count += 1
+    }
+    if (!domain.isNullOrBlank()) {
+        count += 1
+    }
+    if (!domainPattern.isNullOrBlank()) {
+        count += 1
+    }
+    if (count != 1) {
         throw NodeMetadataValidationException(
-            "Define either 'service' or 'domain' as an outgoing dependency"
+            "Define one of: 'service', 'domain' or 'domainPattern' as an outgoing dependency"
         )
     }
     return RawDependency(
         service = service,
         domain = domain,
+        domainPattern = domainPattern,
         value = it
     )
 }
@@ -121,6 +137,17 @@ private fun validateDomainFormat(
     if (!domain.startsWith("http://") && !domain.startsWith("https://")) {
         throw NodeMetadataValidationException(
             "Unsupported protocol for domain dependency for domain $domain"
+        )
+    }
+}
+
+private fun validateDomainPatternFormat(
+    it: RawDependency
+) {
+    val domainPattern = it.domainPattern.orEmpty()
+    if (domainPattern.startsWith("http://") || domainPattern.startsWith("https://")) {
+        throw NodeMetadataValidationException(
+            "Unsupported format for domainPattern: domainPattern cannot contain a schema like http:// or https://"
         )
     }
 }
@@ -284,6 +311,7 @@ data class Incoming(
 data class Outgoing(
     private val serviceDependencies: List<ServiceDependency> = emptyList(),
     private val domainDependencies: List<DomainDependency> = emptyList(),
+    private val domainPatternDependencies: List<DomainPatternDependency> = emptyList(),
     val allServicesDependencies: Boolean = false,
     val defaultServiceSettings: DependencySettings = DependencySettings()
 ) {
@@ -297,8 +325,13 @@ data class Outgoing(
         .map { it.service to it }
         .toMap().values.toList()
 
+    private val deduplicatedDomainPatternDependencies: List<DomainPatternDependency> = domainPatternDependencies
+        .map { it.domainPattern to it }
+        .toMap().values.toList()
+
     fun getDomainDependencies(): List<DomainDependency> = deduplicatedDomainDependencies
     fun getServiceDependencies(): List<ServiceDependency> = deduplicatedServiceDependencies
+    fun getDomainPatternDependencies(): List<DomainPatternDependency> = deduplicatedDomainPatternDependencies
 
     data class TimeoutPolicy(
         val idleTimeout: Duration? = null,
@@ -332,6 +365,11 @@ data class DomainDependency(
 
     fun getRouteDomain(): String = if (uri.port != -1) getHost() + ":" + getPort() else getHost()
 }
+
+data class DomainPatternDependency(
+    val domainPattern: String,
+    val settings: DependencySettings = DependencySettings()
+) : Dependency
 
 data class DependencySettings(
     val handleInternalRedirect: Boolean = false,

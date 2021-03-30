@@ -20,7 +20,7 @@ internal class EnvoyEgressRoutesFactoryTest {
     val clusters = listOf(
         RouteSpecification(
             clusterName = "srv1",
-            routeDomain = "srv1",
+            routeDomains = listOf("srv1"),
             settings = DependencySettings(
                 handleInternalRedirect = true,
                 timeoutPolicy = Outgoing.TimeoutPolicy(

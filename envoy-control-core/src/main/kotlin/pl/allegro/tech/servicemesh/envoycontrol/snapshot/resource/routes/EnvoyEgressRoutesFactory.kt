@@ -72,23 +72,25 @@ class EnvoyEgressRoutesFactory(
         addUpstreamAddressHeader: Boolean,
         resourceVersion: ResourceVersion = ResourceVersion.V3
     ): RouteConfiguration {
-        val virtualHosts = routes.map { routeSpecification ->
-            VirtualHost.newBuilder()
-                .setName(routeSpecification.clusterName)
-                .addDomains(routeSpecification.routeDomain)
-                .addRoutes(
-                    Route.newBuilder()
-                        .setMatch(
-                            RouteMatch.newBuilder()
-                                .setPrefix("/")
-                                .build()
-                        )
-                        .setRoute(
-                            createRouteAction(routeSpecification, resourceVersion)
-                        ).build()
-                )
-                .build()
-        }
+        val virtualHosts = routes
+            .filter { it.routeDomains.isNotEmpty() }
+            .map { routeSpecification ->
+                VirtualHost.newBuilder()
+                    .setName(routeSpecification.clusterName)
+                    .addAllDomains(routeSpecification.routeDomains)
+                    .addRoutes(
+                        Route.newBuilder()
+                            .setMatch(
+                                RouteMatch.newBuilder()
+                                    .setPrefix("/")
+                                    .build()
+                            )
+                            .setRoute(
+                                createRouteAction(routeSpecification, resourceVersion)
+                            ).build()
+                    )
+                    .build()
+            }
 
         var routeConfiguration = RouteConfiguration.newBuilder()
             .setName("default_routes")

@@ -19,7 +19,7 @@ class EnvoyContainer(
 ) : SSLGenericContainer<EnvoyContainer>(
     dockerfileBuilder = DockerfileBuilder()
         .from(image)
-        .run("apt-get update && apt-get install -y curl iproute2 iptables")
+        .run("apt-get update && apt-get install -y curl iproute2 iptables dnsmasq")
 ) {
 
     companion object {
@@ -31,6 +31,7 @@ class EnvoyContainer(
         private const val EXTRA_DIR = "envoy/extra"
         private const val EXTRA_DIR_DEST = "/etc/envoy/extra"
 
+        const val ENVOY_UID_ENV_NAME = "ENVOY_UID"
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
         const val DEFAULT_IMAGE = "allegro/envoy-dev:v1.16.1-dev-lua-segfault-fix-1-16-0-backport-20201118-df9dc819"
@@ -50,7 +51,7 @@ class EnvoyContainer(
         if (ClassPathResource(EXTRA_DIR).exists()) {
             withClasspathResourceMapping(EXTRA_DIR, EXTRA_DIR_DEST, BindMode.READ_ONLY)
         }
-
+        withEnv(ENVOY_UID_ENV_NAME, "0")
         withExposedPorts(EGRESS_LISTENER_CONTAINER_PORT, INGRESS_LISTENER_CONTAINER_PORT, ADMIN_PORT)
         withPrivilegedMode(true)
 
@@ -67,6 +68,16 @@ class EnvoyContainer(
             "--config-yaml", config.configOverride,
             "-l", logLevel
         )
+    }
+
+    fun addDnsEntry(host: String, ip: String) {
+        execInContainer("sh", "-c", "echo address=/$host/$ip >> /etc/dnsmasq.conf")
+        execInContainer("sh", "-c", "/etc/init.d/dnsmasq restart")
+    }
+
+    fun removeDnsEntry(host: String) {
+        execInContainer("sh", "-c", "sed -i 's/.*$host.*//' /etc/dnsmasq.conf")
+        execInContainer("sh", "-c", "/etc/init.d/dnsmasq restart")
     }
 
     override fun containerIsStarting(containerInfo: InspectContainerResponse?) {
