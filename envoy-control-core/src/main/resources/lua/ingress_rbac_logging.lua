@@ -67,8 +67,9 @@ function envoy_on_response(handle)
     if is_shadow_denied then
         local lua_metadata = handle:streamInfo():dynamicMetadata():get("envoy.filters.http.lua") or {}
         local upstream_request_time = handle:headers():get("x-envoy-upstream-service-time")
+        local status_code = handle:headers():get(":status")
         local rbac_action = "shadow_denied"
-        if upstream_request_time == nil then
+        if upstream_request_time == nil and status_code == "403" then
             rbac_action = "denied"
         end
         log_request(lua_metadata, handle, rbac_action)

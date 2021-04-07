@@ -400,6 +400,30 @@ describe("envoy_on_response:", function()
             assert.spy(handle.logInfo).was_called(1)
         end)
 
+        it("as logged when status code is different than 403", function ()
+            -- given
+            headers[':status'] = '503'
+            local handle = handlerMock(headers, metadata, ssl)
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_called_with(_, formatLog(
+                "POST",
+                "/path?query=val",
+                "127.1.1.3",
+                "service-first",
+                "https",
+                "",
+                "503",
+                false,
+                false,
+                "shadow_denied"
+            ))
+            assert.spy(handle.logInfo).was_called(1)
+        end)
+
         it("allowed & logged request", function ()
             -- given
             headers[':status'] = '200'
@@ -445,7 +469,7 @@ describe("envoy_on_response:", function()
                 "0",
                 false,
                 false,
-                "denied"
+                "shadow_denied"
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)
@@ -470,7 +494,7 @@ describe("envoy_on_response:", function()
                 "0",
                 false,
                 false,
-                "denied"
+                "shadow_denied"
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)
