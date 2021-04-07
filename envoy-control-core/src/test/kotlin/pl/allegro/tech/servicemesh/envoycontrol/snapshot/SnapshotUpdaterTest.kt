@@ -1,6 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import com.google.protobuf.util.Durations
+import io.envoyproxy.controlplane.cache.DeltaResponse
+import io.envoyproxy.controlplane.cache.DeltaWatch
+import io.envoyproxy.controlplane.cache.DeltaXdsRequest
 import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.cache.Response
 import io.envoyproxy.controlplane.cache.SnapshotCache
@@ -628,6 +631,18 @@ class SnapshotUpdaterTest {
                     .describedAs("Timed out waiting for concurrent setSnapshot invocations")
                     .isTrue()
             }
+        }
+
+        override fun createDeltaWatch(
+            request: DeltaXdsRequest?,
+            requesterVersion: String?,
+            resourceVersions: MutableMap<String, String>?,
+            pendingResources: MutableSet<String>?,
+            isWildcard: Boolean,
+            responseConsumer: Consumer<DeltaResponse>?,
+            hasClusterChanged: Boolean
+        ): DeltaWatch {
+            throw UnsupportedOperationException("not used in testing")
         }
     }
 

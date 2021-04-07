@@ -1,6 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.cache.ConfigWatcher
+import io.envoyproxy.controlplane.cache.DeltaResponse
+import io.envoyproxy.controlplane.cache.DeltaWatch
+import io.envoyproxy.controlplane.cache.DeltaXdsRequest
 import io.envoyproxy.controlplane.cache.Response
 import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.controlplane.cache.XdsRequest
@@ -55,6 +58,26 @@ internal class GroupChangeWatcher(
             emitNewGroupsEvent(groups - oldGroups)
         }
         return watch
+    }
+
+    override fun createDeltaWatch(
+        request: DeltaXdsRequest?,
+        requesterVersion: String?,
+        resourceVersions: MutableMap<String, String>?,
+        pendingResources: MutableSet<String>?,
+        isWildcard: Boolean,
+        responseConsumer: Consumer<DeltaResponse>?,
+        hasClusterChanged: Boolean
+    ): DeltaWatch {
+        return cache.createDeltaWatch(
+            request,
+            requesterVersion,
+            resourceVersions,
+            pendingResources,
+            isWildcard,
+            responseConsumer,
+            hasClusterChanged
+        )
     }
 
     private fun emitNewGroupsEvent(difference: List<Group>) {

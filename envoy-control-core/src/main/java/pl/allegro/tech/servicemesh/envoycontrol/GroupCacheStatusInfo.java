@@ -8,7 +8,6 @@ import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * {@code GroupCacheStatusInfo} provides an implementation of {@link StatusInfo} for a group of {@link CacheStatusInfo}.
- * This class is copy of {@link io.envoyproxy.controlplane.cache.GroupCacheStatusInfo}
  */
 @ThreadSafe
 class GroupCacheStatusInfo<T> implements StatusInfo<T> {
@@ -26,6 +25,11 @@ class GroupCacheStatusInfo<T> implements StatusInfo<T> {
         return statuses.stream().mapToLong(CacheStatusInfo::lastWatchRequestTime).max().orElse(0);
     }
 
+    @Override
+    public long lastDeltaWatchRequestTime() {
+        return statuses.stream().mapToLong(CacheStatusInfo::lastDeltaWatchRequestTime).max().orElse(0);
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -40,5 +44,10 @@ class GroupCacheStatusInfo<T> implements StatusInfo<T> {
     @Override
     public int numWatches() {
         return statuses.stream().mapToInt(CacheStatusInfo::numWatches).sum();
+    }
+
+    @Override
+    public int numDeltaWatches() {
+        return statuses.stream().mapToInt(CacheStatusInfo::numDeltaWatches).sum();
     }
 }

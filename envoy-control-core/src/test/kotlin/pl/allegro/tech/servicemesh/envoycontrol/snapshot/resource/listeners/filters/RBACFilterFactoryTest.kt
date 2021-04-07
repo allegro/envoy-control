@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 import com.google.protobuf.Any
 import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.controlplane.cache.SnapshotResources
+import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.core.v3.Address
 import io.envoyproxy.envoy.config.core.v3.SocketAddress
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
@@ -92,13 +93,13 @@ internal class RBACFilterFactoryTest {
     )
 
     val snapshot = GlobalSnapshot(
-        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf<Cluster>(), ""),
         setOf(),
-        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf<ClusterLoadAssignment>(), ""),
         mapOf(),
-        SnapshotResources.create(listOf(), ""),
-        SnapshotResources.create(listOf(), ""),
-        SnapshotResources.create(listOf(), "")
+        SnapshotResources.create(listOf<Cluster>(), ""),
+        SnapshotResources.create(listOf<Cluster>(), ""),
+        SnapshotResources.create(listOf<Cluster>(), "")
     )
 
     val clusterLoadAssignment = ClusterLoadAssignment.newBuilder()
@@ -116,13 +117,13 @@ internal class RBACFilterFactoryTest {
             ).build()
 
     val snapshotForSourceIpAuth = GlobalSnapshot(
-        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create(listOf<Cluster>(), ""),
         setOf(),
         SnapshotResources.create(listOf(clusterLoadAssignment), ""),
         mapOf(),
-        SnapshotResources.create(listOf(), ""),
-        SnapshotResources.create(listOf(), ""),
-        SnapshotResources.create(listOf(), "")
+        SnapshotResources.create(listOf<Cluster>(), ""),
+        SnapshotResources.create(listOf<Cluster>(), ""),
+        SnapshotResources.create(listOf<Cluster>(), "")
     )
 
     @Test

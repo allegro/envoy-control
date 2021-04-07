@@ -2,10 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.v2;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Message;
-import io.envoyproxy.controlplane.cache.Resources;
-import io.envoyproxy.controlplane.cache.Response;
-import io.envoyproxy.controlplane.cache.Watch;
-import io.envoyproxy.controlplane.cache.XdsRequest;
+import io.envoyproxy.controlplane.cache.*;
 import io.envoyproxy.controlplane.cache.v2.Snapshot;
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment;
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest;
@@ -17,6 +14,7 @@ import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 
@@ -75,7 +73,7 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
         assertThat(response).isNotNull();
         assertThat(response.version()).isEqualTo(snapshot.version(watchAndTracker.watch.request().getTypeUrl()));
         Message[] responseValues = response.resources().toArray(new Message[0]);
-        Message[] snapshotValues = snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values().toArray(new Message[0]);
+        Message[] snapshotValues = snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values().stream().map(VersionedResource::resource).collect(Collectors.toList()).toArray(new Message[0]);
 
         assertThat(responseValues.length).isEqualTo(2);
         assertThat(responseValues.length).isEqualTo(snapshotValues.length);

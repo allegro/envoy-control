@@ -6,12 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
-import io.envoyproxy.controlplane.cache.NodeGroup;
-import io.envoyproxy.controlplane.cache.Resources;
-import io.envoyproxy.controlplane.cache.Response;
-import io.envoyproxy.controlplane.cache.StatusInfo;
-import io.envoyproxy.controlplane.cache.Watch;
-import io.envoyproxy.controlplane.cache.XdsRequest;
+import io.envoyproxy.controlplane.cache.*;
 import io.envoyproxy.controlplane.cache.v2.Snapshot;
 import io.envoyproxy.envoy.api.v2.Cluster;
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment;
@@ -523,7 +518,8 @@ public class SimpleCacheTest {
         assertThat(response).isNotNull();
         assertThat(response.version()).isEqualTo(snapshot.version(watchAndTracker.watch.request().getTypeUrl()));
         assertThat(response.resources().toArray(new Message[0]))
-            .containsExactlyElementsOf(snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values());
+            .containsExactlyElementsOf(snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values()
+                .stream().map(VersionedResource::resource).collect(Collectors.toList()));
     }
 
     protected static class ResponseTracker implements Consumer<Response> {

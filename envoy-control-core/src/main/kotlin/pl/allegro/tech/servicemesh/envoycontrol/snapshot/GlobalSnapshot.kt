@@ -24,12 +24,12 @@ internal fun globalSnapshot(
     v2Clusters: List<Cluster>,
     v2SecuredClusters: List<Cluster>
 ): GlobalSnapshot {
-    val clusters = SnapshotResources.create(clusters, "")
-    val securedClusters = SnapshotResources.create(securedClusters, "")
-    val v2Clusters = SnapshotResources.create(v2Clusters, "")
-    val v2SecuredClusters = SnapshotResources.create(v2SecuredClusters, "")
+    val clusters = SnapshotResources.create<Cluster>(clusters, "")
+    val securedClusters = SnapshotResources.create<Cluster>(securedClusters, "")
+    val v2Clusters = SnapshotResources.create<Cluster>(v2Clusters, "")
+    val v2SecuredClusters = SnapshotResources.create<Cluster>(v2SecuredClusters, "")
     val allServicesNames = getClustersForAllServicesGroups(clusters.resources(), properties)
-    val endpoints = SnapshotResources.create(endpoints, "")
+    val endpoints = SnapshotResources.create<ClusterLoadAssignment>(endpoints, "")
     return GlobalSnapshot(
         clusters = clusters,
         securedClusters = securedClusters,

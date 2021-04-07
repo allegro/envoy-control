@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
+import io.envoyproxy.envoy.api.v2.DeltaDiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
@@ -54,6 +55,17 @@ class NodeMetadataValidator(
     override fun onStreamOpen(streamId: Long, typeUrl: String?) {}
 
     override fun onV3StreamRequest(streamId: Long, request: DiscoveryRequestV3?) {
+        request?.node?.let { validateV3Metadata(it) }
+    }
+
+    override fun onV2StreamDeltaRequest(streamId: Long, request: DeltaDiscoveryRequest?) {
+        request?.node?.let { validateV2Metadata(it) }
+    }
+
+    override fun onV3StreamDeltaRequest(
+        streamId: Long,
+        request: io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest?
+    ) {
         request?.node?.let { validateV3Metadata(it) }
     }
 

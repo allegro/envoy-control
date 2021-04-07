@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.controlplane.server.exception.RequestException
+import io.envoyproxy.envoy.api.v2.DeltaDiscoveryRequest
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest as v2DiscoveryRequest
@@ -45,6 +46,21 @@ class CompositeDiscoveryServerCallbacks(
     override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
         runCallbacks {
             it.onV3StreamRequest(streamId, request)
+        }
+    }
+
+    override fun onV2StreamDeltaRequest(streamId: Long, request: DeltaDiscoveryRequest?) {
+        runCallbacks {
+            it.onV2StreamDeltaRequest(streamId, request)
+        }
+    }
+
+    override fun onV3StreamDeltaRequest(
+        streamId: Long,
+        request: io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest?
+    ) {
+        runCallbacks {
+            it.onV3StreamDeltaRequest(streamId, request)
         }
     }
 

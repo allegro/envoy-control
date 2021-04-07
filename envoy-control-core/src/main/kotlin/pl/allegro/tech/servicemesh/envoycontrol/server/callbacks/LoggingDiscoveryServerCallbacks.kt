@@ -4,8 +4,10 @@ import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import org.slf4j.LoggerFactory
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest as v2DiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse as v2DiscoveryResponse
+import io.envoyproxy.envoy.api.v2.DeltaDiscoveryRequest as v2DeltaDiscoveryRequest
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse as v3DiscoveryResponse
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as v3DeltaDiscoveryRequest
 
 class LoggingDiscoveryServerCallbacks(
     private val logFullRequest: Boolean,
@@ -19,6 +21,17 @@ class LoggingDiscoveryServerCallbacks(
 
     override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
         logger.debug("onV3StreamRequest streamId: {} request: {}", streamId, requestData(request))
+    }
+
+    override fun onV2StreamDeltaRequest(streamId: Long, request: v2DeltaDiscoveryRequest?) {
+        logger.debug("onV2StreamDeltaRequest streamId: {} request: {}", streamId, requestData(request))
+    }
+
+    override fun onV3StreamDeltaRequest(
+        streamId: Long,
+        request: io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest?
+    ) {
+        logger.debug("onV3StreamDeltaRequest streamId: {} request: {}", streamId, requestData(request))
     }
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String?, error: Throwable?) {
@@ -57,6 +70,24 @@ class LoggingDiscoveryServerCallbacks(
             requestData(request),
             responseData(response)
         )
+    }
+
+    private fun requestData(request: v3DeltaDiscoveryRequest?): String {
+        return if (logFullRequest) {
+            "$request"
+        } else {
+            "id: ${request?.node?.id}, cluster: ${request?.node?.cluster}, " +
+                "type: ${request?.typeUrl}, responseNonce: ${request?.responseNonce}"
+        }
+    }
+
+    private fun requestData(request: v2DeltaDiscoveryRequest?): String {
+        return if (logFullRequest) {
+            "$request"
+        } else {
+            "id: ${request?.node?.id}, cluster: ${request?.node?.cluster}, " +
+                "type: ${request?.typeUrl}, responseNonce: ${request?.responseNonce}"
+        }
     }
 
     private fun requestData(request: v2DiscoveryRequest?): String {

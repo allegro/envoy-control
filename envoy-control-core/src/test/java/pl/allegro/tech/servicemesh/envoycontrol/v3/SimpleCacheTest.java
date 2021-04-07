@@ -515,7 +515,8 @@ public class SimpleCacheTest {
         assertThat(response).isNotNull();
         assertThat(response.version()).isEqualTo(snapshot.version(watchAndTracker.watch.request().getTypeUrl()));
         assertThat(response.resources().toArray(new Message[0]))
-            .containsExactlyElementsOf(snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values());
+            .containsExactlyElementsOf(snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values()
+                .stream().map(VersionedResource::resource).collect(Collectors.toList()));
     }
 
     protected static class ResponseTracker implements Consumer<Response> {

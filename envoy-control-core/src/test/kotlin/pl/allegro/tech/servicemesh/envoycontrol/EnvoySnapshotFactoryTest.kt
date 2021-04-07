@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol
 
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.SnapshotResources
+import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
@@ -168,11 +169,11 @@ class EnvoySnapshotFactoryTest {
 
     private fun createGlobalSnapshot(cluster: Cluster?): GlobalSnapshot {
         return GlobalSnapshot(
-            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"), emptySet(),
-            SnapshotResources.create(emptyList(), "v1"), emptyMap(),
+            SnapshotResources.create(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3"), emptySet(),
+            SnapshotResources.create(emptyList<ClusterLoadAssignment>(), "v1"), emptyMap(),
             SnapshotResources.create(listOf(cluster), "v3"),
-            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
-            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
+            SnapshotResources.create(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
+            SnapshotResources.create(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
         )
     }
 
