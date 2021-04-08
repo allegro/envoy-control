@@ -73,11 +73,11 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
         assertThat(response).isNotNull();
         assertThat(response.version()).isEqualTo(snapshot.version(watchAndTracker.watch.request().getTypeUrl()));
         Message[] responseValues = response.resources().toArray(new Message[0]);
-        Message[] snapshotValues = snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values().stream().map(VersionedResource::resource).collect(Collectors.toList()).toArray(new Message[0]);
+        Message[] snapshotValues = snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values().stream().map(VersionedResource::resource).toArray(Message[]::new);
 
         assertThat(responseValues.length).isEqualTo(2);
         assertThat(responseValues.length).isEqualTo(snapshotValues.length);
-        assertThat(responseValues[0]).isEqualToComparingFieldByFieldRecursively(snapshotValues[0]);
-        assertThat(responseValues[1]).isEqualToComparingFieldByFieldRecursively(snapshotValues[1]);
+        assertThat(responseValues[0].toString()).isEqualTo(snapshotValues[0].toString());
+        assertThat(responseValues[1].toString()).isEqualTo(snapshotValues[1].toString());
     }
 }
