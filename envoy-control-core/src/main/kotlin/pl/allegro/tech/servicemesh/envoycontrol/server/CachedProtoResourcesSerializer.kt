@@ -50,7 +50,6 @@ internal class CachedProtoResourcesSerializer(
         }
     }
 
-
     /**
      * {@inheritDoc}
      */
