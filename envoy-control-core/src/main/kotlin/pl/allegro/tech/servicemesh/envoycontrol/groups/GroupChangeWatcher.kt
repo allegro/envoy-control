@@ -69,7 +69,9 @@ internal class GroupChangeWatcher(
         responseConsumer: Consumer<DeltaResponse>?,
         hasClusterChanged: Boolean
     ): DeltaWatch {
-        return cache.createDeltaWatch(
+        val oldGroups = cache.groups()
+
+        val watch = cache.createDeltaWatch(
             request,
             requesterVersion,
             resourceVersions,
@@ -78,6 +80,12 @@ internal class GroupChangeWatcher(
             responseConsumer,
             hasClusterChanged
         )
+        val groups = cache.groups()
+        metrics.setCacheGroupsCount(groups.size)
+        if (oldGroups != groups) {
+            emitNewGroupsEvent(groups - oldGroups)
+        }
+        return watch
     }
 
     private fun emitNewGroupsEvent(difference: List<Group>) {
