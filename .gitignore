@@ -27,3 +27,5 @@ sonar-project.properties
 !/config/detekt/*
 
 deployment.yml
+
+tools/tmp
