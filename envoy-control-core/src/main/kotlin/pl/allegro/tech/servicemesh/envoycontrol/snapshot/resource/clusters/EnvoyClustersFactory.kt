@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters
 
 import com.google.protobuf.Any
+import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
@@ -103,7 +104,27 @@ class EnvoyClustersFactory(
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
-        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group)
+        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clusterForOAuth()
+
+    private fun clusterForOAuth(): Cluster {
+        return Cluster.newBuilder()
+            .setName("localhost|50000")
+            .setClusterType(Cluster.CustomClusterType.newBuilder().setName("STRICT_DNS"))
+            .setConnectTimeout(Duration.newBuilder().setSeconds(5))
+            .setLoadAssignment(
+                ClusterLoadAssignment.newBuilder().setClusterName("localhost|50000").addEndpoints(
+                    LocalityLbEndpoints.newBuilder().addLbEndpoints(
+                        LbEndpoint.newBuilder().setEndpoint(
+                            Endpoint.newBuilder().setAddress(
+                                Address.newBuilder().setSocketAddress(
+                                    SocketAddress.newBuilder().setAddress("localhost").setPortValue(50000)
+                                )
+                            )
+                        )
+                    )
+                )
+            ).build()
+    }
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {

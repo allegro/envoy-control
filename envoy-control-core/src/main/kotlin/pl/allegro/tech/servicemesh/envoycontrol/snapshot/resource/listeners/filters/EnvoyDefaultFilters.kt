@@ -1,8 +1,23 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
+import com.google.protobuf.Descriptors
+import com.google.protobuf.Duration
+import com.google.protobuf.Empty
+import io.envoyproxy.envoy.config.core.v3.DataSource
+import io.envoyproxy.envoy.config.core.v3.HttpUri
 import io.envoyproxy.envoy.config.core.v3.Metadata
+import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.FilterStateRule
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtProvider
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirement
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirementAndList
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirementOrList
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.ProviderWithAudiences
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RemoteJwks
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RequirementRule
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
@@ -38,6 +53,8 @@ class EnvoyDefaultFilters(
     private val defaultClientNameHeaderFilter = {
         group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressClientNameHeaderFilter()
     }
+    private val jwtHttpFilter = createJwtFilter()
+    private val defaultJwtHttpFilter = {_: Group,_: GlobalSnapshot -> jwtHttpFilter}
 
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
 
@@ -51,7 +68,7 @@ class EnvoyDefaultFilters(
      * * defaultEnvoyRouterHttpFilter - router filter should be always the last filter.
      */
     val defaultIngressFilters = listOf(
-        defaultClientNameHeaderFilter, defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter
+        defaultClientNameHeaderFilter, defaultJwtHttpFilter ,defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter
     )
     val defaultIngressMetadata: Metadata = luaFilterFactory.ingressScriptsMetadata()
 
@@ -80,6 +97,39 @@ class EnvoyDefaultFilters(
 
         return headerToMetadataConfig
     }
+
+
+    private fun createJwtFilter(): HttpFilter = HttpFilter
+        .newBuilder()
+        .setName("envoy.filters.http.jwt_authn")
+        .setTypedConfig(Any.pack(
+            JwtAuthentication.newBuilder().putAllProviders(
+                mapOf("allegro" to JwtProvider.newBuilder()
+                    .setRemoteJwks(
+                    RemoteJwks.newBuilder().setHttpUri(
+                        HttpUri.newBuilder()
+                            .setUri("http://localhost:50000/default/jwks")
+                            .setCluster("oauth")
+                           // .setUri("http://allegro.pl.vte48.vte.local/auth/oauth/jwks")
+                           // .setCluster("allegro.pl.vte48.vte.local|443")
+                            .setTimeout(
+                            Duration.newBuilder().setSeconds(10).build()).build())
+                        .setCacheDuration(Duration.newBuilder().setSeconds(300).build())
+                    )
+                    .setIssuer("http://localhost:50000/default")
+                    .setForward(true)
+                    .setForwardPayloadHeader("x-oauth-token-validated")
+                    .setPayloadInMetadata("jwt")
+                    .build()
+                )
+            )
+                .addRules(RequirementRule.newBuilder().setMatch(RouteMatch.newBuilder().setPrefix("/")).setRequires(
+                JwtRequirement.newBuilder().setProviderName("allegro").build()
+                ))
+                .build()
+        ))
+        .build()
+
 
     private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter
         .newBuilder()
