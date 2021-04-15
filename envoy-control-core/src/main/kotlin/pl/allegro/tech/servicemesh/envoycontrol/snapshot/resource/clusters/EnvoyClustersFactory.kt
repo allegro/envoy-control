@@ -109,7 +109,7 @@ class EnvoyClustersFactory(
     private fun clusterForOAuth(): Cluster {
         return Cluster.newBuilder()
             .setName("localhost|50000")
-            .setClusterType(Cluster.CustomClusterType.newBuilder().setName("STRICT_DNS"))
+            .setType(Cluster.DiscoveryType.STRICT_DNS)
             .setConnectTimeout(Duration.newBuilder().setSeconds(5))
             .setLoadAssignment(
                 ClusterLoadAssignment.newBuilder().setClusterName("localhost|50000").addEndpoints(

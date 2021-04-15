@@ -45,11 +45,6 @@ internal class IncomingPermissionsEmptyClientsTest {
             node:
               metadata:
                 proxy_settings:
-                  incoming:
-                    endpoints: 
-                    - path: /logged-for-all
-                      clients: []
-                      unlistedClientsPolicy: log
                   outgoing:
                     dependencies:
                       - service: "echo"
