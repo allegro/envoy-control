@@ -93,13 +93,13 @@ internal class RBACFilterFactoryTest {
     )
 
     val snapshot = GlobalSnapshot(
-        SnapshotResources.create(listOf<Cluster>(), ""),
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources(),
         setOf(),
-        SnapshotResources.create(listOf<ClusterLoadAssignment>(), ""),
+        SnapshotResources.create<ClusterLoadAssignment>(listOf<ClusterLoadAssignment>(), "").resources(),
         mapOf(),
-        SnapshotResources.create(listOf<Cluster>(), ""),
-        SnapshotResources.create(listOf<Cluster>(), ""),
-        SnapshotResources.create(listOf<Cluster>(), "")
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources(),
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources(),
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources()
     )
 
     val clusterLoadAssignment = ClusterLoadAssignment.newBuilder()
@@ -117,13 +117,13 @@ internal class RBACFilterFactoryTest {
             ).build()
 
     val snapshotForSourceIpAuth = GlobalSnapshot(
-        SnapshotResources.create(listOf<Cluster>(), ""),
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources(),
         setOf(),
-        SnapshotResources.create(listOf(clusterLoadAssignment), ""),
+        SnapshotResources.create<ClusterLoadAssignment>(listOf(clusterLoadAssignment), "").resources(),
         mapOf(),
-        SnapshotResources.create(listOf<Cluster>(), ""),
-        SnapshotResources.create(listOf<Cluster>(), ""),
-        SnapshotResources.create(listOf<Cluster>(), "")
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources(),
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources(),
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources()
     )
 
     @Test

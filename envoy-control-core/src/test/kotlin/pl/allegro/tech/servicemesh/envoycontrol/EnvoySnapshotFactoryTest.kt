@@ -2,12 +2,12 @@ package pl.allegro.tech.servicemesh.envoycontrol
 
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.SnapshotResources
-import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.config.listener.v3.Listener
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
@@ -169,11 +169,11 @@ class EnvoySnapshotFactoryTest {
 
     private fun createGlobalSnapshot(cluster: Cluster?): GlobalSnapshot {
         return GlobalSnapshot(
-            SnapshotResources.create(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3"), emptySet(),
-            SnapshotResources.create(emptyList<ClusterLoadAssignment>(), "v1"), emptyMap(),
-            SnapshotResources.create(listOf(cluster), "v3"),
-            SnapshotResources.create(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
-            SnapshotResources.create(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
+            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(), emptySet(),
+            SnapshotResources.create<ClusterLoadAssignment>(emptyList<ClusterLoadAssignment>(), "v1").resources(), emptyMap(),
+            SnapshotResources.create<Cluster>(listOf(cluster), "v3").resources(),
+            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(),
+            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources()
         )
     }
 

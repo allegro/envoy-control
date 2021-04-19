@@ -108,15 +108,15 @@ class EnvoyClustersFactory(
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
             if (group.version == ResourceVersion.V3) {
-                globalSnapshot.securedClusters.resources()
+                globalSnapshot.securedClusters
             } else {
-                globalSnapshot.v2SecuredClusters.resources()
+                globalSnapshot.v2SecuredClusters
             }
         } else {
             if (group.version == ResourceVersion.V3) {
-                globalSnapshot.clusters.resources()
+                globalSnapshot.clusters
             } else {
-                globalSnapshot.v2Clusters.resources()
+                globalSnapshot.v2Clusters
             }
         }
 

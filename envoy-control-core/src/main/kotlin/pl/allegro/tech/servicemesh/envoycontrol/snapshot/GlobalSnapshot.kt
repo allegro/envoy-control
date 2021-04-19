@@ -5,13 +5,13 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 
 data class GlobalSnapshot(
-    val clusters: SnapshotResources<Cluster>,
+    val clusters: Map<String, Cluster>,
     val allServicesNames: Set<String>,
-    val endpoints: SnapshotResources<ClusterLoadAssignment>,
+    val endpoints: Map<String, ClusterLoadAssignment>,
     val clusterConfigurations: Map<String, ClusterConfiguration>,
-    val securedClusters: SnapshotResources<Cluster>,
-    val v2Clusters: SnapshotResources<Cluster>,
-    val v2SecuredClusters: SnapshotResources<Cluster>
+    val securedClusters: Map<String, Cluster>,
+    val v2Clusters: Map<String, Cluster>,
+    val v2SecuredClusters: Map<String, Cluster>
 )
 
 @Suppress("LongParameterList")
@@ -24,12 +24,12 @@ internal fun globalSnapshot(
     v2Clusters: List<Cluster>,
     v2SecuredClusters: List<Cluster>
 ): GlobalSnapshot {
-    val clusters = SnapshotResources.create<Cluster>(clusters, "")
-    val securedClusters = SnapshotResources.create<Cluster>(securedClusters, "")
-    val v2Clusters = SnapshotResources.create<Cluster>(v2Clusters, "")
-    val v2SecuredClusters = SnapshotResources.create<Cluster>(v2SecuredClusters, "")
-    val allServicesNames = getClustersForAllServicesGroups(clusters.resources(), properties)
-    val endpoints = SnapshotResources.create<ClusterLoadAssignment>(endpoints, "")
+    val clusters = SnapshotResources.create<Cluster>(clusters, "").resources()
+    val securedClusters = SnapshotResources.create<Cluster>(securedClusters, "").resources()
+    val v2Clusters = SnapshotResources.create<Cluster>(v2Clusters, "").resources()
+    val v2SecuredClusters = SnapshotResources.create<Cluster>(v2SecuredClusters, "").resources()
+    val allServicesNames = getClustersForAllServicesGroups(clusters, properties)
+    val endpoints = SnapshotResources.create<ClusterLoadAssignment>(endpoints, "").resources()
     return GlobalSnapshot(
         clusters = clusters,
         securedClusters = securedClusters,

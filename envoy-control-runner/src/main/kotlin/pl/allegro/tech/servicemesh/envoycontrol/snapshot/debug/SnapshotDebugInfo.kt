@@ -55,8 +55,8 @@ data class SnapshotDebugInfo(
 
     constructor(globalSnapshot: GlobalSnapshot) : this(
         snapshot = Snapshot(
-            clusters = globalSnapshot.clusters.resources(),
-            endpoints = globalSnapshot.endpoints.resources()
+            clusters = globalSnapshot.clusters,
+            endpoints = globalSnapshot.endpoints
         ),
         versions = Versions()
     )
