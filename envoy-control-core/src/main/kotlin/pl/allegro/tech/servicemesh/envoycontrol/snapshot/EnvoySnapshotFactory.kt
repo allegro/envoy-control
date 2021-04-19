@@ -217,8 +217,9 @@ class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot,
         egressRouteSpecifications: Collection<RouteSpecification>
     ): List<ClusterLoadAssignment> {
+        val resources = globalSnapshot.endpoints.resources()
         return egressRouteSpecifications
-            .mapNotNull { globalSnapshot.endpoints.resources().get(it.clusterName) }
+            .mapNotNull { resources.get(it.clusterName) }
     }
 
     private fun newSnapshotForGroup(
