@@ -45,6 +45,11 @@ internal class IncomingPermissionsEmptyClientsTest {
             node:
               metadata:
                 proxy_settings:
+                  incoming:
+                    unlistedEndpointsPolicy: log
+                    endpoints: 
+                    - path: /blocked-for-all
+                      clients: []
                   outgoing:
                     dependencies:
                       - service: "echo"
@@ -81,19 +86,11 @@ internal class IncomingPermissionsEmptyClientsTest {
         @RegisterExtension
         val envoy2 = EnvoyExtension(envoyControl, localService = echo2, config = echo2Config)
 
-        @JvmField
-        @RegisterExtension
-        val oauth = OAuthServerExtension()
+        // @JvmField
+        // @RegisterExtension
+        // val oauth = OAuthServerExtension()
     }
-    /*
-    curl --request POST \
-    --url 'http://localhost:8080/default/token' \
-    --header 'content-type: application/x-www-form-urlencoded' \
-    --data grant_type=client_credentials \
-    --data client_id=debugger \
-    --data client_secret=someSecret
-    eyJraWQiOiJtb2NrLW9hdXRoMi1zZXJ2ZXIta2V5IiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiJkZWJ1Z2dlciIsImF1ZCI6InNvbWVzY29wZSIsImFjciI6ImFjciIsIm5iZiI6MTYxODM4NTI3MiwiYXpwIjoiZGVidWdnZXIiLCJpc3MiOiJodHRwOlwvXC9sb2NhbGhvc3Q6ODA4MFwvZGVmYXVsdCIsImV4cCI6MTYxODM4ODg3MiwiaWF0IjoxNjE4Mzg1MjcyLCJub25jZSI6IjU2NzgiLCJqdGkiOiJlNTY4OTRiZC01NDJiLTQ2NmQtOGY2ZC0xMTgwM2I0N2ZkNmUiLCJ0aWQiOiJkZWZhdWx0In0.NXYwdrcgHVU1MB4s6Kr66IN0U7C0SawoxigVnWy6xCRz6sHZ-ACocpNEjeL7GKzNxfgaDkC5bh20dIs9hu-wWdh5sIPWhRwhDU9vkDAsaGfleKo3bDSyjnrpWFQHSxorE1YKAThaDihu_vye0WzVSHid4eJruGJa4uN2kXCBLpPu6csw-dY66ik2Di350Oi5HzBKhHSm0tFJ37Xc8iUXhk4HR4iOAjvBjP-ZuMNgO29sxmkhMorjOnax_jrcSg9g0OEfJkSYeobOMuV2jEb7bY_Da77J6UtQ0LMDrEfVp2zsILKUJl5zlUi9EJNIpVjP4oL2ZzKK83HyQm6YLzbTKw
-    */
+
     @Test
     fun `echo should deny clients access to 'blocked-for-all' endpoint`() {
         // when

@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.service
 import com.pszymczyk.consul.infrastructure.Ports
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
+import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 
 class OAuthServerContainer :
@@ -11,7 +12,6 @@ class OAuthServerContainer :
 
     override fun configure() {
         super.configure()
-        //withExposedPorts(PORT)
         withNetwork(Network.SHARED)
         addFixedExposedPort(PORT,8080)
        waitingFor(Wait.forHttp("/").forStatusCode(200))

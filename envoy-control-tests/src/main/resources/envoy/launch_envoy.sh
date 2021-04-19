@@ -36,6 +36,7 @@ echo "${CONFIG}" | sed \
 cat "${CONFIG_FILE}"
 
 shift 8
-/usr/local/bin/envoy --drain-time-s 1 -c "${CONFIG_FILE}" "$@"
+# todo: remove filter:trace level after development
+/usr/local/bin/envoy --drain-time-s 1 -c "${CONFIG_FILE}" "$@" --component-log-level filter:trace
 
 rm -rf "${CONFIG_DIR}"

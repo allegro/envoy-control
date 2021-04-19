@@ -108,22 +108,44 @@ class EnvoyClustersFactory(
 
     private fun clusterForOAuth(): Cluster {
         return Cluster.newBuilder()
-            .setName("localhost|50000")
+            .setName("oauth2-mock.herokuapp.com|443")
             .setType(Cluster.DiscoveryType.STRICT_DNS)
             .setConnectTimeout(Duration.newBuilder().setSeconds(5))
             .setLoadAssignment(
-                ClusterLoadAssignment.newBuilder().setClusterName("localhost|50000").addEndpoints(
-                    LocalityLbEndpoints.newBuilder().addLbEndpoints(
-                        LbEndpoint.newBuilder().setEndpoint(
-                            Endpoint.newBuilder().setAddress(
-                                Address.newBuilder().setSocketAddress(
-                                    SocketAddress.newBuilder().setAddress("localhost").setPortValue(50000)
+                ClusterLoadAssignment.newBuilder()
+                    .setClusterName("oauth2-mock.herokuapp.com|443")
+                    .addEndpoints(
+                        LocalityLbEndpoints.newBuilder().addLbEndpoints(
+                            LbEndpoint.newBuilder().setEndpoint(
+                                Endpoint.newBuilder().setAddress(
+                                    Address.newBuilder().setSocketAddress(
+                                        SocketAddress.newBuilder()
+                                            .setAddress("oauth2-mock.herokuapp.com")
+                                            .setPortValue(443)
+                                    )
                                 )
                             )
                         )
                     )
-                )
-            ).build()
+            ).setTransportSocket(
+                TransportSocket.newBuilder()
+                    .setName("envoy.transport_sockets.tls")
+                    .setTypedConfig(
+                        Any.pack(
+                            UpstreamTlsContext.newBuilder().setSni("oauth2-mock.herokuapp.com")
+                                .setCommonTlsContext(
+                                    CommonTlsContext.newBuilder()
+                                        .setValidationContext(
+                                            CertificateValidationContext.newBuilder()
+                                                .setTrustedCa(
+                                                    DataSource.newBuilder().setFilename(properties.trustedCaFile)
+                                                )
+                                        )
+                                ).build()
+                        )
+                    )
+            )
+            .build()
     }
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
