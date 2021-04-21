@@ -3,13 +3,13 @@ version: '3'
 services:
   consul:
     container_name: consul
-    image: consul:latest
+    image: consul:1.5.3
     ports:
       - "18500:8500"
       - "18300:8300"
     volumes:
-      - /tmp/config:/config
-      - /tmp/_data/consul:/data
+      - ./tmp/config:/config
+      - ./tmp/_data/consul:/data
     command: agent -server -data-dir=/data -bind 0.0.0.0 -client 0.0.0.0 -bootstrap-expect=1 -ui
 
   http-echo:
