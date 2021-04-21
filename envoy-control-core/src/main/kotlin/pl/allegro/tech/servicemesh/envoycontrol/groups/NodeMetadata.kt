@@ -227,14 +227,15 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
     val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
     val unlistedClientsPolicy = this.field("unlistedClientsPolicy").toUnlistedPolicy()
+    val oauth = this.field("oauth")?.toOAuth()
 
     return when {
-        path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy)
+        path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
         pathPrefix != null -> IncomingEndpoint(
-            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy
+            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy, oauth
         )
         pathRegex != null -> IncomingEndpoint(
-            pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy
+            pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy, oauth
         )
         else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
@@ -267,6 +268,50 @@ private fun Value.toOutgoingTimeoutPolicy(default: Outgoing.TimeoutPolicy): Outg
     }
     return Outgoing.TimeoutPolicy(idleTimeout ?: default.idleTimeout, requestTimeout ?: default.requestTimeout)
 }
+
+private fun Value.toOAuth(): OAuth {
+    val provider = this.field("provider").toOAuthProvider()
+    val policy = this.field("policy").toOAuthPolicy()
+    val verification = this.field("verification").toOAuthVerification()
+
+    return OAuth(provider, verification, policy)
+}
+
+
+fun Value?.toOAuthVerification() = this?.stringValue
+    ?.takeIf { it.isNotEmpty() }
+    ?.let {
+        when (it) {
+            "offline" -> OAuth.Verification.OFFLINE
+            else -> throw NodeMetadataValidationException("Invalid OAuth validation value: $it")
+        }
+     }
+    ?: OAuth.Verification.OFFLINE
+
+fun Value?.toOAuthProvider() = this?.stringValue
+    ?.takeIf { it.isNotEmpty() }
+    ?.let {
+        when (it) {
+            "oauth_ad" -> OAuth.Provider.OAUTH_AD
+            "oauth_github" -> OAuth.Provider.OAUTH_GITHUB
+            "oauth_business" -> OAuth.Provider.OAUTH_BUSINESS
+            else -> throw NodeMetadataValidationException("Invalid OAuth provider value: $it")
+        }
+    }
+    ?: OAuth.Provider.OAUTH_BUSINESS
+
+fun Value?.toOAuthPolicy() = this?.stringValue
+    ?.takeIf { it.isNotEmpty() }
+    ?.let {
+        when (it) {
+            "allow_missing" -> OAuth.Policy.ALLOW_MISSING
+            "allow_missing_or_failed" -> OAuth.Policy.ALLOW_MISSING_OR_FAILED
+            "strict" -> OAuth.Policy.STRICT
+            else -> throw NodeMetadataValidationException("Invalid OAuth policy value: $it")
+        }
+    }
+    ?: OAuth.Policy.STRICT
+
 
 @Suppress("SwallowedException")
 fun Value.toDuration(): Duration? {
@@ -418,7 +463,8 @@ data class IncomingEndpoint(
     override val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
     override val methods: Set<String> = emptySet(),
     val clients: Set<ClientWithSelector> = emptySet(),
-    val unlistedClientsPolicy: Incoming.UnlistedPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG
+    val unlistedClientsPolicy: Incoming.UnlistedPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG,
+    val oauth: OAuth?
 ) : EndpointBase
 
 enum class PathMatchingType {
@@ -427,6 +473,25 @@ enum class PathMatchingType {
 
 enum class CommunicationMode {
     ADS, XDS
+}
+
+data class OAuth (
+    val provider: Provider = Provider.OAUTH_BUSINESS,
+    val verification: Verification = Verification.OFFLINE,
+    val policy: Policy = Policy.ALLOW_MISSING
+) {
+
+    enum class Provider {
+        OAUTH_AD, OAUTH_BUSINESS, OAUTH_GITHUB
+    }
+
+    enum class Verification {
+        OFFLINE, ONLINE
+    }
+
+    enum class Policy {
+        STRICT, ALLOW_MISSING, ALLOW_MISSING_OR_FAILED
+    }
 }
 
 interface EndpointBase {
