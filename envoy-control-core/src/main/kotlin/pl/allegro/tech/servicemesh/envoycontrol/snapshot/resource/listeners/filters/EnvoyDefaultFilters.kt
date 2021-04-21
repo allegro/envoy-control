@@ -26,6 +26,9 @@ class EnvoyDefaultFilters(
     private val luaFilterFactory = LuaFilterFactory(
         snapshotProperties.incomingPermissions
     )
+    private val jwtFilterFactory = JwtFilterFactory(
+        snapshotProperties.jwt
+    )
 
     private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
         snapshotProperties.routing.serviceTags.header,
@@ -46,6 +49,7 @@ class EnvoyDefaultFilters(
     private val defaultClientNameHeaderFilter = { group: Group, _: GlobalSnapshot ->
         luaFilterFactory.ingressClientNameHeaderFilter()
     }
+    //todo: change for filter factory
     private val jwtHttpFilter = createJwtFilter()
     private val defaultJwtHttpFilter = { _: Group, _: GlobalSnapshot -> jwtHttpFilter }
 
@@ -94,7 +98,7 @@ class EnvoyDefaultFilters(
 
         return headerToMetadataConfig
     }
-
+    //todo: remove when setting filters from properties is working
     private fun createJwtFilter(): HttpFilter = HttpFilter
         .newBuilder()
         .setName("envoy.filters.http.jwt_authn")
@@ -102,7 +106,7 @@ class EnvoyDefaultFilters(
             Any.pack(
                 JwtAuthentication.newBuilder().putAllProviders(
                     mapOf(
-                        "allegro" to JwtProvider.newBuilder()
+                        "oauth2-mock" to JwtProvider.newBuilder()
                             .setRemoteJwks(
                                 RemoteJwks.newBuilder().setHttpUri(
                                     HttpUri.newBuilder()
@@ -116,14 +120,14 @@ class EnvoyDefaultFilters(
                             )
                             .setIssuer("https://oauth2-mock.herokuapp.com/auth")
                             .setForward(true)
-                            .setForwardPayloadHeader("x-oauth-token-validated")
-                            .setPayloadInMetadata("jwt")
+                            .setForwardPayloadHeader(snapshotProperties.jwt.forwardPayloadHeader)
+                            .setPayloadInMetadata(snapshotProperties.jwt.payloadInMetadata)
                             .build()
                     )
                 )
                     .addRules(
                         RequirementRule.newBuilder().setMatch(RouteMatch.newBuilder().setPrefix("/")).setRequires(
-                            JwtRequirement.newBuilder().setProviderName("allegro").build()
+                            JwtRequirement.newBuilder().setProviderName("oauth2-mock").build()
                         )
                     )
                     .build()

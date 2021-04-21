@@ -5,6 +5,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
+import java.net.URI
 import java.time.Duration
 
 class SnapshotProperties {
@@ -28,6 +29,7 @@ class SnapshotProperties {
     var shouldSendMissingEndpoints = false
     var metrics: MetricsProperties = MetricsProperties()
     var dynamicForwardProxy = DynamicForwardProxyProperties()
+    var jwt = JwtFilterProperties()
 }
 
 class MetricsProperties {
@@ -313,4 +315,17 @@ class DynamicForwardProxyProperties {
     var maxCachedHosts = 1024 // default Envoy's value
     var maxHostTtl = Duration.ofSeconds(300) // default Envoy's value
     var connectionTimeout = Duration.ofSeconds(1)
+}
+class OAuthProvider {
+    var name: String = ""
+    var jwksUri: URI = URI.create("http://localhost")
+    var cluster: String = ""
+    var cacheDuration = Duration.ofSeconds(300)
+    var connectionTimeout = Duration.ofSeconds(1)
+}
+
+class JwtFilterProperties{
+    var forwardPayloadHeader = "x-oauth-token-validated"
+    var payloadInMetadata = "jwt"
+    var providers: List<OAuthProvider> = emptyList()
 }
