@@ -48,6 +48,10 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
                     - path: "/block-unlisted-clients"
                       clients: ["authorized-clients"]
                       unlistedClientsPolicy: blockAndLog
+                      oauth:
+                        provider: oauth_ad
+                        verification: offline
+                        policy: allow_missing
                     - path: "/log-unlisted-clients"
                       methods: [GET]
                       clients: ["authorized-clients"]
