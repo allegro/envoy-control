@@ -270,7 +270,7 @@ private fun Value.toOutgoingTimeoutPolicy(default: Outgoing.TimeoutPolicy): Outg
 }
 
 private fun Value.toOAuth(): OAuth {
-    val provider = this.field("provider").toOAuthProvider()
+    val provider = this.field("provider")?.stringValue ?: ""
     val policy = this.field("policy").toOAuthPolicy()
     val verification = this.field("verification").toOAuthVerification()
 
@@ -288,17 +288,18 @@ fun Value?.toOAuthVerification() = this?.stringValue
      }
     ?: OAuth.Verification.OFFLINE
 
-fun Value?.toOAuthProvider() = this?.stringValue
-    ?.takeIf { it.isNotEmpty() }
-    ?.let {
-        when (it) {
-            "oauth_ad" -> OAuth.Provider.OAUTH_AD
-            "oauth_github" -> OAuth.Provider.OAUTH_GITHUB
-            "oauth_business" -> OAuth.Provider.OAUTH_BUSINESS
-            else -> throw NodeMetadataValidationException("Invalid OAuth provider value: $it")
-        }
-    }
-    ?: OAuth.Provider.OAUTH_BUSINESS
+//TODO: provider parsing
+// fun Value?.toOAuthProvider() = this?.stringValue
+//     ?.takeIf { it.isNotEmpty() }
+//     ?.let {
+//         when (it) {
+//             "oauth_ad" -> OAuth.Provider.OAUTH_AD
+//             "oauth_github" -> OAuth.Provider.OAUTH_GITHUB
+//             "oauth_business" -> OAuth.Provider.OAUTH_BUSINESS
+//             else -> throw NodeMetadataValidationException("Invalid OAuth provider value: $it")
+//         }
+//     }
+//     ?: OAuth.Provider.OAUTH_BUSINESS
 
 fun Value?.toOAuthPolicy() = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
@@ -476,14 +477,15 @@ enum class CommunicationMode {
 }
 
 data class OAuth (
-    val provider: Provider = Provider.OAUTH_BUSINESS,
+  //  val provider: Provider = Provider.OAUTH_BUSINESS,
+    val provider: String = "oauth2-mock",
     val verification: Verification = Verification.OFFLINE,
     val policy: Policy = Policy.ALLOW_MISSING
 ) {
 
-    enum class Provider {
-        OAUTH_AD, OAUTH_BUSINESS, OAUTH_GITHUB
-    }
+    // enum class Provider {
+    //     OAUTH_AD, OAUTH_BUSINESS, OAUTH_GITHUB
+    // }
 
     enum class Verification {
         OFFLINE, ONLINE

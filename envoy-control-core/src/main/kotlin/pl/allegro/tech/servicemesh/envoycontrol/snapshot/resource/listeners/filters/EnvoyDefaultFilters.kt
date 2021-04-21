@@ -1,16 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
-import com.google.protobuf.Duration
-import io.envoyproxy.envoy.config.core.v3.HttpUri
 import io.envoyproxy.envoy.config.core.v3.Metadata
-import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
-import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
-import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtProvider
-import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirement
-import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RemoteJwks
-import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RequirementRule
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
@@ -46,12 +38,11 @@ class EnvoyDefaultFilters(
         luaFilterFactory.ingressRbacLoggingFilter(group)
     }
 
-    private val defaultClientNameHeaderFilter = { group: Group, _: GlobalSnapshot ->
+    private val defaultClientNameHeaderFilter = { _: Group, _: GlobalSnapshot ->
         luaFilterFactory.ingressClientNameHeaderFilter()
     }
-    //todo: change for filter factory
-    private val jwtHttpFilter = createJwtFilter()
-    private val defaultJwtHttpFilter = { _: Group, _: GlobalSnapshot -> jwtHttpFilter }
+
+    private val defaultJwtHttpFilter = { group : Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
 
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
 
@@ -98,42 +89,6 @@ class EnvoyDefaultFilters(
 
         return headerToMetadataConfig
     }
-    //todo: remove when setting filters from properties is working
-    private fun createJwtFilter(): HttpFilter = HttpFilter
-        .newBuilder()
-        .setName("envoy.filters.http.jwt_authn")
-        .setTypedConfig(
-            Any.pack(
-                JwtAuthentication.newBuilder().putAllProviders(
-                    mapOf(
-                        "oauth2-mock" to JwtProvider.newBuilder()
-                            .setRemoteJwks(
-                                RemoteJwks.newBuilder().setHttpUri(
-                                    HttpUri.newBuilder()
-                                        .setUri("https://oauth2-mock.herokuapp.com/auth/jwks")
-                                        .setCluster("oauth2-mock.herokuapp.com|443")
-                                        .setTimeout(
-                                            Duration.newBuilder().setSeconds(10).build()
-                                        ).build()
-                                )
-                                    .setCacheDuration(Duration.newBuilder().setSeconds(300).build())
-                            )
-                            .setIssuer("https://oauth2-mock.herokuapp.com/auth")
-                            .setForward(true)
-                            .setForwardPayloadHeader(snapshotProperties.jwt.forwardPayloadHeader)
-                            .setPayloadInMetadata(snapshotProperties.jwt.payloadInMetadata)
-                            .build()
-                    )
-                )
-                    .addRules(
-                        RequirementRule.newBuilder().setMatch(RouteMatch.newBuilder().setPrefix("/")).setRequires(
-                            JwtRequirement.newBuilder().setProviderName("oauth2-mock").build()
-                        )
-                    )
-                    .build()
-            )
-        )
-        .build()
 
     private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter
         .newBuilder()

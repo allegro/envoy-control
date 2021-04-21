@@ -316,16 +316,21 @@ class DynamicForwardProxyProperties {
     var maxHostTtl = Duration.ofSeconds(300) // default Envoy's value
     var connectionTimeout = Duration.ofSeconds(1)
 }
-class OAuthProvider {
-    var name: String = ""
-    var jwksUri: URI = URI.create("http://localhost")
-    var cluster: String = ""
-    var cacheDuration = Duration.ofSeconds(300)
-    var connectionTimeout = Duration.ofSeconds(1)
-}
+data class OAuthProvider (
+    var name: String = "",
+    var jwksUri: URI = URI.create("http://localhost"),
+    var cluster: String = "",
+    var cacheDuration: Duration = Duration.ofSeconds(300),
+    var connectionTimeout: Duration = Duration.ofSeconds(1)
+)
 
 class JwtFilterProperties{
     var forwardPayloadHeader = "x-oauth-token-validated"
     var payloadInMetadata = "jwt"
-    var providers: List<OAuthProvider> = emptyList()
+    //todo: sample provider, needs to be set for tests
+    var providers: List<OAuthProvider> = listOf(
+        OAuthProvider("oauth2-mock",
+            URI.create("https://oauth2-mock.herokuapp.com/auth/jwks"),
+                "oauth2-mock.herokuapp.com|443"
+            ))
 }
