@@ -47,7 +47,7 @@ class JwtFilterFactory(
             RemoteJwks.newBuilder().setHttpUri(
                 HttpUri.newBuilder()
                     .setUri(provider.jwksUri.toString())
-                    .setCluster(provider.cluster)
+                    .setCluster(provider.clusterName)
                     .setTimeout(
                         Durations.fromMillis(provider.connectionTimeout.toMillis())
                     ).build()

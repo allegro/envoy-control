@@ -42,6 +42,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.SanUriMatcherFactory
@@ -104,24 +105,26 @@ class EnvoyClustersFactory(
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
-        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clusterForOAuth()
+        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + getClustersForJWT()
 
-    private fun clusterForOAuth(): Cluster {
+    private fun getClustersForJWT() = properties.jwt.providers.map(this::clusterForOAuthProvider)
+
+    private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster {
         return Cluster.newBuilder()
-            .setName("oauth2-mock.herokuapp.com|443")
+            .setName(provider.clusterName)
             .setType(Cluster.DiscoveryType.STRICT_DNS)
             .setConnectTimeout(Duration.newBuilder().setSeconds(5))
             .setLoadAssignment(
                 ClusterLoadAssignment.newBuilder()
-                    .setClusterName("oauth2-mock.herokuapp.com|443")
+                    .setClusterName(provider.clusterName)
                     .addEndpoints(
                         LocalityLbEndpoints.newBuilder().addLbEndpoints(
                             LbEndpoint.newBuilder().setEndpoint(
                                 Endpoint.newBuilder().setAddress(
                                     Address.newBuilder().setSocketAddress(
                                         SocketAddress.newBuilder()
-                                            .setAddress("oauth2-mock.herokuapp.com")
-                                            .setPortValue(443)
+                                            .setAddress(provider.jwksUri.host)
+                                            .setPortValue(provider.clusterPort)
                                     )
                                 )
                             )
@@ -132,7 +135,7 @@ class EnvoyClustersFactory(
                     .setName("envoy.transport_sockets.tls")
                     .setTypedConfig(
                         Any.pack(
-                            UpstreamTlsContext.newBuilder().setSni("oauth2-mock.herokuapp.com")
+                            UpstreamTlsContext.newBuilder().setSni(provider.jwksUri.host)
                                 .setCommonTlsContext(
                                     CommonTlsContext.newBuilder()
                                         .setValidationContext(

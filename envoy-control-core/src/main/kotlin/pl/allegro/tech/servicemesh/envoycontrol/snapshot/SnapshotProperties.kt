@@ -319,7 +319,8 @@ class DynamicForwardProxyProperties {
 data class OAuthProvider (
     var name: String = "",
     var jwksUri: URI = URI.create("http://localhost"),
-    var cluster: String = "",
+    var clusterName: String = "",
+    var clusterPort: Int = 443,
     var cacheDuration: Duration = Duration.ofSeconds(300),
     var connectionTimeout: Duration = Duration.ofSeconds(1)
 )
