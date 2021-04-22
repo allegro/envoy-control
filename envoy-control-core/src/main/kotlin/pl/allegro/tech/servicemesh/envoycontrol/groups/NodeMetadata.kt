@@ -181,7 +181,9 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 }
 
-fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
+fun Value?.toIncoming() = this.toIncoming(null)
+
+fun Value?.toIncoming(properties: SnapshotProperties?): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     return Incoming(
         endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint(properties) },
@@ -214,8 +216,9 @@ fun Value?.toHealthCheck(): HealthCheck {
         else -> HealthCheck()
     }
 }
+fun Value.toIncomingEndpoint() = this.toIncomingEndpoint(null)
 
-fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
+fun Value.toIncomingEndpoint(properties: SnapshotProperties?): IncomingEndpoint {
     val pathPrefix = this.field("pathPrefix")?.stringValue
     val path = this.field("path")?.stringValue
     val pathRegex = this.field("pathRegex")?.stringValue
@@ -227,7 +230,7 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
     val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
     val unlistedClientsPolicy = this.field("unlistedClientsPolicy").toUnlistedPolicy()
-    val oauth = this.field("oauth")?.toOAuth(properties)
+    val oauth = properties?.let { this.field("oauth")?.toOAuth(it) }
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
@@ -286,7 +289,7 @@ fun Value?.toOauthProvider(properties: SnapshotProperties) = this?.stringValue
                 it == provider
             } ?: throw NodeMetadataValidationException("Invalid OAuth provider value: $provider")
     }
-    ?: throw NodeMetadataValidationException("Invalid OAuth provider value cannot be null")
+    ?: throw NodeMetadataValidationException("OAuth provider value cannot be null")
 
 fun Value?.toOAuthVerification() = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
@@ -461,7 +464,7 @@ data class IncomingEndpoint(
     override val methods: Set<String> = emptySet(),
     val clients: Set<ClientWithSelector> = emptySet(),
     val unlistedClientsPolicy: Incoming.UnlistedPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG,
-    val oauth: OAuth?
+    val oauth: OAuth? = null
 ) : EndpointBase
 
 enum class PathMatchingType {

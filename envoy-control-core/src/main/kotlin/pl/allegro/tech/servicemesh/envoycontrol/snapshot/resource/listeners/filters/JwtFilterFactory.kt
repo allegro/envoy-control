@@ -18,27 +18,35 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 
 class JwtFilterFactory(
-    private val jwtFilterProperties: JwtFilterProperties
+    private val properties: JwtFilterProperties
 ) {
 
-    fun createJwtFilter(group: Group): HttpFilter {
-        return HttpFilter.newBuilder()
-            .setName("envoy.filters.http.jwt_authn")
-            .setTypedConfig(
-                Any.pack(
-                    JwtAuthentication.newBuilder().putAllProviders(
-                        getOAuthProviders()
-                    ).addAllRules(
-                       createRules(group.proxySettings.incoming.endpoints)
+    fun createJwtFilter(group: Group): HttpFilter? {
+        return if (shouldCreateFilter(group)) {
+            HttpFilter.newBuilder()
+                .setName("envoy.filters.http.jwt_authn")
+                .setTypedConfig(
+                    Any.pack(
+                        JwtAuthentication.newBuilder().putAllProviders(
+                            getOAuthProviders()
+                        ).addAllRules(
+                            createRules(group.proxySettings.incoming.endpoints)
+                        )
+                            .build()
                     )
-                        .build()
                 )
-            )
-            .build()
+                .build()
+        } else {
+            null
+        }
+    }
+
+    private fun shouldCreateFilter(group: Group): Boolean {
+        return group.proxySettings.incoming.endpoints.any { it.oauth != null } && properties.providers.isNotEmpty()
     }
 
     private fun getOAuthProviders(): Map<String, JwtProvider> =
-        jwtFilterProperties.providers.associate {
+        properties.providers.associate {
             it.name to createProvider(it)
         }
 
@@ -56,8 +64,8 @@ class JwtFilterFactory(
         )
         .setIssuer(provider.name)
         .setForward(true)
-        .setForwardPayloadHeader(jwtFilterProperties.forwardPayloadHeader)
-        .setPayloadInMetadata(jwtFilterProperties.payloadInMetadata)
+        .setForwardPayloadHeader(properties.forwardPayloadHeader)
+        .setPayloadInMetadata(properties.payloadInMetadata)
         .build()
 
     // without config for now
@@ -72,16 +80,24 @@ class JwtFilterFactory(
             ).setRequires(
                 createJwtRequirement(endpoint.oauth.provider, endpoint.oauth.policy)
             ).build()
-        } else null
+        } else {
+            null
+        }
     }
 
     private fun createJwtRequirement(provider: String, policy: OAuth.Policy): JwtRequirement {
         return when (policy) {
-            OAuth.Policy.ALLOW_MISSING -> JwtRequirement.newBuilder().setProviderName(provider)
-                .setAllowMissing(Empty.getDefaultInstance()).build()
-            OAuth.Policy.ALLOW_MISSING_OR_FAILED -> JwtRequirement.newBuilder().setProviderName(provider)
-                .setAllowMissingOrFailed(Empty.getDefaultInstance()).build()
-            OAuth.Policy.STRICT -> JwtRequirement.newBuilder().setProviderName(provider).build()
+            OAuth.Policy.ALLOW_MISSING -> {
+                JwtRequirement.newBuilder().setProviderName(provider)
+                    .setAllowMissing(Empty.getDefaultInstance()).build()
+            }
+            OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
+                JwtRequirement.newBuilder().setProviderName(provider)
+                    .setAllowMissingOrFailed(Empty.getDefaultInstance()).build()
+            }
+            OAuth.Policy.STRICT -> {
+                JwtRequirement.newBuilder().setProviderName(provider).build()
+            }
         }
     }
 }

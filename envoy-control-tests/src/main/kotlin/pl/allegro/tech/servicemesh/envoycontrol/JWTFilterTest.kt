@@ -105,7 +105,7 @@ class JWTFilterTest {
 
     @Test
     fun `should reject request with expired Token`() {
-        //given
+        // given
         val invalidToken = this::class.java.classLoader
             .getResource("oauth/invalid_jwks_token")!!.readText()
 
