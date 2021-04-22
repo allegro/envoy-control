@@ -102,4 +102,19 @@ class JWTFilterTest {
         // then
         assertThat(response).isOk().isFrom(service)
     }
+
+    @Test
+    fun `should reject request with expired Token`() {
+        //given
+        val invalidToken = this::class.java.classLoader
+            .getResource("oauth/invalid_jwks_token")!!.readText()
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/jwt-protected", headers = Headers.of("Authorization", "Bearer $invalidToken")
+        )
+
+        // then
+        assertThat(response).isUnauthorized()
+    }
 }

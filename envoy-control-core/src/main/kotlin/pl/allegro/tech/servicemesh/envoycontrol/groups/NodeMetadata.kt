@@ -473,15 +473,10 @@ enum class CommunicationMode {
 }
 
 data class OAuth(
-  //  val provider: Provider = Provider.OAUTH_BUSINESS,
-    val provider: String = "oauth2-mock",
+    val provider: String = "",
     val verification: Verification = Verification.OFFLINE,
     val policy: Policy = Policy.ALLOW_MISSING
 ) {
-
-    // enum class Provider {
-    //     OAUTH_AD, OAUTH_BUSINESS, OAUTH_GITHUB
-    // }
 
     enum class Verification {
         OFFLINE, ONLINE
