@@ -35,7 +35,7 @@ data class ProxySettings(
     val outgoing: Outgoing = Outgoing()
 ) {
     constructor(proto: Value?, properties: SnapshotProperties) : this(
-        incoming = proto?.field("incoming").toIncoming(),
+        incoming = proto?.field("incoming").toIncoming(properties),
         outgoing = proto?.field("outgoing").toOutgoing(properties)
     )
 
@@ -181,10 +181,10 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 }
 
-fun Value?.toIncoming(): Incoming {
+fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     return Incoming(
-        endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
+        endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint(properties) },
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
         healthCheck = this?.field("healthCheck").toHealthCheck(),
@@ -215,7 +215,7 @@ fun Value?.toHealthCheck(): HealthCheck {
     }
 }
 
-fun Value.toIncomingEndpoint(): IncomingEndpoint {
+fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
     val pathPrefix = this.field("pathPrefix")?.stringValue
     val path = this.field("path")?.stringValue
     val pathRegex = this.field("pathRegex")?.stringValue
@@ -227,7 +227,7 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
     val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
     val unlistedClientsPolicy = this.field("unlistedClientsPolicy").toUnlistedPolicy()
-    val oauth = this.field("oauth")?.toOAuth()
+    val oauth = this.field("oauth")?.toOAuth(properties)
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
@@ -269,37 +269,34 @@ private fun Value.toOutgoingTimeoutPolicy(default: Outgoing.TimeoutPolicy): Outg
     return Outgoing.TimeoutPolicy(idleTimeout ?: default.idleTimeout, requestTimeout ?: default.requestTimeout)
 }
 
-private fun Value.toOAuth(): OAuth {
-    val provider = this.field("provider")?.stringValue ?: ""
+private fun Value.toOAuth(properties: SnapshotProperties): OAuth {
+    val provider = this.field("provider").toOauthProvider(properties)
     val policy = this.field("policy").toOAuthPolicy()
     val verification = this.field("verification").toOAuthVerification()
 
     return OAuth(provider, verification, policy)
 }
 
+fun Value?.toOauthProvider(properties: SnapshotProperties) = this?.stringValue
+    ?.takeIf { it.isNotEmpty() }
+    ?.let { provider ->
+        properties.jwt.providers
+            .map { property -> property.name }
+            .firstOrNull {
+                it == provider
+            } ?: throw NodeMetadataValidationException("Invalid OAuth provider value: $provider")
+    }
+    ?: throw NodeMetadataValidationException("Invalid OAuth provider value cannot be null")
 
 fun Value?.toOAuthVerification() = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
     ?.let {
         when (it) {
             "offline" -> OAuth.Verification.OFFLINE
-            else -> throw NodeMetadataValidationException("Invalid OAuth validation value: $it")
+            else -> throw NodeMetadataValidationException("Invalid OAuth verification value: $it")
         }
      }
     ?: OAuth.Verification.OFFLINE
-
-//TODO: provider parsing
-// fun Value?.toOAuthProvider() = this?.stringValue
-//     ?.takeIf { it.isNotEmpty() }
-//     ?.let {
-//         when (it) {
-//             "oauth_ad" -> OAuth.Provider.OAUTH_AD
-//             "oauth_github" -> OAuth.Provider.OAUTH_GITHUB
-//             "oauth_business" -> OAuth.Provider.OAUTH_BUSINESS
-//             else -> throw NodeMetadataValidationException("Invalid OAuth provider value: $it")
-//         }
-//     }
-//     ?: OAuth.Provider.OAUTH_BUSINESS
 
 fun Value?.toOAuthPolicy() = this?.stringValue
     ?.takeIf { it.isNotEmpty() }

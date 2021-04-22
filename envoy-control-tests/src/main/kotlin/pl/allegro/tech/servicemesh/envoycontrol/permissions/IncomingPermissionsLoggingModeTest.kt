@@ -20,6 +20,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfigura
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
+import java.net.URI
 
 @SuppressWarnings("LargeClass")
 internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguration() {
@@ -34,7 +36,13 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
             "$prefix.routes.status.create-virtual-cluster" to true,
             "$prefix.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
             "$prefix.routes.status.enabled" to true,
-            "$prefix.incoming-permissions.clients-allowed-to-all-endpoints" to listOf("allowed-client")
+            "$prefix.incoming-permissions.clients-allowed-to-all-endpoints" to listOf("allowed-client"),
+            "$prefix.jwt.providers" to listOf(
+                OAuthProvider("oauth2-mock",
+                    URI.create("https://oauth2-mock.herokuapp.com/auth/jwks"),
+                    "oauth2-mock.herokuapp.com|443"
+                )
+            )
         ) }
 
         // language=yaml

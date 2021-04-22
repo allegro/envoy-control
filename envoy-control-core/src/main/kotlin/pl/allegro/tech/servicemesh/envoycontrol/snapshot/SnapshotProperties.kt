@@ -329,9 +329,5 @@ class JwtFilterProperties{
     var forwardPayloadHeader = "x-oauth-token-validated"
     var payloadInMetadata = "jwt"
     //todo: sample provider, needs to be set for tests
-    var providers: List<OAuthProvider> = listOf(
-        OAuthProvider("oauth2-mock",
-            URI.create("https://oauth2-mock.herokuapp.com/auth/jwks"),
-                "oauth2-mock.herokuapp.com|443"
-            ))
+    var providers = listOf<OAuthProvider>()
 }
