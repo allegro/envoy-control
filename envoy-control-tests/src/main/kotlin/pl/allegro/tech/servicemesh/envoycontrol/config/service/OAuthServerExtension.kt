@@ -28,7 +28,7 @@ class OAuthServerExtension : ServiceExtension<OAuthServerContainer> {
     }
 
     fun getTokenAddress() = "http://localhost:${container().port()}/auth/token"
-    fun getJwksAddress() = "http://oauth:8080/auth/jwks"
+    fun getJwksAddress() = "http://${container().networkAlias()}:${container().oAuthPort()}/auth/jwks"
 
     companion object {
         private val pool = ContainerPool<OAuthServerExtension, OAuthServerContainer> { OAuthServerContainer() }

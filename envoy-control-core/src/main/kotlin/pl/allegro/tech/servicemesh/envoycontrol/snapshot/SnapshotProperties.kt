@@ -316,7 +316,7 @@ class DynamicForwardProxyProperties {
     var maxHostTtl = Duration.ofSeconds(300) // default Envoy's value
     var connectionTimeout = Duration.ofSeconds(1)
 }
-data class OAuthProvider (
+data class OAuthProvider(
     var name: String = "",
     var jwksUri: URI = URI.create("http://localhost"),
     var clusterName: String = "",
@@ -325,7 +325,7 @@ data class OAuthProvider (
     var connectionTimeout: Duration = Duration.ofSeconds(1)
 )
 
-class JwtFilterProperties{
+class JwtFilterProperties {
     var forwardPayloadHeader = "x-oauth-token-validated"
     var payloadInMetadata = "jwt"
     var providers = listOf<OAuthProvider>()

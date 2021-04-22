@@ -6,6 +6,9 @@ import okhttp3.Request
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnauthorized
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -37,8 +40,8 @@ class JWTFilterTest {
                     OAuthProvider(
                         name = "oauth2-mock",
                         jwksUri = URI.create(oAuthServer.getJwksAddress()),
-                        clusterName = oAuthServer.container().address(),
-                        clusterPort = 8080
+                        clusterName = "oauth",
+                        clusterPort = oAuthServer.container().oAuthPort()
                     )
                 )
             )
@@ -58,14 +61,12 @@ class JWTFilterTest {
                     unlistedEndpointsPolicy: log
                     endpoints: 
                     - path: /jwt-protected
-                      clients: ["any"]
+                      clients: []
+                      unlistedClientsPolicy: log
                       oauth:
                         provider: oauth2-mock
                         verification: offline
                         policy: strict
-                  outgoing:
-                    dependencies:
-                      - service: "oAuth"
         """.trimIndent()
         )
 
@@ -76,29 +77,29 @@ class JWTFilterTest {
 
     @Test
     fun `should not allow requests without jwt`() {
+
         // when
         val response = envoy.ingressOperations.callLocalService(
             endpoint = "/jwt-protected"
         )
 
-        //then
-        assertThat(response.code()).isEqualTo(401)
-        assertThat(response.body()!!.string()).isEqualTo("Jwt is missing")
+        // then
+        assertThat(response).isUnauthorized()
     }
 
     @Test
     fun `should allow requests with valid jwt`() {
 
+        // given
         val token = OkHttpClient().newCall(Request.Builder().get().url(oAuthServer.getTokenAddress()).build()).execute()
             .body()!!.string()
-        // when
 
+        // when
         val response = envoy.ingressOperations.callLocalService(
             endpoint = "/jwt-protected", headers = Headers.of("Authorization", "Bearer $token")
         )
 
         // then
-     //   assertThat(response.code()).isEqualTo(200)
-        assertThat(response.body()!!.string()).isNotEqualTo("Jwks remote fetch is failed")
+        assertThat(response).isOk().isFrom(service)
     }
 }

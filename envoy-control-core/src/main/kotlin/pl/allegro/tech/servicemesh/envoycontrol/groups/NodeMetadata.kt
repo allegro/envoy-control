@@ -310,7 +310,6 @@ fun Value?.toOAuthPolicy() = this?.stringValue
     }
     ?: OAuth.Policy.STRICT
 
-
 @Suppress("SwallowedException")
 fun Value.toDuration(): Duration? {
     return when (this.kindCase) {
@@ -473,7 +472,7 @@ enum class CommunicationMode {
     ADS, XDS
 }
 
-data class OAuth (
+data class OAuth(
   //  val provider: Provider = Provider.OAUTH_BUSINESS,
     val provider: String = "oauth2-mock",
     val verification: Verification = Verification.OFFLINE,

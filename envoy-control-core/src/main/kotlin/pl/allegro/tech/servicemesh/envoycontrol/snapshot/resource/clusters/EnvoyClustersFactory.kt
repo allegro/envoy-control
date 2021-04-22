@@ -109,7 +109,7 @@ class EnvoyClustersFactory(
     private fun getClustersForJWT() = properties.jwt.providers.map(this::clusterForOAuthProvider)
 
     private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster {
-        return Cluster.newBuilder()
+        val cluster = Cluster.newBuilder()
             .setName(provider.clusterName)
             .setType(Cluster.DiscoveryType.STRICT_DNS)
             .setConnectTimeout(Durations.fromMillis(provider.connectionTimeout.toMillis()))
@@ -129,7 +129,10 @@ class EnvoyClustersFactory(
                             )
                         )
                     )
-            ).setTransportSocket(
+            )
+
+        if (provider.jwksUri.scheme == "https") {
+            cluster.setTransportSocket(
                 TransportSocket.newBuilder()
                     .setName("envoy.transport_sockets.tls")
                     .setTypedConfig(
@@ -147,7 +150,9 @@ class EnvoyClustersFactory(
                         )
                     )
             )
-            .build()
+        }
+
+        return cluster.build()
     }
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
