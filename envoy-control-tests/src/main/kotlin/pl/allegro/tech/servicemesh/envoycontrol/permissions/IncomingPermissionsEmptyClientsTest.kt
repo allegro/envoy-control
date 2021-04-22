@@ -16,7 +16,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.OAuthServerExtension
 
 internal class IncomingPermissionsEmptyClientsTest {
     companion object {
@@ -32,10 +31,6 @@ internal class IncomingPermissionsEmptyClientsTest {
                     endpoints: 
                     - path: /blocked-for-all
                       clients: []
-                  outgoing:
-                    dependencies:
-                      - service: "echo"
-                      - service: "echo2"
         """.trimIndent()
         )
 
@@ -46,14 +41,10 @@ internal class IncomingPermissionsEmptyClientsTest {
               metadata:
                 proxy_settings:
                   incoming:
-                    unlistedEndpointsPolicy: log
                     endpoints: 
-                    - path: /blocked-for-all
+                    - path: /logged-for-all
                       clients: []
-                  outgoing:
-                    dependencies:
-                      - service: "echo"
-                      - service: "echo2"
+                      unlistedClientsPolicy: log
         """.trimIndent()
         )
 
@@ -85,10 +76,6 @@ internal class IncomingPermissionsEmptyClientsTest {
         @JvmField
         @RegisterExtension
         val envoy2 = EnvoyExtension(envoyControl, localService = echo2, config = echo2Config)
-
-        // @JvmField
-        // @RegisterExtension
-        // val oauth = OAuthServerExtension()
     }
 
     @Test

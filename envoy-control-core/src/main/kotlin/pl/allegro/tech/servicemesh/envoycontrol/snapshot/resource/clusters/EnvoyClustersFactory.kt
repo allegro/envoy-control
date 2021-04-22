@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters
 
 import com.google.protobuf.Any
-import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
@@ -113,7 +112,7 @@ class EnvoyClustersFactory(
         return Cluster.newBuilder()
             .setName(provider.clusterName)
             .setType(Cluster.DiscoveryType.STRICT_DNS)
-            .setConnectTimeout(Duration.newBuilder().setSeconds(5))
+            .setConnectTimeout(Durations.fromMillis(provider.connectionTimeout.toMillis()))
             .setLoadAssignment(
                 ClusterLoadAssignment.newBuilder()
                     .setClusterName(provider.clusterName)

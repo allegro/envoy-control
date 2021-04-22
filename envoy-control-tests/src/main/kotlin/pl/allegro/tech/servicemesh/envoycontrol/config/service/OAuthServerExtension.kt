@@ -3,7 +3,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.service
 import org.junit.jupiter.api.extension.ExtensionContext
 import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerPool
 
-class OAuthServerExtension: ServiceExtension<OAuthServerContainer> {
+class OAuthServerExtension : ServiceExtension<OAuthServerContainer> {
+
+    init {
+        beforeAll(null)
+    }
 
     var started = false
     private var container: OAuthServerContainer? = null
@@ -11,9 +15,9 @@ class OAuthServerExtension: ServiceExtension<OAuthServerContainer> {
     override fun container(): OAuthServerContainer = container!!
 
     override fun beforeAll(context: ExtensionContext?) {
-        if(started){
+        if (started) {
             return
-        } else{
+        } else {
             container = pool.acquire(this)
             started = true
         }
@@ -23,7 +27,10 @@ class OAuthServerExtension: ServiceExtension<OAuthServerContainer> {
         pool.release(this)
     }
 
-    companion object{
+    fun getTokenAddress() = "http://localhost:${container().port()}/auth/token"
+    fun getJwksAddress() = "http://oauth:8080/auth/jwks"
+
+    companion object {
         private val pool = ContainerPool<OAuthServerExtension, OAuthServerContainer> { OAuthServerContainer() }
     }
 }

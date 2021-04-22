@@ -328,6 +328,5 @@ data class OAuthProvider (
 class JwtFilterProperties{
     var forwardPayloadHeader = "x-oauth-token-validated"
     var payloadInMetadata = "jwt"
-    //todo: sample provider, needs to be set for tests
     var providers = listOf<OAuthProvider>()
 }
