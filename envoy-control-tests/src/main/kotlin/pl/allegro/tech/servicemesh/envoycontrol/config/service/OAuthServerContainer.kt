@@ -6,7 +6,7 @@ import org.testcontainers.containers.wait.strategy.Wait
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 
 class OAuthServerContainer :
-    GenericContainer<OAuthServerContainer>("docker.pkg.github.com/kornelos/oauth-mock/oauth-mock:0.0.2"),
+    GenericContainer<OAuthServerContainer>("kornelos/oauth-mock:0.0.2"),
     ServiceContainer {
 
     override fun configure() {
