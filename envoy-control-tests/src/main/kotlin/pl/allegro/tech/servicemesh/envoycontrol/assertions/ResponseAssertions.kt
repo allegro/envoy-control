@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.assertions
 
 import okhttp3.Response
 import org.assertj.core.api.ObjectAssert
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
 fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
@@ -28,6 +29,14 @@ fun ObjectAssert<Response>.isUnreachable(): ObjectAssert<Response> {
 fun ObjectAssert<Response>.isFrom(echoServiceExtension: EchoServiceExtension): ObjectAssert<Response> {
     matches {
         it.body()?.use { it.string().contains(echoServiceExtension.container().response) } ?: false
+    }
+    return this
+}
+
+fun ObjectAssert<Response>.isEitherFrom(vararg echoContainers: EchoServiceExtension): ObjectAssert<Response> {
+    matches {
+        val serviceResponse = it.body()?.string() ?: ""
+        echoContainers.any { containerExtension -> serviceResponse.contains(containerExtension.container().response) }
     }
     return this
 }

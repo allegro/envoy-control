@@ -1,47 +1,58 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
+import okhttp3.Headers
 import okhttp3.MediaType
 import okhttp3.RequestBody
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.testcontainers.junit.jupiter.Container
+import org.junit.jupiter.api.extension.RegisterExtension
+import org.testcontainers.junit.jupiter.Testcontainers
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasNoRBACDenials
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionBlock
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.hasOneAccessDenialWithActionLog
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
-import pl.allegro.tech.servicemesh.envoycontrol.config.ClientsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isForbidden
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.Echo3EnvoyAuthConfig
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulMultiClusterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ProxyOperations
+import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlClusteredExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
+import java.util.*
 
-@SuppressWarnings("LargeClass")
-internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguration() {
+@Testcontainers
+class IncomingPermissionsLoggingModeTest {
 
     companion object {
         private const val prefix = "envoy-control.envoy.snapshot"
-        private val properties = { sourceClientIp: String -> mapOf(
-            "$prefix.incoming-permissions.enabled" to true,
-            "$prefix.incoming-permissions.overlapping-paths-fix" to true,
-            "$prefix.incoming-permissions.source-ip-authentication.ip-from-range.source-ip-client" to
-                "$sourceClientIp/32",
-            "$prefix.routes.status.create-virtual-cluster" to true,
-            "$prefix.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
-            "$prefix.routes.status.enabled" to true,
-            "$prefix.incoming-permissions.clients-allowed-to-all-endpoints" to listOf("allowed-client")
-        ) }
+        private val properties = { sourceClientIp: String ->
+            mapOf(
+                "$prefix.incoming-permissions.enabled" to true,
+                "$prefix.incoming-permissions.overlapping-paths-fix" to true,
+                "$prefix.incoming-permissions.source-ip-authentication.ip-from-range.source-ip-client" to
+                    "$sourceClientIp/32",
+                "$prefix.routes.status.create-virtual-cluster" to true,
+                "$prefix.routes.status.endpoints" to mutableListOf(EndpointMatch().also { it.path = "/status/" }),
+                "$prefix.routes.status.enabled" to true,
+                "$prefix.incoming-permissions.clients-allowed-to-all-endpoints" to listOf("allowed-client")
+            )
+        }
 
         // language=yaml
         private fun proxySettings(unlistedEndpointsPolicy: String) = """
-            node: 
-              metadata: 
-                proxy_settings: 
+            node:
+              metadata:
+                proxy_settings:
                   incoming:
                     unlistedEndpointsPolicy: $unlistedEndpointsPolicy
                     endpoints:
@@ -63,12 +74,6 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
                       - service: "echo2"
         """.trimIndent()
 
-        private val echoConfig = Echo1EnvoyAuthConfig.copy(
-            configOverride = proxySettings(unlistedEndpointsPolicy = "blockAndLog"))
-
-        private val echo2Config = Echo2EnvoyAuthConfig.copy(
-            configOverride = proxySettings(unlistedEndpointsPolicy = "log"))
-
         // language=yaml
         private val echo3Config = """
             node:
@@ -80,668 +85,683 @@ internal class IncomingPermissionsLoggingModeTest : EnvoyControlTestConfiguratio
                       - service: "echo2"
         """.trimIndent()
 
-        private val echoEnvoy by lazy { envoyContainer1 }
-        private val echo2Envoy by lazy { envoyContainer2 }
-        private lateinit var echo3Envoy: EnvoyContainer
+        @JvmField
+        @RegisterExtension
+        val sourceIpClient = ToxiproxyExtension(exposedPortsCount = 2)
 
-        @Container
-        private val sourceIpClient = ToxiproxyContainer(exposedPortsCount = 2).withNetwork(network)
-        private val sourceIpClientToEchoProxy by lazy { sourceIpClient.createProxyToEnvoyIngress(envoy = echoEnvoy) }
-        private val sourceIpClientToEcho2Proxy by lazy { sourceIpClient.createProxyToEnvoyIngress(envoy = echo2Envoy) }
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulMultiClusterExtension()
 
-        private val echoLocalService by lazy { localServiceContainer }
-        private val echo2LocalService by lazy { echoContainer2 }
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlClusteredExtension(
+            consul.serverFirst,
+            propertiesProvider = { properties(sourceIpClient.container.ipAddress()) },
+            dependencies = listOf(consul, sourceIpClient)
+        )
 
-        @JvmStatic
-        @BeforeAll
-        fun setupTest() {
-            setup(appFactoryForEc1 = { consulPort ->
-                EnvoyControlRunnerTestApp(properties = properties(sourceIpClient.ipAddress()), consulPort = consulPort) },
-                envoys = 2,
-                envoyConfig = echoConfig,
-                secondEnvoyConfig = echo2Config
+        @JvmField
+        @RegisterExtension
+        val echoLocalService = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val echo2LocalService = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val localService = EchoServiceExtension()
+
+        // 1. envoy
+        private val echoConfig =
+            Echo1EnvoyAuthConfig.copy(configOverride = proxySettings(unlistedEndpointsPolicy = "blockAndLog"))
+
+        @JvmField
+        @RegisterExtension
+        val echoEnvoy = EnvoyExtension(envoyControl, echoLocalService, echoConfig)
+
+        // 2. envoy
+        private val echo2Config =
+            Echo2EnvoyAuthConfig.copy(configOverride = proxySettings(unlistedEndpointsPolicy = "log"))
+
+        @JvmField
+        @RegisterExtension
+        val echo2Envoy = EnvoyExtension(envoyControl, echo2LocalService, echo2Config)
+
+        // 3. envoy with cert
+        val echo3EnvoyConfig = Echo3EnvoyAuthConfig.copy(configOverride = echo3Config)
+
+        @JvmField
+        @RegisterExtension
+        val echo3Envoy = EnvoyExtension(envoyControl, localService, echo3EnvoyConfig)
+
+        val sourceIpClientToEchoProxy by lazy { ProxyOperations(createProxyToEnvoyIngress(sourceIpClient, echoEnvoy)) }
+        val sourceIpClientToEcho2Proxy by lazy {
+            ProxyOperations(
+                createProxyToEnvoyIngress(
+                    sourceIpClient,
+                    echo2Envoy
+                )
             )
-            echo3Envoy = createEnvoyContainerWithEcho3Certificate(configOverride = echo3Config)
-            echo3Envoy.start()
-
-            registerServiceWithEnvoyOnIngress(name = "echo", envoy = echoEnvoy, tags = listOf("mtls:enabled"))
-            registerServiceWithEnvoyOnIngress(name = "echo2", envoy = echo2Envoy, tags = listOf("mtls:enabled"))
-
-            waitForEnvoysInitialized()
         }
 
-        private fun waitForEnvoysInitialized() {
-            untilAsserted {
-                assertThat(echo3Envoy.admin().isEndpointHealthy("echo", echoEnvoy.ipAddress())).isTrue()
-                assertThat(echo3Envoy.admin().isEndpointHealthy("echo2", echo2Envoy.ipAddress())).isTrue()
-                assertThat(echoEnvoy.admin().isEndpointHealthy("echo2", echo2Envoy.ipAddress())).isTrue()
-                assertThat(echo2Envoy.admin().isEndpointHealthy("echo", echoEnvoy.ipAddress())).isTrue()
-            }
+        fun createProxyToEnvoyIngress(toxiproxy: ToxiproxyExtension, envoy: EnvoyExtension) =
+            toxiproxy.container.createProxy(
+                targetIp = envoy.container.ipAddress(),
+                targetPort = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT
+            )
+    }
+
+    @BeforeEach
+    fun startRecordingRBACLogs() {
+        registerServiceWithEnvoyOnIngress(name = "echo", envoy = echoEnvoy, tags = listOf("mtls:enabled"))
+        registerServiceWithEnvoyOnIngress(name = "echo2", envoy = echo2Envoy, tags = listOf("mtls:enabled"))
+        waitForEnvoysInitialized()
+        echoEnvoy.recordRBACLogs()
+        echo2Envoy.recordRBACLogs()
+    }
+
+    @AfterEach
+    fun cleanupTest() {
+        echoEnvoy.stopRecordingRBAC()
+        echo2Envoy.stopRecordingRBAC()
+    }
+
+    fun registerServiceWithEnvoyOnIngress(name: String, envoy: EnvoyExtension, tags: List<String>) {
+        val id = UUID.randomUUID().toString()
+        consul.serverFirst.operations.registerService(
+            id = id,
+            name = name,
+            address = envoy.container.ipAddress(),
+            port = EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
+            tags = tags
+        )
+    }
+
+    private fun waitForEnvoysInitialized() {
+        untilAsserted {
+            assertThat(echo3Envoy.container.admin().isEndpointHealthy("echo", echoEnvoy.container.ipAddress())).isTrue()
+            assertThat(
+                echo3Envoy.container.admin().isEndpointHealthy("echo2", echo2Envoy.container.ipAddress())
+            ).isTrue()
+            assertThat(
+                echoEnvoy.container.admin().isEndpointHealthy("echo2", echo2Envoy.container.ipAddress())
+            ).isTrue()
+            assertThat(echo2Envoy.container.admin().isEndpointHealthy("echo", echoEnvoy.container.ipAddress())).isTrue()
         }
     }
 
     @Test
     fun `should allow echo3 to access status endpoint over https`() {
         // when
-        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/status/hc")
+        val echoResponse = echo3Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/status/hc")
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasNoRBACDenials()
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasNoRBACDenials()
 
         // when
-        val echo2Response = call(service = "echo2", from = echo3Envoy, path = "/status/hc")
+        val echo2Response = echo3Envoy.egressOperations.callService(service = "echo2", pathAndQuery = "/status/hc")
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasNoRBACDenials()
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
     @Test
     fun `echo should allow access to status endpoint by all clients over http`() {
         // when
-        val echoResponse = callEnvoyIngress(envoy = echoEnvoy, path = "/status/hc")
+        val echoResponse = echoEnvoy.ingressOperations.callLocalService("/status/hc")
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy).hasNoRBACDenials()
+        assertThat(echoEnvoy.container).hasNoRBACDenials()
     }
 
     @Test
     fun `echo2 should allow access to status endpoint by any client over http`() {
         // when
-        val echo2Response = callEnvoyIngress(envoy = echo2Envoy, path = "/status/hc", useSsl = false)
+        val echo2Response = echo2Envoy.ingressOperations.callLocalService("/status/hc")
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy).hasNoRBACDenials()
+        assertThat(echoEnvoy.container).hasNoRBACDenials()
     }
 
     @Test
     fun `echo should allow echo3 to access 'block-unlisted-clients' endpoint over https`() {
         // when
-        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/block-unlisted-clients")
+        val echoResponse =
+            echo3Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/block-unlisted-clients")
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasNoRBACDenials()
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasNoRBACDenials()
     }
 
     @Test
     fun `echo2 should allow echo3 to access 'block-unlisted-clients' endpoint over https`() {
         // when
-        val echo2Response = call(service = "echo2", from = echo3Envoy, path = "/block-unlisted-clients")
+        val echoResponse2 =
+            echo3Envoy.egressOperations.callService(service = "echo2", pathAndQuery = "/block-unlisted-clients")
 
         // then
-        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasNoRBACDenials()
+        assertThat(echoResponse2).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
     @Test
     fun `echo should NOT allow echo2 to access 'block-unlisted-clients' endpoint over https`() {
         // when
-        val echoResponse = call(service = "echo", from = echo2Envoy, path = "/block-unlisted-clients")
+        val echoResponse = echo2Envoy.egressOperations.callService("echo", pathAndQuery = "/block-unlisted-clients")
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo2",
             trustedClient = true,
-            clientIp = echo2Envoy.ipAddress()
+            clientIp = echo2Envoy.container.ipAddress()
         )
     }
 
     @Test
     fun `echo2 should NOT allow echo to access 'block-unlisted-clients' endpoint over https`() {
         // when
-        val echo2Response = call(service = "echo2", from = echoEnvoy, path = "/block-unlisted-clients")
+        val echo2Response = echoEnvoy.egressOperations.callService("echo2", pathAndQuery = "/block-unlisted-clients")
 
         // then
         assertThat(echo2Response).isForbidden()
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo",
             trustedClient = true,
-            clientIp = echoEnvoy.ipAddress()
-        )
-    }
-
-    @Test
-    fun `echo should allow source-ip-client to access 'block-unlisted-clients' endpoint over http`() {
-        // when
-        val echoResponse = callByProxy(proxy = sourceIpClientToEchoProxy, path = "/block-unlisted-clients")
-
-        // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo2 should allow source-ip-client to access 'block-unlisted-clients' endpoint over http`() {
-        // when
-        val echo2Response = callByProxy(proxy = sourceIpClientToEcho2Proxy, path = "/block-unlisted-clients")
-
-        // then
-        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo should NOT allow unlisted clients to access 'block-unlisted-clients' endpoint over http`() {
-        // when
-        val echoResponse = callEnvoyIngress(envoy = echoEnvoy, path = "/block-unlisted-clients")
-
-        // then
-        assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
-            protocol = "http",
-            path = "/block-unlisted-clients",
-            method = "GET",
-            clientName = "",
-            trustedClient = false,
-            clientIp = echoEnvoy.gatewayIp()
-        )
-    }
-
-    @Test
-    fun `echo2 should NOT allow unlisted clients to access 'block-unlisted-clients' endpoint over http`() {
-        // when
-        val echo2Response = callEnvoyIngress(envoy = echo2Envoy, path = "/block-unlisted-clients")
-
-        // then
-        assertThat(echo2Response).isForbidden()
-        assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(
-            protocol = "http",
-            path = "/block-unlisted-clients",
-            method = "GET",
-            clientName = "",
-            trustedClient = false,
-            clientIp = echo2Envoy.gatewayIp()
-        )
-    }
-
-    @Test
-    fun `echo should allow echo3 to access 'log-unlisted-clients' endpoint over https`() {
-        // when
-        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/log-unlisted-clients")
-
-        // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo2 should allow echo3 to access 'log-unlisted-clients' endpoint over https`() {
-        // when
-        val echo2Response = call(service = "echo2", from = echo3Envoy, path = "/log-unlisted-clients")
-
-        // then
-        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo should allow echo2 to access 'log-unlisted-clients' endpoint over https and log it`() {
-        // when
-        val echoResponse = call(service = "echo", from = echo2Envoy, path = "/log-unlisted-clients")
-
-        // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionLog(
-            protocol = "https",
-            path = "/log-unlisted-clients",
-            method = "GET",
-            clientName = "echo2",
-            trustedClient = true,
-            clientIp = echo2Envoy.ipAddress()
-        )
-    }
-
-    @Test
-    fun `echo2 should allow echo to access 'log-unlisted-clients' endpoint over https and log it`() {
-        // when
-        val echo2Response = call(service = "echo2", from = echoEnvoy, path = "/log-unlisted-clients")
-
-        // then
-        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
-            protocol = "https",
-            path = "/log-unlisted-clients",
-            method = "GET",
-            clientName = "echo",
-            clientIp = echoEnvoy.ipAddress()
-        )
-    }
-
-    @Test
-    fun `echo should allow source-ip-client to access 'log-unlisted-clients' endpoint over http`() {
-        // when
-        val echoResponse = callByProxy(proxy = sourceIpClientToEchoProxy, path = "/log-unlisted-clients")
-
-        // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo2 should allow source-ip-client to access 'log-unlisted-clients' endpoint over http`() {
-        // when
-        val echo2Response = callByProxy(proxy = sourceIpClientToEcho2Proxy, path = "/log-unlisted-clients")
-
-        // then
-        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo should allow unlisted clients to access 'log-unlisted-clients' endpoint over http and log it`() {
-        // when
-        val echoResponse = callEnvoyIngress(envoy = echoEnvoy, path = "/log-unlisted-clients")
-
-        // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionLog(
-            protocol = "http",
-            path = "/log-unlisted-clients",
-            method = "GET",
-            clientName = "",
-            clientIp = echoEnvoy.gatewayIp()
-        )
-    }
-
-    @Test
-    fun `echo2 should allow unlisted clients to access 'log-unlisted-clients' endpoint over http and log it`() {
-        // when
-        val echo2Response = callEnvoyIngress(envoy = echo2Envoy, path = "/log-unlisted-clients")
-
-        // then
-        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
-            protocol = "http",
-            path = "/log-unlisted-clients",
-            method = "GET",
-            clientName = "",
-            clientIp = echoEnvoy.gatewayIp()
-        )
-    }
-
-    @Test
-    fun `echo should allow echo3 to access 'block-unlisted-clients-by-default' endpoint over https`() {
-        // when
-        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/block-unlisted-clients-by-default")
-
-        // then
-        assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo2 should allow echo3 to access 'block-unlisted-clients-by-default' endpoint over https`() {
-        // when
-        val echo2Response = call(service = "echo2", from = echo3Envoy, path = "/block-unlisted-clients-by-default")
-
-        // then
-        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasNoRBACDenials()
-    }
-
-    @Test
-    fun `echo should NOT allow echo2 to access 'block-unlisted-clients-by-default' endpoint over https`() {
-        // when
-        val echoResponse = call(service = "echo", from = echo2Envoy, path = "/block-unlisted-clients-by-default")
-
-        // then
-        assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
-            protocol = "https",
-            path = "/block-unlisted-clients-by-default",
-            method = "GET",
-            clientName = "echo2",
-            trustedClient = true,
-            clientIp = echo2Envoy.ipAddress()
-        )
-    }
-
-    @Test
-    fun `echo2 should NOT allow echo to access 'block-unlisted-clients-by-default' endpoint over https`() {
-        // when
-        val echo2Response = call(service = "echo2", from = echoEnvoy, path = "/block-unlisted-clients-by-default")
-
-        // then
-        assertThat(echo2Response).isForbidden()
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(
-            protocol = "https",
-            path = "/block-unlisted-clients-by-default",
-            method = "GET",
-            clientName = "echo",
-            trustedClient = true,
-            clientIp = echoEnvoy.ipAddress()
+            clientIp = echoEnvoy.container.ipAddress()
         )
     }
 
     @Test
     fun `echo should allow source-ip-client to access 'block-unlisted-clients-by-default' endpoint over http`() {
         // when
-        val echoResponse = callByProxy(proxy = sourceIpClientToEchoProxy, path = "/block-unlisted-clients-by-default")
+        val echoResponse = sourceIpClientToEchoProxy.call("/block-unlisted-clients-by-default")
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasNoRBACDenials()
+        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container).hasNoRBACDenials()
     }
 
     @Test
     fun `echo2 should allow source-ip-client to access 'block-unlisted-clients-by-default' endpoint over http`() {
         // when
-        val echo2Response = callByProxy(proxy = sourceIpClientToEcho2Proxy, path = "/block-unlisted-clients-by-default")
+        val echo2Response = sourceIpClientToEcho2Proxy.call("/block-unlisted-clients-by-default")
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasNoRBACDenials()
+        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
     @Test
     fun `echo should NOT allow unlisted clients to access 'block-unlisted-clients-by-default' endpoint over http`() {
         // when
-        val echoResponse = callEnvoyIngress(envoy = echoEnvoy, path = "/block-unlisted-clients-by-default")
+        val echoResponse = echoEnvoy.ingressOperations.callLocalService("/block-unlisted-clients-by-default")
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
             trustedClient = false,
-            clientIp = echoEnvoy.gatewayIp()
+            clientIp = echoEnvoy.container.gatewayIp()
+        )
+    }
+
+    @Test
+    fun `echo2 should NOT allow unlisted clients to access 'block-unlisted-clients' endpoint over http`() {
+        // when
+        val echo2Response = echo2Envoy.ingressOperations.callLocalService("/block-unlisted-clients")
+
+        // then
+        assertThat(echo2Response).isForbidden()
+        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
+            protocol = "http",
+            path = "/block-unlisted-clients",
+            method = "GET",
+            clientName = "",
+            trustedClient = false,
+            clientIp = echo2Envoy.container.gatewayIp()
+        )
+    }
+
+    @Test
+    fun `echo should allow echo3 to access 'log-unlisted-clients' endpoint over https`() {
+        // when
+        val echoResponse = echo3Envoy.egressOperations.callService("echo", pathAndQuery = "/log-unlisted-clients")
+
+        // then
+        assertThat(echoResponse).isOk().isFrom(echoLocalService)
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasNoRBACDenials()
+    }
+
+    @Test
+    @Tag("BAD")
+    fun `echo2 should allow echo3 to access 'log-unlisted-clients' endpoint over https`() {
+        // when
+        val echo2Response = echo3Envoy.egressOperations.callService("echo2", pathAndQuery = "/log-unlisted-clients")
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasNoRBACDenials()
+    }
+
+    @Test
+    fun `echo should allow echo2 to access 'log-unlisted-clients' endpoint over https and log it`() {
+        // when
+        val echoResponse = echo2Envoy.egressOperations.callService("echo", pathAndQuery = "/log-unlisted-clients")
+
+        // then
+        assertThat(echoResponse).isOk().isFrom(echoLocalService)
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/log-unlisted-clients",
+            method = "GET",
+            clientName = "echo2",
+            trustedClient = true,
+            clientIp = echo2Envoy.container.ipAddress()
+        )
+    }
+
+    @Test
+    fun `echo2 should allow echo to access 'log-unlisted-clients' endpoint over https and log it`() {
+        // when
+        val echo2Response = echoEnvoy.egressOperations.callService("echo2", pathAndQuery = "/log-unlisted-clients")
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
+            protocol = "https",
+            path = "/log-unlisted-clients",
+            method = "GET",
+            clientName = "echo",
+            clientIp = echoEnvoy.container.ipAddress()
+        )
+    }
+
+    @Test
+    fun `echo should allow source-ip-client to access 'log-unlisted-clients' endpoint over http`() {
+        // when
+        val echoResponse = sourceIpClientToEchoProxy.call("/log-unlisted-clients")
+
+        // then
+        assertThat(echoResponse).isOk().isFrom(echoLocalService)
+        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container).hasNoRBACDenials()
+    }
+
+    @Test
+    fun `echo2 should allow source-ip-client to access 'log-unlisted-clients' endpoint over http`() {
+        // when
+        val echo2Response = sourceIpClientToEcho2Proxy.call("/log-unlisted-clients")
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container).hasNoRBACDenials()
+    }
+
+    @Test
+    fun `echo should allow unlisted clients to access 'log-unlisted-clients' endpoint over http and log it`() {
+        // when
+        val echoResponse = echoEnvoy.ingressOperations.callLocalService("/log-unlisted-clients")
+
+        // then
+        assertThat(echoResponse).isOk().isFrom(echoLocalService)
+        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
+            protocol = "http",
+            path = "/log-unlisted-clients",
+            method = "GET",
+            clientName = "",
+            clientIp = echoEnvoy.container.gatewayIp()
+        )
+    }
+
+    @Test
+    fun `echo2 should allow unlisted clients to access 'log-unlisted-clients' endpoint over http and log it`() {
+        // when
+        val echo2Response = echo2Envoy.ingressOperations.callLocalService("/log-unlisted-clients")
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
+            protocol = "http",
+            path = "/log-unlisted-clients",
+            method = "GET",
+            clientName = "",
+            clientIp = echoEnvoy.container.gatewayIp()
+        )
+    }
+
+    @Test
+    fun `echo should allow echo3 to access 'block-unlisted-clients-by-default' endpoint over https`() {
+        // when
+        val echoResponse =
+            echo3Envoy.egressOperations.callService("echo", pathAndQuery = "/block-unlisted-clients-by-default")
+
+        // then
+        assertThat(echoResponse).isOk().isFrom(echoLocalService)
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasNoRBACDenials()
+    }
+
+    @Test
+    fun `echo2 should allow echo3 to access 'block-unlisted-clients-by-default' endpoint over https`() {
+
+        // when
+        val echo2Response =
+            echo3Envoy.egressOperations.callService("echo2", pathAndQuery = "/block-unlisted-clients-by-default")
+
+        // then
+        assertThat(echo2Response).isOk().isFrom(echo2LocalService)
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasNoRBACDenials()
+    }
+
+    @Test
+    @Tag("BAD")
+    fun `echo should NOT allow echo2 to access 'block-unlisted-clients-by-default' endpoint over https`() {
+        // when
+        val echoResponse =
+            echo2Envoy.egressOperations.callService("echo", pathAndQuery = "/block-unlisted-clients-by-default")
+
+        // then
+        assertThat(echoResponse).isForbidden()
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/block-unlisted-clients-by-default",
+            method = "GET",
+            clientName = "echo2",
+            trustedClient = true,
+            clientIp = echo2Envoy.container.ipAddress()
         )
     }
 
     @Test
     fun `echo2 should NOT allow unlisted clients to access 'block-unlisted-clients-by-default' endpoint over http`() {
         // when
-        val echo2Response = callEnvoyIngress(envoy = echo2Envoy, path = "/block-unlisted-clients-by-default")
+        val echo2Response = echo2Envoy.ingressOperations.callLocalService("/block-unlisted-clients-by-default")
 
         // then
         assertThat(echo2Response).isForbidden()
-        assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionBlock(
+        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
             trustedClient = false,
-            clientIp = echo2Envoy.gatewayIp()
+            clientIp = echo2Envoy.container.gatewayIp()
         )
     }
 
     @Test
     fun `echo should NOT allow echo3 to access unlisted endpoint over https`() {
         // when
-        val echoResponse = call(service = "echo", from = echo3Envoy, path = "/unlisted-endpoint")
+        val echoResponse = echo3Envoy.egressOperations.callService("echo", pathAndQuery = "/unlisted-endpoint")
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo3",
             trustedClient = true,
-            clientIp = echo3Envoy.ipAddress()
+            clientIp = echo3Envoy.container.ipAddress()
         )
     }
 
     @Test
     fun `echo2 should allow echo3 to access unlisted endpoint over https and log it`() {
         // when
-        val echo2Response = call(service = "echo2", from = echo3Envoy, path = "/unlisted-endpoint")
+        val echo2Response = echo3Envoy.egressOperations.callService("echo2", pathAndQuery = "/unlisted-endpoint")
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo3",
             trustedClient = true,
-            clientIp = echo3Envoy.ipAddress()
+            clientIp = echo3Envoy.container.ipAddress()
         )
     }
 
     @Test
     fun `echo should NOT allow echo2 to access unlisted endpoint over https`() {
         // when
-        val echoResponse = call(service = "echo", from = echo2Envoy, path = "/unlisted-endpoint")
+        val echoResponse = echo2Envoy.egressOperations.callService("echo", pathAndQuery = "/unlisted-endpoint")
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo2",
             trustedClient = true,
-            clientIp = echo2Envoy.ipAddress()
+            clientIp = echo2Envoy.container.ipAddress()
         )
     }
 
     @Test
+    @Tag("BAD")
     fun `echo2 should allow echo to access unlisted endpoint over https and log it`() {
         // when
-        val echo2Response = call(service = "echo2", from = echoEnvoy, path = "/unlisted-endpoint")
+        val echo2Response = echoEnvoy.egressOperations.callService("echo2", pathAndQuery = "/unlisted-endpoint")
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo",
             trustedClient = true,
-            clientIp = echoEnvoy.ipAddress()
+            clientIp = echoEnvoy.container.ipAddress()
         )
     }
 
     @Test
     fun `echo should NOT allow source-ip-client to access unlisted endpoint over http`() {
         // when
-        val echoResponse = callByProxy(proxy = sourceIpClientToEchoProxy, path = "/unlisted-endpoint")
+        val echoResponse = sourceIpClientToEchoProxy.call("/unlisted-endpoint")
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
             trustedClient = false,
-            clientIp = sourceIpClient.ipAddress()
+            clientIp = sourceIpClient.container.ipAddress()
         )
     }
 
     @Test
     fun `echo2 should allow source-ip-client to access unlisted endpoint over http`() {
         // when
-        val echo2Response = callByProxy(proxy = sourceIpClientToEcho2Proxy, path = "/unlisted-endpoint")
+        val echo2Response = sourceIpClientToEcho2Proxy.call("/unlisted-endpoint")
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
             trustedClient = false,
-            clientIp = sourceIpClient.ipAddress()
+            clientIp = sourceIpClient.container.ipAddress()
         )
     }
 
     @Test
     fun `echo should NOT allow unlisted clients to access unlisted endpoint over http`() {
         // when
-        val echoResponse = callEnvoyIngress(envoy = echoEnvoy, path = "/unlisted-endpoint")
+        val echoResponse = echoEnvoy.ingressOperations.callLocalService("/unlisted-endpoint")
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressPlainHttpRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
             trustedClient = false,
-            clientIp = echoEnvoy.gatewayIp()
+            clientIp = echoEnvoy.container.gatewayIp()
         )
     }
 
     @Test
     fun `echo2 should allow unlisted clients to access unlisted endpoint over http`() {
         // when
-        val echo2Response = callEnvoyIngress(envoy = echo2Envoy, path = "/unlisted-endpoint")
+        val echo2Response = echo2Envoy.ingressOperations.callLocalService("/unlisted-endpoint")
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressPlainHttpRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
             trustedClient = false,
-            clientIp = echo2Envoy.gatewayIp()
+            clientIp = echo2Envoy.container.gatewayIp()
         )
     }
 
     @Test
     fun `echo should NOT allow echo3 to access 'log-unlisted-clients' endpoint with wrong http method`() {
         // when
-        val echoResponse = callPost(service = "echo", from = echo3Envoy, path = "/log-unlisted-clients")
+        val echoResponse = echo3Envoy.egressOperations.callService(
+            "echo",
+            pathAndQuery = "/log-unlisted-clients",
+            method = "POST",
+            body = RequestBody.create(MediaType.get("text/plain"), "{}")
+        )
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.ingressSslRequests).isOne()
-        assertThat(echoEnvoy).hasOneAccessDenialWithActionBlock(
+        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/log-unlisted-clients",
             method = "POST",
             clientName = "echo3",
             trustedClient = true,
-            clientIp = echo3Envoy.ipAddress()
+            clientIp = echo3Envoy.container.ipAddress()
         )
     }
 
     @Test
     fun `echo2 should allow echo3 to access 'log-unlisted-clients' endpoint with wrong http method and log it`() {
         // when
-        val echo2Response = callPost(service = "echo2", from = echo3Envoy, path = "/log-unlisted-clients")
+        val echo2Response = echo3Envoy.egressOperations.callService(
+            "echo2",
+            pathAndQuery = "/log-unlisted-clients",
+            method = "POST",
+            body = RequestBody.create(MediaType.get("text/plain"), "{}")
+        )
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/log-unlisted-clients",
             method = "POST",
             clientName = "echo3",
             trustedClient = true,
-            clientIp = echo3Envoy.ipAddress()
+            clientIp = echo3Envoy.container.ipAddress()
         )
     }
 
     @Test
     fun `echo2 should allow unlisted client with client identity header over https and log client name as untrusted`() {
-        // given
-        val insecureClient = ClientsFactory.createInsecureClient()
 
         // when
-        val echo2Response = callEnvoyIngress(
-            envoy = echo2Envoy,
-            path = "/log-unlisted-clients",
-            headers = mapOf("x-service-name" to "service-name-from-header"),
-            useSsl = true,
-            client = insecureClient
+        val echo2Response = echo2Envoy.ingressOperations.callLocalServiceInsecure(
+            endpoint = "/log-unlisted-clients",
+            headers = Headers.of(mapOf("x-service-name" to "service-name-from-header")),
+            useTls = true
         )
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.ingressSslRequests).isOne()
-        assertThat(echo2Envoy).hasOneAccessDenialWithActionLog(
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "service-name-from-header (not trusted)",
             trustedClient = false,
-            clientIp = echo2Envoy.gatewayIp()
+            clientIp = echo2Envoy.container.gatewayIp()
         )
     }
 
-    @BeforeEach
-    fun startRecordingRBACLogs() {
-        echoEnvoy.recordRBACLogs()
-        echo2Envoy.recordRBACLogs()
+    @Test
+    fun `echo2 should NOT allow echo to access 'block-unlisted-clients-by-default' endpoint over https`() {
+        // when
+        val echo2Response =
+            echoEnvoy.egressOperations.callService("echo2", pathAndQuery = "/block-unlisted-clients-by-default")
+
+        // then
+        assertThat(echo2Response).isForbidden()
+        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
+            protocol = "https",
+            path = "/block-unlisted-clients-by-default",
+            method = "GET",
+            clientName = "echo",
+            trustedClient = true,
+            clientIp = echoEnvoy.container.ipAddress()
+        )
     }
-
-    fun stopRecordingRBACLogs() {
-        echoEnvoy.logRecorder.stopRecording()
-        echo2Envoy.logRecorder.stopRecording()
-    }
-
-    @AfterEach
-    override fun cleanupTest() {
-        listOf(echoEnvoy, echo2Envoy, echo3Envoy).forEach { it.admin().resetCounters() }
-        stopRecordingRBACLogs()
-    }
-
-    private fun callByProxy(proxy: String, path: String) = call(
-        address = proxy, pathAndQuery = path)
-
-    private fun callPost(service: String, from: EnvoyContainer, path: String) = call(
-        service = service, from = from, path = path, method = "POST",
-        body = RequestBody.create(MediaType.get("text/plain"), "{}"))
 
     private val EnvoyContainer.ingressSslRequests: Int?
-    get() = this.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()
+        get() = this.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()
 
     private val EnvoyContainer.ingressPlainHttpRequests: Int?
         get() = this.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()
-
-    private fun EnvoyContainer.recordRBACLogs() {
-        logRecorder.recordLogs(::isRbacAccessLog)
-    }
 }

@@ -55,6 +55,7 @@ interface EnvoyControlTestApp {
 
 class EnvoyControlRunnerTestApp(
     val properties: Map<String, Any> = mapOf(),
+    val propertiesProvider: () -> Map<String, Any> = { mapOf() },
     val consulPort: Int,
     val objectMapper: ObjectMapper = ObjectMapper()
         .registerModule(KotlinModule())
@@ -79,7 +80,7 @@ class EnvoyControlRunnerTestApp(
     )
 
     override fun run() {
-        app = SpringApplicationBuilder(EnvoyControl::class.java).properties(baseProperties + properties)
+        app = SpringApplicationBuilder(EnvoyControl::class.java).properties(baseProperties + properties + propertiesProvider())
         app.run("--server.port=$appPort", "-e test")
         logger.info("starting EC on port $appPort, grpc: $grpcPort, consul: $consulPort")
     }
@@ -219,7 +220,7 @@ class EnvoyControlRunnerTestApp(
     }
 
     override fun meterRegistry() = app.context().getBean(MeterRegistry::class.java)
-    ?: throw IllegalStateException("MeterRegistry bean not found in the context")
+        ?: throw IllegalStateException("MeterRegistry bean not found in the context")
 
     companion object {
         val logger by logger()

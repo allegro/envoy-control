@@ -8,8 +8,12 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import java.util.concurrent.TimeUnit
 
-class EnvoyControlExtension(private val consul: ConsulExtension, val app: EnvoyControlTestApp)
-    : BeforeAllCallback, AfterAllCallback {
+interface EnvoyControlExtensionBase : BeforeAllCallback, AfterAllCallback {
+     val app: EnvoyControlTestApp
+}
+
+class EnvoyControlExtension(private val consul: ConsulExtension, override val app: EnvoyControlTestApp)
+    : EnvoyControlExtensionBase  {
 
     private var started = false
 
