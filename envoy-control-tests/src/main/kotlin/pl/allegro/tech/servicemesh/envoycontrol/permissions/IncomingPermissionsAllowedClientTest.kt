@@ -233,7 +233,7 @@ internal class IncomingPermissionsAllowedClientTest {
             protocol = "https",
             path = "/log-unlisted-endpoint",
             method = "GET",
-            clientName = "echo3 (not trusted)",
+            clientName = "echo3",
             trustedClient = false,
             clientAllowedToAllEndpoints = true,
             clientIp = echo2Envoy.container.gatewayIp()
@@ -256,7 +256,7 @@ internal class IncomingPermissionsAllowedClientTest {
             protocol = "https",
             path = "/block-and-log-unlisted-endpoint",
             method = "GET",
-            clientName = "echo3 (not trusted)",
+            clientName = "echo3",
             trustedClient = false,
             clientAllowedToAllEndpoints = true,
             clientIp = echoEnvoy.container.gatewayIp()

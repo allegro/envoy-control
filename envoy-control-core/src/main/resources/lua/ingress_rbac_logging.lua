@@ -22,9 +22,6 @@ function envoy_on_request(handle)
     if client_name == "" then
         client_name = first_header_value_from_list(client_identity_header_names, handle)
         allowed_client = is_allowed_client(client_name, clients_allowed_to_all_endpoints)
-        if trusted_header_name ~= "" and client_name ~= "" and handle:connection():ssl() ~= nil then
-            client_name = client_name .. " (not trusted)"
-        end
     end
 
     metadata:set("envoy.filters.http.lua", "request.info.path", path)

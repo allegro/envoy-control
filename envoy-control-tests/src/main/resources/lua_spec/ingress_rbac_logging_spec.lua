@@ -180,7 +180,7 @@ describe("envoy_on_request:", function()
 
     end)
 
-    it("should add not trusted to client_name if ssl available and name was not from certificate", function()
+    it("should set trusted client to false if ssl available and name was not from certificate", function()
         -- given
         local headers = {
             [':path'] = '/path',
@@ -199,7 +199,7 @@ describe("envoy_on_request:", function()
         envoy_on_request(handle)
 
         -- then
-        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", 'lorem-service (not trusted)')
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", 'lorem-service')
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.trusted_client", false)
 
     end)
