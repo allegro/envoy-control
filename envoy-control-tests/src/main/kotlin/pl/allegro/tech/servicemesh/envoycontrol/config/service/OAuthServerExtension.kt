@@ -27,8 +27,8 @@ class OAuthServerExtension : ServiceExtension<OAuthServerContainer> {
         pool.release(this)
     }
 
-    fun getTokenAddress() = "http://localhost:${container().port()}/auth/token"
-    fun getJwksAddress() = "http://${container().networkAlias()}:${container().oAuthPort()}/auth/jwks"
+    fun getTokenAddress(provider: String = "auth") = "http://localhost:${container().port()}/$provider/token"
+    fun getJwksAddress(provider: String = "auth") = "http://${container().networkAlias()}:${container().oAuthPort()}/$provider/jwks"
 
     companion object {
         private val pool = ContainerPool<OAuthServerExtension, OAuthServerContainer> { OAuthServerContainer() }

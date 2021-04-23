@@ -76,7 +76,7 @@ class JWTFilterTest {
     }
 
     @Test
-    fun `should not allow requests without jwt`() {
+    fun `should reject request without jwt`() {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
@@ -88,7 +88,7 @@ class JWTFilterTest {
     }
 
     @Test
-    fun `should allow requests with valid jwt`() {
+    fun `should allow request with valid jwt`() {
 
         // given
         val token = OkHttpClient().newCall(Request.Builder().get().url(oAuthServer.getTokenAddress()).build()).execute()
@@ -105,6 +105,7 @@ class JWTFilterTest {
 
     @Test
     fun `should reject request with expired Token`() {
+
         // given
         val invalidToken = this::class.java.classLoader
             .getResource("oauth/invalid_jwks_token")!!.readText()
@@ -112,6 +113,22 @@ class JWTFilterTest {
         // when
         val response = envoy.ingressOperations.callLocalService(
             endpoint = "/jwt-protected", headers = Headers.of("Authorization", "Bearer $invalidToken")
+        )
+
+        // then
+        assertThat(response).isUnauthorized()
+    }
+
+    @Test
+    fun `should reject request with token from wrong provider`() {
+
+        // given
+        val token = OkHttpClient().newCall(Request.Builder().get().url(oAuthServer.getTokenAddress("wrong-provider")).build()).execute()
+            .body()!!.string()
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/jwt-protected", headers = Headers.of("Authorization", "Bearer $token")
         )
 
         // then
