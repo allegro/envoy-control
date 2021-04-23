@@ -38,9 +38,15 @@ class JWTFilterTest {
                 "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
                 "envoy-control.envoy.snapshot.jwt.providers" to listOf(
                     OAuthProvider(
-                        name = "oauth2-mock",
-                        jwksUri = URI.create(oAuthServer.getJwksAddress()),
-                        clusterName = "oauth",
+                        name = "first-provider",
+                        jwksUri = URI.create(oAuthServer.getJwksAddress("first-provider")),
+                        clusterName = "first-provider",
+                        clusterPort = oAuthServer.container().oAuthPort()
+                    ),
+                    OAuthProvider(
+                        name = "second-provider",
+                        jwksUri = URI.create(oAuthServer.getJwksAddress("second-provider")),
+                        clusterName = "second-provider",
                         clusterPort = oAuthServer.container().oAuthPort()
                     )
                 )
@@ -60,11 +66,18 @@ class JWTFilterTest {
                   incoming:
                     unlistedEndpointsPolicy: log
                     endpoints: 
-                    - path: /jwt-protected
+                    - path: '/first-provider-protected'
                       clients: []
                       unlistedClientsPolicy: log
                       oauth:
-                        provider: oauth2-mock
+                        provider: 'first-provider'
+                        verification: offline
+                        policy: strict
+                    - path: '/second-provider-protected'
+                      clients: []
+                      unlistedClientsPolicy: log
+                      oauth:
+                        provider: 'second-provider'
                         verification: offline
                         policy: strict
         """.trimIndent()
@@ -80,7 +93,7 @@ class JWTFilterTest {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/jwt-protected"
+            endpoint = "/first-provider-protected"
         )
 
         // then
@@ -91,12 +104,11 @@ class JWTFilterTest {
     fun `should allow request with valid jwt`() {
 
         // given
-        val token = OkHttpClient().newCall(Request.Builder().get().url(oAuthServer.getTokenAddress()).build()).execute()
-            .body()!!.string()
+        val token = tokenForProvider("first-provider")
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/jwt-protected", headers = Headers.of("Authorization", "Bearer $token")
+            endpoint = "/first-provider-protected", headers = Headers.of("Authorization", "Bearer $token")
         )
 
         // then
@@ -112,7 +124,7 @@ class JWTFilterTest {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/jwt-protected", headers = Headers.of("Authorization", "Bearer $invalidToken")
+            endpoint = "/first-provider-protected", headers = Headers.of("Authorization", "Bearer $invalidToken")
         )
 
         // then
@@ -123,15 +135,39 @@ class JWTFilterTest {
     fun `should reject request with token from wrong provider`() {
 
         // given
-        val token = OkHttpClient().newCall(Request.Builder().get().url(oAuthServer.getTokenAddress("wrong-provider")).build()).execute()
-            .body()!!.string()
+        val token = tokenForProvider("wrong-provider")
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/jwt-protected", headers = Headers.of("Authorization", "Bearer $token")
+            endpoint = "/first-provider-protected", headers = Headers.of("Authorization", "Bearer $token")
         )
 
         // then
         assertThat(response).isUnauthorized()
     }
+
+    @Test
+    fun `should allow requests with valid jwt when many providers are defined`() {
+
+        // given
+        val firstProviderToken = tokenForProvider("first-provider")
+        val secondProviderToken = tokenForProvider("second-provider")
+
+        // when
+        val firstProviderResponse = envoy.ingressOperations.callLocalService(
+            endpoint = "/first-provider-protected", headers = Headers.of("Authorization", "Bearer $firstProviderToken")
+        )
+        val secondProviderResponse = envoy.ingressOperations.callLocalService(
+            endpoint = "/second-provider-protected", headers = Headers.of("Authorization", "Bearer $secondProviderToken")
+        )
+
+        // then
+        assertThat(firstProviderResponse).isOk()
+        assertThat(secondProviderResponse).isOk()
+    }
+
+    private fun tokenForProvider(provider: String) =
+        OkHttpClient().newCall(Request.Builder().get().url(oAuthServer.getTokenAddress(provider)).build())
+            .execute()
+            .body()!!.string()
 }
