@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
 
-
 class ConsulMultiClusterExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     companion object {
@@ -22,12 +21,12 @@ class ConsulMultiClusterExtension : BeforeAllCallback, AfterAllCallback, AfterEa
         )
     }
 
-    val serverFirst =  FIRST_CLUSTER
-    val serverSecond =  SECOND_CLUSTER
+    val serverFirst = FIRST_CLUSTER
+    val serverSecond = SECOND_CLUSTER
     private var started = false
 
     override fun beforeAll(context: ExtensionContext?) {
-        if(started) {
+        if (started) {
             return
         }
         serverFirst.start()

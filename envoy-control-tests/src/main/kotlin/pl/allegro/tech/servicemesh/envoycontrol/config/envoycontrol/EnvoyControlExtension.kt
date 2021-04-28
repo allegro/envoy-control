@@ -13,13 +13,13 @@ interface EnvoyControlExtensionBase : BeforeAllCallback, AfterAllCallback {
 }
 
 class EnvoyControlExtension(private val consul: ConsulExtension, override val app: EnvoyControlTestApp)
-    : EnvoyControlExtensionBase  {
+    : EnvoyControlExtensionBase {
 
     private var started = false
 
     constructor(consul: ConsulExtension, properties: Map<String, Any> = mapOf())
         : this(consul, EnvoyControlRunnerTestApp(
-                    properties = properties,
+                    propertiesProvider = { properties },
                     consulPort = consul.server.port
         ))
 

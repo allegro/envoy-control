@@ -1,11 +1,12 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol
 
 import org.assertj.core.api.Assertions
+
 import org.awaitility.Awaitility
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulClusterSetup
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class EnvoyControlClusteredExtension(
@@ -32,7 +33,6 @@ class EnvoyControlClusteredExtension(
             return
         }
 
-
         dependencies.forEach { it.beforeAll(context) }
         app.run()
         waitUntilHealthy()
@@ -52,4 +52,4 @@ class EnvoyControlClusteredExtension(
     }
 }
 
-typealias  ExtensionDependency = BeforeAllCallback
+typealias ExtensionDependency = BeforeAllCallback

@@ -54,7 +54,6 @@ interface EnvoyControlTestApp {
 }
 
 class EnvoyControlRunnerTestApp(
-    val properties: Map<String, Any> = mapOf(),
     val propertiesProvider: () -> Map<String, Any> = { mapOf() },
     val consulPort: Int,
     val objectMapper: ObjectMapper = ObjectMapper()
@@ -80,7 +79,7 @@ class EnvoyControlRunnerTestApp(
     )
 
     override fun run() {
-        app = SpringApplicationBuilder(EnvoyControl::class.java).properties(baseProperties + properties + propertiesProvider())
+        app = SpringApplicationBuilder(EnvoyControl::class.java).properties(baseProperties + propertiesProvider())
         app.run("--server.port=$appPort", "-e test")
         logger.info("starting EC on port $appPort, grpc: $grpcPort, consul: $consulPort")
     }

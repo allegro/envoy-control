@@ -28,7 +28,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlClusteredExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
-import java.util.*
+import java.util.UUID
 
 @Testcontainers
 class IncomingPermissionsLoggingModeTest {

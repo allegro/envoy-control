@@ -18,7 +18,7 @@ class ConsulClusterExtension(val dc: String) : BeforeAllCallback, AfterAllCallba
     private var started = false
 
     override fun beforeAll(context: ExtensionContext?) {
-        if(started) {
+        if (started) {
             return
         }
         consuls.forEach { consul ->
