@@ -323,7 +323,8 @@ data class OAuthProvider(
     var clusterName: String = "",
     var clusterPort: Int = 443,
     var cacheDuration: Duration = Duration.ofSeconds(300),
-    var connectionTimeout: Duration = Duration.ofSeconds(1)
+    var connectionTimeout: Duration = Duration.ofSeconds(1),
+    var selectorToTokenField: Map<String, String> = emptyMap()
 )
 
 class JwtFilterProperties {

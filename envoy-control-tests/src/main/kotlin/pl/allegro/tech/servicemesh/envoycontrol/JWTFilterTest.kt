@@ -1,15 +1,21 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.discovery.consul.recipes.internal.http.MediaType
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isForbidden
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnauthorized
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
+import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
@@ -41,7 +47,8 @@ class JWTFilterTest {
                         issuer = "first-provider",
                         jwksUri = URI.create(oAuthServer.getJwksAddress("first-provider")),
                         clusterName = "first-provider",
-                        clusterPort = oAuthServer.container().oAuthPort()
+                        clusterPort = oAuthServer.container().oAuthPort(),
+                        selectorToTokenField = mapOf("oauth-selector" to "authorities")
                     ),
                     "second-provider" to OAuthProvider(
                         issuer = "second-provider",
@@ -64,7 +71,7 @@ class JWTFilterTest {
               metadata:
                 proxy_settings:
                   incoming:
-                    unlistedEndpointsPolicy: log
+                    unlistedEndpointsPolicy: blockAndLog
                     endpoints: 
                     - path: '/first-provider-protected'
                       clients: []
@@ -80,12 +87,40 @@ class JWTFilterTest {
                         provider: 'second-provider'
                         verification: offline
                         policy: strict
+                    - path: '/rbac-clients-test'
+                      clients: ['team1:oauth-selector', 'team2:oauth-selector']
+                      unlistedClientsPolicy: blockAndLog
+                      oauth:
+                        provider: 'first-provider'
+                        verification: offline
+                        policy: strict
+                    - path: '/oauth-or-tls'
+                      clients: ['team1:oauth-selector', 'team2:oauth-selector', 'echo2']
+                      unlistedClientsPolicy: blockAndLog
+                      oauth:
+                        provider: 'first-provider'
+                        verification: offline
+                        policy: allow_missing
         """.trimIndent()
         )
 
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service, echoConfig)
+
+        // language=yaml
+        private val echo2Config = """
+            node:
+              metadata:
+                proxy_settings:
+                  outgoing:
+                    dependencies:
+                      - service: "echo"
+        """.trimIndent()
+
+        @JvmField
+        @RegisterExtension
+        val echo2Envoy = EnvoyExtension(envoyControl, localService = service, config = Echo2EnvoyAuthConfig.copy(configOverride = echo2Config))
     }
 
     @Test
@@ -166,8 +201,78 @@ class JWTFilterTest {
         assertThat(secondProviderResponse).isOk()
     }
 
-    private fun tokenForProvider(provider: String) =
-        OkHttpClient().newCall(Request.Builder().get().url(oAuthServer.getTokenAddress(provider)).build())
+    @Test
+    fun `should reject access to endpoint with client having OAuth selector if token does not have necessary claims`() {
+
+        // given
+        registerClientWithAuthority("first-provider", "unauthorized-client", "wrong-team")
+        val token = tokenForProvider("first-provider", "unauthorized-client")
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token")
+        )
+
+        // then
+        assertThat(response).isForbidden()
+    }
+
+    @Test
+    fun `should allow requests to endpoint with client having OAuth selector if token has necessary claims`() {
+
+        // given
+        registerClientWithAuthority("first-provider", "client1-rbac", "team1")
+        registerClientWithAuthority("first-provider", "client2-rbac", "team2")
+
+        val token = tokenForProvider("first-provider", "client1-rbac")
+        val token2 = tokenForProvider("first-provider", "client2-rbac")
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token")
+        )
+        val response2 = envoy.ingressOperations.callLocalService(
+            endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token2")
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
+        assertThat(response2).isOk().isFrom(service)
+    }
+
+    @Test
+    fun `should allow client with listed name to access endpoint when oauth policy is allowMissing`() {
+
+        // given
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            name = "echo",
+            extension = envoy,
+            tags = listOf("mtls:enabled")
+        )
+        echo2Envoy.waitForAvailableEndpoints("echo")
+
+        // when
+        val echoResponse = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/oauth-or-tls"
+        )
+
+        // then
+        assertThat(echoResponse).isOk().isFrom(service)
+    }
+
+    private fun tokenForProvider(provider: String, clientId: String = "client1") =
+        OkHttpClient().newCall(Request.Builder().post(FormBody.Builder().add("client_id", clientId).build()).url(oAuthServer.getTokenAddress(provider)).build())
             .execute()
             .body()!!.string()
+
+    private fun registerClientWithAuthority(provider: String, clientId: String, authority: String): Response {
+        val body = """{
+            "clientId": "$clientId",
+            "clientSecret": "secret",
+             "authorities":["$authority"]
+        }"""
+        return OkHttpClient().newCall(Request.Builder().put(RequestBody.create(MediaType.JSON_MEDIA_TYPE, body)).url("http://localhost:${oAuthServer.container().port()}/$provider/client").build())
+            .execute()
+    }
 }

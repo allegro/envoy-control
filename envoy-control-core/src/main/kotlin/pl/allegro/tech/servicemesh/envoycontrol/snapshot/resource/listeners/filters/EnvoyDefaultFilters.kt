@@ -13,7 +13,8 @@ class EnvoyDefaultFilters(
 ) {
     private val rbacFilterFactory = RBACFilterFactory(
         snapshotProperties.incomingPermissions,
-        snapshotProperties.routes.status
+        snapshotProperties.routes.status,
+        jwtProperties = snapshotProperties.jwt
     )
     private val luaFilterFactory = LuaFilterFactory(
         snapshotProperties.incomingPermissions

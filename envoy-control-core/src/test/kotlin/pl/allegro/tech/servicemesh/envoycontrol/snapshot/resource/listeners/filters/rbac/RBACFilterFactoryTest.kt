@@ -1,7 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
-import com.google.protobuf.Any
-import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.controlplane.cache.SnapshotResources
 import io.envoyproxy.envoy.config.core.v3.Address
 import io.envoyproxy.envoy.config.core.v3.SocketAddress
@@ -9,27 +7,23 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.endpoint.v3.Endpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
-import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
-import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SourceIpAuthenticationProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.rbac.RBACFilterFactoryTestUtils
 
 @Suppress("LargeClass") // TODO: https://github.com/allegro/envoy-control/issues/121
-internal class RBACFilterFactoryTest {
+internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private val rbacFilterFactory = RBACFilterFactory(
             IncomingPermissionsProperties().also {
                 it.enabled = true
@@ -1293,14 +1287,6 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private val expectedRulesForAllowedClient = expectedPoliciesForAllowedClient(
-        "${authenticatedPrincipal("client1")}, ${authenticatedPrincipal("allowed-client")}"
-    )
-
-    private val expectedShadowRulesForAllowedClient = expectedPoliciesForAllowedClient(
-        authenticatedPrincipal("client1")
-    )
-
     private fun expectedPoliciesForAllowedClient(principals: String) = """
         {
           "policies": {
@@ -1326,105 +1312,11 @@ internal class RBACFilterFactoryTest {
         }
     """
 
-    private fun pathRule(path: String): String {
-        return """{
-            "url_path": {
-               "path": {
-                    "exact": "$path"
-               }
-            }
-        }"""
-    }
+    private val expectedRulesForAllowedClient = expectedPoliciesForAllowedClient(
+        "${authenticatedPrincipal("client1")}, ${authenticatedPrincipal("allowed-client")}"
+    )
 
-    private fun pathPrefixRule(prefix: String): String {
-        return """{
-            "url_path": {
-               "path": {
-                    "prefix": "$prefix"
-               }
-            }
-        }"""
-    }
-
-    private fun methodRule(method: String): String {
-        return """{
-           "header": {
-              "name": ":method",
-              "exact_match": "$method"
-           }
-        }"""
-    }
-
-    private fun principalSourceIp(address: String, prefixLen: Int = 32): String {
-        return """{
-                "direct_remote_ip": {
-                  "address_prefix": "$address",
-                  "prefix_len": $prefixLen
-                }
-            }
-        """
-    }
-
-    private fun principalHeader(name: String, value: String): String {
-        return """{
-                    "header": {
-                      "name": "$name",
-                      "exact_match": "$value"
-                    }
-                }"""
-    }
-
-    private fun authenticatedPrincipal(value: String): String {
-        return """{
-                    "authenticated": {
-                      "principal_name": {
-                        "exact": "spiffe://$value"
-                      }
-                    }
-                }"""
-    }
-
-    private fun wrapInFilter(json: String): String {
-        return """
-            {
-                "rules": $json
-            }
-        """
-    }
-
-    private fun wrapInFilterShadow(shadowRulesJson: String): String {
-        return """
-            {
-                "shadow_rules": $shadowRulesJson
-            }
-        """
-    }
-
-    private fun getRBACFilter(json: String): HttpFilter {
-        return getRBACFilterWithShadowRules(json, json)
-    }
-
-    private fun getRBACFilterWithShadowRules(rules: String, shadowRules: String): HttpFilter {
-        val rbacFilter = RBACFilter.newBuilder()
-        JsonFormat.parser().merge(wrapInFilter(rules), rbacFilter)
-        JsonFormat.parser().merge(wrapInFilterShadow(shadowRules), rbacFilter)
-        return HttpFilter.newBuilder()
-                .setName("envoy.filters.http.rbac")
-                .setTypedConfig(Any.pack(rbacFilter.build()))
-                .build()
-    }
-
-    private fun createGroup(
-        incomingPermission: Incoming? = null,
-        serviceName: String = "some-service"
-    ): ServicesGroup {
-        val group = ServicesGroup(
-                communicationMode = CommunicationMode.ADS,
-                serviceName = serviceName,
-                proxySettings = ProxySettings(
-                        incoming = incomingPermission ?: Incoming()
-                )
-        )
-        return group
-    }
+    private val expectedShadowRulesForAllowedClient = expectedPoliciesForAllowedClient(
+        authenticatedPrincipal("client1")
+    )
 }

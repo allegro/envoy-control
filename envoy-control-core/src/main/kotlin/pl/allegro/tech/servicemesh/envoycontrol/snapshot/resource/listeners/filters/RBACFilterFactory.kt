@@ -9,6 +9,9 @@ import io.envoyproxy.envoy.config.rbac.v3.Principal
 import io.envoyproxy.envoy.config.rbac.v3.RBAC
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import io.envoyproxy.envoy.type.matcher.v3.ListMatcher
+import io.envoyproxy.envoy.type.matcher.v3.MetadataMatcher
+import io.envoyproxy.envoy.type.matcher.v3.ValueMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
@@ -18,6 +21,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
@@ -25,7 +30,8 @@ import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,
     statusRouteProperties: StatusRouteProperties,
-    private val rBACFilterPermissions: RBACFilterPermissions = RBACFilterPermissions()
+    private val rBACFilterPermissions: RBACFilterPermissions = RBACFilterPermissions(),
+    private val jwtProperties: JwtFilterProperties = JwtFilterProperties()
 ) {
     private val incomingServicesSourceAuthentication = incomingPermissionsProperties
             .sourceIpAuthentication
@@ -224,14 +230,41 @@ class RBACFilterFactory(
     ): List<Principal> {
         val selectorMatching = getSelectorMatching(clientWithSelector, incomingPermissionsProperties)
         val staticRangesForClient = staticIpRange(clientWithSelector, selectorMatching)
+        val providerForSelector = jwtProperties.providers.firstOrNull {
+            it.selectorToTokenField.containsKey(clientWithSelector.selector)
+        }
 
         return if (clientWithSelector.name in incomingServicesSourceAuthentication) {
             ipFromDiscoveryPrincipals(clientWithSelector, selectorMatching, snapshot)
         } else if (staticRangesForClient != null) {
             listOf(staticRangesForClient)
+        } else if (providerForSelector != null && clientWithSelector.selector != null) {
+            listOf(jwtPrincipal(clientWithSelector, providerForSelector))
         } else {
             tlsPrincipals(clientWithSelector.name)
         }
+    }
+
+    private fun jwtPrincipal(client: ClientWithSelector, oAuthProvider: OAuthProvider): Principal {
+        return Principal.newBuilder().setMetadata(MetadataMatcher.newBuilder()
+            .setFilter("envoy.filters.http.jwt_authn")
+            .addPath(MetadataMatcher.PathSegment.newBuilder()
+                .setKey(jwtProperties.payloadInMetadata).build()
+            )
+            .addPath(
+                MetadataMatcher.PathSegment.newBuilder()
+                .setKey(oAuthProvider.selectorToTokenField[client.selector]).build()
+            )
+            .setValue(
+                ValueMatcher.newBuilder().setListMatch(
+                    ListMatcher.newBuilder().setOneOf(
+                        ValueMatcher.newBuilder().setStringMatch(
+                            io.envoyproxy.envoy.type.matcher.v3.StringMatcher.newBuilder()
+                                .setExact(client.name)
+                        )
+                    )
+                )
+            ).build()).build()
     }
 
     private fun getSelectorMatching(
