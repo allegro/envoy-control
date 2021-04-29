@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker-compose up consul envoy http-echo
+docker-compose up --no-deps --build consul envoy http-echo

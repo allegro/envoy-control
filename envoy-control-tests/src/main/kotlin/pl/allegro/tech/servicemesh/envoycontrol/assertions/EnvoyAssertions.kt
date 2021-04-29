@@ -120,7 +120,8 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     clientAllowedToAllEndpoints: Boolean? = null,
     clientIp: String? = null,
     requestId: String? = null,
-    rbacAction: String? = "shadow_denied"
+    rbacAction: String? = "shadow_denied",
+    statusCode: String? = "200"
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
     requestBlocked = false,
     protocol = protocol,
@@ -129,7 +130,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
         path = path,
         method = method,
         clientIp = clientIp,
-        statusCode = "200",
+        statusCode = statusCode,
         clientName = clientName,
         trustedClient = trustedClient,
         clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
@@ -193,5 +194,8 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLo
     }
     logPredicate.rbacAction?.let {
         assertThat(parsed.rbacAction).isEqualTo(logPredicate.rbacAction)
+    }
+    logPredicate.statusCode?.let {
+        assertThat(parsed.statusCode).isEqualTo(logPredicate.statusCode)
     }
 }

@@ -3,6 +3,10 @@ node:
   metadata:
     ads: true
     service_name: docker
+    ingress_host: "0.0.0.0"
+    ingress_port: {{.IngressListenerPort}}
+    egress_host: "0.0.0.0"
+    egress_port: {{.EgressListenerPort}}
     proxy_settings:
       outgoing:
         dependencies:
@@ -11,110 +15,54 @@ node:
     zone: default-zone
 
 static_resources:
-  listeners:
-  - name: default_listener
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: {{.EgressListenerPort}}
-    filter_chains:
-    - filters:
-      - name: envoy.http_connection_manager
-        config:
-          stat_prefix: ingress_proxy
-          rds:
-            route_config_name: default_routes
-            config_source:
-              ads: {}
-          http_filters:
-          - name: envoy.filters.http.router
-          http_protocol_options:
-            allow_absolute_url: true
-          access_log:
-            name: envoy.file_access_log
-            config:
-              path: "/home/envoy/ingress-access.log"
-              format: >
-                [%START_TIME%] %PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% %RESPONSE_CODE% %RESPONSE_FLAGS%
-                %BYTES_RECEIVED%b %BYTES_SENT%b %DURATION%ms "%DOWNSTREAM_REMOTE_ADDRESS%" -> "%UPSTREAM_HOST%"
-  - name: ingress_listener
-    address:
-      socket_address:
-        address: 0.0.0.0
-        port_value: {{.IngressListenerPort}}
-    filter_chains:
-      - filters:
-          - name: envoy.http_connection_manager
-            config:
-              stat_prefix: ingress_http
-              rds:
-                route_config_name: ingress_secured_routes
-                config_source:
-                  ads: {}
-              http_filters:
-                - name: envoy.filters.http.router
-
   clusters:
-  - name: envoy-control-xds
-    type: STRICT_DNS
-    load_assignment:
-      cluster_name: local_service
-      endpoints:
-        - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: {{.XdsHost}}
-                    port_value: {{.XdsPort}}
-    lb_policy: ROUND_ROBIN
-    connect_timeout:
-      seconds: 1
-    http2_protocol_options:
-      max_concurrent_streams: 10
-    upstream_connection_options:
-      tcp_keepalive:
-        keepalive_probes: 3
-        keepalive_time: 30
-        keepalive_interval: 15
-  - name: envoy-original-destination
-    type: ORIGINAL_DST
-    lb_policy: CLUSTER_PROVIDED
-    original_dst_lb_config:
-      use_http_header: true
-    connect_timeout:
-      seconds: 1
-    http_protocol_options:
-      allow_absolute_url: true  # required for supporting http proxy protocol
-    upstream_connection_options:
-      tcp_keepalive:
-        keepalive_probes: 3
-        keepalive_time: 30
-        keepalive_interval: 15
-  - name: local_service
-    type: STRICT_DNS
-    load_assignment:
-      cluster_name: local_service
-      endpoints:
-        - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: http-echo
-                    port_value: 80
-    connect_timeout: 1s
-  - name: this_admin
-    type: STATIC
-    load_assignment:
-      cluster_name: local_service
-      endpoints:
-        - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: 127.0.0.1
-                    port_value: {{.AdminPort}}
-    connect_timeout:
-      seconds: 1
+    - connect_timeout: 1s
+      type: STRICT_DNS
+      load_assignment:
+        cluster_name: envoy-control-xds
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: {{.XdsHost}}
+                      port_value: {{.XdsPort}}
+      http2_protocol_options: { }
+      name: envoy-control-xds
+    - name: envoy-original-destination
+      type: ORIGINAL_DST
+      lb_policy: CLUSTER_PROVIDED
+      original_dst_lb_config:
+        use_http_header: true
+      connect_timeout:
+        seconds: 1
+      http_protocol_options:
+        allow_absolute_url: true
+    - name: local_service
+      type: STRICT_DNS
+      load_assignment:
+        cluster_name: local_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: http-echo
+                      port_value: 80
+      connect_timeout: 1s
+    - name: this_admin
+      type: STATIC
+      load_assignment:
+        cluster_name: this_admin
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: {{.AdminPort}}
+      connect_timeout:
+        seconds: 1
 
 dynamic_resources:
   lds_config:

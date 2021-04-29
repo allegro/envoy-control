@@ -11,6 +11,7 @@ ENV ENVOY_XDS_PORT=50000
 ENV ENVOY_XDS_HOST=host.docker.internal
 
 ADD envoy-template.yaml /etc/envoy/envoy.yaml
+ADD ingress-access.log /home/envoy/ingress-access.log
 RUN sed -i "s/{{.EgressListenerPort}}/${ENVOY_EGRESS_LISTENER_PORT}/g" /etc/envoy/envoy.yaml
 RUN sed -i "s/{{.IngressListenerPort}}/${ENVOY_INGRESS_LISTENER_PORT}/g" /etc/envoy/envoy.yaml
 RUN sed -i "s/{{.XdsHost}}/${ENVOY_XDS_HOST}/g" /etc/envoy/envoy.yaml
