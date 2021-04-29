@@ -21,6 +21,10 @@ class JwtFilterFactory(
     private val properties: JwtFilterProperties
 ) {
 
+    private val jwtProviders: Map<String, JwtProvider> = getJwtProviders()
+    private val providersPolicyToJwtRequirements: Map<Pair<String, OAuth.Policy>, JwtRequirement> =
+        createProviderPolicyToJwtRequirements()
+
     fun createJwtFilter(group: Group): HttpFilter? {
         return if (shouldCreateFilter(group)) {
             HttpFilter.newBuilder()
@@ -28,7 +32,7 @@ class JwtFilterFactory(
                 .setTypedConfig(
                     Any.pack(
                         JwtAuthentication.newBuilder().putAllProviders(
-                            getOAuthProviders()
+                            jwtProviders
                         ).addAllRules(
                             createRules(group.proxySettings.incoming.endpoints)
                         )
@@ -45,7 +49,7 @@ class JwtFilterFactory(
         return group.proxySettings.incoming.endpoints.any { it.oauth != null } && properties.providers.isNotEmpty()
     }
 
-    private fun getOAuthProviders(): Map<String, JwtProvider> =
+    private fun getJwtProviders(): Map<String, JwtProvider> =
         properties.providers.associate {
             it.name to createProvider(it)
         }
@@ -68,7 +72,6 @@ class JwtFilterFactory(
         .setPayloadInMetadata(properties.payloadInMetadata)
         .build()
 
-    // without config for now
     private fun createRules(endpoints: List<IncomingEndpoint>): List<RequirementRule> {
         return endpoints.mapNotNull(this::createRuleForEndpoint)
     }
@@ -78,11 +81,18 @@ class JwtFilterFactory(
             RequirementRule.newBuilder().setMatch(
                 RouteMatch.newBuilder().setPrefix(endpoint.path)
             ).setRequires(
-                createJwtRequirement(endpoint.oauth.provider, endpoint.oauth.policy)
+                providersPolicyToJwtRequirements[endpoint.oauth.provider to endpoint.oauth.policy]
             ).build()
         } else {
             null
         }
+    }
+
+    private fun createProviderPolicyToJwtRequirements(): Map<Pair<String, OAuth.Policy>, JwtRequirement> {
+        return properties.providers.flatMap { provider ->
+            OAuth.Policy.values()
+                .map { policy -> Pair(provider.name, policy) to createJwtRequirement(provider.name, policy) }
+        }.associateBy({ it.first }, { it.second })
     }
 
     private fun createJwtRequirement(provider: String, policy: OAuth.Policy): JwtRequirement {

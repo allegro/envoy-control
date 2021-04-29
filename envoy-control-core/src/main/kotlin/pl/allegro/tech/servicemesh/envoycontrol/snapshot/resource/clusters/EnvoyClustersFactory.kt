@@ -69,6 +69,8 @@ class EnvoyClustersFactory(
         .putFields(tlsProperties.tlsContextMetadataMatchKey, Value.newBuilder().setBoolValue(true).build())
         .build()
 
+    private val clustersForJWT: List<Cluster> = properties.jwt.providers.map(this::clusterForOAuthProvider)
+
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,
         communicationMode: CommunicationMode
@@ -104,9 +106,7 @@ class EnvoyClustersFactory(
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
-        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + getClustersForJWT()
-
-    private fun getClustersForJWT() = properties.jwt.providers.map(this::clusterForOAuthProvider)
+        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clustersForJWT
 
     private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster {
         val cluster = Cluster.newBuilder()
