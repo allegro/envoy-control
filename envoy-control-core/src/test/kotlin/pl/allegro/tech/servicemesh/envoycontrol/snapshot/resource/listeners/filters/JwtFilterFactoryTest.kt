@@ -20,6 +20,7 @@ import java.net.URI
 internal class JwtFilterFactoryTest {
     private val jwtFilterFactory = JwtFilterFactory(
         JwtFilterProperties().also {
+            it.forwardJwt = true
             it.providers = mapOf(
                 "provider" to OAuthProvider("provider", URI.create("http://provider/jwks"), "provider-cluster")
             )
@@ -27,6 +28,7 @@ internal class JwtFilterFactoryTest {
     )
     private val multiProviderJwtFilterFactory = JwtFilterFactory(
         JwtFilterProperties().also {
+            it.forwardJwt = true
             it.providers = mapOf(
                 "provider1" to OAuthProvider("provider1", URI.create("http://provider1/jwks"), "provider1-cluster"),
                 "provider2" to OAuthProvider("provider2", URI.create("http://provider2/jwks"), "provider2-cluster")

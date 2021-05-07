@@ -181,9 +181,7 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 }
 
-fun Value?.toIncoming() = this.toIncoming(null)
-
-fun Value?.toIncoming(properties: SnapshotProperties?): Incoming {
+fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     return Incoming(
         endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint(properties) },
@@ -216,9 +214,8 @@ fun Value?.toHealthCheck(): HealthCheck {
         else -> HealthCheck()
     }
 }
-fun Value.toIncomingEndpoint() = this.toIncomingEndpoint(null)
 
-fun Value.toIncomingEndpoint(properties: SnapshotProperties?): IncomingEndpoint {
+fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
     val pathPrefix = this.field("pathPrefix")?.stringValue
     val path = this.field("path")?.stringValue
     val pathRegex = this.field("pathRegex")?.stringValue
@@ -230,7 +227,7 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties?): IncomingEndpoint 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
     val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
     val unlistedClientsPolicy = this.field("unlistedClientsPolicy").toUnlistedPolicy()
-    val oauth = properties?.let { this.field("oauth")?.toOAuth(it) }
+    val oauth = properties.let { this.field("oauth")?.toOAuth(it) }
 
     return when {
         path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
@@ -274,15 +271,15 @@ private fun Value.toOutgoingTimeoutPolicy(default: Outgoing.TimeoutPolicy): Outg
 
 private fun Value.toOAuth(properties: SnapshotProperties): OAuth {
     val provider = this.field("provider").toOauthProvider(properties)
-    val policy = this.field("policy").toOAuthPolicy()
-    val verification = this.field("verification").toOAuthVerification()
+    val policy = this.field("policy").toOAuthPolicy(properties.jwt.defaultOAuthPolicy)
+    val verification = this.field("verification").toOAuthVerification(properties.jwt.defaultVerificationType)
 
     return OAuth(provider, verification, policy)
 }
 
 fun Value?.toOauthProvider(properties: SnapshotProperties) = this?.stringValue
-    ?.takeIf { it.isNotEmpty()}
-    ?.let {if (properties.jwt.providers.keys.contains(it)) {
+    ?.takeIf { it.isNotEmpty() }
+    ?.let { if (properties.jwt.providers.keys.contains(it)) {
             it
         } else {
             throw NodeMetadataValidationException("Invalid OAuth provider value: $it")
@@ -290,7 +287,7 @@ fun Value?.toOauthProvider(properties: SnapshotProperties) = this?.stringValue
     }
     ?: throw NodeMetadataValidationException("OAuth provider value cannot be null")
 
-fun Value?.toOAuthVerification() = this?.stringValue
+fun Value?.toOAuthVerification(defaultVerification: OAuth.Verification) = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
     ?.let {
         when (it) {
@@ -298,9 +295,9 @@ fun Value?.toOAuthVerification() = this?.stringValue
             else -> throw NodeMetadataValidationException("Invalid OAuth verification value: $it")
         }
      }
-    ?: OAuth.Verification.OFFLINE
+    ?: defaultVerification
 
-fun Value?.toOAuthPolicy() = this?.stringValue
+fun Value?.toOAuthPolicy(defaultPolicy: OAuth.Policy) = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
     ?.let {
         when (it) {
@@ -310,7 +307,7 @@ fun Value?.toOAuthPolicy() = this?.stringValue
             else -> throw NodeMetadataValidationException("Invalid OAuth policy value: $it")
         }
     }
-    ?: OAuth.Policy.STRICT
+    ?: defaultPolicy
 
 @Suppress("SwallowedException")
 fun Value.toDuration(): Duration? {

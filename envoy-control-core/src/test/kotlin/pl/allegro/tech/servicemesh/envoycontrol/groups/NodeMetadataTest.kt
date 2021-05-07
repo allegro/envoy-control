@@ -74,7 +74,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = "/path", pathPrefix = "/prefix")
 
         // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties()) }
         assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -90,7 +90,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = path, pathPrefix = pathPrefix, pathRegex = pathRegex)
 
         // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties()) }
         assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -101,7 +101,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = null, pathPrefix = null, pathRegex = null)
 
         // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties()) }
         assertThat(exception.status.description).isEqualTo("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -191,7 +191,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = "/path", pathPrefix = null, includeNullFields = true)
 
         // when
-        val result = proto.toIncomingEndpoint()
+        val result = proto.toIncomingEndpoint(snapshotProperties())
 
         // then
         // no exception thrown
@@ -205,7 +205,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = null, pathPrefix = "/prefix", includeNullFields = true)
 
         // when
-        val result = proto.toIncomingEndpoint()
+        val result = proto.toIncomingEndpoint(snapshotProperties())
 
         // then
         // no exception thrown
@@ -219,7 +219,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = "/path", pathRegex = null, includeNullFields = true)
 
         // when
-        val result = proto.toIncomingEndpoint()
+        val result = proto.toIncomingEndpoint(snapshotProperties())
 
         // then
         // no exception thrown
@@ -233,7 +233,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = null, pathRegex = "/regex", includeNullFields = true)
 
         // when
-        val result = proto.toIncomingEndpoint()
+        val result = proto.toIncomingEndpoint(snapshotProperties())
 
         // then
         // no exception thrown
@@ -472,7 +472,7 @@ class NodeMetadataTest {
             path = "/path",
             healthCheckPath = "/status/ping"
         )
-        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming(snapshotProperties())
 
         // expects
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
@@ -648,7 +648,7 @@ class NodeMetadataTest {
             incomingSettings = true,
             path = "/path"
         )
-        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming(snapshotProperties())
 
         // expects
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
@@ -665,7 +665,7 @@ class NodeMetadataTest {
             healthCheckPath = "/status/ping",
             healthCheckClusterName = "local_service_health_check"
         )
-        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming(snapshotProperties())
 
         // expects
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")

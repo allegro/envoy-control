@@ -4,6 +4,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
+import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import java.net.URI
 import java.time.Duration
@@ -326,8 +327,11 @@ data class OAuthProvider(
 )
 
 class JwtFilterProperties {
+    var forwardJwt: Boolean = false
     var forwardPayloadHeader = "x-oauth-token-validated"
     var payloadInMetadata = "jwt"
+    var defaultVerificationType = OAuth.Verification.OFFLINE
+    var defaultOAuthPolicy = OAuth.Policy.STRICT
     var providers = mapOf<ProviderName, OAuthProvider>()
 }
 

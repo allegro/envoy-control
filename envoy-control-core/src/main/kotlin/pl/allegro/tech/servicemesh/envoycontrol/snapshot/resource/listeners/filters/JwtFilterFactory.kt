@@ -68,7 +68,7 @@ class JwtFilterFactory(
                 .setCacheDuration(Durations.fromMillis(provider.cacheDuration.toMillis()))
         )
         .setIssuer(provider.issuer)
-        .setForward(true)
+        .setForward(properties.forwardJwt)
         .setForwardPayloadHeader(properties.forwardPayloadHeader)
         .setPayloadInMetadata(properties.payloadInMetadata)
         .build()
@@ -90,7 +90,7 @@ class JwtFilterFactory(
     }
 
     private fun createProviderPolicyToJwtRequirements(): Map<Pair<String, OAuth.Policy>, JwtRequirement> {
-        return properties.providers.keys.flatMap {providerName ->
+        return properties.providers.keys.flatMap { providerName ->
             OAuth.Policy.values()
                 .map { policy -> Pair(providerName, policy) to createJwtRequirement(providerName, policy) }
         }.associateBy({ it.first }, { it.second })
