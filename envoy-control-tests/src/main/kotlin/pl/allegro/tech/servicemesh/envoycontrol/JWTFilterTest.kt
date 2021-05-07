@@ -36,15 +36,15 @@ class JWTFilterTest {
             mapOf(
                 "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
                 "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
-                "envoy-control.envoy.snapshot.jwt.providers" to listOf(
-                    OAuthProvider(
-                        name = "first-provider",
+                "envoy-control.envoy.snapshot.jwt.providers" to mapOf(
+                    "first-provider" to OAuthProvider(
+                        issuer = "first-provider",
                         jwksUri = URI.create(oAuthServer.getJwksAddress("first-provider")),
                         clusterName = "first-provider",
                         clusterPort = oAuthServer.container().oAuthPort()
                     ),
-                    OAuthProvider(
-                        name = "second-provider",
+                    "second-provider" to OAuthProvider(
+                        issuer = "second-provider",
                         jwksUri = URI.create(oAuthServer.getJwksAddress("second-provider")),
                         clusterName = "second-provider",
                         clusterPort = oAuthServer.container().oAuthPort()

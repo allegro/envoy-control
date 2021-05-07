@@ -20,20 +20,20 @@ import java.net.URI
 internal class JwtFilterFactoryTest {
     private val jwtFilterFactory = JwtFilterFactory(
         JwtFilterProperties().also {
-            it.providers = listOf(
-                OAuthProvider("provider", URI.create("http://provider/jwks"), "provider-cluster")
+            it.providers = mapOf(
+                "provider" to OAuthProvider("provider", URI.create("http://provider/jwks"), "provider-cluster")
             )
         }
     )
     private val multiProviderJwtFilterFactory = JwtFilterFactory(
         JwtFilterProperties().also {
-            it.providers = listOf(
-                OAuthProvider("provider1", URI.create("http://provider1/jwks"), "provider1-cluster"),
-                OAuthProvider("provider2", URI.create("http://provider2/jwks"), "provider2-cluster")
+            it.providers = mapOf(
+                "provider1" to OAuthProvider("provider1", URI.create("http://provider1/jwks"), "provider1-cluster"),
+                "provider2" to OAuthProvider("provider2", URI.create("http://provider2/jwks"), "provider2-cluster")
             )
         }
     )
-    private val noProviderJwtFilterFactory = JwtFilterFactory(JwtFilterProperties().also { it.providers = emptyList() })
+    private val noProviderJwtFilterFactory = JwtFilterFactory(JwtFilterProperties().also { it.providers = emptyMap() })
 
     private val emptyGroup: Group = ServicesGroup(CommunicationMode.ADS)
 

@@ -69,7 +69,7 @@ class EnvoyClustersFactory(
         .putFields(tlsProperties.tlsContextMetadataMatchKey, Value.newBuilder().setBoolValue(true).build())
         .build()
 
-    private val clustersForJWT: List<Cluster> = properties.jwt.providers.map(this::clusterForOAuthProvider)
+    private val clustersForJWT: List<Cluster> = properties.jwt.providers.values.map(this::clusterForOAuthProvider)
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,

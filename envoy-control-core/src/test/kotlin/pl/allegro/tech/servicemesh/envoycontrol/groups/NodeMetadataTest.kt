@@ -803,12 +803,13 @@ class NodeMetadataTest {
     private fun createJwtSnapshotProperties(): SnapshotProperties {
         val snapshotProperties = SnapshotProperties()
         val jwtFilterProperties = JwtFilterProperties()
-        val oauthProviders = listOf(
-            OAuthProvider(
-                name = "oauth2-mock",
-                jwksUri = URI.create("http://localhost:8080/jwks-address/"),
-                clusterName = "oauth"
-            )
+        val oauthProviders = mapOf(
+            "oauth2-mock" to
+                OAuthProvider(
+                    issuer = "oauth2-mock",
+                    jwksUri = URI.create("http://localhost:8080/jwks-address/"),
+                    clusterName = "oauth"
+                )
         )
         jwtFilterProperties.providers = oauthProviders
         snapshotProperties.jwt = jwtFilterProperties

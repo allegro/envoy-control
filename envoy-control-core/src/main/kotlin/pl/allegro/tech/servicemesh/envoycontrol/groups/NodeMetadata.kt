@@ -281,13 +281,12 @@ private fun Value.toOAuth(properties: SnapshotProperties): OAuth {
 }
 
 fun Value?.toOauthProvider(properties: SnapshotProperties) = this?.stringValue
-    ?.takeIf { it.isNotEmpty() }
-    ?.let { provider ->
-        properties.jwt.providers
-            .map { property -> property.name }
-            .firstOrNull {
-                it == provider
-            } ?: throw NodeMetadataValidationException("Invalid OAuth provider value: $provider")
+    ?.takeIf { it.isNotEmpty()}
+    ?.let {if (properties.jwt.providers.keys.contains(it)) {
+            it
+        } else {
+            throw NodeMetadataValidationException("Invalid OAuth provider value: $it")
+        }
     }
     ?: throw NodeMetadataValidationException("OAuth provider value cannot be null")
 

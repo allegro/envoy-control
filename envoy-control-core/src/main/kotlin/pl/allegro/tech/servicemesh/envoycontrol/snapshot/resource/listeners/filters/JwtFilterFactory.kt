@@ -16,6 +16,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ProviderName
 
 class JwtFilterFactory(
     private val properties: JwtFilterProperties
@@ -49,9 +50,9 @@ class JwtFilterFactory(
         return group.proxySettings.incoming.endpoints.any { it.oauth != null } && properties.providers.isNotEmpty()
     }
 
-    private fun getJwtProviders(): Map<String, JwtProvider> =
-        properties.providers.associate {
-            it.name to createProvider(it)
+    private fun getJwtProviders(): Map<ProviderName, JwtProvider> =
+        properties.providers.entries.associate {
+            it.key to createProvider(it.value)
         }
 
     private fun createProvider(provider: OAuthProvider) = JwtProvider.newBuilder()
@@ -66,7 +67,7 @@ class JwtFilterFactory(
             )
                 .setCacheDuration(Durations.fromMillis(provider.cacheDuration.toMillis()))
         )
-        .setIssuer(provider.name)
+        .setIssuer(provider.issuer)
         .setForward(true)
         .setForwardPayloadHeader(properties.forwardPayloadHeader)
         .setPayloadInMetadata(properties.payloadInMetadata)
@@ -89,9 +90,9 @@ class JwtFilterFactory(
     }
 
     private fun createProviderPolicyToJwtRequirements(): Map<Pair<String, OAuth.Policy>, JwtRequirement> {
-        return properties.providers.flatMap { provider ->
+        return properties.providers.keys.flatMap {providerName ->
             OAuth.Policy.values()
-                .map { policy -> Pair(provider.name, policy) to createJwtRequirement(provider.name, policy) }
+                .map { policy -> Pair(providerName, policy) to createJwtRequirement(providerName, policy) }
         }.associateBy({ it.first }, { it.second })
     }
 
