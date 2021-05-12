@@ -8,6 +8,7 @@ import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtProvider
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirement
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirementOrList
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RemoteJwks
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RequirementRule
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
@@ -99,12 +100,24 @@ class JwtFilterFactory(
     private fun createJwtRequirement(provider: String, policy: OAuth.Policy): JwtRequirement {
         return when (policy) {
             OAuth.Policy.ALLOW_MISSING -> {
-                JwtRequirement.newBuilder().setProviderName(provider)
-                    .setAllowMissing(Empty.getDefaultInstance()).build()
+                JwtRequirement.newBuilder().setRequiresAny(
+                    JwtRequirementOrList.newBuilder().addAllRequirements(
+                        listOf(
+                            JwtRequirement.newBuilder().setProviderName(provider).build(),
+                            JwtRequirement.newBuilder().setAllowMissing(Empty.getDefaultInstance()).build()
+                        )
+                    )
+                ).build()
             }
             OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
-                JwtRequirement.newBuilder().setProviderName(provider)
-                    .setAllowMissingOrFailed(Empty.getDefaultInstance()).build()
+                JwtRequirement.newBuilder().setRequiresAny(
+                    JwtRequirementOrList.newBuilder().addAllRequirements(
+                        listOf(
+                            JwtRequirement.newBuilder().setProviderName(provider).build(),
+                            JwtRequirement.newBuilder().setAllowMissingOrFailed(Empty.getDefaultInstance()).build()
+                        )
+                    )
+                ).build()
             }
             OAuth.Policy.STRICT -> {
                 JwtRequirement.newBuilder().setProviderName(provider).build()

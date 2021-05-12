@@ -42,7 +42,7 @@ internal class JwtFilterFactoryTest {
     @Test
     fun `should not create JWT filter when no providers are defined`() {
         // given
-        val group: Group = createGroup(mapOf("/" to "oauth-provider"))
+        val group: Group = createGroup(mapOf("/" to "oauth-provider"), OAuth.Policy.STRICT)
 
         // when
         val filter = noProviderJwtFilterFactory.createJwtFilter(group)
@@ -63,8 +63,60 @@ internal class JwtFilterFactoryTest {
     @Test
     fun `should create JWT filter`() {
         // given
-        val group = createGroup(mapOf("/" to "provider"))
-        val expectedJwtFilter = getJwtFilter(singleProviderJson)
+        val group = createGroup(mapOf("/" to "provider"), OAuth.Policy.STRICT)
+        val expectedJwtFilter = getJwtFilter(
+            singleProviderJson(
+                """ "requires": {
+              "providerName": "provider"
+            }"""
+            )
+        )
+
+        // when
+        val generatedFilter = jwtFilterFactory.createJwtFilter(group)
+
+        // then
+        assertThat(generatedFilter).isNotNull
+        assertThat(generatedFilter).isEqualTo(expectedJwtFilter)
+    }
+
+    @Test
+    fun `should create JWT filter with allow missing`() {
+        // given
+        val group = createGroup(mapOf("/" to "provider"), OAuth.Policy.ALLOW_MISSING)
+        val expectedJwtFilter = getJwtFilter(
+            singleProviderJson(
+                """ 
+            "requires": {
+                "requiresAny": {
+                    "requirements": [{"providerName": "provider"}, {"allowMissing": {} }]
+                 }
+            }"""
+            )
+        )
+
+        // when
+        val generatedFilter = jwtFilterFactory.createJwtFilter(group)
+
+        // then
+        assertThat(generatedFilter).isNotNull
+        assertThat(generatedFilter).isEqualTo(expectedJwtFilter)
+    }
+
+    @Test
+    fun `should create JWT filter with allow missing or failed`() {
+        // given
+        val group = createGroup(mapOf("/" to "provider"), OAuth.Policy.ALLOW_MISSING_OR_FAILED)
+        val expectedJwtFilter = getJwtFilter(
+            singleProviderJson(
+                """ 
+            "requires": {
+                "requiresAny": {
+                    "requirements": [{"providerName": "provider"}, {"allowMissingOrFailed": {} }]
+                 }
+            }"""
+            )
+        )
 
         // when
         val generatedFilter = jwtFilterFactory.createJwtFilter(group)
@@ -81,7 +133,8 @@ internal class JwtFilterFactoryTest {
             mapOf(
                 "/provider1-protected" to "provider1",
                 "/provider2-protected" to "provider2"
-            )
+            ),
+            OAuth.Policy.STRICT
         )
         val expectedJwtFilter = getJwtFilter(multiProviderJson)
 
@@ -106,15 +159,20 @@ internal class JwtFilterFactoryTest {
             .build()
     }
 
-    private fun createGroup(pathToProvider: Map<String, String>) = ServicesGroup(
+    private fun createGroup(pathToProvider: Map<String, String>, policy: OAuth.Policy) = ServicesGroup(
         CommunicationMode.ADS, proxySettings = ProxySettings(
             Incoming(
-                pathToProvider.map { (path, provider) -> IncomingEndpoint(path, oauth = OAuth(provider, policy = OAuth.Policy.STRICT)) }
+                pathToProvider.map { (path, provider) ->
+                    IncomingEndpoint(
+                        path,
+                        oauth = OAuth(provider, policy = policy)
+                    )
+                }
             )
         )
     )
 
-    private val singleProviderJson = """{
+    private fun singleProviderJson(requires: String) = """{
   "providers": {
     "provider": {
       "issuer": "provider",
@@ -135,11 +193,10 @@ internal class JwtFilterFactoryTest {
     "match": {
       "prefix": "/"
     },
-    "requires": {
-      "providerName": "provider"
-    }
+    $requires
   }]
 }"""
+
     private val multiProviderJson = """{
   "providers": {
     "provider1": {
