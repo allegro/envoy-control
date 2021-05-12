@@ -191,7 +191,7 @@ class EnvoySnapshotFactory(
         val definedServicesRoutes = group.proxySettings.outgoing.getServiceDependencies().map {
             RouteSpecification(
                 clusterName = it.service,
-                routeDomains = listOf(it.service),
+                routeDomains = listOf(it.service) + getServiceWithCustomDomain(it.service),
                 settings = it.settings
             )
         }
@@ -204,12 +204,20 @@ class EnvoySnapshotFactory(
                 val allServicesRoutes = globalSnapshot.allServicesNames.subtract(servicesNames).map {
                     RouteSpecification(
                         clusterName = it,
-                        routeDomains = listOf(it),
+                        routeDomains = listOf(it) + getServiceWithCustomDomain(it),
                         settings = group.proxySettings.outgoing.defaultServiceSettings
                     )
                 }
                 allServicesRoutes + definedServicesRoutes
             }
+        }
+    }
+
+    private fun getServiceWithCustomDomain(it: String): List<String> {
+        return if (properties.egress.domain.isNotEmpty()) {
+            properties.egress.domain.map { domain -> "$it$domain" }
+        } else {
+            emptyList()
         }
     }
 
