@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import com.codahale.metrics.Timer
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.awaitility.Awaitility
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -91,7 +91,7 @@ internal class EnvoyControlSynchronizationTest {
 
         val tolerance = Duration.ofMillis(400) + stateSampleDuration
         val expectedMax = (pollingInterval + tolerance).toMillis()
-        Assertions.assertThat(latency.max()).isLessThanOrEqualTo(expectedMax)
+        assertThat(latency.max()).isLessThanOrEqualTo(expectedMax)
     }
 
     @Test
@@ -105,7 +105,7 @@ internal class EnvoyControlSynchronizationTest {
         // then
         logger.info("local dc latency: $latency")
 
-        Assertions.assertThat(latency.max()).isLessThanOrEqualTo(500 + stateSampleDuration.toMillis())
+        assertThat(latency.max()).isLessThanOrEqualTo(500 + stateSampleDuration.toMillis())
     }
 
     private fun measureRegistrationToAccessLatency(
@@ -138,7 +138,7 @@ internal class EnvoyControlSynchronizationTest {
     private fun waitServiceOkAndFrom(name: String, echoServiceExtension: EchoServiceExtension) {
         untilAsserted {
             envoy.egressOperations.callService(name).also {
-                Assertions.assertThat(it).isOk().isFrom(echoServiceExtension)
+                assertThat(it).isOk().isFrom(echoServiceExtension)
             }
         }
     }

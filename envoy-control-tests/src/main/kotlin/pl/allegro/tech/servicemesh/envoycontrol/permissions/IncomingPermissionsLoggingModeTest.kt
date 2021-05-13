@@ -199,7 +199,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasNoRBACDenials()
 
         // when
@@ -207,7 +207,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
@@ -239,7 +239,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasNoRBACDenials()
     }
 
@@ -251,7 +251,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse2).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
@@ -262,7 +262,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/block-unlisted-clients",
@@ -280,7 +280,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isForbidden()
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/block-unlisted-clients",
@@ -298,7 +298,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasNoRBACDenials()
     }
 
@@ -309,7 +309,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
@@ -320,7 +320,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/block-unlisted-clients-by-default",
@@ -338,7 +338,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isForbidden()
-        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/block-unlisted-clients",
@@ -356,7 +356,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasNoRBACDenials()
     }
 
@@ -368,7 +368,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
@@ -379,7 +379,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/log-unlisted-clients",
@@ -397,7 +397,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/log-unlisted-clients",
@@ -414,7 +414,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasNoRBACDenials()
     }
 
@@ -425,7 +425,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
@@ -436,7 +436,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
             path = "/log-unlisted-clients",
@@ -453,7 +453,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
             path = "/log-unlisted-clients",
@@ -471,7 +471,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isOk().isFrom(echoLocalService)
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasNoRBACDenials()
     }
 
@@ -484,7 +484,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
@@ -497,7 +497,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/block-unlisted-clients-by-default",
@@ -515,7 +515,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isForbidden()
-        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/block-unlisted-clients-by-default",
@@ -533,7 +533,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/unlisted-endpoint",
@@ -551,7 +551,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/unlisted-endpoint",
@@ -569,7 +569,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/unlisted-endpoint",
@@ -588,7 +588,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/unlisted-endpoint",
@@ -606,7 +606,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/unlisted-endpoint",
@@ -624,7 +624,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
             path = "/unlisted-endpoint",
@@ -642,7 +642,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/unlisted-endpoint",
@@ -660,7 +660,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressPlainHttpRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
             path = "/unlisted-endpoint",
@@ -683,7 +683,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echoResponse).isForbidden()
-        assertThat(echoEnvoy.container.ingressSslRequests).isOne()
+        assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/log-unlisted-clients",
@@ -706,7 +706,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/log-unlisted-clients",
@@ -729,7 +729,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isOk().isFrom(echo2LocalService)
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
             path = "/log-unlisted-clients",
@@ -748,7 +748,7 @@ class IncomingPermissionsLoggingModeTest {
 
         // then
         assertThat(echo2Response).isForbidden()
-        assertThat(echo2Envoy.container.ingressSslRequests).isOne()
+        assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
             path = "/block-unlisted-clients-by-default",
@@ -758,10 +758,4 @@ class IncomingPermissionsLoggingModeTest {
             clientIp = echoEnvoy.container.ipAddress()
         )
     }
-
-    private val EnvoyContainer.ingressSslRequests: Int?
-        get() = this.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()
-
-    private val EnvoyContainer.ingressPlainHttpRequests: Int?
-        get() = this.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()
 }
