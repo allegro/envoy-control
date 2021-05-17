@@ -24,7 +24,7 @@ class DcCutOffTest : ReliabilityTest() {
                 appFactoryForEc1 = {
                     EnvoyControlRunnerTestApp(
                         consulPort = consulHttpPort,
-                        properties = properties,
+                        propertiesProvider = { properties },
                         appPort = ec1HttpPort
                     )
                 },

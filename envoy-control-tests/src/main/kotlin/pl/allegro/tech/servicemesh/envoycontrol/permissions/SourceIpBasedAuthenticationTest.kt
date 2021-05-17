@@ -50,7 +50,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
         @BeforeAll
         fun setupTest() {
             setup(appFactoryForEc1 = { consulPort ->
-                EnvoyControlRunnerTestApp(properties = properties(), consulPort = consulPort)
+                EnvoyControlRunnerTestApp(propertiesProvider = { properties() }, consulPort = consulPort)
             }, envoyConfig = Echo1EnvoyAuthConfig, secondEnvoyConfig = echo2EnvoyConfig, envoys = 2)
         }
     }

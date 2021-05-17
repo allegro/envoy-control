@@ -2,75 +2,89 @@ package pl.allegro.tech.servicemesh.envoycontrol
 
 import com.codahale.metrics.Timer
 import org.assertj.core.api.Assertions.assertThat
-import org.awaitility.Awaitility.await
-import org.junit.jupiter.api.BeforeAll
+import org.awaitility.Awaitility
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulMultiClusterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlClusteredExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import java.time.Duration
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-internal class EnvoyControlSynchronizationRunnerTest : EnvoyControlSynchronizationTest() {
-    override val pollingInterval: Duration = Companion.pollingInterval
-    override val stateSampleDuration: Duration = Companion.stateSampleDuration
+internal class EnvoyControlSynchronizationTest {
+
+    private val logger by logger()
 
     companion object {
         val pollingInterval = Duration.ofSeconds(1)
         val stateSampleDuration = Duration.ofSeconds(1)
+        val defaultDuration: Duration = Duration.ofSeconds(90)
 
-        @BeforeAll
-        @JvmStatic
-        fun setupTest() {
-            val properties = mapOf(
-                "envoy-control.envoy.snapshot.stateSampleDuration" to stateSampleDuration,
-                "envoy-control.sync.enabled" to true,
-                "envoy-control.sync.polling-interval" to pollingInterval.seconds
-            )
-            setup(
-                envoyControls = 2,
-                appFactoryForEc1 = { consulPort -> EnvoyControlRunnerTestApp(properties, consulPort) }
-            )
-        }
+        @JvmField
+        @RegisterExtension
+        val consulClusters = ConsulMultiClusterExtension()
+
+        val properties = mapOf(
+            "envoy-control.envoy.snapshot.stateSampleDuration" to stateSampleDuration,
+            "envoy-control.sync.enabled" to true,
+            "envoy-control.sync.polling-interval" to pollingInterval.seconds
+        )
+
+        @JvmField
+        @RegisterExtension
+        val envoyControlDc1 = EnvoyControlClusteredExtension(consulClusters.serverFirst, { properties }, listOf(consulClusters))
+
+        @JvmField
+        @RegisterExtension
+        val envoyControlDc2 = EnvoyControlClusteredExtension(consulClusters.serverSecond, dependencies = listOf(consulClusters))
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControlDc1)
+
+        @JvmField
+        @RegisterExtension
+        val serviceLocal = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val serviceRemote = EchoServiceExtension()
     }
-}
-
-abstract class EnvoyControlSynchronizationTest : EnvoyControlTestConfiguration() {
-
-    abstract val pollingInterval: Duration
-    abstract val stateSampleDuration: Duration
-
-    private val logger by logger()
 
     @Test
     fun `should prefer services from local dc and fallback to remote dc when needed`() {
+
         // given: local and remote instances
-        registerServiceInRemoteCluster("echo", echoContainer2)
-        val localId = registerServiceInLocalDc("echo")
+        registerServiceInRemoteDc("echo", serviceRemote)
+        val serviceId = registerServiceInLocalDc("echo", serviceLocal)
 
         // then: local called
-        waitUntilEchoCalledThroughEnvoyResponds(echoContainer)
+        waitServiceOkAndFrom("echo", serviceLocal)
 
         // when: no local instances
-        deregisterService(localId)
+        deregisterService(serviceId)
 
         // then: remote called
-        waitUntilEchoCalledThroughEnvoyResponds(echoContainer2)
+        waitServiceOkAndFrom("echo", serviceRemote)
 
         // when: local instances again
-        registerServiceInLocalDc("echo")
+        registerServiceInLocalDc("echo", serviceLocal)
 
         // then: local called
-        waitUntilEchoCalledThroughEnvoyResponds(echoContainer)
+        waitServiceOkAndFrom("echo", serviceLocal)
     }
 
     @Test
     fun `latency between service registration in remote dc and being able to access it via envoy should be similar to envoy-control polling interval`() {
         // when
-        val latency = measureRegistrationToAccessLatency { name, target ->
-            registerServiceInRemoteCluster(name, target)
-        }
+        val latency = measureRegistrationToAccessLatency(
+            registerService = { name, target -> registerServiceInRemoteDc(name, target) },
+            readinessCheck = { name, target -> waitServiceOkAndFrom(name, target) }
+        )
 
         // then
         logger.info("remote dc latency: $latency")
@@ -83,9 +97,10 @@ abstract class EnvoyControlSynchronizationTest : EnvoyControlTestConfiguration()
     @Test
     fun `latency between service registration in local dc and being able to access it via envoy should be less than 0,5s + stateSampleDuration`() {
         // when
-        val latency = measureRegistrationToAccessLatency { name, target ->
-            registerServiceInLocalDc(name, target)
-        }
+        val latency = measureRegistrationToAccessLatency(
+            registerService = { name, target -> registerServiceInLocalDc(name, target) },
+            readinessCheck = { name, target -> waitServiceOkAndFrom(name, target) }
+        )
 
         // then
         logger.info("local dc latency: $latency")
@@ -93,32 +108,48 @@ abstract class EnvoyControlSynchronizationTest : EnvoyControlTestConfiguration()
         assertThat(latency.max()).isLessThanOrEqualTo(500 + stateSampleDuration.toMillis())
     }
 
-    private fun measureRegistrationToAccessLatency(registerService: (String, EchoContainer) -> Unit): LatencySummary {
+    private fun measureRegistrationToAccessLatency(
+        registerService: (String, echoServiceExtension: EchoServiceExtension) -> Unit,
+        readinessCheck: (name: String, echoServiceExtension: EchoServiceExtension) -> Unit
+    ): LatencySummary {
         val timer = Timer()
 
         // when
         for (i in 1..5) {
             val serviceName = "service-$i"
-            registerService.invoke(serviceName, echoContainer)
+            registerService.invoke(serviceName, serviceLocal)
 
             timer.time {
-                await()
+                Awaitility.await()
                     .pollDelay(50, TimeUnit.MILLISECONDS)
                     .atMost(defaultDuration)
                     .untilAsserted {
-                        // when
-                        val response = callService(serviceName)
-
-                        // then
-                        assertThat(response).isOk().isFrom(echoContainer)
+                        readinessCheck.invoke(serviceName, serviceLocal)
                     }
             }
         }
         return LatencySummary(timer)
     }
 
-    private fun registerServiceInLocalDc(name: String, target: EchoContainer = echoContainer): String =
-        registerService(UUID.randomUUID().toString(), name, target)
+    private fun deregisterService(serviceId: String) {
+        consulClusters.serverFirst.operations.deregisterService(serviceId)
+    }
+
+    private fun waitServiceOkAndFrom(name: String, echoServiceExtension: EchoServiceExtension) {
+        untilAsserted {
+            envoy.egressOperations.callService(name).also {
+                assertThat(it).isOk().isFrom(echoServiceExtension)
+            }
+        }
+    }
+
+    fun registerServiceInLocalDc(name: String, target: EchoServiceExtension): String {
+        return consulClusters.serverFirst.operations.registerService(target, name = name)
+    }
+
+    fun registerServiceInRemoteDc(name: String, target: EchoServiceExtension): String {
+        return consulClusters.serverSecond.operations.registerService(target, name = name)
+    }
 
     private class LatencySummary(private val timer: Timer) {
 

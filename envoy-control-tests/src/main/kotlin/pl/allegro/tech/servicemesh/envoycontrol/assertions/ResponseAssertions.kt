@@ -39,3 +39,11 @@ fun ObjectAssert<Response>.isFrom(echoServiceExtension: EchoServiceExtension): O
     }
     return this
 }
+
+fun ObjectAssert<Response>.isEitherFrom(vararg echoContainers: EchoServiceExtension): ObjectAssert<Response> {
+    matches {
+        val serviceResponse = it.body()?.string() ?: ""
+        echoContainers.any { containerExtension -> serviceResponse.contains(containerExtension.container().response) }
+    }
+    return this
+}
