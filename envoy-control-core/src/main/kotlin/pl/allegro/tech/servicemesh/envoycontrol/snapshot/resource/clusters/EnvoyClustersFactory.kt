@@ -39,6 +39,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
@@ -70,6 +71,10 @@ class EnvoyClustersFactory(
         .build()
 
     private val clustersForJWT: List<Cluster> = properties.jwt.providers.values.map(this::clusterForOAuthProvider)
+
+    companion object {
+        private val logger by logger()
+    }
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,
@@ -150,6 +155,8 @@ class EnvoyClustersFactory(
                         )
                     )
             )
+        } else {
+            logger.warn("Jwks url [${provider.jwksUri}] is not using HTTPS scheme.")
         }
 
         return cluster.build()

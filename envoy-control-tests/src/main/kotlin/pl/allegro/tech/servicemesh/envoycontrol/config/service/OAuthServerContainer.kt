@@ -3,10 +3,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.service
 import com.pszymczyk.consul.infrastructure.Ports
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.images.builder.ImageFromDockerfile
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 
 class OAuthServerContainer :
-    GenericContainer<OAuthServerContainer>("kornelos/oauth-mock:0.0.2"),
+    GenericContainer<OAuthServerContainer>(ImageFromDockerfile().withFileFromClasspath("Dockerfile", "oauth/Dockerfile")),
     ServiceContainer {
 
     override fun configure() {

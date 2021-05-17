@@ -301,8 +301,8 @@ fun Value?.toOAuthPolicy(defaultPolicy: OAuth.Policy) = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
     ?.let {
         when (it) {
-            "allow_missing" -> OAuth.Policy.ALLOW_MISSING
-            "allow_missing_or_failed" -> OAuth.Policy.ALLOW_MISSING_OR_FAILED
+            "allowMissing" -> OAuth.Policy.ALLOW_MISSING
+            "allowMissingOrFailed" -> OAuth.Policy.ALLOW_MISSING_OR_FAILED
             "strict" -> OAuth.Policy.STRICT
             else -> throw NodeMetadataValidationException("Invalid OAuth policy value: $it")
         }
