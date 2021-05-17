@@ -27,7 +27,7 @@ internal class EnvoyControlDownInAllDcs : ReliabilityTest() {
                 envoyControls = 2,
                 appFactoryForEc1 = {
                     EnvoyControlRunnerTestApp(
-                        properties = properties,
+                        propertiesProvider = { properties },
                         consulPort = consulHttpPort,
                         appPort = ec1HttpPort,
                         grpcPort = toxiproxyGrpcPort
@@ -35,7 +35,7 @@ internal class EnvoyControlDownInAllDcs : ReliabilityTest() {
                 },
                 appFactoryForEc2 = {
                     EnvoyControlRunnerTestApp(
-                        properties = properties,
+                        propertiesProvider = { properties },
                         consulPort = consul2HttpPort,
                         appPort = ec2HttpPort,
                         grpcPort = toxiproxyGrpcPort2
