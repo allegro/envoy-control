@@ -11,12 +11,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isRbacAccessLog
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtensionBase
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class EnvoyExtension(
-    private val envoyControl: EnvoyControlExtension,
+    private val envoyControl: EnvoyControlExtensionBase,
     private val localService: ServiceExtension<*>? = null,
     private val config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
@@ -84,5 +84,9 @@ class EnvoyExtension(
 
     fun recordRBACLogs() {
         container.logRecorder.recordLogs(::isRbacAccessLog)
+    }
+
+    fun stopRecordingRBAC() {
+        container.logRecorder.stopRecording()
     }
 }

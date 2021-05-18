@@ -1,16 +1,20 @@
 package pl.allegro.tech.servicemesh.envoycontrol.reliability
 
-import okhttp3.Response
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.fail
-import org.assertj.core.api.ObjectAssert
-import org.junit.jupiter.api.BeforeAll
+import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isEitherFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnreachable
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsAllDependencies
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
-import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulMultiClusterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlClusteredExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.time.Duration
 import java.util.concurrent.Executors
@@ -18,7 +22,7 @@ import java.util.concurrent.atomic.LongAdder
 import kotlin.random.Random
 
 @Tag("reliability")
-class ConsulInstancePropagationTest : EnvoyControlTestConfiguration() {
+class ConsulInstancePropagationTest {
 
     companion object {
         private val logger by logger()
@@ -27,22 +31,30 @@ class ConsulInstancePropagationTest : EnvoyControlTestConfiguration() {
         private const val services = 20
         private const val repeatScenarios = 10
 
-        @JvmStatic
-        @BeforeAll
-        fun setupPropagationTest() {
-            setup(
-                envoyConfig = AdsAllDependencies,
-                appFactoryForEc1 = { consulPort ->
-                    EnvoyControlRunnerTestApp(
-                        properties = mapOf(
-                            "envoy-control.envoy.snapshot.stateSampleDuration" to Duration.ofSeconds(0),
-                            "envoy-control.envoy.snapshot.outgoing-permissions.servicesAllowedToUseWildcard" to "test-service"
-                        ),
-                        consulPort = consulPort
-                    )
-                }
-            )
-        }
+        @JvmField
+        @RegisterExtension
+        val consulClusters = ConsulMultiClusterExtension()
+
+        val properties = mapOf(
+            "envoy-control.envoy.snapshot.stateSampleDuration" to Duration.ofSeconds(0),
+            "envoy-control.envoy.snapshot.outgoing-permissions.servicesAllowedToUseWildcard" to "test-service"
+        )
+
+        @JvmField
+        @RegisterExtension
+        val envoyControlDc1 = EnvoyControlClusteredExtension(consulClusters.serverFirst, { properties }, dependencies = listOf(consulClusters))
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl = envoyControlDc1, config = AdsAllDependencies)
+
+        @JvmField
+        @RegisterExtension
+        val firstService = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val secondService = EchoServiceExtension()
     }
 
     /**
@@ -64,9 +76,10 @@ class ConsulInstancePropagationTest : EnvoyControlTestConfiguration() {
         try {
             futures.map { it.get() }
         } catch (e: Exception) {
-            fail<String>("Error running scenarios ${e.message}")
+            Assertions.fail<String>("Error running scenarios ${e.message}")
         } finally {
-            assertThat(runCount.sum().toInt()).isEqualTo(services * repeatScenarios)
+            Assertions.assertThat(runCount.sum().toInt())
+                .isEqualTo(services * repeatScenarios)
         }
     }
 
@@ -95,72 +108,71 @@ class ConsulInstancePropagationTest : EnvoyControlTestConfiguration() {
         var secondInstanceId: String? = null
 
         fun spawnFirstInstance() {
-            firstInstanceId = registerService(
+            firstInstanceId = consulClusters.serverFirst.operations.registerService(
+                firstService,
                 id = "$serviceName-1",
-                name = serviceName,
-                container = echoContainer
+                name = serviceName
             )
-            waitForEchosInAdmin(echoContainer)
+
+            waitForEchosInAdmin(firstService.container())
+
             repeat(verificationTimes) {
-                callService(serviceName).use {
-                    assertThat(it).isOk().isFrom(echoContainer)
+                envoy.egressOperations.callService(serviceName).also {
+                    Assertions.assertThat(it).isOk().isFrom(firstService)
                 }
             }
         }
 
         fun spawnSecondInstance() {
-            secondInstanceId = registerService(
+            secondInstanceId = consulClusters.serverFirst.operations.registerService(
+                secondService,
                 id = "$serviceName-2",
-                name = serviceName,
-                container = echoContainer2
+                name = serviceName
             )
-            waitForEchosInAdmin(echoContainer, echoContainer2)
+            waitForEchosInAdmin(firstService.container(), secondService.container())
+
             repeat(verificationTimes) {
-                callService(serviceName).use {
-                    assertThat(it).isOk().isEitherFrom(echoContainer, echoContainer2)
+                envoy.egressOperations.callService(serviceName).also {
+                    Assertions.assertThat(it).isOk().isEitherFrom(firstService, secondService)
                 }
             }
         }
 
         fun destroySecondInstance() {
             deregisterService(secondInstanceId!!)
-            waitForEchosInAdmin(echoContainer)
+            waitForEchosInAdmin(firstService.container())
             repeat(verificationTimes) {
-                callService(serviceName).use {
-                    assertThat(it).isOk().isFrom(echoContainer)
+                envoy.egressOperations.callService(serviceName).also {
+                    Assertions.assertThat(it).isOk().isFrom(firstService)
                 }
             }
+        }
+
+        private fun deregisterService(serviceId: String) {
+            consulClusters.serverFirst.operations.deregisterService(serviceId)
         }
 
         fun destroyLastInstance() {
             deregisterService(firstInstanceId!!)
             waitForEchosInAdmin()
             repeat(verificationTimes) {
-                callService(serviceName).use {
-                    assertThat(it).isUnreachable()
+                envoy.egressOperations.callService(serviceName).also {
+                    Assertions.assertThat(it).isUnreachable()
                 }
             }
         }
 
-        private val admin = envoyContainer1.admin()
+        private val admin = envoy.container.admin()
 
         private fun waitForEchosInAdmin(vararg containers: EchoContainer) {
             untilAsserted {
                 val addresses = admin
                     .endpointsAddress(clusterName = serviceName)
                     .map { "${it.address}:${it.portValue}" }
-                assertThat(addresses)
+                Assertions.assertThat(addresses)
                     .hasSize(containers.size)
                     .containsExactlyInAnyOrderElementsOf(containers.map { it.address() })
             }
         }
-    }
-
-    fun ObjectAssert<Response>.isEitherFrom(vararg echoContainers: EchoContainer): ObjectAssert<Response> {
-        matches {
-            val serviceResponse = it.body()?.string() ?: ""
-            echoContainers.any { container -> serviceResponse.contains(container.response) }
-        }
-        return this
     }
 }
