@@ -20,7 +20,7 @@ class ServerProperties {
         parallelPoolSize = 1
     }
     var snapshotCleanup = SnapshotCleanupProperties()
-    var reportProtobufCacheMetrics = true
+    var reportProtobufCacheMetrics = false
     var logFullRequest = false
     var logFullResponse = false
 }

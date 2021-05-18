@@ -50,9 +50,6 @@ internal class CachedProtoResourcesSerializer(
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     override fun serialize(resource: Message, apiVersion: Resources.ApiVersion): Any {
         val cache = when (apiVersion) {
             V2 -> cacheV2
