@@ -38,7 +38,13 @@ val AdsCustomHealthCheck = EnvoyConfig("envoy/config_ads_custom_health_check.yam
 val AdsDynamicForwardProxy = EnvoyConfig("envoy/config_ads_dynamic_forward_proxy.yaml")
 val FaultyConfig = EnvoyConfig("envoy/bad_config.yaml")
 val Ads = EnvoyConfig("envoy/config_ads.yaml")
-val DeltaAds = EnvoyConfig("envoy/config_delta_ads.yaml")
+val DeltaAds = Ads.copy(
+    configOverride = """
+      dynamic_resources:
+        ads_config:
+          api_type: DELTA_GRPC
+""".trimIndent()
+)
 val AdsV2 = EnvoyConfig("envoy/config_ads_v2.yaml")
 val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml")
 val Echo2EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
