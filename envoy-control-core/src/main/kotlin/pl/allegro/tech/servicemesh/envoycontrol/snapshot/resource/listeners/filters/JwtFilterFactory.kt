@@ -93,24 +93,12 @@ class JwtFilterFactory(
     private fun createProviderPolicyToJwtRequirements(): Map<Pair<String, OAuth.Policy>, JwtRequirement> {
         return properties.providers.keys.flatMap { providerName ->
             OAuth.Policy.values()
-                .map { policy -> Pair(providerName, policy) to createJwtRequirement(providerName, policy) }
+                .map { policy -> Pair(providerName, policy) to createJwtRequirement(providerName) }
         }.associateBy({ it.first }, { it.second })
     }
 
-    private fun createJwtRequirement(provider: String, policy: OAuth.Policy): JwtRequirement {
-        return when (policy) {
-            OAuth.Policy.ALLOW_MISSING -> {
-                JwtRequirement.newBuilder().setRequiresAny(
-                    JwtRequirementOrList.newBuilder().addAllRequirements(
-                        listOf(
-                            JwtRequirement.newBuilder().setProviderName(provider).build(),
-                            JwtRequirement.newBuilder().setAllowMissing(Empty.getDefaultInstance()).build()
-                        )
-                    )
-                ).build()
-            }
-            OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
-                JwtRequirement.newBuilder().setRequiresAny(
+    private fun createJwtRequirement(provider: String): JwtRequirement {
+        return JwtRequirement.newBuilder().setRequiresAny(
                     JwtRequirementOrList.newBuilder().addAllRequirements(
                         listOf(
                             JwtRequirement.newBuilder().setProviderName(provider).build(),
@@ -118,10 +106,5 @@ class JwtFilterFactory(
                         )
                     )
                 ).build()
-            }
-            OAuth.Policy.STRICT -> {
-                JwtRequirement.newBuilder().setProviderName(provider).build()
-            }
-        }
     }
 }

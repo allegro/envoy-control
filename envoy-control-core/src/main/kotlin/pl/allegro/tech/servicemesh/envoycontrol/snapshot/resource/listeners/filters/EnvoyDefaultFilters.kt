@@ -45,6 +45,9 @@ class EnvoyDefaultFilters(
 
     private val defaultJwtHttpFilter = { group : Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
 
+    private val defaultAuthorizationHeaderFilter = { group: Group, _: GlobalSnapshot ->
+        luaFilterFactory.ingressAuthorizationHeaderFilter(group)
+    }
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
 
     /**
@@ -58,6 +61,7 @@ class EnvoyDefaultFilters(
      */
     val defaultIngressFilters = listOf(
         defaultClientNameHeaderFilter,
+        defaultAuthorizationHeaderFilter,
         defaultJwtHttpFilter,
         defaultRbacLoggingFilter,
         defaultRbacFilter,

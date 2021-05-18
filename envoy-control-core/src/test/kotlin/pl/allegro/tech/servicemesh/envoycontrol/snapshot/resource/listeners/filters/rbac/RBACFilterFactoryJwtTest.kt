@@ -24,7 +24,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         StatusRouteProperties(),
         jwtProperties = JwtFilterProperties().also {
             it.providers =
-                listOf(OAuthProvider("oauth-provider", selectorToTokenField = mapOf("oauth-selector" to "team1")))
+                mapOf("oauth-provider" to OAuthProvider("oauth-provider", selectorToTokenField = mapOf("oauth-selector" to "team1")))
         }
     )
 
@@ -41,6 +41,8 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
     @Test
     fun `should generate RBAC rules for OAuth`() {
         // given
+        val selector = "oauth-selector"
+        val client = "team1"
         val oAuthPrincipal = """{
                    "metadata": {
                     "filter": "envoy.filters.http.jwt_authn",
@@ -49,14 +51,14 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                       "key": "jwt"
                      },
                      {
-                      "key": "authorities"
+                      "key": "$selector"
                      }
                     ],
                     "value": {
                      "list_match": {
                       "one_of": {
                        "string_match": {
-                        "exact": "team1"
+                        "exact": "$client"
                        }
                       }
                      }
@@ -64,9 +66,8 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                    }
                   }"""
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
-            expectedPoliciesForOAuthClient(oAuthPrincipal, "oauth-selector"), expectedPoliciesForOAuthClient(
-                oAuthPrincipal, "oauth-selector"
-            )
+            expectedPoliciesForOAuthClient(oAuthPrincipal, selector, client),
+            expectedPoliciesForOAuthClient(oAuthPrincipal, selector, client)
         )
         val incomingPermission = Incoming(
             permissionsEnabled = true,
@@ -75,7 +76,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                     "/oauth-protected",
                     PathMatchingType.PATH,
                     setOf("GET"),
-                    setOf(ClientWithSelector("team1", "oauth-selector")),
+                    setOf(ClientWithSelector(client, selector)),
                     oauth = OAuth("oauth-provider", policy = OAuth.Policy.STRICT)
                 )
             )
@@ -104,10 +105,8 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             )
         )
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
-            expectedPoliciesForOAuthClient(authenticatedPrincipal("client1"), "null"),
-            expectedPoliciesForOAuthClient(
-                authenticatedPrincipal("client1"), "null"
-            )
+            expectedPoliciesForOAuthClient(authenticatedPrincipal("client1"), "null", "client1"),
+            expectedPoliciesForOAuthClient(authenticatedPrincipal("client1"), "null", "client1")
         )
 
         // when
@@ -117,10 +116,10 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         Assertions.assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
-    private fun expectedPoliciesForOAuthClient(principals: String, selector: String) = """
+    private fun expectedPoliciesForOAuthClient(principals: String, selector: String, client: String) = """
         {
           "policies": {
-            "IncomingEndpoint(path=/oauth-protected, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=$selector)], unlistedClientsPolicy=BLOCKANDLOG, oauth=OAuth(provider=oauth-provider, verification=OFFLINE, policy=STRICT))": {
+            "IncomingEndpoint(path=/oauth-protected, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=$client, selector=$selector)], unlistedClientsPolicy=BLOCKANDLOG, oauth=OAuth(provider=oauth-provider, verification=OFFLINE, policy=STRICT))": {
               "permissions": [
                 {
                   "and_rules": {

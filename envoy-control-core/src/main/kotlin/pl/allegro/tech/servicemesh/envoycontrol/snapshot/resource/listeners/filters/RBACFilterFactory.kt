@@ -16,13 +16,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
+import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
@@ -91,6 +91,17 @@ class RBACFilterFactory(
             EndpointWithPolicy(incomingEndpoint, policy)
         }
     }
+
+    private fun getOAuthPolicy(oAuthPolicy: OAuth.Policy?) =
+        if (oAuthPolicy != null) {
+            when (oAuthPolicy) {
+                OAuth.Policy.ALLOW_MISSING -> listOf(Policy.newBuilder().build())
+                OAuth.Policy.STRICT -> listOf(Policy.newBuilder().build())
+                OAuth.Policy.ALLOW_MISSING_OR_FAILED -> listOf(Policy.newBuilder().build())
+            }
+        } else {
+            emptyList()
+        }
 
     data class Rules(val shadowRules: RBAC, val actualRules: RBAC)
 
@@ -172,9 +183,10 @@ class RBACFilterFactory(
             .flatMap { it.permissionsList.asSequence() }
             .toList()
 
-        return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
-            .addPrincipals(anyPrincipal)
-            .addPermissions(noneOf(allDefinedEndpointsPermissions))
+        return mapOf(
+            ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
+                .addPrincipals(anyPrincipal)
+                .addPermissions(noneOf(allDefinedEndpointsPermissions))
         )
     }
 
@@ -230,7 +242,7 @@ class RBACFilterFactory(
     ): List<Principal> {
         val selectorMatching = getSelectorMatching(clientWithSelector, incomingPermissionsProperties)
         val staticRangesForClient = staticIpRange(clientWithSelector, selectorMatching)
-        val providerForSelector = jwtProperties.providers.firstOrNull {
+        val providerForSelector = jwtProperties.providers.values.firstOrNull {
             it.selectorToTokenField.containsKey(clientWithSelector.selector)
         }
 
@@ -239,32 +251,35 @@ class RBACFilterFactory(
         } else if (staticRangesForClient != null) {
             listOf(staticRangesForClient)
         } else if (providerForSelector != null && clientWithSelector.selector != null) {
-            listOf(jwtPrincipal(clientWithSelector, providerForSelector))
+            listOf(jwtPrincipal(clientWithSelector))
         } else {
             tlsPrincipals(clientWithSelector.name)
         }
     }
 
-    private fun jwtPrincipal(client: ClientWithSelector, oAuthProvider: OAuthProvider): Principal {
-        return Principal.newBuilder().setMetadata(MetadataMatcher.newBuilder()
-            .setFilter("envoy.filters.http.jwt_authn")
-            .addPath(MetadataMatcher.PathSegment.newBuilder()
-                .setKey(jwtProperties.payloadInMetadata).build()
-            )
-            .addPath(
-                MetadataMatcher.PathSegment.newBuilder()
-                .setKey(oAuthProvider.selectorToTokenField[client.selector]).build()
-            )
-            .setValue(
-                ValueMatcher.newBuilder().setListMatch(
-                    ListMatcher.newBuilder().setOneOf(
-                        ValueMatcher.newBuilder().setStringMatch(
-                            io.envoyproxy.envoy.type.matcher.v3.StringMatcher.newBuilder()
-                                .setExact(client.name)
+    private fun jwtPrincipal(client: ClientWithSelector): Principal {
+        return Principal.newBuilder().setMetadata(
+            MetadataMatcher.newBuilder()
+                .setFilter("envoy.filters.http.jwt_authn")
+                .addPath(
+                    MetadataMatcher.PathSegment.newBuilder()
+                        .setKey(jwtProperties.payloadInMetadata).build()
+                )
+                .addPath(
+                    MetadataMatcher.PathSegment.newBuilder()
+                        .setKey(client.selector).build()
+                )
+                .setValue(
+                    ValueMatcher.newBuilder().setListMatch(
+                        ListMatcher.newBuilder().setOneOf(
+                            ValueMatcher.newBuilder().setStringMatch(
+                                io.envoyproxy.envoy.type.matcher.v3.StringMatcher.newBuilder()
+                                    .setExact(client.name)
+                            )
                         )
                     )
-                )
-            ).build()).build()
+                ).build()
+        ).build()
     }
 
     private fun getSelectorMatching(
