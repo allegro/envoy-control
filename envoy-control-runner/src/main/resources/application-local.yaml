@@ -2,7 +2,7 @@ envoy-control:
   source:
     consul:
       host: localhost
-      port: 18509
+      port: 18500
 
 chaos:
   username: "user"
