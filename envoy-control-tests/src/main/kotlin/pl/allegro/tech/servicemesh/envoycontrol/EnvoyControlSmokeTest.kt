@@ -100,6 +100,35 @@ class AdsEnvoyControlSmokeTest : EnvoyControlSmokeTest {
     override fun envoy() = envoy
 }
 
+class DeltaAdsEnvoyControlSmokeTest : EnvoyControlSmokeTest {
+    companion object {
+
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul)
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, service, config = Ads)
+    }
+
+    override fun consul() = consul
+
+    override fun envoyControl() = envoyControl
+
+    override fun service() = service
+
+    override fun envoy() = envoy
+}
+
 class XdsEnvoyControlSmokeTest : EnvoyControlSmokeTest {
     companion object {
 
