@@ -24,18 +24,6 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
         null
     }
 
-    private val ingressAuthorizationHeaderScript = this::class.java.classLoader
-        .getResource("lua/ingress_authorization_header.lua")!!.readText()
-
-    private val ingressAuthorizationHeaderFilter: HttpFilter? = if (incomingPermissionsProperties.enabled) {
-        HttpFilter.newBuilder()
-            .setName("envoy.lua")
-            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressAuthorizationHeaderScript).build()))
-            .build()
-    } else {
-        null
-    }
-
     private val trustedClientIdentityHeader = incomingPermissionsProperties.trustedClientIdentityHeader
 
     private val ingressScriptsMetadata = Metadata.newBuilder()
@@ -103,7 +91,4 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
         ingressClientNameHeaderFilter.takeIf { trustedClientIdentityHeader.isNotEmpty() }
 
     fun ingressScriptsMetadata(): Metadata = ingressScriptsMetadata
-
-    fun ingressAuthorizationHeaderFilter(group: Group): HttpFilter? =
-        ingressAuthorizationHeaderFilter.takeIf { group.proxySettings.incoming.permissionsEnabled }
 }

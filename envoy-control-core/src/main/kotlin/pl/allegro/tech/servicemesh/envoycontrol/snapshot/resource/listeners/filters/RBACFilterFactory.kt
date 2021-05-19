@@ -79,10 +79,12 @@ class RBACFilterFactory(
         val principalCache = mutableMapOf<ClientWithSelector, List<Principal>>()
         return incomingPermissions.endpoints.map { incomingEndpoint ->
             val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
+            val jwtFilterPrincipal = setOf(jwtFilterPrincipal(incomingEndpoint.oauth?.policy)).filterNotNull()
             val principals = clientsWithSelectors
                 .flatMap { client ->
                     principalCache.computeIfAbsent(client) { mapClientWithSelectorToPrincipals(it, snapshot) }
                 }.toSet()
+                .plus(jwtFilterPrincipal)
                 .ifEmpty { setOf(denyForAllPrincipal) }
 
             val policy = Policy.newBuilder().addAllPrincipals(principals)
@@ -91,17 +93,6 @@ class RBACFilterFactory(
             EndpointWithPolicy(incomingEndpoint, policy)
         }
     }
-
-    private fun getOAuthPolicy(oAuthPolicy: OAuth.Policy?) =
-        if (oAuthPolicy != null) {
-            when (oAuthPolicy) {
-                OAuth.Policy.ALLOW_MISSING -> listOf(Policy.newBuilder().build())
-                OAuth.Policy.STRICT -> listOf(Policy.newBuilder().build())
-                OAuth.Policy.ALLOW_MISSING_OR_FAILED -> listOf(Policy.newBuilder().build())
-            }
-        } else {
-            emptyList()
-        }
 
     data class Rules(val shadowRules: RBAC, val actualRules: RBAC)
 
@@ -256,7 +247,64 @@ class RBACFilterFactory(
             tlsPrincipals(clientWithSelector.name)
         }
     }
+    private fun jwtFilterPrincipal(oAuthPolicy: OAuth.Policy?): Principal? =
+        if (oAuthPolicy != null) {
+            when (oAuthPolicy) {
+                OAuth.Policy.ALLOW_MISSING ->
+                    Principal.newBuilder().setOrIds(Principal.Set.newBuilder().addAllIds(
+                        listOf(
+                            Principal.newBuilder()
+                            .setMetadata(
+                                MetadataMatcher.newBuilder()
+                                    .setFilter("envoy.filters.http.header_to_metadata")
+                                    .addPath(
+                                        MetadataMatcher.PathSegment.newBuilder().setKey("jwt-missing").build()
+                                    )
+                                    .setValue(
+                                        ValueMatcher.newBuilder().setBoolMatch(true)
+                                    )
+                            )
+                            .build(),
+                            strictPolicyPrincipal()
+                        )
+                    )).build()
+                OAuth.Policy.STRICT -> strictPolicyPrincipal()
+                OAuth.Policy.ALLOW_MISSING_OR_FAILED -> null // any value
+            }
+        } else {
+            null
+        }
 
+    private fun strictPolicyPrincipal(): Principal {
+        return Principal.newBuilder()
+                .setAndIds(
+                    Principal.Set.newBuilder().addAllIds(
+                        listOf(
+                            Principal.newBuilder().setMetadata(
+                                MetadataMatcher.newBuilder()
+                                    .setFilter("envoy.filters.http.header_to_metadata")
+                                    .addPath(
+                                        MetadataMatcher.PathSegment.newBuilder().setKey("jwt-missing").build()
+                                    )
+                                    .setValue(
+                                        ValueMatcher.newBuilder().setBoolMatch(false)
+                                    )
+                            ).build(),
+                            Principal.newBuilder().setMetadata(
+                                MetadataMatcher.newBuilder()
+                                    .setFilter("envoy.filters.http.jwt_authn")
+                                    .addPath(
+                                        MetadataMatcher.PathSegment.newBuilder()
+                                            .setKey(jwtProperties.payloadInMetadata).build()
+                                    )
+                                    .setValue(
+                                        ValueMatcher.newBuilder().setPresentMatch(true)
+                                    ).build()
+                            ).build()
+                        )
+                    )
+                ).build()
+    }
     private fun jwtPrincipal(client: ClientWithSelector): Principal {
         return Principal.newBuilder().setMetadata(
             MetadataMatcher.newBuilder()
