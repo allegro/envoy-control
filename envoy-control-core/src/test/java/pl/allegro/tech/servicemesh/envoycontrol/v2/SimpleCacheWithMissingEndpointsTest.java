@@ -2,21 +2,22 @@ package pl.allegro.tech.servicemesh.envoycontrol.v2;
 
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Message;
-import io.envoyproxy.controlplane.cache.*;
+import io.envoyproxy.controlplane.cache.Resources;
+import io.envoyproxy.controlplane.cache.Response;
+import io.envoyproxy.controlplane.cache.VersionedResource;
+import io.envoyproxy.controlplane.cache.Watch;
+import io.envoyproxy.controlplane.cache.XdsRequest;
 import io.envoyproxy.controlplane.cache.v2.Snapshot;
 import io.envoyproxy.envoy.api.v2.ClusterLoadAssignment;
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest;
 import io.envoyproxy.envoy.api.v2.core.Node;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
 
