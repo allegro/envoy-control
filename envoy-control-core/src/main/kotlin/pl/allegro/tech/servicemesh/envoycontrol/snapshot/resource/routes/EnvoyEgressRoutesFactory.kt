@@ -72,7 +72,8 @@ class EnvoyEgressRoutesFactory(
         serviceName: String,
         routes: Collection<RouteSpecification>,
         addUpstreamAddressHeader: Boolean,
-        resourceVersion: ResourceVersion = ResourceVersion.V3
+        resourceVersion: ResourceVersion = ResourceVersion.V3,
+        routeName: String = "default_routes"
     ): RouteConfiguration {
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
@@ -95,7 +96,7 @@ class EnvoyEgressRoutesFactory(
             }
 
         var routeConfiguration = RouteConfiguration.newBuilder()
-            .setName("default_routes")
+            .setName(routeName)
             .addAllVirtualHosts(
                 virtualHosts + originalDestinationRoute + wildcardRoute
             ).also {
@@ -134,7 +135,7 @@ class EnvoyEgressRoutesFactory(
             { it.getPort() }, { routes.filter { route -> route.clusterName == it.getClusterName() } }
         ).toMap()
 
-        return portToDomain.map {
+        return portToDomain.filter { it.key != 80 }.map {
             val virtualHosts = routes
                 .filter { it.routeDomains.isNotEmpty() }
                 .map { routeSpecification ->

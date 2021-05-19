@@ -227,16 +227,33 @@ class EnvoySnapshotFactory(
             clustersFactory.getClustersForGroup(group, globalSnapshot)
 
         val routes = mutableListOf(
-            egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, egressRouteSpecification,
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
-                group.version
-            ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )
 
         if (group.listenersConfig?.useTcpProxyForDomains == true) {
+            routes.add(
+                egressRoutesFactory.createEgressRouteConfig(
+                    group.serviceName, egressRouteSpecification,
+                    group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
+                    group.version, "${EnvoyListenersFactory.DOMAIN_PROXY_LISTENER_ADDRESS}:80"
+                )
+            )
+            routes.add(
+                egressRoutesFactory.createEgressRouteConfig(
+                    group.serviceName, emptyList(),
+                    group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
+                    group.version
+                )
+            )
             routes.addAll(egressRoutesFactory.createEgressDomainRoutes(egressDomainRouteSpecifications, group))
+        } else {
+            routes.add(
+                egressRoutesFactory.createEgressRouteConfig(
+                    group.serviceName, egressRouteSpecification,
+                    group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
+                    group.version
+                )
+            )
         }
 
         val listeners = if (properties.dynamicListeners.enabled) {
