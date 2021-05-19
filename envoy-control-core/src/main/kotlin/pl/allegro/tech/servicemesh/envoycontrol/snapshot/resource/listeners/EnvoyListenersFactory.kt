@@ -182,6 +182,7 @@ class EnvoyListenersFactory(
                 ).addFilters(createEgressFilter(group, listenersConfig, globalSnapshot))
             )
                 .setTrafficDirection(TrafficDirection.OUTBOUND)
+                .setUseOriginalDst(BoolValue.of(true))
         }
         return listener.build()
     }
