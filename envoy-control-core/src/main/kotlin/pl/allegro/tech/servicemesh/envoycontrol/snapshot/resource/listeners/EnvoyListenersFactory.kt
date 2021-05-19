@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import com.google.protobuf.Struct
+import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLog
@@ -19,6 +20,7 @@ import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.RuntimeUInt32
 import io.envoyproxy.envoy.config.core.v3.SocketAddress
+import io.envoyproxy.envoy.config.core.v3.TrafficDirection
 import io.envoyproxy.envoy.config.core.v3.TransportSocket
 import io.envoyproxy.envoy.config.listener.v3.Filter
 import io.envoyproxy.envoy.config.listener.v3.FilterChain
@@ -29,6 +31,7 @@ import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
+import io.envoyproxy.envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
@@ -37,6 +40,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
@@ -55,6 +59,11 @@ class EnvoyListenersFactory(
     snapshotProperties: SnapshotProperties,
     envoyHttpFilters: EnvoyHttpFilters
 ) {
+
+    companion object {
+        const val DOMAIN_PROXY_LISTENER_ADDRESS = "0.0.0.0"
+    }
+
     private val ingressFilters: List<HttpFilterFactory> = envoyHttpFilters.ingressFilters
     private val egressFilters: List<HttpFilterFactory> = envoyHttpFilters.egressFilters
     private val listenersFactoryProperties = snapshotProperties.dynamicListeners
@@ -65,6 +74,9 @@ class EnvoyListenersFactory(
     private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
     private val egressRdsInitialFetchTimeout: Duration = durationInSeconds(20)
     private val ingressRdsInitialFetchTimeout: Duration = durationInSeconds(30)
+    private val egressHttp1ProtocolOptions = Http1ProtocolOptions.newBuilder()
+        .setAllowAbsoluteUrl(boolValue(true))
+        .build()
     private val localReplyConfig = LocalReplyConfigFactory(
         snapshotProperties.dynamicListeners.localReplyMapper
     ).configuration
@@ -103,6 +115,8 @@ class EnvoyListenersFactory(
         .build()
 
     private val tlsInspectorFilter = ListenerFilter.newBuilder().setName("envoy.filters.listener.tls_inspector").build()
+    private val httpInspectorFilter = ListenerFilter.newBuilder()
+        .setName("envoy.filters.listener.http_inspector")
 
     private enum class TransportProtocol(
         value: String,
@@ -133,10 +147,16 @@ class EnvoyListenersFactory(
             return listOf()
         }
         val listenersConfig: ListenersConfig = group.listenersConfig!!
-        val ingressListener = createIngressListener(group, listenersConfig, globalSnapshot)
-        val egressListener = createEgressListener(group, listenersConfig, globalSnapshot)
+        val listeners = listOf(
+            createIngressListener(group, listenersConfig, globalSnapshot),
+            createEgressListener(group, listenersConfig, globalSnapshot)
+        )
 
-        return listOf(ingressListener, egressListener)
+        return if (group.listenersConfig?.useTcpProxyForDomains == true) {
+            listeners + createTcpProxyVirtualListeners(group)
+        } else {
+            listeners
+        }
     }
 
     private fun createEgressListener(
@@ -144,7 +164,7 @@ class EnvoyListenersFactory(
         listenersConfig: ListenersConfig,
         globalSnapshot: GlobalSnapshot
     ): Listener {
-        return Listener.newBuilder()
+        val listener = Listener.newBuilder()
             .setName("egress_listener")
             .setAddress(
                 Address.newBuilder().setSocketAddress(
@@ -153,8 +173,17 @@ class EnvoyListenersFactory(
                         .setAddress(listenersConfig.egressHost)
                 )
             )
-            .addFilterChains(createEgressFilterChain(group, listenersConfig, globalSnapshot))
-            .build()
+
+        group.listenersConfig?.egressPort.let {
+            listener.addFilterChains(
+                FilterChain.newBuilder().setFilterChainMatch(
+                    FilterChainMatch.newBuilder()
+                        .setDestinationPort(UInt32Value.of(group.listenersConfig!!.egressPort))
+                ).addFilters(createEgressFilter(group, listenersConfig, globalSnapshot))
+            )
+                .setTrafficDirection(TrafficDirection.OUTBOUND)
+        }
+        return listener.build()
     }
 
     private fun createIngressListener(
@@ -213,16 +242,6 @@ class EnvoyListenersFactory(
         return filterChain
     }
 
-    private fun createEgressFilterChain(
-        group: Group,
-        listenersConfig: ListenersConfig,
-        globalSnapshot: GlobalSnapshot
-    ): FilterChain {
-        return FilterChain.newBuilder()
-            .addFilters(createEgressFilter(group, listenersConfig, globalSnapshot))
-            .build()
-    }
-
     private fun createEgressFilter(
         group: Group,
         listenersConfig: ListenersConfig,
@@ -230,8 +249,8 @@ class EnvoyListenersFactory(
     ): Filter {
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix("egress_http")
-            .setRds(egressRds(group.communicationMode, group.version))
-            .setHttpProtocolOptions(egressHttp1ProtocolOptions())
+            .setRds(egressRds(group.communicationMode, group.version, "default_routes"))
+            .setHttpProtocolOptions(egressHttp1ProtocolOptions)
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
             .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
 
@@ -283,13 +302,11 @@ class EnvoyListenersFactory(
             .build()
     }
 
-    private fun egressHttp1ProtocolOptions(): Http1ProtocolOptions? {
-        return Http1ProtocolOptions.newBuilder()
-            .setAllowAbsoluteUrl(boolValue(true))
-            .build()
-    }
-
-    private fun egressRds(communicationMode: CommunicationMode, version: ResourceVersion): Rds {
+    private fun egressRds(
+        communicationMode: CommunicationMode,
+        version: ResourceVersion,
+        routeConfigName: String
+    ): Rds {
         val configSource = ConfigSource.newBuilder()
             .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
 
@@ -303,7 +320,7 @@ class EnvoyListenersFactory(
         }
 
         return Rds.newBuilder()
-            .setRouteConfigName("default_routes")
+            .setRouteConfigName(routeConfigName)
             .setConfigSource(
                 configSource.build()
             )
@@ -443,6 +460,83 @@ class EnvoyListenersFactory(
             )
         )
             .build()
+    }
+
+    fun createTcpProxyVirtualListeners(group: Group): List<Listener> {
+        val portToDomain = group.proxySettings.outgoing.getDomainDependencies().groupBy(
+            { Pair(it.getPort(), it.useSsl()) }, { it }
+        ).toMap()
+
+        return portToDomain.map {
+            val listener = Listener.newBuilder()
+                .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key.first}")
+                .setAddress(
+                    Address.newBuilder().setSocketAddress(
+                        SocketAddress.newBuilder()
+                            .setPortValue(it.key.first)
+                            .setAddress(DOMAIN_PROXY_LISTENER_ADDRESS)
+                    )
+                )
+                .addAllFilterChains(createFilterChainForDomains(it.value, group, it.key))
+                .setTrafficDirection(TrafficDirection.OUTBOUND)
+                .setDeprecatedV1(
+                    Listener.DeprecatedV1.newBuilder()
+                        .setBindToPort(BoolValue.of(false))
+                )
+                .addListenerFilters(tlsInspectorFilter)
+            if (!it.key.second) {
+                listener.addListenerFilters(httpInspectorFilter)
+            }
+            listener.build()
+        }
+    }
+
+    private fun createFilterChainForDomains(
+        domains: List<DomainDependency>,
+        group: Group,
+        portAndSsl: Pair<Int, Boolean>
+    ): List<FilterChain> {
+        return domains.map {
+            val filterChainMatch = FilterChainMatch.newBuilder()
+            val filter = Filter.newBuilder()
+            if (it.useSsl()) {
+                filterChainMatch.setTransportProtocol("tls")
+                    .addServerNames(it.getHost())
+                filter
+                    .setName("envoy.tcp_proxy")
+                    .setTypedConfig(
+                        com.google.protobuf.Any.pack(
+                            TcpProxy.newBuilder()
+                                .setStatPrefix(it.getClusterName())
+                                .setCluster(it.getClusterName())
+                                .build()
+                        )
+                    )
+            } else {
+                filterChainMatch.setTransportProtocol("raw_buffer")
+                    .addApplicationProtocols("http/1.0")
+                    .addApplicationProtocols("http/1.1")
+                    .addApplicationProtocols("h2")
+                filter
+                    .setName("envoy.filters.network.http_connection_manager")
+                    .setTypedConfig(
+                        com.google.protobuf.Any.pack(
+                            HttpConnectionManager.newBuilder()
+                                .setStatPrefix("$DOMAIN_PROXY_LISTENER_ADDRESS:${portAndSsl.first}")
+                                .setRds(
+                                    egressRds(
+                                        group.communicationMode,
+                                        group.version,
+                                        "$DOMAIN_PROXY_LISTENER_ADDRESS:${portAndSsl.first}"
+                                    )
+                                )
+                                .setHttpProtocolOptions(egressHttp1ProtocolOptions)
+                                .build()
+                        )
+                    )
+            }
+            FilterChain.newBuilder().setFilterChainMatch(filterChainMatch).addFilters(filter).build()
+        }
     }
 
     private fun boolValue(value: Boolean) = BoolValue.newBuilder().setValue(value).build()

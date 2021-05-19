@@ -158,14 +158,6 @@ class EnvoySnapshotFactory(
         return newSnapshotForGroup
     }
 
-    private fun getEgressRoutesSpecification(
-        group: Group,
-        globalSnapshot: GlobalSnapshot
-    ): Collection<RouteSpecification> {
-        return getServiceRouteSpecifications(group, globalSnapshot) +
-            getDomainRouteSpecifications(group) + getDomainPatternRouteSpecifications(group)
-    }
-
     private fun getDomainRouteSpecifications(group: Group): List<RouteSpecification> {
         return group.proxySettings.outgoing.getDomainDependencies().map {
             RouteSpecification(
@@ -227,12 +219,14 @@ class EnvoySnapshotFactory(
     ): Snapshot {
 
         // TODO(dj): This is where serious refactoring needs to be done
-        val egressRouteSpecification = getEgressRoutesSpecification(group, globalSnapshot)
+        val egressDomainRouteSpecifications = getDomainRouteSpecifications(group)
+        val egressRouteSpecification = getServiceRouteSpecifications(group, globalSnapshot) +
+            egressDomainRouteSpecifications + getDomainPatternRouteSpecifications(group)
 
         val clusters: List<Cluster> =
             clustersFactory.getClustersForGroup(group, globalSnapshot)
 
-        val routes = listOf(
+        val routes = mutableListOf(
             egressRoutesFactory.createEgressRouteConfig(
                 group.serviceName, egressRouteSpecification,
                 group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
@@ -240,6 +234,10 @@ class EnvoySnapshotFactory(
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )
+
+        if (group.listenersConfig?.useTcpProxyForDomains == true) {
+            routes.addAll(egressRoutesFactory.createEgressDomainRoutes(egressDomainRouteSpecifications, group))
+        }
 
         val listeners = if (properties.dynamicListeners.enabled) {
             listenersFactory.createListeners(group, globalSnapshot)

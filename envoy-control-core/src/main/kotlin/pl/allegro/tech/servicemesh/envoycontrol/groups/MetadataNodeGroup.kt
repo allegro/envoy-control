@@ -115,6 +115,8 @@ class MetadataNodeGroup(
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
+        val useTcpProxyForDomains = metadata.fieldsMap["use_tcp_proxy_for_domains"]?.boolValue
+            ?: ListenersConfig.defaultHasStaticSecretsDefined
 
         return ListenersConfig(
             listenersHostPort.ingressHost,
@@ -130,7 +132,8 @@ class MetadataNodeGroup(
             resourcesDir,
             addUpstreamExternalAddressHeader,
             accessLogFilterSettings,
-            hasStaticSecretsDefined
+            hasStaticSecretsDefined,
+            useTcpProxyForDomains
         )
     }
 

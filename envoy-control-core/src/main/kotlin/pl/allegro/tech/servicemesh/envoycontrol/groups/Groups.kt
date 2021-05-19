@@ -42,7 +42,8 @@ data class ListenersConfig(
     val resourcesDir: String = defaultResourcesDir,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
     val accessLogFilterSettings: AccessLogFilterSettings,
-    val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined
+    val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined,
+    val useTcpProxyForDomains: Boolean = defaultUseTcpProxyForDomains
 ) {
 
     companion object {
@@ -55,5 +56,6 @@ data class ListenersConfig(
         const val defaultAddUpstreamExternalAddressHeader = false
         const val defaultResourcesDir = "envoy"
         const val defaultHasStaticSecretsDefined: Boolean = false
+        const val defaultUseTcpProxyForDomains: Boolean = false
     }
 }

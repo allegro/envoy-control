@@ -11,9 +11,11 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory.Companion.DOMAIN_PROXY_LISTENER_ADDRESS
 
 class EnvoyEgressRoutesFactory(
     private val properties: SnapshotProperties
@@ -118,6 +120,50 @@ class EnvoyEgressRoutesFactory(
         }
 
         return routeConfiguration.build()
+    }
+
+    /**
+     * @see TestResources.createRoute
+     */
+    fun createEgressDomainRoutes(
+        routes: Collection<RouteSpecification>,
+        group: Group
+    ): List<RouteConfiguration> {
+
+        val portToDomain = group.proxySettings.outgoing.getDomainDependencies().filterNot { it.useSsl() }.groupBy(
+            { it.getPort() }, { routes.filter { route -> route.clusterName == it.getClusterName() } }
+        ).toMap()
+
+        return portToDomain.map {
+            val virtualHosts = routes
+                .filter { it.routeDomains.isNotEmpty() }
+                .map { routeSpecification ->
+                    VirtualHost.newBuilder()
+                        .setName(routeSpecification.clusterName)
+                        .addAllDomains(routeSpecification.routeDomains)
+                        .addRoutes(
+                            Route.newBuilder()
+                                .setMatch(
+                                    RouteMatch.newBuilder()
+                                        .setPrefix("/")
+                                        .build()
+                                )
+                                .setRoute(
+                                    createRouteAction(routeSpecification, group.version)
+                                ).build()
+                        )
+                        .build()
+                }
+            val routeConfiguration = RouteConfiguration.newBuilder()
+                .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key}")
+                .addAllVirtualHosts(
+                    virtualHosts + wildcardRoute
+                )
+            if (properties.egress.headersToRemove.isNotEmpty()) {
+                routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
+            }
+            routeConfiguration.build()
+        }
     }
 
     private fun createRouteAction(
