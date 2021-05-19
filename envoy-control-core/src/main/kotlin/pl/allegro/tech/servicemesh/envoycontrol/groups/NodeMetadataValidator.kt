@@ -12,6 +12,7 @@ import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
 import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as DeltaDiscoveryRequestV3
 
 class V2NotSupportedException : NodeMetadataValidationException(
     "Blocked service from receiving updates. V2 resources are not supported by server."
@@ -64,7 +65,7 @@ class NodeMetadataValidator(
 
     override fun onV3StreamDeltaRequest(
         streamId: Long,
-        request: io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest?
+        request: DeltaDiscoveryRequestV3?
     ) {
         request?.node?.let { validateV3Metadata(it) }
     }

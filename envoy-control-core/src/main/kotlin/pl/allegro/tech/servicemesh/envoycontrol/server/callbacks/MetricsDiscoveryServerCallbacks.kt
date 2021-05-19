@@ -3,8 +3,9 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.api.v2.DeltaDiscoveryRequest
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest as V2DiscoveryRequest
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as V3DiscoveryRequest
+import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as DeltaDiscoveryRequestV3
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -55,20 +56,20 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
         connectionsByType(typeUrl).decrementAndGet()
     }
 
-    override fun onV3StreamRequest(streamId: Long, request: V3DiscoveryRequest) {
+    override fun onV3StreamRequest(streamId: Long, request: DiscoveryRequestV3) {
         meterRegistry.counter("grpc.requests.${StreamType.fromTypeUrl(request.typeUrl).name.toLowerCase()}")
             .increment()
     }
 
     override fun onV3StreamDeltaRequest(
         streamId: Long,
-        request: io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest
+        request: DeltaDiscoveryRequestV3
     ) {
         meterRegistry.counter("grpc.requests.${StreamType.fromTypeUrl(request.typeUrl).name.toLowerCase()}.delta")
             .increment()
     }
 
-    override fun onV2StreamRequest(streamId: Long, request: V2DiscoveryRequest) {
+    override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequestV2) {
         meterRegistry.counter("grpc.requests.${StreamType.fromTypeUrl(request.typeUrl).name.toLowerCase()}")
             .increment()
     }
