@@ -240,31 +240,31 @@ class EnvoyClustersFactory(
             )
             .setLbPolicy(properties.loadBalancing.policy)
 
-        if (ssl) {
-            val commonTlsContext = CommonTlsContext.newBuilder()
-                .setValidationContext(
-                    CertificateValidationContext.newBuilder()
-                        .setTrustedCa(
-                            // TODO: https://github.com/allegro/envoy-control/issues/5
-                            DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
-                        ).build()
-                ).build()
-
-            val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext).build()
-            val transportSocket = TransportSocket.newBuilder()
-                .setTypedConfig(
-                    Any.pack(
-                        upstreamTlsContext
-                    )
-                )
-                .setName("envoy.transport_sockets.tls").build()
-
-            clusterBuilder
-                .setTransportSocket(transportSocket)
-                .setUpstreamHttpProtocolOptions(
-                    UpstreamHttpProtocolOptions.newBuilder().setAutoSanValidation(true).setAutoSni(true).build()
-                )
-        }
+        // if (ssl) {
+        //     val commonTlsContext = CommonTlsContext.newBuilder()
+        //         .setValidationContext(
+        //             CertificateValidationContext.newBuilder()
+        //                 .setTrustedCa(
+        //                     // TODO: https://github.com/allegro/envoy-control/issues/5
+        //                     DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
+        //                 ).build()
+        //         ).build()
+        //
+        //     val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext).build()
+        //     val transportSocket = TransportSocket.newBuilder()
+        //         .setTypedConfig(
+        //             Any.pack(
+        //                 upstreamTlsContext
+        //             )
+        //         )
+        //         .setName("envoy.transport_sockets.tls").build()
+        //
+        //     clusterBuilder
+        //         .setTransportSocket(transportSocket)
+        //         .setUpstreamHttpProtocolOptions(
+        //             UpstreamHttpProtocolOptions.newBuilder().setAutoSanValidation(true).setAutoSni(true).build()
+        //         )
+        // }
 
         return clusterBuilder.build()
     }
