@@ -328,7 +328,7 @@ data class OAuthProvider(
 )
 
 class JwtFilterProperties {
-    var forwardJwt: Boolean = false
+    var forwardJwt: Boolean = true
     var forwardPayloadHeader = "x-oauth-token-validated"
     var payloadInMetadata = "jwt"
     var defaultVerificationType = OAuth.Verification.OFFLINE

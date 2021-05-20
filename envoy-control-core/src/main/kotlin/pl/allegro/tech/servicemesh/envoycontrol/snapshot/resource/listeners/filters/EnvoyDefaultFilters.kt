@@ -43,7 +43,7 @@ class EnvoyDefaultFilters(
         luaFilterFactory.ingressClientNameHeaderFilter()
     }
 
-    private val defaultJwtHttpFilter = { group : Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
+    private val defaultJwtHttpFilter = { group: Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
 
     private val defaultAuthorizationHeaderFilter = { _: Group, _: GlobalSnapshot ->
         authorizationHeaderToMetadataFilter()
@@ -111,18 +111,21 @@ class EnvoyDefaultFilters(
             .build()
     }
 
-   private fun authorizationHeaderToMetadataFilter(): HttpFilter? =
+    private fun authorizationHeaderToMetadataFilter(): HttpFilter? =
         HttpFilter.newBuilder().setName("envoy.filters.http.header_to_metadata").setTypedConfig(
             Any.pack(
                 Config.newBuilder()
-                    .addAllRequestRules(
-                        listOf(
-                            Config.Rule.newBuilder().setHeader("authorization").setOnHeaderMissing(
-                                Config.KeyValuePair.newBuilder().setKey("jwt-missing").setValue("true")
-                            ).setOnHeaderPresent(
-                                Config.KeyValuePair.newBuilder().setKey("jwt-missing").setValue("false")
-                            ).setRemove(false).build()
-                        )
+                    .addRequestRules(
+                        Config.Rule.newBuilder().setHeader("authorization")
+                            .setOnHeaderMissing(
+                                Config.KeyValuePair.newBuilder().setKey("jwt-status").setValue("missing")
+                            )
+                            .setOnHeaderPresent(
+                                Config.KeyValuePair.newBuilder().setKey("jwt-status").setValue("present")
+                            )
+                            .setRemove(false)
+                            .build()
+
                     )
                     .build()
             )

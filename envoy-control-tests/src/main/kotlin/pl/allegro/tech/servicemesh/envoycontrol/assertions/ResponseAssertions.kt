@@ -17,14 +17,6 @@ fun ObjectAssert<Response>.isForbidden(): ObjectAssert<Response> {
     return this
 }
 
-fun ObjectAssert<Response>.isUnauthorized(): ObjectAssert<Response> {
-    matches({
-        it.body()?.close()
-        it.code() == 401
-    }, "is unauthorized")
-    return this
-}
-
 fun ObjectAssert<Response>.isUnreachable(): ObjectAssert<Response> {
     matches({
         it.body()?.close()

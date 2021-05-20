@@ -13,7 +13,6 @@ import pl.allegro.tech.discovery.consul.recipes.internal.http.MediaType
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isForbidden
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
-import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnauthorized
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
@@ -74,15 +73,15 @@ class JWTFilterTest {
                     unlistedEndpointsPolicy: blockAndLog
                     endpoints: 
                     - path: '/first-provider-protected'
-                      clients: []
-                      unlistedClientsPolicy: log
+                      clients: ['echo2']
+                      unlistedClientsPolicy: blockAndLog
                       oauth:
                         provider: 'first-provider'
                         verification: offline
                         policy: strict
                     - path: '/second-provider-protected'
-                      clients: []
-                      unlistedClientsPolicy: log
+                      clients: ['echo2']
+                      unlistedClientsPolicy: blockAndLog
                       oauth:
                         provider: 'second-provider'
                         verification: offline
@@ -100,7 +99,14 @@ class JWTFilterTest {
                       oauth:
                         provider: 'first-provider'
                         verification: offline
-                        policy: allow_missing
+                        policy: allowMissing
+                    - path: '/first-provider-allow-missing-or-failed'
+                      clients: ['echo2']
+                      unlistedClientsPolicy: blockAndLog
+                      oauth:
+                        provider: 'first-provider'
+                        verification: offline
+                        policy: allowMissingOrFailed                                                   
         """.trimIndent()
         )
 
@@ -125,14 +131,23 @@ class JWTFilterTest {
 
     @Test
     fun `should reject request without jwt`() {
+        // given
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            name = "echo",
+            extension = envoy,
+            tags = listOf("mtls:enabled")
+        )
+        echo2Envoy.waitForAvailableEndpoints("echo")
 
         // when
-        val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/first-provider-protected"
+        val response = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/first-provider-protected"
         )
 
+
         // then
-        assertThat(response).isUnauthorized()
+        assertThat(response).isForbidden()
     }
 
     @Test
@@ -140,10 +155,18 @@ class JWTFilterTest {
 
         // given
         val token = tokenForProvider("first-provider")
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            name = "echo",
+            extension = envoy,
+            tags = listOf("mtls:enabled")
+        )
+        echo2Envoy.waitForAvailableEndpoints("echo")
 
         // when
-        val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/first-provider-protected", headers = Headers.of("Authorization", "Bearer $token")
+        val response = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/first-provider-protected",
+            headers = mapOf("Authorization" to "Bearer $token")
         )
 
         // then
@@ -156,14 +179,22 @@ class JWTFilterTest {
         // given
         val invalidToken = this::class.java.classLoader
             .getResource("oauth/invalid_jwks_token")!!.readText()
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            name = "echo",
+            extension = envoy,
+            tags = listOf("mtls:enabled")
+        )
+        echo2Envoy.waitForAvailableEndpoints("echo")
 
         // when
-        val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/first-provider-protected", headers = Headers.of("Authorization", "Bearer $invalidToken")
+        val response = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/first-provider-protected",
+            headers = mapOf("Authorization" to "Bearer $invalidToken")
         )
 
         // then
-        assertThat(response).isUnauthorized()
+        assertThat(response).isForbidden()
     }
 
     @Test
@@ -171,14 +202,22 @@ class JWTFilterTest {
 
         // given
         val token = tokenForProvider("wrong-provider")
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            name = "echo",
+            extension = envoy,
+            tags = listOf("mtls:enabled")
+        )
+        echo2Envoy.waitForAvailableEndpoints("echo")
 
         // when
-        val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/first-provider-protected", headers = Headers.of("Authorization", "Bearer $token")
+        val response = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/first-provider-protected",
+            headers = mapOf("Authorization" to "Bearer $token")
         )
 
         // then
-        assertThat(response).isUnauthorized()
+        assertThat(response).isForbidden()
     }
 
     @Test
@@ -241,7 +280,7 @@ class JWTFilterTest {
     }
 
     @Test
-    fun `should allow client with listed name to access endpoint when oauth policy is allowMissing`() {
+    fun `should allow client with listed name and no token to access endpoint when oauth policy is allowMissing`() {
 
         // given
         consul.server.operations.registerServiceWithEnvoyOnIngress(
@@ -259,6 +298,54 @@ class JWTFilterTest {
 
         // then
         assertThat(echoResponse).isOk().isFrom(service)
+    }
+
+    @Test
+    fun `should not allow request with wrong token when policy is allow missing`(){
+
+        // given
+        val token = tokenForProvider("wrong-provider")
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            name = "echo",
+            extension = envoy,
+            tags = listOf("mtls:enabled")
+        )
+        echo2Envoy.waitForAvailableEndpoints("echo")
+
+        // when
+        val echoResponse = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/oauth-or-tls" ,
+            headers = mapOf("Authorization" to "Bearer $token")
+
+        )
+
+        // then
+        assertThat(echoResponse).isForbidden()
+    }
+
+    @Test
+    fun `should allow request with wrong token when policy is allow missing or failed`(){
+
+        // given
+        val token = tokenForProvider("wrong-provider")
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            name = "echo",
+            extension = envoy,
+            tags = listOf("mtls:enabled")
+        )
+        echo2Envoy.waitForAvailableEndpoints("echo")
+
+        // when
+        val echoResponse = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/first-provider-allow-missing-or-failed" ,
+            headers = mapOf("Authorization" to "Bearer $token")
+
+        )
+
+        // then
+        assertThat(echoResponse).isFrom(service).isOk()
     }
 
     private fun tokenForProvider(provider: String, clientId: String = "client1") =

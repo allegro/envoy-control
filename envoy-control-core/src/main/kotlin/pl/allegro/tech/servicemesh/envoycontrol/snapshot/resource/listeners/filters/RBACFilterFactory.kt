@@ -11,6 +11,7 @@ import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import io.envoyproxy.envoy.type.matcher.v3.ListMatcher
 import io.envoyproxy.envoy.type.matcher.v3.MetadataMatcher
+import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import io.envoyproxy.envoy.type.matcher.v3.ValueMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -79,12 +80,13 @@ class RBACFilterFactory(
         val principalCache = mutableMapOf<ClientWithSelector, List<Principal>>()
         return incomingPermissions.endpoints.map { incomingEndpoint ->
             val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
-            val jwtFilterPrincipal = setOf(jwtFilterPrincipal(incomingEndpoint.oauth?.policy)).filterNotNull()
+            val jwtFilterPrincipal = jwtFilterPrincipal(incomingEndpoint.oauth?.policy)
+
             val principals = clientsWithSelectors
                 .flatMap { client ->
                     principalCache.computeIfAbsent(client) { mapClientWithSelectorToPrincipals(it, snapshot) }
                 }.toSet()
-                .plus(jwtFilterPrincipal)
+                .map { if(jwtFilterPrincipal != null ) Principal.newBuilder(it).mergeFrom(jwtFilterPrincipal).build() else it }
                 .ifEmpty { setOf(denyForAllPrincipal) }
 
             val policy = Policy.newBuilder().addAllPrincipals(principals)
@@ -258,10 +260,10 @@ class RBACFilterFactory(
                                 MetadataMatcher.newBuilder()
                                     .setFilter("envoy.filters.http.header_to_metadata")
                                     .addPath(
-                                        MetadataMatcher.PathSegment.newBuilder().setKey("jwt-missing").build()
+                                        MetadataMatcher.PathSegment.newBuilder().setKey("jwt-status").build()
                                     )
                                     .setValue(
-                                        ValueMatcher.newBuilder().setBoolMatch(true)
+                                        ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setExact("missing"))
                                     )
                             )
                             .build(),
@@ -284,21 +286,25 @@ class RBACFilterFactory(
                                 MetadataMatcher.newBuilder()
                                     .setFilter("envoy.filters.http.header_to_metadata")
                                     .addPath(
-                                        MetadataMatcher.PathSegment.newBuilder().setKey("jwt-missing").build()
+                                        MetadataMatcher.PathSegment.newBuilder().setKey("jwt-status").build()
                                     )
                                     .setValue(
-                                        ValueMatcher.newBuilder().setBoolMatch(false)
+                                        ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setExact("present"))
                                     )
-                            ).build(),
+                            ).build()
+                            ,
                             Principal.newBuilder().setMetadata(
                                 MetadataMatcher.newBuilder()
                                     .setFilter("envoy.filters.http.jwt_authn")
                                     .addPath(
                                         MetadataMatcher.PathSegment.newBuilder()
-                                            .setKey(jwtProperties.payloadInMetadata).build()
+                                            .setKey(jwtProperties.payloadInMetadata)
+                                    ).addPath(
+                                        MetadataMatcher.PathSegment.newBuilder()
+                                            .setKey("jti")
                                     )
                                     .setValue(
-                                        ValueMatcher.newBuilder().setPresentMatch(true)
+                                        ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setContains("-"))
                                     ).build()
                             ).build()
                         )

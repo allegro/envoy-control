@@ -8,6 +8,7 @@ import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtProvider
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirement
+import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirementAndList
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirementOrList
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RemoteJwks
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RequirementRule
@@ -35,9 +36,8 @@ class JwtFilterFactory(
                     Any.pack(
                         JwtAuthentication.newBuilder().putAllProviders(
                             jwtProviders
-                        ).addAllRules(
-                            createRules(group.proxySettings.incoming.endpoints)
                         )
+                           .addAllRules(createRules(group.proxySettings.incoming.endpoints))
                             .build()
                     )
                 )
@@ -98,13 +98,17 @@ class JwtFilterFactory(
     }
 
     private fun createJwtRequirement(provider: String): JwtRequirement {
-        return JwtRequirement.newBuilder().setRequiresAny(
+        return JwtRequirement.newBuilder()
+           // .setAllowMissing(Empty.getDefaultInstance())
+           //  .setProviderName(provider)
+            .setRequiresAny(
                     JwtRequirementOrList.newBuilder().addAllRequirements(
                         listOf(
                             JwtRequirement.newBuilder().setProviderName(provider).build(),
-                            JwtRequirement.newBuilder().setAllowMissingOrFailed(Empty.getDefaultInstance()).build()
+                            JwtRequirement.newBuilder().setAllowMissing(Empty.getDefaultInstance()).build()
                         )
                     )
-                ).build()
+                )
+            .build()
     }
 }
