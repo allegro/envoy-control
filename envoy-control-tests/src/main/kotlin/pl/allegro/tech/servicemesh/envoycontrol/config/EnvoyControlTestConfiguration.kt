@@ -23,7 +23,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.time.Duration
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 data class EnvoyConfig(
     val filePath: String,
@@ -61,7 +60,7 @@ val AdsWithDisabledEndpointPermissions = EnvoyConfig("envoy/config_ads_disabled_
 val AdsWithStaticListeners = EnvoyConfig("envoy/config_ads_static_listeners.yaml")
 val AdsWithNoDependencies = EnvoyConfig("envoy/config_ads_no_dependencies.yaml")
 val Xds = EnvoyConfig("envoy/config_xds.yaml")
-val RandomConfigFile = listOf(Ads, Xds, DeltaAds).random()
+val RandomConfigFile = DeltaAds
 
 @Deprecated("use extension approach instead, e.g. RetryPolicyTest")
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
