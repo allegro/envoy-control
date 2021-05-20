@@ -28,6 +28,7 @@ import io.envoyproxy.envoy.config.listener.v3.FilterChainMatch
 import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.listener.v3.ListenerFilter
 import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
+import io.envoyproxy.envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
@@ -114,9 +115,22 @@ class EnvoyListenersFactory(
         .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
         .build()
 
-    private val tlsInspectorFilter = ListenerFilter.newBuilder().setName("envoy.filters.listener.tls_inspector").build()
+    private val tlsInspectorFilter = ListenerFilter
+        .newBuilder()
+        .setName("envoy.filters.listener.tls_inspector")
+        .setTypedConfig(
+            ProtobufAny.pack(
+                TlsInspector.getDefaultInstance()
+            )
+        )
+        .build()
     private val httpInspectorFilter = ListenerFilter.newBuilder()
         .setName("envoy.filters.listener.http_inspector")
+        .setTypedConfig(
+            ProtobufAny.pack(
+                TlsInspector.getDefaultInstance()
+            )
+        ).build()
 
     private enum class TransportProtocol(
         value: String,
