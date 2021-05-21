@@ -62,7 +62,7 @@ class SnapshotsVersions {
         listenersChanged: Boolean,
         clustersChanged: Boolean
     ): RoutesVersion {
-        return if (listenersChanged || clustersChanged) RoutesVersion(newVersion()) else previous.version.routes
+        return if (listenersChanged) RoutesVersion(newVersion()) else previous.version.routes
     }
 
     private fun selectListeners(previous: VersionsWithData, hasChanged: Boolean): ListenersVersion {
