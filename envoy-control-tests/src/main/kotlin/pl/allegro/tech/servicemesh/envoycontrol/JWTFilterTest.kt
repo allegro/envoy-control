@@ -145,7 +145,6 @@ class JWTFilterTest {
             pathAndQuery = "/first-provider-protected"
         )
 
-
         // then
         assertThat(response).isForbidden()
     }
@@ -301,7 +300,7 @@ class JWTFilterTest {
     }
 
     @Test
-    fun `should not allow request with wrong token when policy is allow missing`(){
+    fun `should reject request with wrong token when policy is allow missing`() {
 
         // given
         val token = tokenForProvider("wrong-provider")
@@ -315,7 +314,7 @@ class JWTFilterTest {
         // when
         val echoResponse = echo2Envoy.egressOperations.callService(
             service = "echo",
-            pathAndQuery = "/oauth-or-tls" ,
+            pathAndQuery = "/oauth-or-tls",
             headers = mapOf("Authorization" to "Bearer $token")
 
         )
@@ -325,7 +324,21 @@ class JWTFilterTest {
     }
 
     @Test
-    fun `should allow request with wrong token when policy is allow missing or failed`(){
+    fun `should reject request with valid token when unlistedClientsPolicy is blockAndLog`() {
+        // given
+        val token = tokenForProvider("first-provider")
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+                endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token")
+        )
+
+        // then
+        assertThat(response).isForbidden()
+    }
+
+    @Test
+    fun `should allow request with wrong token when policy is allowMissingOrFailed`() {
 
         // given
         val token = tokenForProvider("wrong-provider")
@@ -339,7 +352,7 @@ class JWTFilterTest {
         // when
         val echoResponse = echo2Envoy.egressOperations.callService(
             service = "echo",
-            pathAndQuery = "/first-provider-allow-missing-or-failed" ,
+            pathAndQuery = "/first-provider-allow-missing-or-failed",
             headers = mapOf("Authorization" to "Bearer $token")
 
         )

@@ -8,14 +8,12 @@ import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtProvider
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirement
-import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirementAndList
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirementOrList
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RemoteJwks
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RequirementRule
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
-import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ProviderName
@@ -25,8 +23,7 @@ class JwtFilterFactory(
 ) {
 
     private val jwtProviders: Map<String, JwtProvider> = getJwtProviders()
-    private val providersPolicyToJwtRequirements: Map<Pair<String, OAuth.Policy>, JwtRequirement> =
-        createProviderPolicyToJwtRequirements()
+    private val providersToJwtRequirements: Map<String, JwtRequirement> = createProviderPolicyToJwtRequirements()
 
     fun createJwtFilter(group: Group): HttpFilter? {
         return if (shouldCreateFilter(group)) {
@@ -83,29 +80,26 @@ class JwtFilterFactory(
             RequirementRule.newBuilder().setMatch(
                 RouteMatch.newBuilder().setPrefix(endpoint.path)
             ).setRequires(
-                providersPolicyToJwtRequirements[endpoint.oauth.provider to endpoint.oauth.policy]
+                providersToJwtRequirements[endpoint.oauth.provider]
             ).build()
         } else {
             null
         }
     }
 
-    private fun createProviderPolicyToJwtRequirements(): Map<Pair<String, OAuth.Policy>, JwtRequirement> {
-        return properties.providers.keys.flatMap { providerName ->
-            OAuth.Policy.values()
-                .map { policy -> Pair(providerName, policy) to createJwtRequirement(providerName) }
-        }.associateBy({ it.first }, { it.second })
+    private fun createProviderPolicyToJwtRequirements(): Map<String, JwtRequirement> {
+        return properties.providers.keys.associateWith { providerName ->
+            createJwtRequirement(providerName)
+        }
     }
 
     private fun createJwtRequirement(provider: String): JwtRequirement {
         return JwtRequirement.newBuilder()
-           // .setAllowMissing(Empty.getDefaultInstance())
-           //  .setProviderName(provider)
             .setRequiresAny(
                     JwtRequirementOrList.newBuilder().addAllRequirements(
                         listOf(
                             JwtRequirement.newBuilder().setProviderName(provider).build(),
-                            JwtRequirement.newBuilder().setAllowMissing(Empty.getDefaultInstance()).build()
+                            JwtRequirement.newBuilder().setAllowMissingOrFailed(Empty.getDefaultInstance()).build()
                         )
                     )
                 )

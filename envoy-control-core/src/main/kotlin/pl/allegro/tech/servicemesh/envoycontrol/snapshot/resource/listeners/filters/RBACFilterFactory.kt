@@ -24,6 +24,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
@@ -80,13 +81,18 @@ class RBACFilterFactory(
         val principalCache = mutableMapOf<ClientWithSelector, List<Principal>>()
         return incomingPermissions.endpoints.map { incomingEndpoint ->
             val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
-            val jwtFilterPrincipal = jwtFilterPrincipal(incomingEndpoint.oauth?.policy)
 
             val principals = clientsWithSelectors
                 .flatMap { client ->
-                    principalCache.computeIfAbsent(client) { mapClientWithSelectorToPrincipals(it, snapshot) }
-                }.toSet()
-                .map { if(jwtFilterPrincipal != null ) Principal.newBuilder(it).mergeFrom(jwtFilterPrincipal).build() else it }
+                    principalCache.computeIfAbsent(client) {
+                        mapClientWithSelectorToPrincipals(
+                            it,
+                            snapshot
+                        )
+                    }
+                }
+                .flatMap { mergeWithOAuthPolicy(it, incomingEndpoint.oauth?.policy) }
+                .toSet()
                 .ifEmpty { setOf(denyForAllPrincipal) }
 
             val policy = Policy.newBuilder().addAllPrincipals(principals)
@@ -244,74 +250,68 @@ class RBACFilterFactory(
         } else if (staticRangesForClient != null) {
             listOf(staticRangesForClient)
         } else if (providerForSelector != null && clientWithSelector.selector != null) {
-            listOf(jwtPrincipal(clientWithSelector))
+            listOf(jwtClientWithSelectorPrincipal(clientWithSelector, providerForSelector))
         } else {
             tlsPrincipals(clientWithSelector.name)
         }
     }
-    private fun jwtFilterPrincipal(oAuthPolicy: OAuth.Policy?): Principal? =
-        if (oAuthPolicy != null) {
-            when (oAuthPolicy) {
-                OAuth.Policy.ALLOW_MISSING ->
-                    Principal.newBuilder().setOrIds(Principal.Set.newBuilder().addAllIds(
-                        listOf(
-                            Principal.newBuilder()
-                            .setMetadata(
-                                MetadataMatcher.newBuilder()
-                                    .setFilter("envoy.filters.http.header_to_metadata")
-                                    .addPath(
-                                        MetadataMatcher.PathSegment.newBuilder().setKey("jwt-status").build()
-                                    )
-                                    .setValue(
-                                        ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setExact("missing"))
-                                    )
-                            )
-                            .build(),
-                            strictPolicyPrincipal()
-                        )
-                    )).build()
-                OAuth.Policy.STRICT -> strictPolicyPrincipal()
-                OAuth.Policy.ALLOW_MISSING_OR_FAILED -> null // any value
-            }
-        } else {
-            null
-        }
 
-    private fun strictPolicyPrincipal(): Principal {
-        return Principal.newBuilder()
-                .setAndIds(
-                    Principal.Set.newBuilder().addAllIds(
-                        listOf(
-                            Principal.newBuilder().setMetadata(
-                                MetadataMatcher.newBuilder()
-                                    .setFilter("envoy.filters.http.header_to_metadata")
-                                    .addPath(
-                                        MetadataMatcher.PathSegment.newBuilder().setKey("jwt-status").build()
-                                    )
-                                    .setValue(
-                                        ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setExact("present"))
-                                    )
-                            ).build()
-                            ,
-                            Principal.newBuilder().setMetadata(
-                                MetadataMatcher.newBuilder()
-                                    .setFilter("envoy.filters.http.jwt_authn")
-                                    .addPath(
-                                        MetadataMatcher.PathSegment.newBuilder()
-                                            .setKey(jwtProperties.payloadInMetadata)
-                                    ).addPath(
-                                        MetadataMatcher.PathSegment.newBuilder()
-                                            .setKey("jti")
-                                    )
-                                    .setValue(
-                                        ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setContains("-"))
-                                    ).build()
-                            ).build()
-                        )
-                    )
-                ).build()
+    private fun mergeWithOAuthPolicy(principal: Principal, policy: OAuth.Policy?): List<Principal> =
+        when (policy) {
+        OAuth.Policy.ALLOW_MISSING -> listOf(
+            principal.toBuilder().mergeAndIds(allowMissingPolicyPrincipal).build(),
+            principal.toBuilder().mergeAndIds(strictPolicyPrincipal).build()
+        )
+        OAuth.Policy.STRICT -> listOf(principal.toBuilder().mergeAndIds(strictPolicyPrincipal).build())
+        OAuth.Policy.ALLOW_MISSING_OR_FAILED -> listOf(principal)
+        null -> listOf(principal)
     }
-    private fun jwtPrincipal(client: ClientWithSelector): Principal {
+
+    private val strictPolicyPrincipal =
+        Principal.Set.newBuilder().addAllIds(
+            listOf(
+                Principal.newBuilder().setMetadata(
+                    MetadataMatcher.newBuilder()
+                        .setFilter("envoy.filters.http.header_to_metadata")
+                        .addPath(
+                            MetadataMatcher.PathSegment.newBuilder().setKey("jwt-status").build()
+                        )
+                        .setValue(
+                            ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setExact("present"))
+                        )
+                ).build(),
+                Principal.newBuilder().setMetadata(
+                    MetadataMatcher.newBuilder()
+                        .setFilter("envoy.filters.http.jwt_authn")
+                        .addPath(
+                            MetadataMatcher.PathSegment.newBuilder()
+                                .setKey(jwtProperties.payloadInMetadata)
+                        ).addPath(
+                            MetadataMatcher.PathSegment.newBuilder()
+                                .setKey("exp")
+                        )
+                        .setValue(ValueMatcher.newBuilder().setPresentMatch(true)).build()
+                ).build()
+            )
+        ).build()
+
+    private val allowMissingPolicyPrincipal =
+        Principal.Set.newBuilder().addIds(
+                Principal.newBuilder()
+                    .setMetadata(
+                        MetadataMatcher.newBuilder()
+                            .setFilter("envoy.filters.http.header_to_metadata")
+                            .addPath(
+                                MetadataMatcher.PathSegment.newBuilder().setKey("jwt-status").build()
+                            )
+                            .setValue(
+                                ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setExact("missing"))
+                            )
+                    )
+                    .build()
+            ).build()
+
+    private fun jwtClientWithSelectorPrincipal(client: ClientWithSelector, oAuthProvider: OAuthProvider): Principal {
         return Principal.newBuilder().setMetadata(
             MetadataMatcher.newBuilder()
                 .setFilter("envoy.filters.http.jwt_authn")
@@ -321,13 +321,13 @@ class RBACFilterFactory(
                 )
                 .addPath(
                     MetadataMatcher.PathSegment.newBuilder()
-                        .setKey(client.selector).build()
+                        .setKey(oAuthProvider.selectorToTokenField[client.selector]).build()
                 )
                 .setValue(
                     ValueMatcher.newBuilder().setListMatch(
                         ListMatcher.newBuilder().setOneOf(
                             ValueMatcher.newBuilder().setStringMatch(
-                                io.envoyproxy.envoy.type.matcher.v3.StringMatcher.newBuilder()
+                                StringMatcher.newBuilder()
                                     .setExact(client.name)
                             )
                         )
