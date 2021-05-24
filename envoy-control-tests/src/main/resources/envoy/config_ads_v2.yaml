@@ -8,7 +8,7 @@ dynamic_resources:
   cds_config:
     ads: {}
   ads_config:
-    api_type: DELTA_GRPC
+    api_type: GRPC
     grpc_services:
       envoy_grpc:
         cluster_name: envoy-control-xds

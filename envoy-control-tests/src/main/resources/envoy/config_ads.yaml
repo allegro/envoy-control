@@ -11,7 +11,7 @@ dynamic_resources:
     ads: {}
   ads_config:
     transport_api_version: V3
-    api_type: DELTA_GRPC
+    api_type: GRPC
     grpc_services:
       envoy_grpc:
         cluster_name: envoy-control-xds
