@@ -44,6 +44,15 @@ val DeltaAds = Ads.copy(
           api_type: DELTA_GRPC
 """.trimIndent()
 )
+
+val DeltaAdsAllDependencies = AdsAllDependencies.copy(
+    configOverride = """
+      dynamic_resources:
+        ads_config:
+          api_type: DELTA_GRPC
+""".trimIndent()
+)
+
 val AdsV2 = EnvoyConfig("envoy/config_ads_v2.yaml")
 val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml")
 val Echo2EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
