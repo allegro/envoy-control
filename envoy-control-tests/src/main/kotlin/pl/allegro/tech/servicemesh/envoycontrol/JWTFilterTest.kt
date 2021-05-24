@@ -132,12 +132,7 @@ class JWTFilterTest {
     @Test
     fun `should reject request without jwt`() {
         // given
-        consul.server.operations.registerServiceWithEnvoyOnIngress(
-            name = "echo",
-            extension = envoy,
-            tags = listOf("mtls:enabled")
-        )
-        echo2Envoy.waitForAvailableEndpoints("echo")
+        registerEnvoyServiceAndWait()
 
         // when
         val response = echo2Envoy.egressOperations.callService(
@@ -154,12 +149,7 @@ class JWTFilterTest {
 
         // given
         val token = tokenForProvider("first-provider")
-        consul.server.operations.registerServiceWithEnvoyOnIngress(
-            name = "echo",
-            extension = envoy,
-            tags = listOf("mtls:enabled")
-        )
-        echo2Envoy.waitForAvailableEndpoints("echo")
+        registerEnvoyServiceAndWait()
 
         // when
         val response = echo2Envoy.egressOperations.callService(
@@ -178,12 +168,7 @@ class JWTFilterTest {
         // given
         val invalidToken = this::class.java.classLoader
             .getResource("oauth/invalid_jwks_token")!!.readText()
-        consul.server.operations.registerServiceWithEnvoyOnIngress(
-            name = "echo",
-            extension = envoy,
-            tags = listOf("mtls:enabled")
-        )
-        echo2Envoy.waitForAvailableEndpoints("echo")
+        registerEnvoyServiceAndWait()
 
         // when
         val response = echo2Envoy.egressOperations.callService(
@@ -201,12 +186,7 @@ class JWTFilterTest {
 
         // given
         val token = tokenForProvider("wrong-provider")
-        consul.server.operations.registerServiceWithEnvoyOnIngress(
-            name = "echo",
-            extension = envoy,
-            tags = listOf("mtls:enabled")
-        )
-        echo2Envoy.waitForAvailableEndpoints("echo")
+        registerEnvoyServiceAndWait()
 
         // when
         val response = echo2Envoy.egressOperations.callService(
@@ -225,13 +205,18 @@ class JWTFilterTest {
         // given
         val firstProviderToken = tokenForProvider("first-provider")
         val secondProviderToken = tokenForProvider("second-provider")
+        registerEnvoyServiceAndWait()
 
         // when
-        val firstProviderResponse = envoy.ingressOperations.callLocalService(
-            endpoint = "/first-provider-protected", headers = Headers.of("Authorization", "Bearer $firstProviderToken")
+        val firstProviderResponse = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/first-provider-protected",
+            headers = mapOf("Authorization" to "Bearer $firstProviderToken")
         )
-        val secondProviderResponse = envoy.ingressOperations.callLocalService(
-            endpoint = "/second-provider-protected", headers = Headers.of("Authorization", "Bearer $secondProviderToken")
+        val secondProviderResponse = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/second-provider-protected",
+            headers = mapOf("Authorization" to "Bearer $secondProviderToken")
         )
 
         // then
@@ -279,15 +264,29 @@ class JWTFilterTest {
     }
 
     @Test
+    fun `should allow request with valid token when policy is allow missing`() {
+
+        // given
+        val token = tokenForProvider("first-provider")
+        registerEnvoyServiceAndWait()
+
+        // when
+        val echoResponse = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/oauth-or-tls",
+            headers = mapOf("Authorization" to "Bearer $token")
+
+        )
+
+        // then
+        assertThat(echoResponse).isOk()
+    }
+
+    @Test
     fun `should allow client with listed name and no token to access endpoint when oauth policy is allowMissing`() {
 
         // given
-        consul.server.operations.registerServiceWithEnvoyOnIngress(
-            name = "echo",
-            extension = envoy,
-            tags = listOf("mtls:enabled")
-        )
-        echo2Envoy.waitForAvailableEndpoints("echo")
+        registerEnvoyServiceAndWait()
 
         // when
         val echoResponse = echo2Envoy.egressOperations.callService(
@@ -304,12 +303,7 @@ class JWTFilterTest {
 
         // given
         val token = tokenForProvider("wrong-provider")
-        consul.server.operations.registerServiceWithEnvoyOnIngress(
-            name = "echo",
-            extension = envoy,
-            tags = listOf("mtls:enabled")
-        )
-        echo2Envoy.waitForAvailableEndpoints("echo")
+        registerEnvoyServiceAndWait()
 
         // when
         val echoResponse = echo2Envoy.egressOperations.callService(
@@ -342,12 +336,7 @@ class JWTFilterTest {
 
         // given
         val token = tokenForProvider("wrong-provider")
-        consul.server.operations.registerServiceWithEnvoyOnIngress(
-            name = "echo",
-            extension = envoy,
-            tags = listOf("mtls:enabled")
-        )
-        echo2Envoy.waitForAvailableEndpoints("echo")
+        registerEnvoyServiceAndWait()
 
         // when
         val echoResponse = echo2Envoy.egressOperations.callService(
@@ -359,6 +348,15 @@ class JWTFilterTest {
 
         // then
         assertThat(echoResponse).isFrom(service).isOk()
+    }
+
+    private fun registerEnvoyServiceAndWait() {
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            name = "echo",
+            extension = envoy,
+            tags = listOf("mtls:enabled")
+        )
+        echo2Envoy.waitForAvailableEndpoints("echo")
     }
 
     private fun tokenForProvider(provider: String, clientId: String = "client1") =

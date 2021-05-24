@@ -91,7 +91,7 @@ class RBACFilterFactory(
                         )
                     }
                 }
-                .flatMap { mergeWithOAuthPolicy(it, incomingEndpoint.oauth?.policy) }
+                .map { mergeWithOAuthPolicy(it, incomingEndpoint.oauth?.policy) }
                 .toSet()
                 .ifEmpty { setOf(denyForAllPrincipal) }
 
@@ -256,18 +256,37 @@ class RBACFilterFactory(
         }
     }
 
-    private fun mergeWithOAuthPolicy(principal: Principal, policy: OAuth.Policy?): List<Principal> =
+    private fun mergeWithOAuthPolicy(principal: Principal, policy: OAuth.Policy?): Principal =
         when (policy) {
-        OAuth.Policy.ALLOW_MISSING -> listOf(
-            principal.toBuilder().mergeAndIds(allowMissingPolicyPrincipal).build(),
-            principal.toBuilder().mergeAndIds(strictPolicyPrincipal).build()
-        )
-        OAuth.Policy.STRICT -> listOf(principal.toBuilder().mergeAndIds(strictPolicyPrincipal).build())
-        OAuth.Policy.ALLOW_MISSING_OR_FAILED -> listOf(principal)
-        null -> listOf(principal)
+        OAuth.Policy.ALLOW_MISSING -> {
+            Principal.newBuilder().setAndIds(
+                Principal.Set.newBuilder().addAllIds(
+                    listOf(
+                        allowMissingPolicyPrincipal,
+                        principal
+                    )
+                )
+            ).build()
+        }
+        OAuth.Policy.STRICT -> {
+            Principal.newBuilder().setAndIds(
+                Principal.Set.newBuilder().addAllIds(
+                    listOf(
+                        strictPolicyPrincipal,
+                        principal
+                    )
+                )
+            ).build()
+        }
+        OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
+            principal
+        }
+        null -> {
+            principal
+        }
     }
 
-    private val strictPolicyPrincipal =
+    private val strictPolicyPrincipal = Principal.newBuilder().setAndIds(
         Principal.Set.newBuilder().addAllIds(
             listOf(
                 Principal.newBuilder().setMetadata(
@@ -294,9 +313,11 @@ class RBACFilterFactory(
                 ).build()
             )
         ).build()
+    ).build()
 
-    private val allowMissingPolicyPrincipal =
-        Principal.Set.newBuilder().addIds(
+    private val allowMissingPolicyPrincipal = Principal.newBuilder().setOrIds(
+        Principal.Set.newBuilder().addAllIds(
+            listOf(
                 Principal.newBuilder()
                     .setMetadata(
                         MetadataMatcher.newBuilder()
@@ -308,8 +329,11 @@ class RBACFilterFactory(
                                 ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setExact("missing"))
                             )
                     )
-                    .build()
+                    .build(),
+                strictPolicyPrincipal
+)
             ).build()
+    ).build()
 
     private fun jwtClientWithSelectorPrincipal(client: ClientWithSelector, oAuthProvider: OAuthProvider): Principal {
         return Principal.newBuilder().setMetadata(

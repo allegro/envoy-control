@@ -18,21 +18,24 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.RBACFilterFactory
 
 internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
+
+    private val jwtProperties = JwtFilterProperties().also {
+        it.providers =
+            mapOf(
+                "oauth-provider" to OAuthProvider(
+                    "oauth-provider",
+                    selectorToTokenField = mapOf("oauth-selector" to "authorities")
+                )
+            )
+    }
+
     private val rbacFilterFactoryWithOAuth = RBACFilterFactory(
         IncomingPermissionsProperties().also {
             it.enabled = true
             it.overlappingPathsFix = true
         },
         StatusRouteProperties(),
-        jwtProperties = JwtFilterProperties().also {
-            it.providers =
-                mapOf(
-                    "oauth-provider" to OAuthProvider(
-                        "oauth-provider",
-                        selectorToTokenField = mapOf("oauth-selector" to "team1")
-                    )
-                )
-        }
+        jwtProperties = jwtProperties
     )
 
     val snapshot = GlobalSnapshot(
@@ -50,16 +53,16 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
     fun `should generate RBAC rules for OAuth Policy`(policy: OAuth.Policy) {
         // given
         val oAuthPolicyPrincipal = principalForOAuthPolicy(policy)
-
+        val client = "client1"
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 oAuthPolicyPrincipal,
-                "",
+                "ClientWithSelector(name=$client, selector=null)",
                 "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)"
             ),
             expectedPoliciesForOAuth(
                 oAuthPolicyPrincipal,
-                "",
+                "ClientWithSelector(name=$client, selector=null)",
                 "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)"
             )
         )
@@ -71,7 +74,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                     "/oauth-protected",
                     PathMatchingType.PATH,
                     setOf("GET"),
-                    setOf(),
+                    setOf(ClientWithSelector(client)),
                     oauth = OAuth("oauth-provider", policy = policy)
                 )
             )
@@ -89,7 +92,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         // given
         val selector = "oauth-selector"
         val client = "team1"
-        val oAuthPrincipal = oAuthClientPrincipal(selector, client)
+        val oAuthPrincipal = oAuthClientPrincipal(getTokenFieldForSelector(selector), client)
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 oAuthPrincipal,
@@ -121,29 +124,6 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         // then
         Assertions.assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
-
-    private fun oAuthClientPrincipal(selector: String, client: String) = """{
-                       "metadata": {
-                        "filter": "envoy.filters.http.jwt_authn",
-                        "path": [
-                         {
-                          "key": "jwt"
-                         },
-                         {
-                          "key": "$selector"
-                         }
-                        ],
-                        "value": {
-                         "list_match": {
-                          "one_of": {
-                           "string_match": {
-                            "exact": "$client"
-                           }
-                          }
-                         }
-                        }
-                       }
-                      }"""
 
     @Test
     fun `should not generate RBAC rules for JWT if no client with selector is defined`() {
@@ -204,12 +184,12 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         )
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
-                principalsForClientsSelectorAndPolicies(selector, client, policy),
+                principalsForClientsSelectorAndPolicies(getTokenFieldForSelector(selector), client, policy),
                 "ClientWithSelector(name=$client, selector=$selector)",
                 "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)"
             ),
             expectedPoliciesForOAuth(
-                principalsForClientsSelectorAndPolicies(selector, client, policy),
+                principalsForClientsSelectorAndPolicies(getTokenFieldForSelector(selector), client, policy),
                 "ClientWithSelector(name=$client, selector=$selector)",
                 "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)"
             )
@@ -220,12 +200,121 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         Assertions.assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
-    private fun principalsForClientsSelectorAndPolicies(selector: String, client: String, policy: OAuth.Policy) =
-        if (policy == OAuth.Policy.ALLOW_MISSING_OR_FAILED) {
-            oAuthClientPrincipal(selector, client)
-        } else {
-            oAuthClientPrincipal(selector, client) + "," + principalForOAuthPolicy(policy)
+    private fun getTokenFieldForSelector(selector: String) =
+        jwtProperties.providers["oauth-provider"]!!.selectorToTokenField[selector]!!
+
+    private fun principalsForClientsSelectorAndPolicies(tokenFieldForSelector: String, client: String, policy: OAuth.Policy) = when (policy) {
+        OAuth.Policy.STRICT -> """{
+          "andIds": {
+            "ids": [{
+              "andIds": {
+                "ids": [{
+                  "metadata": {
+                    "filter": "envoy.filters.http.header_to_metadata",
+                    "path": [{
+                      "key": "jwt-status"
+                    }],
+                    "value": {
+                      "stringMatch": {
+                        "exact": "present"
+                      }
+                    }
+                  }
+                }, {
+                  "metadata": {
+                    "filter": "envoy.filters.http.jwt_authn",
+                    "path": [{
+                      "key": "jwt"
+                    }, {
+                      "key": "exp"
+                    }],
+                    "value": {
+                      "presentMatch": true
+                    }
+                  }
+                }]
+              }
+            }, ${oAuthClientPrincipal(tokenFieldForSelector, client)}
+            ]
+          }
+        }"""
+
+        OAuth.Policy.ALLOW_MISSING -> """{
+          "andIds": {
+            "ids": [{
+              "orIds": {
+                "ids": [{
+                  "metadata": {
+                    "filter": "envoy.filters.http.header_to_metadata",
+                    "path": [{
+                      "key": "jwt-status"
+                    }],
+                    "value": {
+                      "stringMatch": {
+                        "exact": "missing"
+                      }
+                    }
+                  }
+                }, {
+                  "andIds": {
+                    "ids": [{
+                      "metadata": {
+                        "filter": "envoy.filters.http.header_to_metadata",
+                        "path": [{
+                          "key": "jwt-status"
+                        }],
+                        "value": {
+                          "stringMatch": {
+                            "exact": "present"
+                          }
+                        }
+                      }
+                    }, {
+                      "metadata": {
+                        "filter": "envoy.filters.http.jwt_authn",
+                        "path": [{
+                          "key": "jwt"
+                        }, {
+                          "key": "exp"
+                        }],
+                        "value": {
+                          "presentMatch": true
+                        }
+                      }
+                    }]
+                  }
+                }]
+              }
+            }, ${oAuthClientPrincipal(tokenFieldForSelector, client)}
+            ]
+          }
+        }"""
+
+        OAuth.Policy.ALLOW_MISSING_OR_FAILED -> oAuthClientPrincipal(tokenFieldForSelector, client)
         }
+
+    private fun oAuthClientPrincipal(tokenFieldForSelector: String, client: String) = """{
+                       "metadata": {
+                        "filter": "envoy.filters.http.jwt_authn",
+                        "path": [
+                         {
+                          "key": "jwt"
+                         },
+                         {
+                          "key": "$tokenFieldForSelector"
+                         }
+                        ],
+                        "value": {
+                         "list_match": {
+                          "one_of": {
+                           "string_match": {
+                            "exact": "$client"
+                           }
+                          }
+                         }
+                        }
+                       }
+                      }"""
 
     private fun expectedPoliciesForOAuth(principals: String, clientsWithSelector: String, oauth: String) = """
         {
@@ -254,15 +343,19 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
 
     private fun principalForOAuthPolicy(policy: OAuth.Policy): String = when (policy) {
         OAuth.Policy.STRICT -> """{
+          "andIds": {
+            "ids": [{
               "andIds": {
                 "ids": [{
                   "metadata": {
                     "filter": "envoy.filters.http.header_to_metadata",
                     "path": [{
-                      "key": "jwt-missing"
+                      "key": "jwt-status"
                     }],
                     "value": {
-                      "boolMatch": false
+                      "stringMatch": {
+                        "exact": "present"
+                      }
                     }
                   }
                 }, {
@@ -270,6 +363,8 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                     "filter": "envoy.filters.http.jwt_authn",
                     "path": [{
                       "key": "jwt"
+                    }, {
+                      "key": "exp"
                     }],
                     "value": {
                       "presentMatch": true
@@ -277,50 +372,70 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                   }
                 }]
               }
-            }"""
-        OAuth.Policy.ALLOW_MISSING -> """{
-      "orIds": {
-        "ids": [{
-          "metadata": {
-            "filter": "envoy.filters.http.header_to_metadata",
-            "path": [{
-              "key": "jwt-missing"
-            }],
-            "value": {
-              "boolMatch": true
-            }
-          }
-        }, {
-          "andIds": {
-            "ids": [{
-              "metadata": {
-                "filter": "envoy.filters.http.header_to_metadata",
-                "path": [{
-                  "key": "jwt-missing"
-                }],
-                "value": {
-                  "boolMatch": false
-                }
-              }
             }, {
-              "metadata": {
-                "filter": "envoy.filters.http.jwt_authn",
-                "path": [{
-                  "key": "jwt"
-                }],
-                "value": {
-                  "presentMatch": true
+              "authenticated": {
+                "principalName": {
+                  "exact": "spiffe://client1"
                 }
               }
             }]
           }
-        }]
-      }
-    }"""
-        OAuth.Policy.ALLOW_MISSING_OR_FAILED -> """{
-                    "not_id": {
-                      "any": true
+        }"""
+        OAuth.Policy.ALLOW_MISSING -> """{
+          "andIds": {
+            "ids": [{
+              "orIds": {
+                "ids": [{
+                  "metadata": {
+                    "filter": "envoy.filters.http.header_to_metadata",
+                    "path": [{
+                      "key": "jwt-status"
+                    }],
+                    "value": {
+                      "stringMatch": {
+                        "exact": "missing"
+                      }
                     }
-                }"""
+                  }
+                }, {
+                  "andIds": {
+                    "ids": [{
+                      "metadata": {
+                        "filter": "envoy.filters.http.header_to_metadata",
+                        "path": [{
+                          "key": "jwt-status"
+                        }],
+                        "value": {
+                          "stringMatch": {
+                            "exact": "present"
+                          }
+                        }
+                      }
+                    }, {
+                      "metadata": {
+                        "filter": "envoy.filters.http.jwt_authn",
+                        "path": [{
+                          "key": "jwt"
+                        }, {
+                          "key": "exp"
+                        }],
+                        "value": {
+                          "presentMatch": true
+                        }
+                      }
+                    }]
+                  }
+                }]
+              }
+            }, {
+              "authenticated": {
+                "principalName": {
+                  "exact": "spiffe://client1"
+                }
+              }
+            }]
+          }
+        }"""
+        OAuth.Policy.ALLOW_MISSING_OR_FAILED -> authenticatedPrincipal("client1")
     }
 }
