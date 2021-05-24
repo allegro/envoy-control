@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.listener.v3.Listener
-import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions.Companion.newVersion
 import java.util.UUID
@@ -32,8 +31,7 @@ class SnapshotsVersions {
         group: Group,
         clusters: List<Cluster>,
         endpoints: List<ClusterLoadAssignment>,
-        listeners: List<Listener> = listOf(),
-        routes: List<RouteConfiguration> = listOf()
+        listeners: List<Listener> = listOf()
     ): Version {
         val versionsWithData = versions.compute(group) { _, previous ->
             val version = when (previous) {
@@ -46,16 +44,15 @@ class SnapshotsVersions {
                 else -> {
                     val clustersChanged = previous.clusters != clusters
                     val listenersChanged = previous.listeners != listeners
-                    val routesChanged = previous.routes != routes
                     Version(
                         clusters = selectClusters(previous, clusters, clustersChanged),
                         endpoints = selectEndpoints(previous, endpoints, clustersChanged),
                         listeners = selectListeners(previous, listenersChanged),
-                        routes = selectRoutes(previous, listenersChanged, routesChanged)
+                        routes = selectRoutes(previous, listenersChanged, clustersChanged)
                     )
                 }
             }
-            VersionsWithData(version, clusters, endpoints, listeners, routes)
+            VersionsWithData(version, clusters, endpoints, listeners)
         }
         return versionsWithData!!.version
     }
@@ -63,9 +60,9 @@ class SnapshotsVersions {
     private fun selectRoutes(
         previous: VersionsWithData,
         listenersChanged: Boolean,
-        routesChanged: Boolean
+        clustersChanged: Boolean
     ): RoutesVersion {
-        return if (listenersChanged || routesChanged) RoutesVersion(newVersion()) else previous.version.routes
+        return if (listenersChanged || clustersChanged) RoutesVersion(newVersion()) else previous.version.routes
     }
 
     private fun selectListeners(previous: VersionsWithData, hasChanged: Boolean): ListenersVersion {
@@ -104,8 +101,7 @@ class SnapshotsVersions {
         val version: Version,
         val clusters: List<Cluster>,
         val endpoints: List<ClusterLoadAssignment>,
-        val listeners: List<Listener>,
-        val routes: List<RouteConfiguration>
+        val listeners: List<Listener>
     )
 
     data class Version(

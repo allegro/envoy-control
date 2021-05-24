@@ -252,7 +252,7 @@ class EnvoySnapshotFactory(
         // which is present only in services (not domains) so it could be implemented differently.
         val endpoints = getServicesEndpointsForGroup(globalSnapshot, egressRouteSpecification)
 
-        val version = snapshotsVersions.version(group, clusters, endpoints, listeners, routes)
+        val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
 
         return createSnapshot(
             clusters = clusters,
