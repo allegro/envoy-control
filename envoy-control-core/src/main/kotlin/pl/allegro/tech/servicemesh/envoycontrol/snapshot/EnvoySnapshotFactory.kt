@@ -238,6 +238,13 @@ class EnvoySnapshotFactory(
                     group.version, "${EnvoyListenersFactory.DOMAIN_PROXY_LISTENER_ADDRESS}:80"
                 )
             )
+            routes.add(
+                egressRoutesFactory.createEgressRouteConfig(
+                    group.serviceName, emptyList(),
+                    group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
+                    group.version
+                )
+            )
             routes.addAll(egressRoutesFactory.createEgressDomainRoutes(egressDomainRouteSpecifications, group))
         } else {
             routes.add(
