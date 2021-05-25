@@ -264,7 +264,7 @@ class EnvoyListenersFactory(
     ): Filter {
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix("egress_http")
-            .setRds(egressRds(group.communicationMode, group.version, "default_routes"))
+            .setRds(egressRds(group.communicationMode, group.version, "$DOMAIN_PROXY_LISTENER_ADDRESS:80"))
             .setHttpProtocolOptions(egressHttp1ProtocolOptions)
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
             .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
@@ -510,6 +510,7 @@ class EnvoyListenersFactory(
                 .build()
         }.toList()
 
+
         val httpProxyListeners: List<Listener> = httpProxy.map {
             Listener.newBuilder()
                 .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key}")
@@ -517,7 +518,7 @@ class EnvoyListenersFactory(
                     Address.newBuilder().setSocketAddress(
                         SocketAddress.newBuilder()
                             .setPortValue(it.key)
-                            .setAddress(DOMAIN_PROXY_LISTENER_ADDRESS)
+                            .setAddress("127.0.0.1")
                     )
                 )
                 .addAllFilterChains(listOf(createHttpProxyFilterChainForDomains(group, it.key)))
