@@ -518,7 +518,7 @@ class EnvoyListenersFactory(
                     Address.newBuilder().setSocketAddress(
                         SocketAddress.newBuilder()
                             .setPortValue(it.key)
-                            .setAddress("127.0.0.1")
+                            .setAddress("0.0.0.0")
                     )
                 )
                 .addAllFilterChains(listOf(createHttpProxyFilterChainForDomains(group, it.key)))
@@ -565,9 +565,7 @@ class EnvoyListenersFactory(
         val filterChainMatch = FilterChainMatch.newBuilder()
         val filter = Filter.newBuilder()
         filterChainMatch.setTransportProtocol("raw_buffer")
-            .addApplicationProtocols("http/1.0")
-            .addApplicationProtocols("http/1.1")
-            .addApplicationProtocols("h2c")
+            .setDestinationPort(UInt32Value.of(80))
         filter
             .setName("envoy.filters.network.http_connection_manager")
             .setTypedConfig(
