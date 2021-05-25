@@ -567,7 +567,7 @@ class EnvoyListenersFactory(
         filterChainMatch.setTransportProtocol("raw_buffer")
             .addApplicationProtocols("http/1.0")
             .addApplicationProtocols("http/1.1")
-            .addApplicationProtocols("h2")
+            .addApplicationProtocols("h2c")
         filter
             .setName("envoy.filters.network.http_connection_manager")
             .setTypedConfig(
