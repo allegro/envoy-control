@@ -101,7 +101,7 @@ class TlsAuthenticationProperties {
 class TlsProtocolProperties {
     var cipherSuites: List<String> = listOf("ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-RSA-AES128-GCM-SHA256")
     var minimumVersion = TlsParameters.TlsProtocol.TLSv1_2
-    var maximumVersion = TlsParameters.TlsProtocol.TLSv1_3
+    var maximumVersion = TlsParameters.TlsProtocol.TLSv1_2
 }
 
 class SourceIpAuthenticationProperties {

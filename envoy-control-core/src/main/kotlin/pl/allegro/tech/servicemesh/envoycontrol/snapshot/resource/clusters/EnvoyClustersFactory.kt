@@ -203,12 +203,25 @@ class EnvoyClustersFactory(
     }
 
     private fun getStrictDnsClustersForGroup(group: Group): List<Cluster> {
+        val shouldUseTcpProxy = group.listenersConfig?.useTcpProxyForDomains ?: false
         return group.proxySettings.outgoing.getDomainDependencies().map {
-            strictDnsCluster(it.getClusterName(), it.getHost(), it.getPort(), it.useSsl())
+            strictDnsCluster(
+                it.getClusterName(),
+                it.getHost(),
+                it.getPort(),
+                it.useSsl(),
+                shouldUseTcpProxy
+            )
         }
     }
 
-    private fun strictDnsCluster(clusterName: String, host: String, port: Int, ssl: Boolean): Cluster {
+    private fun strictDnsCluster(
+        clusterName: String,
+        host: String,
+        port: Int,
+        ssl: Boolean,
+        useTcpProxyForDomains: Boolean
+    ): Cluster {
         var clusterBuilder = Cluster.newBuilder()
 
         if (properties.clusterOutlierDetection.enabled) {
@@ -240,31 +253,31 @@ class EnvoyClustersFactory(
             )
             .setLbPolicy(properties.loadBalancing.policy)
 
-        // if (ssl) {
-        //     val commonTlsContext = CommonTlsContext.newBuilder()
-        //         .setValidationContext(
-        //             CertificateValidationContext.newBuilder()
-        //                 .setTrustedCa(
-        //                     // TODO: https://github.com/allegro/envoy-control/issues/5
-        //                     DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
-        //                 ).build()
-        //         ).build()
-        //
-        //     val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext).build()
-        //     val transportSocket = TransportSocket.newBuilder()
-        //         .setTypedConfig(
-        //             Any.pack(
-        //                 upstreamTlsContext
-        //             )
-        //         )
-        //         .setName("envoy.transport_sockets.tls").build()
-        //
-        //     clusterBuilder
-        //         .setTransportSocket(transportSocket)
-        //         .setUpstreamHttpProtocolOptions(
-        //             UpstreamHttpProtocolOptions.newBuilder().setAutoSanValidation(true).setAutoSni(true).build()
-        //         )
-        // }
+        if (shouldAttachCertificateToCluster(ssl, useTcpProxyForDomains)) {
+            val commonTlsContext = CommonTlsContext.newBuilder()
+                .setValidationContext(
+                    CertificateValidationContext.newBuilder()
+                        .setTrustedCa(
+                            // TODO: https://github.com/allegro/envoy-control/issues/5
+                            DataSource.newBuilder().setFilename(properties.trustedCaFile).build()
+                        ).build()
+                ).build()
+
+            val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext).build()
+            val transportSocket = TransportSocket.newBuilder()
+                .setTypedConfig(
+                    Any.pack(
+                        upstreamTlsContext
+                    )
+                )
+                .setName("envoy.transport_sockets.tls").build()
+
+            clusterBuilder
+                .setTransportSocket(transportSocket)
+                .setUpstreamHttpProtocolOptions(
+                    UpstreamHttpProtocolOptions.newBuilder().setAutoSanValidation(true).setAutoSni(true).build()
+                )
+        }
 
         return clusterBuilder.build()
     }
@@ -362,6 +375,9 @@ class EnvoyClustersFactory(
             }
         )
     }
+
+    private fun shouldAttachCertificateToCluster(ssl: Boolean, useTcpProxyForDomains: Boolean) =
+        ssl && !useTcpProxyForDomains
 
     private fun Cluster.LbSubsetConfig.Builder.addTagsAndCanarySelector() = this.addSubsetSelectors(
         Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()

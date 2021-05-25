@@ -477,39 +477,64 @@ class EnvoyListenersFactory(
             .build()
     }
 
-    fun createTcpProxyVirtualListeners(group: Group): List<Listener> {
-        val portToDomain = group.proxySettings.outgoing.getDomainDependencies().groupBy(
-            { Pair(it.getPort(), it.useSsl()) }, { it }
+    private fun createTcpProxyVirtualListeners(group: Group): List<Listener> {
+        val tcpProxy = group.proxySettings.outgoing.getDomainDependencies().filter {
+            it.useSsl()
+        }.groupBy(
+            { it.getPort() }, { it }
         ).toMap()
 
-        return portToDomain.map {
-            val listener = Listener.newBuilder()
-                .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key.first}")
+        val httpProxy = group.proxySettings.outgoing.getDomainDependencies().filter {
+            !it.useSsl()
+        }.groupBy(
+            { it.getPort() }, { it }
+        ).toMap()
+
+        val tcpProxyListeners: List<Listener> = tcpProxy.map {
+            Listener.newBuilder()
+                .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key}")
                 .setAddress(
                     Address.newBuilder().setSocketAddress(
                         SocketAddress.newBuilder()
-                            .setPortValue(it.key.first)
+                            .setPortValue(it.key)
                             .setAddress(DOMAIN_PROXY_LISTENER_ADDRESS)
                     )
                 )
-                .addAllFilterChains(createFilterChainForDomains(it.value, group, it.key))
+                .addAllFilterChains(createTcpProxyFilterChainForDomains(it.value))
                 .setTrafficDirection(TrafficDirection.OUTBOUND)
                 .setDeprecatedV1(
                     Listener.DeprecatedV1.newBuilder()
                         .setBindToPort(BoolValue.of(false))
                 )
                 .addListenerFilters(tlsInspectorFilter)
-            if (!it.key.second) {
-                listener.addListenerFilters(httpInspectorFilter)
-            }
-            listener.build()
+                .build()
+        }.toList()
+
+        val httpProxyListeners: List<Listener> = httpProxy.map {
+            Listener.newBuilder()
+                .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key}")
+                .setAddress(
+                    Address.newBuilder().setSocketAddress(
+                        SocketAddress.newBuilder()
+                            .setPortValue(it.key)
+                            .setAddress(DOMAIN_PROXY_LISTENER_ADDRESS)
+                    )
+                )
+                .addAllFilterChains(listOf(createHttpProxyFilterChainForDomains(group, it.key)))
+                .setTrafficDirection(TrafficDirection.OUTBOUND)
+                .setDeprecatedV1(
+                    Listener.DeprecatedV1.newBuilder()
+                        .setBindToPort(BoolValue.of(false))
+                )
+                .addListenerFilters(tlsInspectorFilter)
+                .addListenerFilters(httpInspectorFilter)
+                .build()
         }
+        return tcpProxyListeners + httpProxyListeners
     }
 
-    private fun createFilterChainForDomains(
-        domains: List<DomainDependency>,
-        group: Group,
-        portAndSsl: Pair<Int, Boolean>
+    private fun createTcpProxyFilterChainForDomains(
+        domains: List<DomainDependency>
     ): List<FilterChain> {
         return domains.map {
             val filterChainMatch = FilterChainMatch.newBuilder()
@@ -527,31 +552,39 @@ class EnvoyListenersFactory(
                                 .build()
                         )
                     )
-            } else {
-                filterChainMatch.setTransportProtocol("raw_buffer")
-                    .addApplicationProtocols("http/1.0")
-                    .addApplicationProtocols("http/1.1")
-                    .addApplicationProtocols("h2")
-                filter
-                    .setName("envoy.filters.network.http_connection_manager")
-                    .setTypedConfig(
-                        com.google.protobuf.Any.pack(
-                            HttpConnectionManager.newBuilder()
-                                .setStatPrefix("$DOMAIN_PROXY_LISTENER_ADDRESS:${portAndSsl.first}")
-                                .setRds(
-                                    egressRds(
-                                        group.communicationMode,
-                                        group.version,
-                                        "$DOMAIN_PROXY_LISTENER_ADDRESS:${portAndSsl.first}"
-                                    )
-                                )
-                                .setHttpProtocolOptions(egressHttp1ProtocolOptions)
-                                .build()
-                        )
-                    )
             }
             FilterChain.newBuilder().setFilterChainMatch(filterChainMatch).addFilters(filter).build()
         }
+    }
+
+    private fun createHttpProxyFilterChainForDomains(
+        group: Group,
+        port: Int
+    ): FilterChain {
+        val filterChainMatch = FilterChainMatch.newBuilder()
+        val filter = Filter.newBuilder()
+        filterChainMatch.setTransportProtocol("raw_buffer")
+            .addApplicationProtocols("http/1.0")
+            .addApplicationProtocols("http/1.1")
+            .addApplicationProtocols("h2")
+        filter
+            .setName("envoy.filters.network.http_connection_manager")
+            .setTypedConfig(
+                com.google.protobuf.Any.pack(
+                    HttpConnectionManager.newBuilder()
+                        .setStatPrefix("$DOMAIN_PROXY_LISTENER_ADDRESS:$port")
+                        .setRds(
+                            egressRds(
+                                group.communicationMode,
+                                group.version,
+                                "$DOMAIN_PROXY_LISTENER_ADDRESS:$port"
+                            )
+                        )
+                        .setHttpProtocolOptions(egressHttp1ProtocolOptions)
+                        .build()
+                )
+            )
+        return FilterChain.newBuilder().setFilterChainMatch(filterChainMatch).addFilters(filter).build()
     }
 
     private fun boolValue(value: Boolean) = BoolValue.newBuilder().setValue(value).build()
