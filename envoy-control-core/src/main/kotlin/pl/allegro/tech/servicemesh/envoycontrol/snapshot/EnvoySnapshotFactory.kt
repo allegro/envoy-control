@@ -233,7 +233,7 @@ class EnvoySnapshotFactory(
         if (group.listenersConfig?.useTcpProxyForDomains == true) {
             routes.add(
                 egressRoutesFactory.createEgressRouteConfig(
-                    group.serviceName, egressRouteSpecification + egressDomainRouteSpecifications,
+                    group.serviceName, egressRouteSpecification,
                     group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
                     group.version, "${EnvoyListenersFactory.DOMAIN_PROXY_LISTENER_ADDRESS}:80"
                 )
