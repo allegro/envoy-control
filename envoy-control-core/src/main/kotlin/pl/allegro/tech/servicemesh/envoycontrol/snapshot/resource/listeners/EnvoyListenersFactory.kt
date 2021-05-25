@@ -564,7 +564,7 @@ class EnvoyListenersFactory(
     ): FilterChain {
         val filterChainMatch = FilterChainMatch.newBuilder()
         val filter = Filter.newBuilder()
-        filterChainMatch.setDestinationPort(UInt32Value.of(port))
+        filterChainMatch.setTransportProtocol("raw_buffer")
         filter
             .setName("envoy.filters.network.http_connection_manager")
             .setTypedConfig(
