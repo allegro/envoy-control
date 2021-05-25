@@ -523,7 +523,6 @@ class EnvoyListenersFactory(
                 .build()
         }.toList()
 
-
         val httpProxyListeners: List<Listener> = httpProxy.map {
             Listener.newBuilder()
                 .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key}")
@@ -577,7 +576,7 @@ class EnvoyListenersFactory(
     ): FilterChain {
         val filterChainMatch = FilterChainMatch.newBuilder()
         val filter = Filter.newBuilder()
-        filterChainMatch.setTransportProtocol("raw_buffer")
+        filterChainMatch
             .setDestinationPort(UInt32Value.of(port))
         filter
             .setName("envoy.filters.network.http_connection_manager")
