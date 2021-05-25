@@ -28,6 +28,7 @@ import io.envoyproxy.envoy.config.listener.v3.FilterChainMatch
 import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.listener.v3.ListenerFilter
 import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
+import io.envoyproxy.envoy.extensions.filters.listener.original_dst.v3.OriginalDst
 import io.envoyproxy.envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
@@ -124,6 +125,15 @@ class EnvoyListenersFactory(
             )
         )
         .build()
+    private val originalDstFilter = ListenerFilter
+        .newBuilder()
+        .setName("envoy.filters.listener.original_dst")
+        .setTypedConfig(
+            ProtobufAny.pack(
+                OriginalDst.getDefaultInstance()
+            )
+        )
+        .build()
     private val httpInspectorFilter = ListenerFilter.newBuilder()
         .setName("envoy.filters.listener.http_inspector")
         .setTypedConfig(
@@ -187,6 +197,9 @@ class EnvoyListenersFactory(
                         .setAddress(listenersConfig.egressHost)
                 )
             )
+            .addListenerFilters(tlsInspectorFilter)
+            .addListenerFilters(httpInspectorFilter)
+            .addListenerFilters(originalDstFilter)
 
         group.listenersConfig?.egressPort.let {
             listener.addFilterChains(
