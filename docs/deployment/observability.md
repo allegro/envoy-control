@@ -51,14 +51,20 @@ Metric                       | Description
 
 #### xDS requests
 
-Metric                    | Description                         
---------------------------| --------------------------------------------------------
-**grpc.requests.cds**     | Counter of received gRPC CDS requests  
-**grpc.requests.eds**     | Counter of received gRPC EDS requests  
-**grpc.requests.lds**     | Counter of received gRPC LDS requests  
-**grpc.requests.rds**     | Counter of received gRPC RDS requests  
-**grpc.requests.sds**     | Counter of received gRPC SDS requests  
-**grpc.requests.unknown** | Counter of received gRPC requests for unknown resource  
+Metric                          | Description                         
+------------------------------- | --------------------------------------------------------
+**grpc.requests.cds**           | Counter of received gRPC CDS requests  
+**grpc.requests.eds**           | Counter of received gRPC EDS requests  
+**grpc.requests.lds**           | Counter of received gRPC LDS requests  
+**grpc.requests.rds**           | Counter of received gRPC RDS requests  
+**grpc.requests.sds**           | Counter of received gRPC SDS requests  
+**grpc.requests.unknown**       | Counter of received gRPC requests for unknown resource  
+**grpc.requests.cds.delta**     | Counter of received gRPC delta CDS requests
+**grpc.requests.eds.delta**     | Counter of received gRPC delta EDS requests
+**grpc.requests.lds.delta**     | Counter of received gRPC delta LDS requests
+**grpc.requests.rds.delta**     | Counter of received gRPC delta RDS requests
+**grpc.requests.sds.delta**     | Counter of received gRPC delta SDS requests
+**grpc.requests.unknown.delta** | Counter of received gRPC delta requests for unknown resource
 
 #### Snapshot
 

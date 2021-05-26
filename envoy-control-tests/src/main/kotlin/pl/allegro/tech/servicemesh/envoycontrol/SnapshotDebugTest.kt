@@ -4,15 +4,75 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.AdsAllDependencies
+import pl.allegro.tech.servicemesh.envoycontrol.config.DeltaAdsAllDependencies
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-open class SnapshotDebugTest {
-
+open class WildcardSnapshotDebugTest : SnapshotDebugTest {
     companion object {
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
 
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, properties = mapOf(
+            "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo2", "test-service")
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, service, config = AdsAllDependencies)
+    }
+
+    override fun consul() = consul
+
+    override fun envoyControl() = envoyControl
+
+    override fun envoy() = envoy
+
+    override fun service() = service
+}
+
+open class DeltaWildcardSnapshotDebugTest : SnapshotDebugTest {
+    companion object {
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, properties = mapOf(
+            "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo2", "test-service")
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, service, config = DeltaAdsAllDependencies)
+    }
+
+    override fun consul() = consul
+
+    override fun envoyControl() = envoyControl
+
+    override fun envoy() = envoy
+
+    override fun service() = service
+}
+
+open class RandomSnapshotDebugTest : SnapshotDebugTest {
+    companion object {
         @JvmField
         @RegisterExtension
         val consul = ConsulExtension()
@@ -30,8 +90,19 @@ open class SnapshotDebugTest {
         val envoy = EnvoyExtension(envoyControl, service)
     }
 
+    override fun consul() = consul
+
+    override fun envoyControl() = envoyControl
+
+    override fun envoy() = envoy
+
+    override fun service() = service
+}
+
+interface SnapshotDebugTest {
+
     @Test
-    open fun `should return snapshot debug info containing snapshot versions`() {
+    fun `should return snapshot debug info containing snapshot versions`() {
         // given
         consul().server.operations.registerService(service(), name = "echo")
         val nodeMetadata = envoy().container.admin().nodeInfo()
@@ -53,7 +124,7 @@ open class SnapshotDebugTest {
     }
 
     @Test
-    open fun `should return snapshot debug info containing snapshot contents`() {
+    fun `should return snapshot debug info containing snapshot contents`() {
         // given
         consul().server.operations.registerService(service(), name = "echo")
         val nodeMetadata = envoy().container.admin().nodeInfo()
@@ -70,49 +141,51 @@ open class SnapshotDebugTest {
         }
     }
 
-    private val missingNodeJson = """{
-     "metadata": {
-      "service_name": "service-mesh-service-first",
-      "identity": "",
-      "service_version": "0.1.16-SKYHELIX-839-eds-version-metric-SNAPSHOT",
-      "proxy_settings": {
-       "incoming": {
-        "endpoints": null,
-        "healthCheck": null,
-        "roles": null,
-        "timeoutPolicy": null
-       },
-       "outgoing": {
-        "dependencies": [
-         {
-          "handleInternalRedirect": null,
-          "timeoutPolicy": null,
-          "endpoints": [],
-          "domain": null,
-          "service": "*"
-         }
-        ]
-       }
-      },
-      "ads": true
-     },
-     "locality": {
-      "zone": "dev-dc4"
-     }
+    fun missingNodeJson(): String {
+        return """{
+          "metadata": {
+            "service_name": "service-mesh-service-first",
+            "identity": "",
+            "service_version": "0.1.16-SKYHELIX-839-eds-version-metric-SNAPSHOT",
+            "proxy_settings": {
+              "incoming": {
+                "endpoints": null,
+                "healthCheck": null,
+                "roles": null,
+                "timeoutPolicy": null
+              },
+              "outgoing": {
+                "dependencies": [
+                  {
+                    "handleInternalRedirect": null,
+                    "timeoutPolicy": null,
+                    "endpoints": [],
+                    "domain": null,
+                    "service": "*"
+                  }
+                ]
+              }
+            },
+            "ads": true
+          },
+          "locality": {
+            "zone": "dev-dc4"
+          }
+        }
+    """.trim()
     }
-""".trim()
 
     @Test
-    open fun `should inform about missing snapshot when given node does not exist`() {
+    fun `should inform about missing snapshot when given node does not exist`() {
         // when
-        val snapshot = envoyControl().app.getSnapshot(missingNodeJson)
+        val snapshot = envoyControl().app.getSnapshot(missingNodeJson())
 
         // then
         assertThat(snapshot.found).isFalse()
     }
 
     @Test
-    open fun `should return global snapshot debug info from xds`() {
+    fun `should return global snapshot debug info from xds`() {
         untilAsserted {
             // when
             val snapshot = envoyControl().app.getGlobalSnapshot(xds = true)
@@ -125,7 +198,7 @@ open class SnapshotDebugTest {
     }
 
     @Test
-    open fun `should return global snapshot debug info from ads`() {
+    fun `should return global snapshot debug info from ads`() {
         untilAsserted {
             // when
             val snapshotXdsNull = envoyControl().app.getGlobalSnapshot(xds = null)
@@ -145,11 +218,8 @@ open class SnapshotDebugTest {
         }
     }
 
-    open fun consul() = consul
-
-    open fun envoyControl() = envoyControl
-
-    open fun envoy() = envoy
-
-    open fun service() = service
+    fun consul(): ConsulExtension
+    fun envoyControl(): EnvoyControlExtension
+    fun envoy(): EnvoyExtension
+    fun service(): EchoServiceExtension
 }

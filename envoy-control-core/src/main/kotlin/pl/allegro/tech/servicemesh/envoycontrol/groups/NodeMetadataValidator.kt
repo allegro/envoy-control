@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
+import io.envoyproxy.envoy.api.v2.DeltaDiscoveryRequest
 import io.envoyproxy.envoy.api.v2.DiscoveryResponse
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
@@ -11,6 +12,7 @@ import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
 import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as DeltaDiscoveryRequestV3
 
 class V2NotSupportedException : NodeMetadataValidationException(
     "Blocked service from receiving updates. V2 resources are not supported by server."
@@ -54,6 +56,17 @@ class NodeMetadataValidator(
     override fun onStreamOpen(streamId: Long, typeUrl: String?) {}
 
     override fun onV3StreamRequest(streamId: Long, request: DiscoveryRequestV3?) {
+        request?.node?.let { validateV3Metadata(it) }
+    }
+
+    override fun onV2StreamDeltaRequest(streamId: Long, request: DeltaDiscoveryRequest?) {
+        request?.node?.let { validateV2Metadata(it) }
+    }
+
+    override fun onV3StreamDeltaRequest(
+        streamId: Long,
+        request: DeltaDiscoveryRequestV3?
+    ) {
         request?.node?.let { validateV3Metadata(it) }
     }
 

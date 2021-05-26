@@ -4,21 +4,20 @@ import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Message;
 import io.envoyproxy.controlplane.cache.Resources;
 import io.envoyproxy.controlplane.cache.Response;
+import io.envoyproxy.controlplane.cache.VersionedResource;
 import io.envoyproxy.controlplane.cache.Watch;
 import io.envoyproxy.controlplane.cache.XdsRequest;
 import io.envoyproxy.controlplane.cache.v3.Snapshot;
 import io.envoyproxy.envoy.config.core.v3.Node;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
 import static java.util.Collections.emptyList;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
 
@@ -75,11 +74,11 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
         assertThat(response).isNotNull();
         assertThat(response.version()).isEqualTo(snapshot.version(watchAndTracker.watch.request().getTypeUrl()));
         Message[] responseValues = response.resources().toArray(new Message[0]);
-        Message[] snapshotValues = snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values().toArray(new Message[0]);
+        Message[] snapshotValues = snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values().stream().map(VersionedResource::resource).toArray(Message[]::new);
 
         assertThat(responseValues.length).isEqualTo(2);
         assertThat(responseValues.length).isEqualTo(snapshotValues.length);
-        assertThat(responseValues[0]).isEqualToComparingFieldByFieldRecursively(snapshotValues[0]);
-        assertThat(responseValues[1]).isEqualToComparingFieldByFieldRecursively(snapshotValues[1]);
+        assertThat(responseValues[0].toString()).isEqualTo(snapshotValues[0].toString());
+        assertThat(responseValues[1].toString()).isEqualTo(snapshotValues[1].toString());
     }
 }

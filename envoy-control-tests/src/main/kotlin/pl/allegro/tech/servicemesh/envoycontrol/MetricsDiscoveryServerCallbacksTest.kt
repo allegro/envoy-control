@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
+import pl.allegro.tech.servicemesh.envoycontrol.config.DeltaAds
 import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -57,6 +58,23 @@ class XdsMetricsDiscoveryServerCallbacksTest : MetricsDiscoveryServerCallbacksTe
         ADS to 0,
         UNKNOWN to 0
     )
+
+    override fun expectedGrpcRequestsCounterValues() = mapOf(
+        CDS.name.toLowerCase() to isGreaterThanZero(),
+        EDS.name.toLowerCase() to isGreaterThanZero(),
+        LDS.name.toLowerCase() to isGreaterThanZero(),
+        RDS.name.toLowerCase() to isGreaterThanZero(),
+        SDS.name.toLowerCase() to isNull(),
+        ADS.name.toLowerCase() to isNull(),
+        UNKNOWN.name.toLowerCase() to isNull(),
+        "${CDS.name.toLowerCase()}.delta" to isNull(),
+        "${EDS.name.toLowerCase()}.delta" to isNull(),
+        "${LDS.name.toLowerCase()}.delta" to isNull(),
+        "${RDS.name.toLowerCase()}.delta" to isNull(),
+        "${SDS.name.toLowerCase()}.delta" to isNull(),
+        "${ADS.name.toLowerCase()}.delta" to isNull(),
+        "${UNKNOWN.name.toLowerCase()}.delta" to isNull()
+    )
 }
 
 class AdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbacksTest {
@@ -96,6 +114,79 @@ class AdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbacksTes
         ADS to 1, // all info is exchanged on one stream
         UNKNOWN to 0
     )
+
+    override fun expectedGrpcRequestsCounterValues() = mapOf(
+        CDS.name.toLowerCase() to isGreaterThanZero(),
+        EDS.name.toLowerCase() to isGreaterThanZero(),
+        LDS.name.toLowerCase() to isGreaterThanZero(),
+        RDS.name.toLowerCase() to isGreaterThanZero(),
+        SDS.name.toLowerCase() to isNull(),
+        ADS.name.toLowerCase() to isNull(),
+        UNKNOWN.name.toLowerCase() to isNull(),
+        "${CDS.name.toLowerCase()}.delta" to isNull(),
+        "${EDS.name.toLowerCase()}.delta" to isNull(),
+        "${LDS.name.toLowerCase()}.delta" to isNull(),
+        "${RDS.name.toLowerCase()}.delta" to isNull(),
+        "${SDS.name.toLowerCase()}.delta" to isNull(),
+        "${ADS.name.toLowerCase()}.delta" to isNull(),
+        "${UNKNOWN.name.toLowerCase()}.delta" to isNull()
+    )
+}
+
+class DeltaAdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbacksTest {
+    companion object {
+
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul)
+
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, service, config = DeltaAds)
+    }
+
+    override fun consul() = consul
+
+    override fun envoyControl() = envoyControl
+
+    override fun service() = service
+
+    override fun envoy() = envoy
+
+    override fun expectedGrpcConnectionsGaugeValues() = mapOf(
+        CDS to 0,
+        EDS to 0,
+        LDS to 0,
+        RDS to 0,
+        SDS to 0,
+        ADS to 1, // all info is exchanged on one stream
+        UNKNOWN to 0
+    )
+
+    override fun expectedGrpcRequestsCounterValues() = mapOf(
+        CDS.name.toLowerCase() to isNull(),
+        EDS.name.toLowerCase() to isNull(),
+        LDS.name.toLowerCase() to isNull(),
+        RDS.name.toLowerCase() to isNull(),
+        SDS.name.toLowerCase() to isNull(),
+        ADS.name.toLowerCase() to isNull(),
+        UNKNOWN.name.toLowerCase() to isNull(),
+        "${CDS.name.toLowerCase()}.delta" to isGreaterThanZero(),
+        "${EDS.name.toLowerCase()}.delta" to isGreaterThanZero(),
+        "${LDS.name.toLowerCase()}.delta" to isGreaterThanZero(),
+        "${RDS.name.toLowerCase()}.delta" to isGreaterThanZero(),
+        "${SDS.name.toLowerCase()}.delta" to isNull(),
+        "${ADS.name.toLowerCase()}.delta" to isNull(),
+        "${UNKNOWN.name.toLowerCase()}.delta" to isNull()
+    )
 }
 
 interface MetricsDiscoveryServerCallbacksTest {
@@ -107,6 +198,16 @@ interface MetricsDiscoveryServerCallbacksTest {
     fun service(): EchoServiceExtension
 
     fun envoy(): EnvoyExtension
+
+    fun expectedGrpcConnectionsGaugeValues(): Map<MetricsDiscoveryServerCallbacks.StreamType, Int>
+
+    fun expectedGrpcRequestsCounterValues(): Map<String, (Int?) -> Boolean>
+
+    fun MeterRegistry.counterValue(name: String) = this.find(name).counter()?.count()?.toInt()
+
+    fun isGreaterThanZero() = { x: Int? -> x!! > 0 }
+
+    fun isNull() = { x: Int? -> x == null }
 
     @Test
     fun `should measure gRPC connections`() {
@@ -124,8 +225,6 @@ interface MetricsDiscoveryServerCallbacksTest {
         }
     }
 
-    fun expectedGrpcConnectionsGaugeValues(): Map<MetricsDiscoveryServerCallbacks.StreamType, Int>
-
     @Test
     fun `should measure gRPC requests`() {
         // given
@@ -134,14 +233,11 @@ interface MetricsDiscoveryServerCallbacksTest {
 
         // expect
         untilAsserted {
-            listOf(CDS, EDS, LDS, RDS).forEach {
-                assertThat(meterRegistry.counterValue("grpc.requests.${it.name.toLowerCase()}")).isGreaterThan(0)
-            }
-            listOf(SDS, ADS, UNKNOWN).forEach {
-                assertThat(meterRegistry.counterValue("grpc.requests.${it.name.toLowerCase()}")).isNull()
+            expectedGrpcRequestsCounterValues().forEach { (type, condition) ->
+                val counterValue = meterRegistry.counterValue("grpc.requests.$type")
+                println("$type $counterValue")
+                assertThat(counterValue).satisfies { condition(it) }
             }
         }
     }
-
-    fun MeterRegistry.counterValue(name: String) = this.find(name).counter()?.count()?.toInt()
 }

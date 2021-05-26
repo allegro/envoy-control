@@ -217,8 +217,9 @@ class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot,
         egressRouteSpecifications: Collection<RouteSpecification>
     ): List<ClusterLoadAssignment> {
+        val endpoints = globalSnapshot.endpoints
         return egressRouteSpecifications
-            .mapNotNull { globalSnapshot.endpoints.resources().get(it.clusterName) }
+            .mapNotNull { endpoints.get(it.clusterName) }
     }
 
     private fun newSnapshotForGroup(
@@ -251,7 +252,7 @@ class EnvoySnapshotFactory(
         // which is present only in services (not domains) so it could be implemented differently.
         val endpoints = getServicesEndpointsForGroup(globalSnapshot, egressRouteSpecification)
 
-        val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
+        val version = snapshotsVersions.version(group, clusters, endpoints, listeners, routes)
 
         return createSnapshot(
             clusters = clusters,
