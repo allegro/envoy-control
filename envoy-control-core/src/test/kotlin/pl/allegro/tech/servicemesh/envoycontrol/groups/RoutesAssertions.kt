@@ -67,6 +67,14 @@ fun RouteConfiguration.hasNoRequestHeaderToAdd(key: String): RouteConfiguration 
     return this
 }
 
+fun RouteConfiguration.hasVirtualHostsInOrder(vararg conditions: (VirtualHost) -> Boolean): RouteConfiguration {
+    assertThat(
+        this.virtualHostsList.zip(conditions)
+            .filter { (cluster, condition) -> condition(cluster) }
+    ).hasSameSizeAs(conditions)
+    return this
+}
+
 fun RouteConfiguration.hasNoResponseHeaderToAdd(key: String): RouteConfiguration {
     assertThat(this.responseHeadersToAddList).noneSatisfy {
         assertThat(it.header.key).isEqualTo(key)

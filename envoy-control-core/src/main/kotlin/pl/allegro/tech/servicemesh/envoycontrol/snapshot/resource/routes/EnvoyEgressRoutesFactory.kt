@@ -128,43 +128,37 @@ class EnvoyEgressRoutesFactory(
      */
     fun createEgressDomainRoutes(
         routes: Collection<RouteSpecification>,
-        group: Group
-    ): List<RouteConfiguration> {
-
-        val portToDomain = group.proxySettings.outgoing.getDomainDependencies().filterNot { it.useSsl() }.groupBy(
-            { it.getPort() }, { routes.filter { route -> route.clusterName == it.getClusterName() } }
-        ).toMap()
-
-        return portToDomain.filter { it.key != 80 }.map {
-            val virtualHosts = routes
-                .filter { it.routeDomains.isNotEmpty() }
-                .map { routeSpecification ->
-                    VirtualHost.newBuilder()
-                        .setName(routeSpecification.clusterName)
-                        .addAllDomains(routeSpecification.routeDomains)
-                        .addRoutes(
-                            Route.newBuilder()
-                                .setMatch(
-                                    RouteMatch.newBuilder()
-                                        .setPrefix("/")
-                                        .build()
-                                )
-                                .setRoute(
-                                    createRouteAction(routeSpecification, group.version)
-                                ).build()
-                        )
-                        .build()
-                }
-            val routeConfiguration = RouteConfiguration.newBuilder()
-                .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key}")
-                .addAllVirtualHosts(
-                    virtualHosts + wildcardRoute
-                )
-            if (properties.egress.headersToRemove.isNotEmpty()) {
-                routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
+        version: ResourceVersion = ResourceVersion.V3,
+        routeName: String
+    ): RouteConfiguration {
+        val virtualHosts = routes
+            .filter { route -> route.routeDomains.isNotEmpty() }
+            .map { routeSpecification ->
+                VirtualHost.newBuilder()
+                    .setName(routeSpecification.clusterName)
+                    .addAllDomains(routeSpecification.routeDomains)
+                    .addRoutes(
+                        Route.newBuilder()
+                            .setMatch(
+                                RouteMatch.newBuilder()
+                                    .setPrefix("/")
+                                    .build()
+                            )
+                            .setRoute(
+                                createRouteAction(routeSpecification, version)
+                            ).build()
+                    )
+                    .build()
             }
-            routeConfiguration.build()
+        val routeConfiguration = RouteConfiguration.newBuilder()
+            .setName(routeName)
+            .addAllVirtualHosts(
+                virtualHosts + wildcardRoute
+            )
+        if (properties.egress.headersToRemove.isNotEmpty()) {
+            routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
         }
+        return routeConfiguration.build()
     }
 
     private fun createRouteAction(
