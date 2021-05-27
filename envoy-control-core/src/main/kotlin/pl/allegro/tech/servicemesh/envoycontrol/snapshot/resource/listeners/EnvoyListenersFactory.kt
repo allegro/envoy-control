@@ -268,7 +268,7 @@ class EnvoyListenersFactory(
     ): List<Listener> {
         return portAndDomains.map {
             Listener.newBuilder()
-                .setName("${it.key}")
+                .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key}")
                 .setAddress(
                     Address.newBuilder().setSocketAddress(
                         SocketAddress.newBuilder()

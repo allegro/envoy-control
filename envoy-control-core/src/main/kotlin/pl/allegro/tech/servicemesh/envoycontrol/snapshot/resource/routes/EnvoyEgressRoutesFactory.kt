@@ -11,11 +11,9 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
-import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory.Companion.DOMAIN_PROXY_LISTENER_ADDRESS
 
 class EnvoyEgressRoutesFactory(
     private val properties: SnapshotProperties
@@ -153,7 +151,7 @@ class EnvoyEgressRoutesFactory(
         val routeConfiguration = RouteConfiguration.newBuilder()
             .setName(routeName)
             .addAllVirtualHosts(
-                virtualHosts + wildcardRoute
+                virtualHosts + originalDestinationRoute + wildcardRoute
             )
         if (properties.egress.headersToRemove.isNotEmpty()) {
             routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
