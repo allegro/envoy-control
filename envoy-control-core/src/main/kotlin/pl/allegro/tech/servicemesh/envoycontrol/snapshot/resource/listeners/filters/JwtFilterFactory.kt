@@ -23,7 +23,10 @@ class JwtFilterFactory(
 ) {
 
     private val jwtProviders: Map<String, JwtProvider> = getJwtProviders()
-    private val providersToJwtRequirements: Map<String, JwtRequirement> = createProviderPolicyToJwtRequirements()
+    private val selectorToOAuthProvider: Map<String, String> =
+        properties.providers.entries.flatMap { (name, provider) ->
+            provider.selectorToTokenField.keys.map { selector -> selector to name }
+        }.toMap()
 
     fun createJwtFilter(group: Group): HttpFilter? {
         return if (shouldCreateFilter(group)) {
@@ -34,7 +37,7 @@ class JwtFilterFactory(
                         JwtAuthentication.newBuilder().putAllProviders(
                             jwtProviders
                         )
-                           .addAllRules(createRules(group.proxySettings.incoming.endpoints))
+                            .addAllRules(createRules(group.proxySettings.incoming.endpoints))
                             .build()
                     )
                 )
@@ -71,38 +74,41 @@ class JwtFilterFactory(
         .setPayloadInMetadata(properties.payloadInMetadata)
         .build()
 
-    private fun createRules(endpoints: List<IncomingEndpoint>): List<RequirementRule> {
-        return endpoints.mapNotNull(this::createRuleForEndpoint)
+    private fun createRules(endpoints: List<IncomingEndpoint>): Set<RequirementRule> {
+        return endpoints.mapNotNull(this::createRuleForEndpoint).toSet()
     }
 
     private fun createRuleForEndpoint(endpoint: IncomingEndpoint): RequirementRule? {
-        return if (endpoint.oauth != null) {
+        val providers = mutableSetOf<String>()
+
+        if (endpoint.oauth != null) {
+            providers.add(endpoint.oauth.provider)
+        }
+
+        providers.addAll(endpoint.clients.filter { it.selector in selectorToOAuthProvider.keys }
+            .mapNotNull { selectorToOAuthProvider[it.selector] })
+
+        return if (providers.isNotEmpty()) {
             RequirementRule.newBuilder().setMatch(
                 RouteMatch.newBuilder().setPrefix(endpoint.path)
             ).setRequires(
-                providersToJwtRequirements[endpoint.oauth.provider]
+                createJwtRequirement(providers)
             ).build()
         } else {
             null
         }
     }
 
-    private fun createProviderPolicyToJwtRequirements(): Map<String, JwtRequirement> {
-        return properties.providers.keys.associateWith { providerName ->
-            createJwtRequirement(providerName)
-        }
-    }
-
-    private fun createJwtRequirement(provider: String): JwtRequirement {
+    private fun createJwtRequirement(providers: Set<String>): JwtRequirement {
         return JwtRequirement.newBuilder()
             .setRequiresAny(
-                    JwtRequirementOrList.newBuilder().addAllRequirements(
-                        listOf(
-                            JwtRequirement.newBuilder().setProviderName(provider).build(),
-                            JwtRequirement.newBuilder().setAllowMissingOrFailed(Empty.getDefaultInstance()).build()
-                        )
-                    )
+                JwtRequirementOrList.newBuilder().addAllRequirements(
+                    providers.map {
+                        JwtRequirement.newBuilder().setProviderName(it).build()
+                    }
+                        .plus(JwtRequirement.newBuilder().setAllowMissingOrFailed(Empty.getDefaultInstance()).build())
                 )
+            )
             .build()
     }
 }

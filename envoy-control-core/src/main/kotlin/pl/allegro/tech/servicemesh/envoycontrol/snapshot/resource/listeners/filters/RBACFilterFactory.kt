@@ -73,6 +73,8 @@ class RBACFilterFactory(
 
     data class EndpointWithPolicy(val endpoint: IncomingEndpoint, val policy: Policy.Builder)
 
+    private val oAuthSelectors: List<String> = jwtProperties.providers.values.flatMap { it.selectorToTokenField.keys }
+
     private fun getIncomingEndpointPolicies(
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
@@ -89,9 +91,8 @@ class RBACFilterFactory(
                             it,
                             snapshot
                         )
-                    }
+                    }.map { mergeWithOAuthPolicy(client, it, incomingEndpoint.oauth?.policy) }
                 }
-                .map { mergeWithOAuthPolicy(it, incomingEndpoint.oauth?.policy) }
                 .toSet()
                 .ifEmpty { setOf(denyForAllPrincipal) }
 
@@ -256,33 +257,42 @@ class RBACFilterFactory(
         }
     }
 
-    private fun mergeWithOAuthPolicy(principal: Principal, policy: OAuth.Policy?): Principal =
-        when (policy) {
-        OAuth.Policy.ALLOW_MISSING -> {
-            Principal.newBuilder().setAndIds(
-                Principal.Set.newBuilder().addAllIds(
-                    listOf(
-                        allowMissingPolicyPrincipal,
-                        principal
-                    )
-                )
-            ).build()
-        }
-        OAuth.Policy.STRICT -> {
-            Principal.newBuilder().setAndIds(
-                Principal.Set.newBuilder().addAllIds(
-                    listOf(
-                        strictPolicyPrincipal,
-                        principal
-                    )
-                )
-            ).build()
-        }
-        OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
-            principal
-        }
-        null -> {
-            principal
+    private fun mergeWithOAuthPolicy(
+        client: ClientWithSelector,
+        principal: Principal,
+        policy: OAuth.Policy?
+    ): Principal {
+        if (client.selector in oAuthSelectors) {
+            return principal // don't merge if client has OAuth selector
+        } else {
+            return when (policy) {
+                OAuth.Policy.ALLOW_MISSING -> {
+                    Principal.newBuilder().setAndIds(
+                        Principal.Set.newBuilder().addAllIds(
+                            listOf(
+                                allowMissingPolicyPrincipal,
+                                principal
+                            )
+                        )
+                    ).build()
+                }
+                OAuth.Policy.STRICT -> {
+                    Principal.newBuilder().setAndIds(
+                        Principal.Set.newBuilder().addAllIds(
+                            listOf(
+                                strictPolicyPrincipal,
+                                principal
+                            )
+                        )
+                    ).build()
+                }
+                OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
+                    principal
+                }
+                null -> {
+                    principal
+                }
+            }
         }
     }
 
@@ -331,8 +341,8 @@ class RBACFilterFactory(
                     )
                     .build(),
                 strictPolicyPrincipal
-)
-            ).build()
+            )
+        ).build()
     ).build()
 
     private fun jwtClientWithSelectorPrincipal(client: ClientWithSelector, oAuthProvider: OAuthProvider): Principal {

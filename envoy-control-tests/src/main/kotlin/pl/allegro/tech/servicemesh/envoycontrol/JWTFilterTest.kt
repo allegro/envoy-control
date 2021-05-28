@@ -53,7 +53,9 @@ class JWTFilterTest {
                         issuer = "second-provider",
                         jwksUri = URI.create(oAuthServer.getJwksAddress("second-provider")),
                         clusterName = "second-provider",
-                        clusterPort = oAuthServer.container().oAuthPort()
+                        clusterPort = oAuthServer.container().oAuthPort(),
+                        selectorToTokenField = mapOf("second-selector" to "authorities")
+
                     )
                 )
             )
@@ -87,7 +89,7 @@ class JWTFilterTest {
                         verification: offline
                         policy: strict
                     - path: '/rbac-clients-test'
-                      clients: ['team1:oauth-selector', 'team2:oauth-selector']
+                      clients: ['team1:oauth-selector', 'team2:oauth-selector','team3:second-selector']
                       unlistedClientsPolicy: blockAndLog
                       oauth:
                         provider: 'first-provider'
@@ -261,6 +263,22 @@ class JWTFilterTest {
         // then
         assertThat(response).isOk().isFrom(service)
         assertThat(response2).isOk().isFrom(service)
+    }
+
+    @Test
+    fun `should allow request to endpoint with client having OAuth selector from other provider if token has necessary claims`() {
+
+        // given
+        registerClientWithAuthority("second-provider", "client-rbac", "team3")
+        val token = tokenForProvider("second-provider", "client-rbac")
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token")
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
     }
 
     @Test
