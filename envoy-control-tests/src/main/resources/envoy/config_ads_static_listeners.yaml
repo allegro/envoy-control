@@ -78,13 +78,14 @@ static_resources:
         port_value: 5000
     filter_chains:
       filters:
-      - name: envoy.http_connection_manager
+      - name: envoy.filters.network.http_connection_manager
         typed_config:
-          "@type": type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: egress_http
           rds:
             route_config_name: default_routes
             config_source:
+              resource_api_version: V3
               ads: {}
           http_filters:
           - name: envoy.filters.http.router
@@ -95,13 +96,14 @@ static_resources:
         port_value: 5001
     filter_chains:
       - filters:
-          - name: envoy.http_connection_manager
+          - name: envoy.filters.network.http_connection_manager
             typed_config:
-              "@type": type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
               stat_prefix: ingress_http
               rds:
                 route_config_name: ingress_secured_routes
                 config_source:
+                  resource_api_version: V3
                   ads: {}
               http_filters:
                 - name: envoy.filters.http.router
