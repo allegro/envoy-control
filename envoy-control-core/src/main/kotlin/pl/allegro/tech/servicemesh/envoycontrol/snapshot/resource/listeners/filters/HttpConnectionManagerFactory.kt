@@ -75,9 +75,6 @@ class HttpConnectionManagerFactory(
                         snapshotProperties.dynamicListeners.httpFilters.ingressXffNumTrustedHops
                     )
                 }
-                if (snapshotProperties.dynamicListeners.localReplyMapper.enabled) {
-                    connectionManagerBuilder.localReplyConfig = localReplyConfig
-                }
             }
             Direction.EGRESS -> {
                 connectionManagerBuilder
@@ -90,6 +87,10 @@ class HttpConnectionManagerFactory(
                     connectionManagerBuilder.addHttpFilters(dynamicForwardProxyFilter)
                 }
             }
+        }
+
+        if (snapshotProperties.dynamicListeners.localReplyMapper.enabled) {
+            connectionManagerBuilder.localReplyConfig = localReplyConfig
         }
 
         if (listenersConfig.accessLogEnabled) {

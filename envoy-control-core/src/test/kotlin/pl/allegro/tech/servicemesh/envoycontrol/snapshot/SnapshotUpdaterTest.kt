@@ -557,7 +557,7 @@ class SnapshotUpdaterTest {
         hasSnapshot(cache, groupWithBlacklistedDependency)
             .hasOnlyClustersFor("mock-service")
             .hasOnlyEndpointsFor("mock-service")
-            .hasOnlyEgressRoutesForClusters("mock-service")
+            .hasOnlyEgressRoutesForClusters(expected = *arrayOf("mock-service"))
     }
 
     @Test
@@ -892,14 +892,14 @@ class SnapshotUpdaterTest {
         val listener: Listener? = this.listeners().resources()[listenerName]
         assertThat(listener).isNotNull
         assertThat(listener!!.address.socketAddress.address).isEqualTo(listenerSocketAddress)
-        assertThat(listener!!.address.socketAddress.portValue).isEqualTo(listenerSocketPort)
+        assertThat(listener.address.socketAddress.portValue).isEqualTo(listenerSocketPort)
         if (useOriginalDst) {
-            assertThat(listener!!.useOriginalDst.value).isEqualTo(useOriginalDst)
+            assertThat(listener.useOriginalDst.value).isEqualTo(useOriginalDst)
         }
         if (isVirtualListener) {
-            assertThat(listener!!.deprecatedV1.bindToPort.value).isEqualTo(false)
+            assertThat(listener.deprecatedV1.bindToPort.value).isEqualTo(false)
         }
-        listener!!.filterChainsList.forEach {
+        listener.filterChainsList.forEach {
             if (isSslProxy) {
                 assertThat(it.filterChainMatch.transportProtocol).isEqualTo("tls")
                 assertThat(it.filterChainMatch.serverNamesList).containsAnyElementsOf(domains)

@@ -135,7 +135,6 @@ class EnvoyListenersFactory(
                 )
             )
 
-
         group.listenersConfig?.egressPort.let {
             val filterChain: FilterChain.Builder = FilterChain.newBuilder()
             group.listenersConfig?.useTcpProxyForDomains.let {
