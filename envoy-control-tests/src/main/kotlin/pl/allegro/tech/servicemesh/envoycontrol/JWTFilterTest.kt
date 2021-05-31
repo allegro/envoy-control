@@ -108,7 +108,10 @@ class JWTFilterTest {
                       oauth:
                         provider: 'first-provider'
                         verification: offline
-                        policy: allowMissingOrFailed                                                   
+                        policy: allowMissingOrFailed
+                    - path: '/team-access'
+                      clients: ['team1:oauth-selector']
+                      unlistedClientsPolicy: blockAndLog
         """.trimIndent()
         )
 
@@ -366,6 +369,22 @@ class JWTFilterTest {
 
         // then
         assertThat(echoResponse).isFrom(service).isOk()
+    }
+
+    @Test
+    fun `should allow client with oauth selector when oauth is not specified for given endpoint`() {
+
+        // given
+        registerClientWithAuthority("first-provider", "client1-rbac", "team1")
+        val token = tokenForProvider("first-provider", "client1-rbac")
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/team-access", headers = Headers.of("Authorization", "Bearer $token")
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
     }
 
     private fun registerEnvoyServiceAndWait() {
