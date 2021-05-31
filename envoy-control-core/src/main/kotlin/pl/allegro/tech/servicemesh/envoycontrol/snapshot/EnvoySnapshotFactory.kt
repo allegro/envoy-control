@@ -33,6 +33,11 @@ class EnvoySnapshotFactory(
     private val properties: SnapshotProperties,
     private val meterRegistry: MeterRegistry
 ) {
+
+    companion object {
+        private const val DEFAULT_HTTP_PORT = 80
+    }
+
     fun newSnapshot(
         servicesStates: MultiClusterState,
         clusterConfigurations: Map<String, ClusterConfiguration>,
@@ -294,15 +299,17 @@ class EnvoySnapshotFactory(
         routes.add(
             egressRoutesFactory.createEgressRouteConfig(
                 group.serviceName, egressRouteSpecification +
-                    egressDomainRouteSpecifications.getOrDefault(DomainRoutesGrouper(80, false), emptyList()),
+                    egressDomainRouteSpecifications.getOrDefault(
+                        DomainRoutesGrouper(DEFAULT_HTTP_PORT, false), emptyList()
+                    ),
                 group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
-                group.version, "80"
+                group.version, DEFAULT_HTTP_PORT.toString()
             )
         )
 
         // routes for listeners different than port 80 and not ssl, because ssl is handled by tcp proxy
         egressDomainRouteSpecifications
-            .filter { it.key.port != 80 && !it.key.useSsl }
+            .filter { it.key.port != DEFAULT_HTTP_PORT && !it.key.useSsl }
             .forEach {
                 routes.add(
                     egressRoutesFactory.createEgressDomainRoutes(

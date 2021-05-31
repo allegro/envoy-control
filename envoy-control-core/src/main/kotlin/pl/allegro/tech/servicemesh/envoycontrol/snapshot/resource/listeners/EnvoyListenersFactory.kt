@@ -135,15 +135,18 @@ class EnvoyListenersFactory(
                 )
             )
 
+
         group.listenersConfig?.egressPort.let {
-            listener.addFilterChains(
-                FilterChain.newBuilder().setFilterChainMatch(
+            val filterChain: FilterChain.Builder = FilterChain.newBuilder()
+            group.listenersConfig?.useTcpProxyForDomains.let {
+                filterChain.setFilterChainMatch(
                     FilterChainMatch.newBuilder()
                         .setDestinationPort(UInt32Value.of(group.listenersConfig!!.egressPort))
-                ).addFilters(createEgressFilter(group, globalSnapshot))
-            )
-                .setTrafficDirection(TrafficDirection.OUTBOUND)
-                .setUseOriginalDst(BoolValue.of(true))
+                )
+                listener.setTrafficDirection(TrafficDirection.OUTBOUND)
+                    .setUseOriginalDst(BoolValue.of(true))
+            }
+            listener.addFilterChains(filterChain.addFilters(createEgressFilter(group, globalSnapshot)).build())
         }
         return listener.build()
     }

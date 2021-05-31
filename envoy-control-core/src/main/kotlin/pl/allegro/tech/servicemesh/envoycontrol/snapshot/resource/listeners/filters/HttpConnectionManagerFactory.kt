@@ -41,6 +41,7 @@ class HttpConnectionManagerFactory(
     private val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource(ApiVersion.V3)
     private val accessLogFilter = AccessLogFilter(snapshotProperties)
 
+    @SuppressWarnings("LongParameterList")
     fun createFilter(
         group: Group,
         globalSnapshot: GlobalSnapshot,
@@ -172,6 +173,4 @@ class HttpConnectionManagerFactory(
             }
         }
     }
-
-    private fun boolValue(value: Boolean) = BoolValue.newBuilder().setValue(value).build()
 }

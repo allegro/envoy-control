@@ -8,7 +8,6 @@ import io.envoyproxy.controlplane.cache.StatusInfo
 import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.controlplane.cache.XdsRequest
 import io.envoyproxy.controlplane.cache.v3.Snapshot
-import io.envoyproxy.envoy.config.filter.listener.original_dst.v2.OriginalDst
 import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.micrometer.core.instrument.MeterRegistry
@@ -606,8 +605,8 @@ class SnapshotUpdaterTest {
                 "http://service2-http.com",
                 "http://service-http-1337.com:1337",
                 "http://service2-http-1337.com:1337",
-                "https://service-http-1338.com:1338",
-                "https://service2-http-1338.com:1338"
+                "https://service-https-1338.com:1338",
+                "https://service2-https-1338.com:1338"
             ),
             listenerConfig = ListenersConfig(
                 egressHost = "0.0.0.0",
@@ -638,8 +637,8 @@ class SnapshotUpdaterTest {
                 "service2-http_com_80",
                 "service-http-1337_com_1337",
                 "service2-http-1337_com_1337",
-                "service-http-1338_com_1338",
-                "service2-http-1338_com_1338"
+                "service-https-1338_com_1338",
+                "service2-https-1338_com_1338"
             )
         hasSnapshot(cache, group)
             .hasOnlyListenersFor(
@@ -678,6 +677,14 @@ class SnapshotUpdaterTest {
                 isSslProxy = false,
                 isVirtualListener = true
             )
+        hasSnapshot(cache, group)
+            .hasListener(
+                "0.0.0.0:1338",
+                1338,
+                isSslProxy = true,
+                isVirtualListener = true,
+                domains = setOf("service-https-1338.com", "service2-https-1338.com")
+            )
 
         hasSnapshot(cache, group)
             .hasOnlyEgressRoutesForClusters()
@@ -694,6 +701,86 @@ class SnapshotUpdaterTest {
                 "existingService1",
                 "service-http.com",
                 "service2-http.com"
+            )
+    }
+
+    @Test
+    fun `should generate group snapshots when tcpProxy not enabled`() {
+        val cache = MockCache()
+
+        val group = groupOf(
+            services = serviceDependencies("existingService1"),
+            domains = domainDependencies(
+                "https://service-https.com",
+                "https://service2-https.com",
+                "http://service-http.com",
+                "http://service2-http.com",
+                "http://service-http-1337.com:1337",
+                "http://service2-http-1337.com:1337",
+                "https://service-https-1338.com:1338",
+                "https://service2-https-1338.com:1338"
+            ),
+            listenerConfig = ListenersConfig(
+                egressHost = "0.0.0.0",
+                egressPort = 1234,
+                ingressHost = "0.0.0.0",
+                ingressPort = 1235,
+                accessLogFilterSettings = AccessLogFilterSettings(null),
+                useTcpProxyForDomains = false
+            )
+        )
+
+        cache.setSnapshot(group, uninitializedSnapshot)
+        val updater = snapshotUpdater(
+            cache = cache,
+            groups = listOf(group)
+        )
+
+        // when
+        updater.startWithServices("existingService1")
+
+        // then
+        hasSnapshot(cache, group)
+            .hasOnlyClustersFor(
+                "existingService1",
+                "service-https_com_443",
+                "service2-https_com_443",
+                "service-http_com_80",
+                "service2-http_com_80",
+                "service-http-1337_com_1337",
+                "service2-http-1337_com_1337",
+                "service-https-1338_com_1338",
+                "service2-https-1338_com_1338"
+            )
+        hasSnapshot(cache, group)
+            .hasOnlyListenersFor(
+                "ingress_listener",
+                "egress_listener"
+            )
+
+        hasSnapshot(cache, group)
+            .hasListener(
+                "ingress_listener",
+                1235
+            )
+        hasSnapshot(cache, group)
+            .hasListener(
+                "egress_listener",
+                1234,
+                filterMatchPort = 1234
+            )
+        hasSnapshot(cache, group)
+            .hasOnlyEgressRoutesForClusters(
+                "default_routes",
+                "existingService1",
+                "service-https.com",
+                "service2-https.com",
+                "service-http.com",
+                "service2-http.com",
+                "service-http-1337.com:1337",
+                "service2-http-1337.com:1337",
+                "service-https-1338.com:1338",
+                "service2-https-1338.com:1338"
             )
     }
 

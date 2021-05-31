@@ -31,4 +31,3 @@ class TcpProxyFilterFactory {
         return FilterChain.newBuilder().setFilterChainMatch(filterChainMatch).addFilters(filter).build()
     }
 }
-

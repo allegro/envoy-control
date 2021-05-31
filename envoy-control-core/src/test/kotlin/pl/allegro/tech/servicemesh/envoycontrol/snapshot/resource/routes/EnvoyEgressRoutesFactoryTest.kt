@@ -179,6 +179,9 @@ internal class EnvoyEgressRoutesFactoryTest {
                 it.domainsCount == 1 && it.name == "example_com_1553" && it.domainsList[0] == "example.com:1553"
             },
             {
+                it.domainsCount == 1 && it.name == "original-destination-route" && it.domainsList[0] == "envoy-original-destination"
+            },
+            {
                 it.domainsCount == 1 && it.name == "wildcard-route" && it.domainsList[0] == "*"
             }
         )
