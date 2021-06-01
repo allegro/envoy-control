@@ -48,7 +48,9 @@ class JwtFilterFactory(
     }
 
     private fun shouldCreateFilter(group: Group): Boolean {
-        return group.proxySettings.incoming.endpoints.any { it.oauth != null } && properties.providers.isNotEmpty()
+        return group.proxySettings.incoming.endpoints.any {
+            it.oauth != null || it.clients.any { client -> client.selector in selectorToOAuthProvider.keys }
+        } && properties.providers.isNotEmpty()
     }
 
     private fun getJwtProviders(): Map<ProviderName, JwtProvider> =

@@ -317,7 +317,7 @@ class RBACFilterFactory(
                                 .setKey(jwtProperties.payloadInMetadata)
                         ).addPath(
                             MetadataMatcher.PathSegment.newBuilder()
-                                .setKey("exp")
+                                .setKey(jwtProperties.fieldRequiredInToken)
                         )
                         .setValue(ValueMatcher.newBuilder().setPresentMatch(true)).build()
                 ).build()

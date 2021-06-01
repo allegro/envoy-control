@@ -111,7 +111,7 @@ class EnvoyDefaultFilters(
             .build()
     }
 
-    private fun authorizationHeaderToMetadataFilter(): HttpFilter? =
+    private fun authorizationHeaderToMetadataFilter(): HttpFilter =
         HttpFilter.newBuilder().setName("envoy.filters.http.header_to_metadata").setTypedConfig(
             Any.pack(
                 Config.newBuilder()
