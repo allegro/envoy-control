@@ -240,11 +240,15 @@ class RBACFilterFactory(
         clientWithSelector: ClientWithSelector,
         snapshot: GlobalSnapshot
     ): List<Principal> {
-        val selectorMatching = getSelectorMatching(clientWithSelector, incomingPermissionsProperties)
-        val staticRangesForClient = staticIpRange(clientWithSelector, selectorMatching)
         val providerForSelector = jwtProperties.providers.values.firstOrNull {
             it.selectorToTokenField.containsKey(clientWithSelector.selector)
         }
+        val selectorMatching = if (providerForSelector == null) {
+            getSelectorMatching(clientWithSelector, incomingPermissionsProperties)
+        } else {
+            null
+        }
+        val staticRangesForClient = staticIpRange(clientWithSelector, selectorMatching)
 
         return if (clientWithSelector.name in incomingServicesSourceAuthentication) {
             ipFromDiscoveryPrincipals(clientWithSelector, selectorMatching, snapshot)
