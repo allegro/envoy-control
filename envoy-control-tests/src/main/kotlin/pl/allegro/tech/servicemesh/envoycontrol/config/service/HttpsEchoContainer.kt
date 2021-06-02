@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.convertValue
 import okhttp3.Response
-import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
+import org.testcontainers.containers.Network
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
 
 class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http-https-echo@$hash"),
@@ -20,7 +20,7 @@ class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http
     override fun configure() {
         super.configure()
         withEnv("HTTP_PORT", "$PORT")
-        withNetwork(BaseEnvoyTest.network)
+        withNetwork(Network.SHARED)
     }
 
     override fun port() = PORT

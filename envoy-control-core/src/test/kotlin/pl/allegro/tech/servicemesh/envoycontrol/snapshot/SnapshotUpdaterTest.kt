@@ -614,7 +614,7 @@ class SnapshotUpdaterTest {
                 ingressHost = "0.0.0.0",
                 ingressPort = 1235,
                 accessLogFilterSettings = AccessLogFilterSettings(null),
-                useTcpProxyForDomains = true
+                useTransparentProxy = true
             )
         )
 
@@ -705,6 +705,94 @@ class SnapshotUpdaterTest {
     }
 
     @Test
+    fun `should generate group snapshots with tcpProxy and route for 80 when no domain defined`() {
+        val cache = MockCache()
+
+        val group = groupOf(
+            services = serviceDependencies("existingService1"),
+            domains = domainDependencies(
+                "https://service-https.com",
+                "https://service2-https.com",
+                "https://service-https-1338.com:1338",
+                "https://service2-https-1338.com:1338"
+            ),
+            listenerConfig = ListenersConfig(
+                egressHost = "0.0.0.0",
+                egressPort = 1234,
+                ingressHost = "0.0.0.0",
+                ingressPort = 1235,
+                accessLogFilterSettings = AccessLogFilterSettings(null),
+                useTransparentProxy = true
+            )
+        )
+
+        cache.setSnapshot(group, uninitializedSnapshot)
+        val updater = snapshotUpdater(
+            cache = cache,
+            groups = listOf(group)
+        )
+
+        // when
+        updater.startWithServices("existingService1")
+
+        // then
+        hasSnapshot(cache, group)
+            .hasOnlyClustersFor(
+                "existingService1",
+                "service-https_com_443",
+                "service2-https_com_443",
+                "service-https-1338_com_1338",
+                "service2-https-1338_com_1338"
+            )
+        hasSnapshot(cache, group)
+            .hasOnlyListenersFor(
+                "ingress_listener",
+                "egress_listener",
+                "0.0.0.0:443",
+                "0.0.0.0:1338",
+                "0.0.0.0:80"
+            )
+
+        hasSnapshot(cache, group)
+            .hasListener(
+                "ingress_listener",
+                1235
+            )
+        hasSnapshot(cache, group)
+            .hasListener(
+                "egress_listener",
+                1234,
+                filterMatchPort = 1234,
+                useOriginalDst = true
+            )
+        hasSnapshot(cache, group)
+            .hasListener(
+                "0.0.0.0:443",
+                443,
+                isSslProxy = true,
+                isVirtualListener = true,
+                domains = setOf("service-https.com", "service2-https.com")
+            )
+        hasSnapshot(cache, group)
+            .hasListener(
+                "0.0.0.0:1338",
+                1338,
+                isSslProxy = true,
+                isVirtualListener = true,
+                domains = setOf("service-https-1338.com", "service2-https-1338.com")
+            )
+
+        hasSnapshot(cache, group)
+            .hasOnlyEgressRoutesForClusters()
+
+        hasSnapshot(cache, group)
+            .hasOnlyEgressRoutesForClusters(
+                "80",
+                "existingService1"
+            )
+    }
+
+    @Test
     fun `should generate group snapshots when tcpProxy not enabled`() {
         val cache = MockCache()
 
@@ -726,7 +814,7 @@ class SnapshotUpdaterTest {
                 ingressHost = "0.0.0.0",
                 ingressPort = 1235,
                 accessLogFilterSettings = AccessLogFilterSettings(null),
-                useTcpProxyForDomains = false
+                useTransparentProxy = false
             )
         )
 

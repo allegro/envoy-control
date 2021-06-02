@@ -339,7 +339,15 @@ data class Outgoing(
     )
 }
 
-interface Dependency
+interface Dependency {
+    companion object {
+        private const val DEFAULT_HTTP_PORT = 80
+        private const val DEFAULT_HTTPS_POLICY = false
+    }
+
+    fun useSsl(): Boolean = DEFAULT_HTTPS_POLICY
+    fun getPort(): Int = DEFAULT_HTTP_PORT
+}
 
 data class ServiceDependency(
     val service: String,
@@ -352,11 +360,11 @@ data class DomainDependency(
 ) : Dependency {
     val uri = URL(domain)
 
-    fun getPort(): Int = uri.port.takeIf { it != -1 } ?: uri.defaultPort
+    override fun getPort(): Int = uri.port.takeIf { it != -1 } ?: uri.defaultPort
+
+    override fun useSsl() = uri.protocol == "https"
 
     fun getHost(): String = uri.host
-
-    fun useSsl() = uri.protocol == "https"
 
     fun getClusterName(): String {
         val clusterName = getHost() + ":" + getPort()

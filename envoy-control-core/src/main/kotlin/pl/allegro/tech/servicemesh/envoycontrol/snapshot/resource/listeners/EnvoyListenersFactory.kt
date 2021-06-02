@@ -19,6 +19,7 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Dependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
@@ -113,7 +114,7 @@ class EnvoyListenersFactory(
             createEgressListener(group, listenersConfig, globalSnapshot)
         )
 
-        return if (group.listenersConfig?.useTcpProxyForDomains == true) {
+        return if (group.listenersConfig?.useTransparentProxy == true) {
             listeners + createEgressVirtualListeners(group, globalSnapshot)
         } else {
             listeners
@@ -137,7 +138,7 @@ class EnvoyListenersFactory(
 
         group.listenersConfig?.egressPort.let {
             val filterChain: FilterChain.Builder = FilterChain.newBuilder()
-            group.listenersConfig?.useTcpProxyForDomains.let {
+            group.listenersConfig?.useTransparentProxy.let {
                 filterChain.setFilterChainMatch(
                     FilterChainMatch.newBuilder()
                         .setDestinationPort(UInt32Value.of(group.listenersConfig!!.egressPort))
@@ -188,11 +189,13 @@ class EnvoyListenersFactory(
             { it.getPort() }, { it }
         ).toMap()
 
-        val httpProxy = group.proxySettings.outgoing.getDomainDependencies().filter {
+        val httpProxy = (group.proxySettings.outgoing.getDomainDependencies() +
+            group.proxySettings.outgoing.getServiceDependencies()).filter {
             !it.useSsl()
         }.groupBy(
             { it.getPort() }, { it }
         ).toMap()
+
         return createEgressTcpProxyVirtualListener(tcpProxy) +
             createEgressHttpProxyVirtualListener(httpProxy, group, globalSnapshot)
     }
@@ -264,7 +267,7 @@ class EnvoyListenersFactory(
     }
 
     private fun createEgressHttpProxyVirtualListener(
-        portAndDomains: Map<Int, List<DomainDependency>>,
+        portAndDomains: Map<Int, List<Dependency>>,
         group: Group,
         globalSnapshot: GlobalSnapshot
     ): List<Listener> {

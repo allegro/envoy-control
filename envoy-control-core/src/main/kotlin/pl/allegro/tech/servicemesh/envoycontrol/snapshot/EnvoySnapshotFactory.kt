@@ -239,7 +239,7 @@ class EnvoySnapshotFactory(
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )
 
-        if (group.listenersConfig?.useTcpProxyForDomains == true) {
+        if (group.listenersConfig?.useTransparentProxy == true) {
             createRoutesWhenUsingTransparentProxy(
                 routes,
                 group,
