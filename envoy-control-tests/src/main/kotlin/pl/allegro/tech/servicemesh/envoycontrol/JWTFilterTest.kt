@@ -5,7 +5,6 @@ import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -112,6 +111,13 @@ class JWTFilterTest {
                     - path: '/team-access'
                       clients: ['team1:oauth-selector']
                       unlistedClientsPolicy: blockAndLog
+                    - path: '/no-clients'
+                      clients: []
+                      unlistedClientsPolicy: log
+                      oauth:
+                        provider: 'first-provider'
+                        verification: offline
+                        policy: strict                     
         """.trimIndent()
         )
 
@@ -387,6 +393,34 @@ class JWTFilterTest {
         assertThat(response).isOk().isFrom(service)
     }
 
+    @Test
+    fun `should allow request with token when policy is strict, unlisted clients policy is log and there are no clients`() {
+        // given
+        val token = tokenForProvider("first-provider")
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/no-clients", headers = Headers.of("Authorization", "Bearer $token")
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
+    }
+
+    @Test
+    fun `should reject request with wrong token when policy is strict, unlisted clients policy is log and there are no clients`() {
+        // given
+        val token = tokenForProvider("wrong-provider")
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/no-clients", headers = Headers.of("Authorization", "Bearer $token")
+        )
+
+        // then
+        assertThat(response).isForbidden()
+    }
+
     private fun registerEnvoyServiceAndWait() {
         consul.server.operations.registerServiceWithEnvoyOnIngress(
             name = "echo",
@@ -401,13 +435,13 @@ class JWTFilterTest {
             .execute()
             .body()!!.string()
 
-    private fun registerClientWithAuthority(provider: String, clientId: String, authority: String): Response {
+    private fun registerClientWithAuthority(provider: String, clientId: String, authority: String) {
         val body = """{
             "clientId": "$clientId",
             "clientSecret": "secret",
              "authorities":["$authority"]
         }"""
         return OkHttpClient().newCall(Request.Builder().put(RequestBody.create(MediaType.JSON_MEDIA_TYPE, body)).url("http://localhost:${oAuthServer.container().port()}/$provider/client").build())
-            .execute()
+            .execute().close()
     }
 }

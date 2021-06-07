@@ -36,14 +36,14 @@ class RBACFilterFactory(
     private val jwtProperties: JwtFilterProperties = JwtFilterProperties()
 ) {
     private val incomingServicesSourceAuthentication = incomingPermissionsProperties
-            .sourceIpAuthentication
-            .ipFromServiceDiscovery
-            .enabledForIncomingServices
+        .sourceIpAuthentication
+        .ipFromServiceDiscovery
+        .enabledForIncomingServices
 
     private val incomingServicesIpRangeAuthentication = incomingPermissionsProperties
-            .sourceIpAuthentication
-            .ipFromRange
-            .keys
+        .sourceIpAuthentication
+        .ipFromRange
+        .keys
 
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
     private val denyForAllPrincipal = Principal.newBuilder().setNotId(anyPrincipal).build()
@@ -94,7 +94,7 @@ class RBACFilterFactory(
                     }.map { mergeWithOAuthPolicy(client, it, incomingEndpoint.oauth?.policy) }
                 }
                 .toSet()
-                .ifEmpty { setOf(denyForAllPrincipal) }
+                .ifEmpty { setOf(oAuthPolicyForEmptyClients(incomingEndpoint.oauth?.policy, incomingEndpoint.unlistedClientsPolicy)) }
 
             val policy = Policy.newBuilder().addAllPrincipals(principals)
             val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
@@ -116,11 +116,11 @@ class RBACFilterFactory(
         )
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
-            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG }
+            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG || it.endpoint.oauth?.policy != null }
             .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
 
         val loggedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
-            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG }
+            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG && it.endpoint.oauth?.policy == null }
             .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
 
         val allowUnlistedPolicies = unlistedAndLoggedEndpointsPolicies(
@@ -258,6 +258,19 @@ class RBACFilterFactory(
             listOf(jwtClientWithSelectorPrincipal(clientWithSelector, providerForSelector))
         } else {
             tlsPrincipals(clientWithSelector.name)
+        }
+    }
+
+    private fun oAuthPolicyForEmptyClients(policy: OAuth.Policy?, unlistedPolicy: Incoming.UnlistedPolicy): Principal {
+        return if (unlistedPolicy == Incoming.UnlistedPolicy.LOG) {
+            when (policy) {
+                OAuth.Policy.STRICT -> strictPolicyPrincipal
+                OAuth.Policy.ALLOW_MISSING -> allowMissingPolicyPrincipal
+                OAuth.Policy.ALLOW_MISSING_OR_FAILED -> anyPrincipal
+                null -> denyForAllPrincipal
+            }
+        } else {
+            denyForAllPrincipal
         }
     }
 

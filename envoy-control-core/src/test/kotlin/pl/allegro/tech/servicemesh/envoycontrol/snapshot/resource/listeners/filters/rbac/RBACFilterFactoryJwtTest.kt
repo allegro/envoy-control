@@ -27,6 +27,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                     selectorToTokenField = mapOf("oauth-selector" to "authorities")
                 )
             )
+        it.fieldRequiredInToken = "exp"
     }
 
     private val rbacFilterFactoryWithOAuth = RBACFilterFactory(
@@ -48,12 +49,12 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         SnapshotResources.create(listOf(), "")
     )
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "should generate RBAC rules for {arguments} OAuth Policy")
     @EnumSource(OAuth.Policy::class)
     fun `should generate RBAC rules for OAuth Policy`(policy: OAuth.Policy) {
         // given
-        val oAuthPolicyPrincipal = principalForOAuthPolicy(policy)
         val client = "client1"
+        val oAuthPolicyPrincipal = principalForOAuthPolicy(policy, client)
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 oAuthPolicyPrincipal,
@@ -164,6 +165,96 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         Assertions.assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
+    @ParameterizedTest(name = "should generate RBAC rules for {arguments} if no clients and unlisted clients policy is log")
+    @EnumSource(OAuth.Policy::class)
+    fun `should generate RBAC rules for OAuth Policy if no clients and unlisted clients policy is log`(policy: OAuth.Policy) {
+        // given
+        val unlistedClientsPolicy = Incoming.UnlistedPolicy.LOG
+        val incomingPermission = Incoming(
+            permissionsEnabled = true,
+            endpoints = listOf(
+                IncomingEndpoint(
+                    "/oauth-protected",
+                    PathMatchingType.PATH,
+                    setOf("GET"),
+                    setOf(),
+                    unlistedClientsPolicy,
+                    oauth = OAuth(
+                        provider = "oauth-provider",
+                        verification = OAuth.Verification.OFFLINE,
+                        policy = policy
+                    )
+                )
+            )
+        )
+
+        val expectedRbacBuilder = getRBACFilterWithShadowRules(
+            expectedPoliciesForOAuth(
+                oAuthPrincipalsNoClients(policy),
+                "",
+                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)",
+                "$unlistedClientsPolicy"
+            ),
+            expectedPoliciesForOAuth(
+                oAuthPrincipalsNoClients(policy),
+                "",
+                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)",
+                "$unlistedClientsPolicy"
+            )
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithOAuth.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        Assertions.assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
+    @ParameterizedTest(name = "should generate RBAC rules for {arguments} if no clients and unlistedClientsPolicy is blockAndLog")
+    @EnumSource(OAuth.Policy::class)
+    fun `should generate RBAC rules for OAuth Policy if no clients and unlisted clients policy is blockAndLog`(policy: OAuth.Policy) {
+        // given
+        val unlistedClientsPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG
+        val incomingPermission = Incoming(
+            permissionsEnabled = true,
+            endpoints = listOf(
+                IncomingEndpoint(
+                    "/oauth-protected",
+                    PathMatchingType.PATH,
+                    setOf("GET"),
+                    setOf(),
+                    unlistedClientsPolicy,
+                    oauth = OAuth(
+                        provider = "oauth-provider",
+                        verification = OAuth.Verification.OFFLINE,
+                        policy = policy
+                    )
+                )
+            )
+        )
+
+        val expectedRbacBuilder = getRBACFilterWithShadowRules(
+            expectedPoliciesForOAuth(
+                """{ "not_id":  {"any": "true"} }""",
+                "",
+                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)",
+                "$unlistedClientsPolicy"
+            ),
+            expectedPoliciesForOAuth(
+                """{ "not_id":  {"any": "true"} }""",
+                "",
+                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)",
+                "$unlistedClientsPolicy"
+            )
+        )
+
+        // when
+        val generated = rbacFilterFactoryWithOAuth.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        Assertions.assertThat(generated).isEqualTo(expectedRbacBuilder)
+    }
+
     private fun getTokenFieldForSelector(selector: String) =
         jwtProperties.providers["oauth-provider"]!!.selectorToTokenField[selector]!!
 
@@ -190,10 +281,15 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                        }
                       }"""
 
-    private fun expectedPoliciesForOAuth(principals: String, clientsWithSelector: String, oauth: String) = """
+    private fun expectedPoliciesForOAuth(
+        principals: String,
+        clientsWithSelector: String,
+        oauth: String,
+        unlistedClientsPolicy: String = "BLOCKANDLOG"
+    ) = """
         {
           "policies": {
-            "IncomingEndpoint(path=/oauth-protected, pathMatchingType=PATH, methods=[GET], clients=[$clientsWithSelector], unlistedClientsPolicy=BLOCKANDLOG, oauth=$oauth)": {
+            "IncomingEndpoint(path=/oauth-protected, pathMatchingType=PATH, methods=[GET], clients=[$clientsWithSelector], unlistedClientsPolicy=$unlistedClientsPolicy, oauth=$oauth)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -215,7 +311,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         }
     """
 
-    private fun principalForOAuthPolicy(policy: OAuth.Policy): String = when (policy) {
+    private fun principalForOAuthPolicy(policy: OAuth.Policy, client: String): String = when (policy) {
         OAuth.Policy.STRICT -> """{
           "andIds": {
             "ids": [{
@@ -249,7 +345,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             }, {
               "authenticated": {
                 "principalName": {
-                  "exact": "spiffe://client1"
+                  "exact": "spiffe://$client"
                 }
               }
             }]
@@ -304,12 +400,92 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             }, {
               "authenticated": {
                 "principalName": {
-                  "exact": "spiffe://client1"
+                  "exact": "spiffe://$client"
                 }
               }
             }]
           }
         }"""
         OAuth.Policy.ALLOW_MISSING_OR_FAILED -> authenticatedPrincipal("client1")
+    }
+
+    private fun oAuthPrincipalsNoClients(policy: OAuth.Policy): String {
+        return when (policy) {
+            OAuth.Policy.STRICT -> """{
+              "andIds": {
+                "ids": [{
+                  "metadata": {
+                    "filter": "envoy.filters.http.header_to_metadata",
+                    "path": [{
+                      "key": "jwt-status"
+                    }],
+                    "value": {
+                      "stringMatch": {
+                        "exact": "present"
+                      }
+                    }
+                  }
+                }, {
+                  "metadata": {
+                    "filter": "envoy.filters.http.jwt_authn",
+                    "path": [{
+                       "key": "jwt"
+                      }, {
+                      "key": "exp"
+                      }],
+                    "value": {
+                      "presentMatch": true
+                    }
+                  }
+                }]
+              }
+            }"""
+            OAuth.Policy.ALLOW_MISSING -> """{
+              "orIds": {
+                "ids": [{
+                  "metadata": {
+                    "filter": "envoy.filters.http.header_to_metadata",
+                    "path": [{
+                      "key": "jwt-status"
+                    }],
+                    "value": {
+                      "stringMatch": {
+                        "exact": "missing"
+                      }
+                    }
+                  }
+                }, {
+                  "andIds": {
+                    "ids": [{
+                      "metadata": {
+                        "filter": "envoy.filters.http.header_to_metadata",
+                        "path": [{
+                          "key": "jwt-status"
+                        }],
+                        "value": {
+                          "stringMatch": {
+                            "exact": "present"
+                          }
+                        }
+                      }
+                    }, {
+                      "metadata": {
+                        "filter": "envoy.filters.http.jwt_authn",
+                            "path": [{
+                              "key": "jwt"
+                            }, {
+                              "key": "exp"
+                            }],
+                        "value": {
+                          "presentMatch": true
+                        }
+                      }
+                    }]
+                  }
+                }]
+              }
+            }"""
+            OAuth.Policy.ALLOW_MISSING_OR_FAILED -> """{"any": true}"""
+        }
     }
 }
