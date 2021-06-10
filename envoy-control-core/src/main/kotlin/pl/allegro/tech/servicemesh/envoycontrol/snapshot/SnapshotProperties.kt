@@ -241,7 +241,7 @@ class EgressProperties {
     var neverRemoveClusters = true
     var hostHeaderRewriting = HostHeaderRewritingProperties()
     var headersToRemove = mutableListOf<String>()
-    var domain = mutableListOf<String>()
+    var domains = mutableListOf<String>()
 }
 
 class IngressProperties {

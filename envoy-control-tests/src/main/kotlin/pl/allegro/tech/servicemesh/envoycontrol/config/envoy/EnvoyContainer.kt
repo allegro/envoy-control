@@ -14,7 +14,7 @@ class EnvoyContainer(
     private val localServiceIp: () -> String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
-    private val logLevel: String = "info",
+    private val logLevel: String = "debug",
     image: String = DEFAULT_IMAGE
 ) : SSLGenericContainer<EnvoyContainer>(
     dockerfileBuilder = DockerfileBuilder()

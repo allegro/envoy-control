@@ -533,7 +533,7 @@ class SnapshotUpdaterTest {
                 outgoingPermissions.allServicesDependencies.notIncludedByPrefix = mutableSetOf(
                     "mock-", "regression-tests"
                 )
-                egress.domain = domainsSuffixes
+                egress.domains = domainsSuffixes
             },
             groups = groups
         )

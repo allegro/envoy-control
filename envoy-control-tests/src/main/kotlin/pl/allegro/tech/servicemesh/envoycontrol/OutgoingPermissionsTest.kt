@@ -25,7 +25,8 @@ class AdsOutgoingPermissionsTest : OutgoingPermissionsTest {
         @JvmField
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(consul, mapOf(
-            "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true
+            "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.egress.domains" to mutableListOf(".test.domain", ".domain")
         ))
 
         @JvmField
@@ -55,7 +56,8 @@ class XdsOutgoingPermissionsTest : OutgoingPermissionsTest {
         @JvmField
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(consul, mapOf(
-            "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true
+            "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true,
+            "envoy-control.envoy.snapshot.egress.domains" to mutableListOf(".test.domain", ".domain")
         ))
 
         @JvmField
@@ -92,13 +94,18 @@ interface OutgoingPermissionsTest {
             // when
             val unreachableResponse = envoy().egressOperations.callService("not-accessible")
             val unregisteredResponse = envoy().egressOperations.callService("unregistered")
+            val unregisteredResponse = envoy().egressOperations.callService("unregistered")
             val reachableResponse = envoy().egressOperations.callService("echo")
+            val reachableResponseEchoWithDomain = envoy().egressOperations.callService("echo.test.domain")
+            val reachableResponseEchoWithDomain2 = envoy().egressOperations.callService("echo.domain")
             val reachableDomainResponse = envoy().egressOperations.callDomain("www.example.com")
             val unreachableDomainResponse = envoy().egressOperations.callDomain("www.another-example.com")
 
             // then
             assertThat(reachableResponse).isOk().isFrom(service())
             assertThat(reachableDomainResponse).isOk()
+            assertThat(reachableResponseEchoWithDomain).isOk().isFrom(service())
+            assertThat(reachableResponseEchoWithDomain2).isOk().isFrom(service())
             assertThat(unreachableDomainResponse).isUnreachable()
             assertThat(unreachableResponse).isUnreachable()
             assertThat(unregisteredResponse).isUnreachable()

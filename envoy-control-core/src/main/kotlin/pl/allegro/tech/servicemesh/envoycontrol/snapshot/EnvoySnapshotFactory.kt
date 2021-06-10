@@ -214,8 +214,8 @@ class EnvoySnapshotFactory(
     }
 
     private fun getServiceWithCustomDomain(it: String): List<String> {
-        return if (properties.egress.domain.isNotEmpty()) {
-            properties.egress.domain.map { domain -> "$it$domain" }
+        return if (properties.egress.domains.isNotEmpty()) {
+            properties.egress.domains.map { domain -> "$it$domain" }
         } else {
             emptyList()
         }
