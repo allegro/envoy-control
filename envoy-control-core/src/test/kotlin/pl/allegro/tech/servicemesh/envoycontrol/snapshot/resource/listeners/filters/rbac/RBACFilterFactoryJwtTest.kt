@@ -23,6 +23,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         it.providers =
             mapOf(
                 "oauth-provider" to OAuthProvider(
+                    "oauth-provider",
                     selectorToTokenField = mapOf("oauth-selector" to "authorities")
                 )
             )

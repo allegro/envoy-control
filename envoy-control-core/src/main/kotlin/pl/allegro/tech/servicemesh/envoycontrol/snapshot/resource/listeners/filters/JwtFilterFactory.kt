@@ -70,6 +70,7 @@ class JwtFilterFactory(
             )
                 .setCacheDuration(Durations.fromMillis(provider.cacheDuration.toMillis()))
         )
+        .setIssuer(provider.issuer)
         .setForward(properties.forwardJwt)
         .setForwardPayloadHeader(properties.forwardPayloadHeader)
         .setPayloadInMetadata(properties.payloadInMetadata)

@@ -806,6 +806,7 @@ class NodeMetadataTest {
         val oauthProviders = mapOf(
             "oauth2-mock" to
                 OAuthProvider(
+                    issuer = "oauth2-mock",
                     jwksUri = URI.create("http://localhost:8080/jwks-address/"),
                     clusterName = "oauth"
                 )
