@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.discovery.consul.recipes.internal.http.MediaType
@@ -14,6 +15,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo1EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
+import pl.allegro.tech.servicemesh.envoycontrol.config.OAuthEnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
@@ -38,19 +40,18 @@ class JWTFilterTest {
         val envoyControl = EnvoyControlExtension(
             consul,
             mapOf(
+                "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true,
                 "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
                 "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
                 "envoy-control.envoy.snapshot.jwt.providers" to mapOf(
                     "first-provider" to OAuthProvider(
-                        issuer = "first-provider",
-                        jwksUri = URI.create(oAuthServer.getJwksAddress("first-provider")),
-                        clusterName = "first-provider",
-                        clusterPort = oAuthServer.container().oAuthPort(),
+                        jwksUri = URI.create("http://oauth/first-provider/jwks"),
+                        clusterName = "oauth",
                         selectorToTokenField = mapOf("oauth-selector" to "authorities")
                     ),
                     "second-provider" to OAuthProvider(
-                        issuer = "second-provider",
                         jwksUri = URI.create(oAuthServer.getJwksAddress("second-provider")),
+                        createCluster = true,
                         clusterName = "second-provider",
                         clusterPort = oAuthServer.container().oAuthPort(),
                         selectorToTokenField = mapOf("second-selector" to "authorities")
@@ -70,6 +71,9 @@ class JWTFilterTest {
             node:
               metadata:
                 proxy_settings:
+                  outgoing:
+                    dependencies:
+                      - service: "oauth"
                   incoming:
                     unlistedEndpointsPolicy: blockAndLog
                     endpoints: 
@@ -117,9 +121,23 @@ class JWTFilterTest {
                       oauth:
                         provider: 'first-provider'
                         verification: offline
-                        policy: strict                     
+                        policy: strict
         """.trimIndent()
         )
+
+        // language=yaml
+        private val oauthConfig = """
+            node:
+              metadata:
+                proxy_settings:
+                  incoming:
+                    unlistedEndpointsPolicy: log
+                    endpoints: []
+        """.trimIndent()
+
+        @JvmField
+        @RegisterExtension
+        val oauthEnvoy = EnvoyExtension(envoyControl, oAuthServer, config = OAuthEnvoyConfig.copy(serviceName = "oauth", configOverride = oauthConfig))
 
         @JvmField
         @RegisterExtension
@@ -140,8 +158,18 @@ class JWTFilterTest {
         val echo2Envoy = EnvoyExtension(envoyControl, localService = service, config = Echo2EnvoyAuthConfig.copy(configOverride = echo2Config))
     }
 
+    @BeforeEach
+    internal fun registerOAuthAndWait() {
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            name = "oauth",
+            extension = oauthEnvoy
+        )
+        envoy.waitForReadyServices("oauth")
+    }
+
     @Test
     fun `should reject request without jwt`() {
+
         // given
         registerEnvoyServiceAndWait()
 

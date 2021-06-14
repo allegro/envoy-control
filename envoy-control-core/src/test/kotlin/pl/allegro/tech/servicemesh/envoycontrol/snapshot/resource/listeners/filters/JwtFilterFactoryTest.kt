@@ -22,7 +22,7 @@ internal class JwtFilterFactoryTest {
         JwtFilterProperties().also {
             it.forwardJwt = true
             it.providers = mapOf(
-                "provider" to OAuthProvider("provider", URI.create("http://provider/jwks"), "provider-cluster")
+                "provider" to OAuthProvider("provider", URI.create("http://provider/jwks"), true, "provider-cluster")
             )
         }
     )
@@ -30,8 +30,8 @@ internal class JwtFilterFactoryTest {
         JwtFilterProperties().also {
             it.forwardJwt = true
             it.providers = mapOf(
-                "provider1" to OAuthProvider("provider1", URI.create("http://provider1/jwks"), "provider1-cluster"),
-                "provider2" to OAuthProvider("provider2", URI.create("http://provider2/jwks"), "provider2-cluster")
+                "provider1" to OAuthProvider("provider1", URI.create("http://provider1/jwks"), true, "provider1-cluster"),
+                "provider2" to OAuthProvider("provider2", URI.create("http://provider2/jwks"), false, "provider2-cluster")
             )
         }
     )
