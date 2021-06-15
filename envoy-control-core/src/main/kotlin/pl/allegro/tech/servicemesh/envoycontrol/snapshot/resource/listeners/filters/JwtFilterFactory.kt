@@ -22,7 +22,7 @@ class JwtFilterFactory(
     private val properties: JwtFilterProperties
 ) {
 
-    private val jwtProviders: Map<String, JwtProvider> = getJwtProviders()
+    private val jwtProviders: Map<ProviderName, JwtProvider> = getJwtProviders()
     private val selectorToOAuthProvider: Map<String, String> =
         properties.providers.entries.flatMap { (name, provider) ->
             provider.selectorToTokenField.keys.map { selector -> selector to name }
@@ -48,10 +48,13 @@ class JwtFilterFactory(
     }
 
     private fun shouldCreateFilter(group: Group): Boolean {
-        return group.proxySettings.incoming.endpoints.any {
-            it.oauth != null || it.clients.any { client -> client.selector in selectorToOAuthProvider.keys }
-        } && properties.providers.isNotEmpty()
+        return properties.providers.isNotEmpty() && group.proxySettings.incoming.endpoints.any {
+            it.oauth != null || containsClientsWithSelector(it)
+        }
     }
+
+    private fun containsClientsWithSelector(it: IncomingEndpoint) =
+        selectorToOAuthProvider.keys.intersect(it.clients).isNotEmpty()
 
     private fun getJwtProviders(): Map<ProviderName, JwtProvider> =
         properties.providers.entries.associate {
@@ -101,14 +104,20 @@ class JwtFilterFactory(
         }
     }
 
+    private val requirementsForProviders: Map<ProviderName, JwtRequirement> =
+        jwtProviders.keys.associateWith { JwtRequirement.newBuilder().setProviderName(it).build() }
+
+    private val allowMissingOrFailedRequirement =
+        JwtRequirement.newBuilder().setAllowMissingOrFailed(Empty.getDefaultInstance()).build()
+
     private fun createJwtRequirement(providers: Set<String>): JwtRequirement {
         return JwtRequirement.newBuilder()
             .setRequiresAny(
                 JwtRequirementOrList.newBuilder().addAllRequirements(
                     providers.map {
-                        JwtRequirement.newBuilder().setProviderName(it).build()
+                        requirementsForProviders[it]
                     }
-                        .plus(JwtRequirement.newBuilder().setAllowMissingOrFailed(Empty.getDefaultInstance()).build())
+                        .plus(allowMissingOrFailedRequirement)
                 )
             )
             .build()
