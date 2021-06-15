@@ -94,7 +94,7 @@ class JwtFilterFactory(
 
         return if (providers.isNotEmpty()) {
             RequirementRule.newBuilder().setMatch(
-                RouteMatch.newBuilder().setPrefix(endpoint.path)
+                RouteMatch.newBuilder().setPath(endpoint.path)
             ).setRequires(
                 createJwtRequirement(providers)
             ).build()
