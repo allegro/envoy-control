@@ -318,7 +318,6 @@ class DynamicForwardProxyProperties {
     var connectionTimeout = Duration.ofSeconds(1)
 }
 data class OAuthProvider(
-    var issuer: String = "",
     var jwksUri: URI = URI.create("http://localhost"),
     val createCluster: Boolean = false,
     var clusterName: String = "",

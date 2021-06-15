@@ -55,7 +55,6 @@ class JWTFilterTest {
                         clusterName = "second-provider",
                         clusterPort = oAuthServer.container().oAuthPort(),
                         selectorToTokenField = mapOf("second-selector" to "authorities")
-
                     )
                 )
             )
