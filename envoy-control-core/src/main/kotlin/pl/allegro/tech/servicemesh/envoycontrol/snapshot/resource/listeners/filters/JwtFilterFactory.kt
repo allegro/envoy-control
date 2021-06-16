@@ -12,8 +12,10 @@ import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirementOr
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RemoteJwks
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RequirementRule
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ProviderName
@@ -93,14 +95,30 @@ class JwtFilterFactory(
             .mapNotNull { selectorToOAuthProvider[it.selector] })
 
         return if (providers.isNotEmpty()) {
-            RequirementRule.newBuilder().setMatch(
-                RouteMatch.newBuilder().setPath(endpoint.path)
-            ).setRequires(
-                createJwtRequirement(providers)
-            ).build()
+            requirementRuleWithPathMatching(endpoint.path, endpoint.pathMatchingType, providers)
         } else {
             null
         }
+    }
+
+    private fun requirementRuleWithPathMatching(
+        path: String,
+        pathMatchingType: PathMatchingType,
+        providers: MutableSet<String>
+    ): RequirementRule {
+        val pathMatching = when (pathMatchingType) {
+            PathMatchingType.PATH -> RouteMatch.newBuilder().setPath(path)
+            PathMatchingType.PATH_PREFIX -> RouteMatch.newBuilder().setPrefix(path)
+            PathMatchingType.PATH_REGEX -> RouteMatch.newBuilder()
+                .setSafeRegex(
+                    RegexMatcher.newBuilder().setRegex(path).setGoogleRe2(
+                        RegexMatcher.GoogleRE2.getDefaultInstance()
+                    ).build()
+                )
+        }
+        return RequirementRule.newBuilder()
+            .setMatch(pathMatching)
+            .setRequires(createJwtRequirement(providers)).build()
     }
 
     private val requirementsForProviders: Map<ProviderName, JwtRequirement> =

@@ -114,7 +114,7 @@ class JWTFilterTest {
                     - path: '/team-access'
                       clients: ['team1:oauth-selector']
                       unlistedClientsPolicy: blockAndLog
-                    - path: '/no-clients'
+                    - pathPrefix: '/no-clients'
                       clients: []
                       unlistedClientsPolicy: log
                       oauth:

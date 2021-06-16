@@ -147,7 +147,7 @@ internal class JwtFilterFactoryTest {
   },
   "rules": [{
     "match": {
-      "prefix": "/"
+      "path": "/"
     },
     $requires
   }]
@@ -184,7 +184,7 @@ internal class JwtFilterFactoryTest {
   },
   "rules": [{
     "match": {
-      "prefix": "/provider1-protected"
+      "path": "/provider1-protected"
     },
     "requires": {
                 "requiresAny": {
@@ -193,7 +193,7 @@ internal class JwtFilterFactoryTest {
             }
   }, {
     "match": {
-      "prefix": "/provider2-protected"
+      "path": "/provider2-protected"
     },
     "requires": {
                 "requiresAny": {
