@@ -539,13 +539,13 @@ class SnapshotUpdaterTest {
         )
 
         val expectedWhitelistedServices = setOf("s1", "mockito", "s2", "frontend").toTypedArray()
-        val expectedDomainsWhitelistedServices = setOf("s1", "mockito", "s2", "frontend").flatMap {
-            listOf(it) + domainsSuffixes.map { domain -> "$it$domain" }
-        }.toTypedArray()
+        val expectedDomainsWhitelistedServices = setOf(
+            "s1", "s1.test.domain", "s1.domain2", "mockito", "mockito.test.domain", "mockito.domain2",
+            "s2", "s2.test.domain", "s2.domain2", "frontend", "frontend.test.domain", "frontend.domain2"
+        ).toTypedArray()
         val expectedBlacklistedServices = setOf("mock-service").toTypedArray()
-        val expectedDomainsBlacklistedServices = expectedBlacklistedServices.flatMap {
-            listOf(it) + domainsSuffixes.map { domain -> "$it$domain" }
-        }.toTypedArray()
+        val expectedDomainsBlacklistedServices =
+            setOf("mock-service", "mock-service.test.domain", "mock-service.domain2").toTypedArray()
 
         // when
         updater.start(
