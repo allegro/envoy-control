@@ -94,7 +94,6 @@ interface OutgoingPermissionsTest {
             // when
             val unreachableResponse = envoy().egressOperations.callService("not-accessible")
             val unregisteredResponse = envoy().egressOperations.callService("unregistered")
-            val unregisteredResponse = envoy().egressOperations.callService("unregistered")
             val reachableResponse = envoy().egressOperations.callService("echo")
             val reachableResponseEchoWithDomain = envoy().egressOperations.callService("echo.test.domain")
             val reachableResponseEchoWithDomain2 = envoy().egressOperations.callService("echo.domain")
