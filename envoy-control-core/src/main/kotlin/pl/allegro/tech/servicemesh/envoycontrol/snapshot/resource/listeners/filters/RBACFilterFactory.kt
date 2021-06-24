@@ -94,7 +94,14 @@ class RBACFilterFactory(
                     }.map { mergeWithOAuthPolicy(client, it, incomingEndpoint.oauth?.policy) }
                 }
                 .toSet()
-                .ifEmpty { setOf(oAuthPolicyForEmptyClients(incomingEndpoint.oauth?.policy, incomingEndpoint.unlistedClientsPolicy)) }
+                .ifEmpty {
+                    setOf(
+                        oAuthPolicyForEmptyClients(
+                            incomingEndpoint.oauth?.policy,
+                            incomingEndpoint.unlistedClientsPolicy
+                        )
+                    )
+                }
 
             val policy = Policy.newBuilder().addAllPrincipals(principals)
             val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
@@ -116,11 +123,16 @@ class RBACFilterFactory(
         )
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
-            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG || it.endpoint.oauth?.policy != null }
+            .filter {
+                it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG ||
+                    it.endpoint.oauth?.policy != null
+            }
             .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
 
         val loggedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
-            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG && it.endpoint.oauth?.policy == null }
+            .filter {
+                it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG && it.endpoint.oauth?.policy == null
+            }
             .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
 
         val allowUnlistedPolicies = unlistedAndLoggedEndpointsPolicies(
@@ -201,9 +213,10 @@ class RBACFilterFactory(
             return mapOf()
         }
 
-        return mapOf(ALLOW_LOGGED_POLICY_NAME to Policy.newBuilder()
-            .addPrincipals(anyPrincipal)
-            .addPermissions(anyOf(allLoggedEndpointsPermissions))
+        return mapOf(
+            ALLOW_LOGGED_POLICY_NAME to Policy.newBuilder()
+                .addPrincipals(anyPrincipal)
+                .addPermissions(anyOf(allLoggedEndpointsPermissions))
         )
     }
 
@@ -393,8 +406,10 @@ class RBACFilterFactory(
     ): SelectorMatching? {
         val matching = incomingPermissionsProperties.selectorMatching[client.name]
         if (matching == null && client.selector != null) {
-            logger.warn("No selector matching found for client '${client.name}' with selector '${client.selector}' " +
-                    "in EC properties. Source IP based authentication will not contain additional matching.")
+            logger.warn(
+                "No selector matching found for client '${client.name}' with selector '${client.selector}' " +
+                    "in EC properties. Source IP based authentication will not contain additional matching."
+            )
             return null
         }
 
@@ -413,10 +428,11 @@ class RBACFilterFactory(
     private fun tlsPrincipals(client: String): List<Principal> {
         val stringMatcher = sanUriMatcherFactory.createSanUriMatcher(client)
 
-        return listOf(Principal.newBuilder().setAuthenticated(
-            Principal.Authenticated.newBuilder()
-                .setPrincipalName(stringMatcher)
-        ).build()
+        return listOf(
+            Principal.newBuilder().setAuthenticated(
+                Principal.Authenticated.newBuilder()
+                    .setPrincipalName(stringMatcher)
+            ).build()
         )
     }
 
@@ -427,10 +443,12 @@ class RBACFilterFactory(
             val principals = it.value.map { ipWithPrefix ->
                 val (ip, prefixLength) = ipWithPrefix.split("/")
 
-                Principal.newBuilder().setDirectRemoteIp(CidrRange.newBuilder()
+                Principal.newBuilder().setDirectRemoteIp(
+                    CidrRange.newBuilder()
                         .setAddressPrefix(ip)
-                        .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
-                        .build()
+                        .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build()
+                )
+                    .build()
             }
 
             Principal.newBuilder().setOrIds(Principal.Set.newBuilder().addAllIds(principals).build()).build()
@@ -461,10 +479,12 @@ class RBACFilterFactory(
             }
         }.orEmpty().map { address ->
             Principal.newBuilder()
-                    .setDirectRemoteIp(CidrRange.newBuilder()
-                            .setAddressPrefix(address.socketAddress.address)
-                            .setPrefixLen(EXACT_IP_MASK).build())
-                    .build()
+                .setDirectRemoteIp(
+                    CidrRange.newBuilder()
+                        .setAddressPrefix(address.socketAddress.address)
+                        .setPrefixLen(EXACT_IP_MASK).build()
+                )
+                .build()
         }
 
         return if (principals.isNotEmpty()) {
@@ -481,12 +501,14 @@ class RBACFilterFactory(
     ): Principal {
         return if (selectorMatching.header.isNotEmpty()) {
             val additionalMatchingPrincipal = Principal.newBuilder()
-                    .setHeader(HeaderMatcher.newBuilder().setName(selectorMatching.header).setExactMatch(selector))
-                    .build()
+                .setHeader(HeaderMatcher.newBuilder().setName(selectorMatching.header).setExactMatch(selector))
+                .build()
 
-            Principal.newBuilder().setAndIds(Principal.Set.newBuilder().addAllIds(
+            Principal.newBuilder().setAndIds(
+                Principal.Set.newBuilder().addAllIds(
                     listOf(sourceIpPrincipal, additionalMatchingPrincipal)
-            ).build()).build()
+                ).build()
+            ).build()
         } else {
             sourceIpPrincipal
         }
@@ -506,7 +528,7 @@ class RBACFilterFactory(
                 .build()
 
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac")
-                    .setTypedConfig(Any.pack(rbacFilter)).build()
+                .setTypedConfig(Any.pack(rbacFilter)).build()
         } else {
             null
         }
