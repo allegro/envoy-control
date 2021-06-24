@@ -65,10 +65,13 @@ We defined two independent mechanisms:
 - client with selector defined in OAuth configuration. This mechanism is independent of `oauth` section defined in incoming permissions. Its policy is always strict.
 
 
-Example incoming permissions:
+Example proxy settings:
 ```yaml
 metadata:
   proxy_settings:
+    outgoing:
+      dependencies:
+        - service: first-provider-service
     incoming:
       endpoints:
         - path: /example
@@ -79,6 +82,9 @@ metadata:
             verification: offline
             policy: strict
 ```
+You have to add cluster for the provider to outgoing dependencies, if your provider doesn't have `createCluster` set to `true`
+in the configuration ([JWT provider configuration](../configuration.md#jwt-filter)).
+
 The new oauth section of incoming permissions defines how a given endpoint uses JWT Authentication.
 
 * `provider` is the name of the provider who issued the token we are expecting
