@@ -37,7 +37,7 @@ class EnvoyControlV2AndV3SmokeTest {
 
         @JvmField
         @RegisterExtension
-        val envoyV2 = EnvoyExtension(envoyControl, serviceEnvoyV2, AdsV2)
+        val envoyV2 = EnvoyExtension(envoyControl, serviceEnvoyV2, AdsV2, apiVersion = 2)
 
         @JvmField
         @RegisterExtension

@@ -57,6 +57,49 @@ handled by Envoy. There is a global setting `envoy-control.envoy.snapshot.egress
 and will be used if no configuration is provided in metadata. More about redirects in
 [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/http/http_connection_management#internal-redirects).
 
+## JWT Authentication
+
+There is a possibility to restrict access by validating JWTs issued by OAuth providers.
+We defined two independent mechanisms:
+- defining `oauth` section in incoming endpoints.
+- client with selector defined in OAuth configuration. This mechanism is independent of `oauth` section defined in incoming permissions. Its policy is always strict.
+
+
+Example proxy settings:
+```yaml
+metadata:
+  proxy_settings:
+    outgoing:
+      dependencies:
+        - service: first-provider-service
+    incoming:
+      endpoints:
+        - path: /example
+          methods: [GET]
+          clients: [service-first, oauth-selector:team1]
+          oauth:
+            provider: 'first-provider'
+            verification: offline
+            policy: strict
+```
+You have to add cluster for the provider to outgoing dependencies, if your provider doesn't have `createCluster` set to `true`
+in the configuration ([JWT provider configuration](../configuration.md#jwt-filter)).
+
+The new oauth section of incoming permissions defines how a given endpoint uses JWT Authentication.
+
+* `provider` is the name of the provider who issued the token we are expecting
+* `verification` method of token verification, only offline currently.
+* `policy` Policy of the JWT Authentication:
+    * using `allowMissingOrFailed` allows all requests.
+    * using `allowMissing` allows requests with either valid JWT or without one.
+    * using `allowMissingOrFailed` only allows requests with valid JWT.
+
+
+Example illustrating mechanism allowing clients with defined selectors:
+
+Let's suppose we have OAuth Provider `second-provider` defined in the configuration. This provider has value
+`oauth-selector` to `authorities` in `selectorToTokenField` map. [See configuration](../configuration.md#jwt-filter).
+Then request is allowed when it has token from `second-provider` and it contains `team1` in the `authorities` field.
 ## Configuration
 
 You can see a list of settings [here](../configuration.md#permissions)

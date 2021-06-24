@@ -318,18 +318,20 @@ class DynamicForwardProxyProperties {
     var connectionTimeout = Duration.ofSeconds(1)
 }
 data class OAuthProvider(
-    var issuer: String = "",
     var jwksUri: URI = URI.create("http://localhost"),
+    val createCluster: Boolean = false,
     var clusterName: String = "",
     var clusterPort: Int = 443,
     var cacheDuration: Duration = Duration.ofSeconds(300),
-    var connectionTimeout: Duration = Duration.ofSeconds(1)
+    var connectionTimeout: Duration = Duration.ofSeconds(1),
+    var selectorToTokenField: Map<String, String> = emptyMap()
 )
 
 class JwtFilterProperties {
-    var forwardJwt: Boolean = false
+    var forwardJwt: Boolean = true
     var forwardPayloadHeader = "x-oauth-token-validated"
     var payloadInMetadata = "jwt"
+    var fieldRequiredInToken = "exp"
     var defaultVerificationType = OAuth.Verification.OFFLINE
     var defaultOAuthPolicy = OAuth.Policy.STRICT
     var providers = mapOf<ProviderName, OAuthProvider>()

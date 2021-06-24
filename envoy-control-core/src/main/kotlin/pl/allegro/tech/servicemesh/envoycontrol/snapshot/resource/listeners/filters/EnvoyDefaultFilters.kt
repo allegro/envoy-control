@@ -13,7 +13,8 @@ class EnvoyDefaultFilters(
 ) {
     private val rbacFilterFactory = RBACFilterFactory(
         snapshotProperties.incomingPermissions,
-        snapshotProperties.routes.status
+        snapshotProperties.routes.status,
+        jwtProperties = snapshotProperties.jwt
     )
     private val luaFilterFactory = LuaFilterFactory(
         snapshotProperties.incomingPermissions
@@ -42,8 +43,11 @@ class EnvoyDefaultFilters(
         luaFilterFactory.ingressClientNameHeaderFilter()
     }
 
-    private val defaultJwtHttpFilter = { group : Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
+    private val defaultJwtHttpFilter = { group: Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
 
+    private val defaultAuthorizationHeaderFilter = { _: Group, _: GlobalSnapshot ->
+        authorizationHeaderToMetadataFilter()
+    }
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
 
     /**
@@ -57,6 +61,7 @@ class EnvoyDefaultFilters(
      */
     val defaultIngressFilters = listOf(
         defaultClientNameHeaderFilter,
+        defaultAuthorizationHeaderFilter,
         defaultJwtHttpFilter,
         defaultRbacLoggingFilter,
         defaultRbacFilter,
@@ -105,4 +110,24 @@ class EnvoyDefaultFilters(
             )
             .build()
     }
+
+    private fun authorizationHeaderToMetadataFilter(): HttpFilter =
+        HttpFilter.newBuilder().setName("envoy.filters.http.header_to_metadata").setTypedConfig(
+            Any.pack(
+                Config.newBuilder()
+                    .addRequestRules(
+                        Config.Rule.newBuilder().setHeader("authorization")
+                            .setOnHeaderMissing(
+                                Config.KeyValuePair.newBuilder().setKey("jwt-status").setValue("missing")
+                            )
+                            .setOnHeaderPresent(
+                                Config.KeyValuePair.newBuilder().setKey("jwt-status").setValue("present")
+                            )
+                            .setRemove(false)
+                            .build()
+
+                    )
+                    .build()
+            )
+        ).build()
 }

@@ -22,7 +22,7 @@ internal class JwtFilterFactoryTest {
         JwtFilterProperties().also {
             it.forwardJwt = true
             it.providers = mapOf(
-                "provider" to OAuthProvider("provider", URI.create("http://provider/jwks"), "provider-cluster")
+                "provider" to OAuthProvider(URI.create("http://provider/jwks"), true, "provider-cluster")
             )
         }
     )
@@ -30,8 +30,8 @@ internal class JwtFilterFactoryTest {
         JwtFilterProperties().also {
             it.forwardJwt = true
             it.providers = mapOf(
-                "provider1" to OAuthProvider("provider1", URI.create("http://provider1/jwks"), "provider1-cluster"),
-                "provider2" to OAuthProvider("provider2", URI.create("http://provider2/jwks"), "provider2-cluster")
+                "provider1" to OAuthProvider(URI.create("http://provider1/jwks"), true, "provider1-cluster"),
+                "provider2" to OAuthProvider(URI.create("http://provider2/jwks"), false, "provider2-cluster")
             )
         }
     )
@@ -61,52 +61,9 @@ internal class JwtFilterFactoryTest {
     }
 
     @Test
-    fun `should create JWT filter`() {
+    fun `should create JWT filter with allow missing or failed policy when OAuth is defined in group`() {
         // given
         val group = createGroup(mapOf("/" to "provider"), OAuth.Policy.STRICT)
-        val expectedJwtFilter = getJwtFilter(
-            singleProviderJson(
-                """ "requires": {
-              "providerName": "provider"
-            }"""
-            )
-        )
-
-        // when
-        val generatedFilter = jwtFilterFactory.createJwtFilter(group)
-
-        // then
-        assertThat(generatedFilter).isNotNull
-        assertThat(generatedFilter).isEqualTo(expectedJwtFilter)
-    }
-
-    @Test
-    fun `should create JWT filter with allow missing`() {
-        // given
-        val group = createGroup(mapOf("/" to "provider"), OAuth.Policy.ALLOW_MISSING)
-        val expectedJwtFilter = getJwtFilter(
-            singleProviderJson(
-                """ 
-            "requires": {
-                "requiresAny": {
-                    "requirements": [{"providerName": "provider"}, {"allowMissing": {} }]
-                 }
-            }"""
-            )
-        )
-
-        // when
-        val generatedFilter = jwtFilterFactory.createJwtFilter(group)
-
-        // then
-        assertThat(generatedFilter).isNotNull
-        assertThat(generatedFilter).isEqualTo(expectedJwtFilter)
-    }
-
-    @Test
-    fun `should create JWT filter with allow missing or failed`() {
-        // given
-        val group = createGroup(mapOf("/" to "provider"), OAuth.Policy.ALLOW_MISSING_OR_FAILED)
         val expectedJwtFilter = getJwtFilter(
             singleProviderJson(
                 """ 
@@ -134,7 +91,7 @@ internal class JwtFilterFactoryTest {
                 "/provider1-protected" to "provider1",
                 "/provider2-protected" to "provider2"
             ),
-            OAuth.Policy.STRICT
+            OAuth.Policy.ALLOW_MISSING_OR_FAILED
         )
         val expectedJwtFilter = getJwtFilter(multiProviderJson)
 
@@ -175,7 +132,6 @@ internal class JwtFilterFactoryTest {
     private fun singleProviderJson(requires: String) = """{
   "providers": {
     "provider": {
-      "issuer": "provider",
       "remoteJwks": {
         "httpUri": {
           "uri": "http://provider/jwks",
@@ -191,7 +147,7 @@ internal class JwtFilterFactoryTest {
   },
   "rules": [{
     "match": {
-      "prefix": "/"
+      "path": "/"
     },
     $requires
   }]
@@ -200,7 +156,6 @@ internal class JwtFilterFactoryTest {
     private val multiProviderJson = """{
   "providers": {
     "provider1": {
-      "issuer": "provider1",
       "remoteJwks": {
         "httpUri": {
           "uri": "http://provider1/jwks",
@@ -214,7 +169,6 @@ internal class JwtFilterFactoryTest {
       "payloadInMetadata": "jwt"
     },
     "provider2": {
-      "issuer": "provider2",
       "remoteJwks": {
         "httpUri": {
           "uri": "http://provider2/jwks",
@@ -230,18 +184,22 @@ internal class JwtFilterFactoryTest {
   },
   "rules": [{
     "match": {
-      "prefix": "/provider1-protected"
+      "path": "/provider1-protected"
     },
     "requires": {
-      "providerName": "provider1"
-    }
+                "requiresAny": {
+                    "requirements": [{"providerName": "provider1"}, {"allowMissingOrFailed": {} }]
+                 }
+            }
   }, {
     "match": {
-      "prefix": "/provider2-protected"
+      "path": "/provider2-protected"
     },
     "requires": {
-      "providerName": "provider2"
-    }
+                "requiresAny": {
+                    "requirements": [{"providerName": "provider2"}, {"allowMissingOrFailed": {} }]
+                 }
+            }
   }]
 }"""
 }

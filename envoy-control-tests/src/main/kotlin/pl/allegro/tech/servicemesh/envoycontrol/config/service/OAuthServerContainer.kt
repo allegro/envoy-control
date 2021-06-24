@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
-import com.pszymczyk.consul.infrastructure.Ports
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.images.builder.ImageFromDockerfile
@@ -29,6 +28,6 @@ class OAuthServerContainer :
 
     companion object {
         const val NETWORK_ALIAS = "oauth"
-        val OAUTH_PORT = Ports.nextAvailable()
+        const val OAUTH_PORT = 9997
     }
 }
