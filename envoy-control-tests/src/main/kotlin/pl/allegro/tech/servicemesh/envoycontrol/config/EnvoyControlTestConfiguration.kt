@@ -55,6 +55,7 @@ val AdsWithStaticListeners = EnvoyConfig("envoy/config_ads_static_listeners.yaml
 val AdsWithNoDependencies = EnvoyConfig("envoy/config_ads_no_dependencies.yaml")
 val Xds = EnvoyConfig("envoy/config_xds.yaml")
 val RandomConfigFile = if (Random.nextBoolean()) Ads else Xds
+val OAuthEnvoyConfig = EnvoyConfig("envoy/config_oauth.yaml")
 
 @Deprecated("use extension approach instead, e.g. RetryPolicyTest")
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
