@@ -285,7 +285,8 @@ fun incomingEndpointProto(
     pathPrefix: String? = null,
     pathRegex: String? = null,
     includeNullFields: Boolean = false,
-    clients: List<String> = listOf("client1")
+    clients: List<String> = listOf("client1"),
+    oauth: OAuthTestDependencies? = null
 ): Value = struct {
 
     this.putPathFields(path, "path", includeNullFields)
@@ -293,6 +294,7 @@ fun incomingEndpointProto(
     this.putPathFields(pathRegex, "pathRegex", includeNullFields)
 
     putFields("clients", list { clients.forEach { addValues(string(it)) } })
+    oauth?.let { putFields("oauth", putOauthFields(it)) }
 }
 
 fun Struct.Builder.putPathFields(path: String?, fieldName: String, includeNullFields: Boolean) {
@@ -302,6 +304,24 @@ fun Struct.Builder.putPathFields(path: String?, fieldName: String, includeNullFi
         else -> null
     }?.also {
         this.putFields(fieldName, it)
+    }
+}
+
+class OAuthTestDependencies(
+    val provider: String?,
+    val verification: String?,
+    val policy: String?
+)
+
+fun putOauthFields(oauthDependencies: OAuthTestDependencies?) = struct {
+    oauthDependencies?.provider?.let {
+        putFields("provider", string(it))
+    }
+    oauthDependencies?.verification?.let {
+        putFields("verification", string(it))
+    }
+    oauthDependencies?.policy?.let {
+        putFields("policy", string(it))
     }
 }
 

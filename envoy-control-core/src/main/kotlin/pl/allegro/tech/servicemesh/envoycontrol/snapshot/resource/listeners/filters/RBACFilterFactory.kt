@@ -9,15 +9,22 @@ import io.envoyproxy.envoy.config.rbac.v3.Principal
 import io.envoyproxy.envoy.config.rbac.v3.RBAC
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import io.envoyproxy.envoy.type.matcher.v3.ListMatcher
+import io.envoyproxy.envoy.type.matcher.v3.MetadataMatcher
+import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
+import io.envoyproxy.envoy.type.matcher.v3.ValueMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
+import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
@@ -25,17 +32,18 @@ import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 class RBACFilterFactory(
     private val incomingPermissionsProperties: IncomingPermissionsProperties,
     statusRouteProperties: StatusRouteProperties,
-    private val rBACFilterPermissions: RBACFilterPermissions = RBACFilterPermissions()
+    private val rBACFilterPermissions: RBACFilterPermissions = RBACFilterPermissions(),
+    private val jwtProperties: JwtFilterProperties = JwtFilterProperties()
 ) {
     private val incomingServicesSourceAuthentication = incomingPermissionsProperties
-            .sourceIpAuthentication
-            .ipFromServiceDiscovery
-            .enabledForIncomingServices
+        .sourceIpAuthentication
+        .ipFromServiceDiscovery
+        .enabledForIncomingServices
 
     private val incomingServicesIpRangeAuthentication = incomingPermissionsProperties
-            .sourceIpAuthentication
-            .ipFromRange
-            .keys
+        .sourceIpAuthentication
+        .ipFromRange
+        .keys
 
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
     private val denyForAllPrincipal = Principal.newBuilder().setNotId(anyPrincipal).build()
@@ -65,6 +73,8 @@ class RBACFilterFactory(
 
     data class EndpointWithPolicy(val endpoint: IncomingEndpoint, val policy: Policy.Builder)
 
+    private val oAuthSelectors: List<String> = jwtProperties.providers.values.flatMap { it.selectorToTokenField.keys }
+
     private fun getIncomingEndpointPolicies(
         incomingPermissions: Incoming,
         snapshot: GlobalSnapshot,
@@ -73,11 +83,25 @@ class RBACFilterFactory(
         val principalCache = mutableMapOf<ClientWithSelector, List<Principal>>()
         return incomingPermissions.endpoints.map { incomingEndpoint ->
             val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
+
             val principals = clientsWithSelectors
                 .flatMap { client ->
-                    principalCache.computeIfAbsent(client) { mapClientWithSelectorToPrincipals(it, snapshot) }
-                }.toSet()
-                .ifEmpty { setOf(denyForAllPrincipal) }
+                    principalCache.computeIfAbsent(client) {
+                        mapClientWithSelectorToPrincipals(
+                            it,
+                            snapshot
+                        )
+                    }.map { mergeWithOAuthPolicy(client, it, incomingEndpoint.oauth?.policy) }
+                }
+                .toSet()
+                .ifEmpty {
+                    setOf(
+                        oAuthPolicyForEmptyClients(
+                            incomingEndpoint.oauth?.policy,
+                            incomingEndpoint.unlistedClientsPolicy
+                        )
+                    )
+                }
 
             val policy = Policy.newBuilder().addAllPrincipals(principals)
             val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
@@ -99,11 +123,16 @@ class RBACFilterFactory(
         )
 
         val restrictedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
-            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG }
+            .filter {
+                it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG ||
+                    it.endpoint.oauth?.policy != null
+            }
             .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
 
         val loggedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
-            .filter { it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG }
+            .filter {
+                it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG && it.endpoint.oauth?.policy == null
+            }
             .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
 
         val allowUnlistedPolicies = unlistedAndLoggedEndpointsPolicies(
@@ -166,9 +195,10 @@ class RBACFilterFactory(
             .flatMap { it.permissionsList.asSequence() }
             .toList()
 
-        return mapOf(ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
-            .addPrincipals(anyPrincipal)
-            .addPermissions(noneOf(allDefinedEndpointsPermissions))
+        return mapOf(
+            ALLOW_UNLISTED_POLICY_NAME to Policy.newBuilder()
+                .addPrincipals(anyPrincipal)
+                .addPermissions(noneOf(allDefinedEndpointsPermissions))
         )
     }
 
@@ -183,9 +213,10 @@ class RBACFilterFactory(
             return mapOf()
         }
 
-        return mapOf(ALLOW_LOGGED_POLICY_NAME to Policy.newBuilder()
-            .addPrincipals(anyPrincipal)
-            .addPermissions(anyOf(allLoggedEndpointsPermissions))
+        return mapOf(
+            ALLOW_LOGGED_POLICY_NAME to Policy.newBuilder()
+                .addPrincipals(anyPrincipal)
+                .addPermissions(anyOf(allLoggedEndpointsPermissions))
         )
     }
 
@@ -222,16 +253,151 @@ class RBACFilterFactory(
         clientWithSelector: ClientWithSelector,
         snapshot: GlobalSnapshot
     ): List<Principal> {
-        val selectorMatching = getSelectorMatching(clientWithSelector, incomingPermissionsProperties)
+        val providerForSelector = jwtProperties.providers.values.firstOrNull {
+            it.selectorToTokenField.containsKey(clientWithSelector.selector)
+        }
+        val selectorMatching = if (providerForSelector == null) {
+            getSelectorMatching(clientWithSelector, incomingPermissionsProperties)
+        } else {
+            null
+        }
         val staticRangesForClient = staticIpRange(clientWithSelector, selectorMatching)
 
         return if (clientWithSelector.name in incomingServicesSourceAuthentication) {
             ipFromDiscoveryPrincipals(clientWithSelector, selectorMatching, snapshot)
         } else if (staticRangesForClient != null) {
             listOf(staticRangesForClient)
+        } else if (providerForSelector != null && clientWithSelector.selector != null) {
+            listOf(jwtClientWithSelectorPrincipal(clientWithSelector, providerForSelector))
         } else {
             tlsPrincipals(clientWithSelector.name)
         }
+    }
+
+    private fun oAuthPolicyForEmptyClients(policy: OAuth.Policy?, unlistedPolicy: Incoming.UnlistedPolicy): Principal {
+        return if (unlistedPolicy == Incoming.UnlistedPolicy.LOG) {
+            when (policy) {
+                OAuth.Policy.STRICT -> strictPolicyPrincipal
+                OAuth.Policy.ALLOW_MISSING -> allowMissingPolicyPrincipal
+                OAuth.Policy.ALLOW_MISSING_OR_FAILED -> anyPrincipal
+                null -> denyForAllPrincipal
+            }
+        } else {
+            denyForAllPrincipal
+        }
+    }
+
+    private fun mergeWithOAuthPolicy(
+        client: ClientWithSelector,
+        principal: Principal,
+        policy: OAuth.Policy?
+    ): Principal {
+        if (client.selector in oAuthSelectors) {
+            return principal // don't merge if client has OAuth selector
+        } else {
+            return when (policy) {
+                OAuth.Policy.ALLOW_MISSING -> {
+                    Principal.newBuilder().setAndIds(
+                        Principal.Set.newBuilder().addAllIds(
+                            listOf(
+                                allowMissingPolicyPrincipal,
+                                principal
+                            )
+                        )
+                    ).build()
+                }
+                OAuth.Policy.STRICT -> {
+                    Principal.newBuilder().setAndIds(
+                        Principal.Set.newBuilder().addAllIds(
+                            listOf(
+                                strictPolicyPrincipal,
+                                principal
+                            )
+                        )
+                    ).build()
+                }
+                OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
+                    principal
+                }
+                null -> {
+                    principal
+                }
+            }
+        }
+    }
+
+    private val strictPolicyPrincipal = Principal.newBuilder().setAndIds(
+        Principal.Set.newBuilder().addAllIds(
+            listOf(
+                Principal.newBuilder().setMetadata(
+                    MetadataMatcher.newBuilder()
+                        .setFilter("envoy.filters.http.header_to_metadata")
+                        .addPath(
+                            MetadataMatcher.PathSegment.newBuilder().setKey("jwt-status").build()
+                        )
+                        .setValue(
+                            ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setExact("present"))
+                        )
+                ).build(),
+                Principal.newBuilder().setMetadata(
+                    MetadataMatcher.newBuilder()
+                        .setFilter("envoy.filters.http.jwt_authn")
+                        .addPath(
+                            MetadataMatcher.PathSegment.newBuilder()
+                                .setKey(jwtProperties.payloadInMetadata)
+                        ).addPath(
+                            MetadataMatcher.PathSegment.newBuilder()
+                                .setKey(jwtProperties.fieldRequiredInToken)
+                        )
+                        .setValue(ValueMatcher.newBuilder().setPresentMatch(true)).build()
+                ).build()
+            )
+        ).build()
+    ).build()
+
+    private val allowMissingPolicyPrincipal = Principal.newBuilder().setOrIds(
+        Principal.Set.newBuilder().addAllIds(
+            listOf(
+                Principal.newBuilder()
+                    .setMetadata(
+                        MetadataMatcher.newBuilder()
+                            .setFilter("envoy.filters.http.header_to_metadata")
+                            .addPath(
+                                MetadataMatcher.PathSegment.newBuilder().setKey("jwt-status").build()
+                            )
+                            .setValue(
+                                ValueMatcher.newBuilder().setStringMatch(StringMatcher.newBuilder().setExact("missing"))
+                            )
+                    )
+                    .build(),
+                strictPolicyPrincipal
+            )
+        ).build()
+    ).build()
+
+    private fun jwtClientWithSelectorPrincipal(client: ClientWithSelector, oAuthProvider: OAuthProvider): Principal {
+        return Principal.newBuilder().setMetadata(
+            MetadataMatcher.newBuilder()
+                .setFilter("envoy.filters.http.jwt_authn")
+                .addPath(
+                    MetadataMatcher.PathSegment.newBuilder()
+                        .setKey(jwtProperties.payloadInMetadata).build()
+                )
+                .addPath(
+                    MetadataMatcher.PathSegment.newBuilder()
+                        .setKey(oAuthProvider.selectorToTokenField[client.selector]).build()
+                )
+                .setValue(
+                    ValueMatcher.newBuilder().setListMatch(
+                        ListMatcher.newBuilder().setOneOf(
+                            ValueMatcher.newBuilder().setStringMatch(
+                                StringMatcher.newBuilder()
+                                    .setExact(client.name)
+                            )
+                        )
+                    )
+                ).build()
+        ).build()
     }
 
     private fun getSelectorMatching(
@@ -240,8 +406,10 @@ class RBACFilterFactory(
     ): SelectorMatching? {
         val matching = incomingPermissionsProperties.selectorMatching[client.name]
         if (matching == null && client.selector != null) {
-            logger.warn("No selector matching found for client '${client.name}' with selector '${client.selector}' " +
-                    "in EC properties. Source IP based authentication will not contain additional matching.")
+            logger.warn(
+                "No selector matching found for client '${client.name}' with selector '${client.selector}' " +
+                    "in EC properties. Source IP based authentication will not contain additional matching."
+            )
             return null
         }
 
@@ -260,10 +428,11 @@ class RBACFilterFactory(
     private fun tlsPrincipals(client: String): List<Principal> {
         val stringMatcher = sanUriMatcherFactory.createSanUriMatcher(client)
 
-        return listOf(Principal.newBuilder().setAuthenticated(
-            Principal.Authenticated.newBuilder()
-                .setPrincipalName(stringMatcher)
-        ).build()
+        return listOf(
+            Principal.newBuilder().setAuthenticated(
+                Principal.Authenticated.newBuilder()
+                    .setPrincipalName(stringMatcher)
+            ).build()
         )
     }
 
@@ -274,10 +443,12 @@ class RBACFilterFactory(
             val principals = it.value.map { ipWithPrefix ->
                 val (ip, prefixLength) = ipWithPrefix.split("/")
 
-                Principal.newBuilder().setDirectRemoteIp(CidrRange.newBuilder()
+                Principal.newBuilder().setDirectRemoteIp(
+                    CidrRange.newBuilder()
                         .setAddressPrefix(ip)
-                        .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build())
-                        .build()
+                        .setPrefixLen(UInt32Value.of(prefixLength.toInt())).build()
+                )
+                    .build()
             }
 
             Principal.newBuilder().setOrIds(Principal.Set.newBuilder().addAllIds(principals).build()).build()
@@ -308,10 +479,12 @@ class RBACFilterFactory(
             }
         }.orEmpty().map { address ->
             Principal.newBuilder()
-                    .setDirectRemoteIp(CidrRange.newBuilder()
-                            .setAddressPrefix(address.socketAddress.address)
-                            .setPrefixLen(EXACT_IP_MASK).build())
-                    .build()
+                .setDirectRemoteIp(
+                    CidrRange.newBuilder()
+                        .setAddressPrefix(address.socketAddress.address)
+                        .setPrefixLen(EXACT_IP_MASK).build()
+                )
+                .build()
         }
 
         return if (principals.isNotEmpty()) {
@@ -328,12 +501,14 @@ class RBACFilterFactory(
     ): Principal {
         return if (selectorMatching.header.isNotEmpty()) {
             val additionalMatchingPrincipal = Principal.newBuilder()
-                    .setHeader(HeaderMatcher.newBuilder().setName(selectorMatching.header).setExactMatch(selector))
-                    .build()
+                .setHeader(HeaderMatcher.newBuilder().setName(selectorMatching.header).setExactMatch(selector))
+                .build()
 
-            Principal.newBuilder().setAndIds(Principal.Set.newBuilder().addAllIds(
+            Principal.newBuilder().setAndIds(
+                Principal.Set.newBuilder().addAllIds(
                     listOf(sourceIpPrincipal, additionalMatchingPrincipal)
-            ).build()).build()
+                ).build()
+            ).build()
         } else {
             sourceIpPrincipal
         }
@@ -353,7 +528,7 @@ class RBACFilterFactory(
                 .build()
 
             HttpFilter.newBuilder().setName("envoy.filters.http.rbac")
-                    .setTypedConfig(Any.pack(rbacFilter)).build()
+                .setTypedConfig(Any.pack(rbacFilter)).build()
         } else {
             null
         }
