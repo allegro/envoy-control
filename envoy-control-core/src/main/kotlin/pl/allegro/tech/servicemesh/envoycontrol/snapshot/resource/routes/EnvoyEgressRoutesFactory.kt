@@ -70,7 +70,8 @@ class EnvoyEgressRoutesFactory(
         serviceName: String,
         routes: Collection<RouteSpecification>,
         addUpstreamAddressHeader: Boolean,
-        resourceVersion: ResourceVersion = ResourceVersion.V3
+        resourceVersion: ResourceVersion = ResourceVersion.V3,
+        routeName: String = "default_routes"
     ): RouteConfiguration {
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
@@ -93,7 +94,7 @@ class EnvoyEgressRoutesFactory(
             }
 
         var routeConfiguration = RouteConfiguration.newBuilder()
-            .setName("default_routes")
+            .setName(routeName)
             .addAllVirtualHosts(
                 virtualHosts + originalDestinationRoute + wildcardRoute
             ).also {
@@ -117,6 +118,44 @@ class EnvoyEgressRoutesFactory(
             routeConfiguration = routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
         }
 
+        return routeConfiguration.build()
+    }
+
+    /**
+     * @see TestResources.createRoute
+     */
+    fun createEgressDomainRoutes(
+        routes: Collection<RouteSpecification>,
+        version: ResourceVersion = ResourceVersion.V3,
+        routeName: String
+    ): RouteConfiguration {
+        val virtualHosts = routes
+            .filter { route -> route.routeDomains.isNotEmpty() }
+            .map { routeSpecification ->
+                VirtualHost.newBuilder()
+                    .setName(routeSpecification.clusterName)
+                    .addAllDomains(routeSpecification.routeDomains)
+                    .addRoutes(
+                        Route.newBuilder()
+                            .setMatch(
+                                RouteMatch.newBuilder()
+                                    .setPrefix("/")
+                                    .build()
+                            )
+                            .setRoute(
+                                createRouteAction(routeSpecification, version)
+                            ).build()
+                    )
+                    .build()
+            }
+        val routeConfiguration = RouteConfiguration.newBuilder()
+            .setName(routeName)
+            .addAllVirtualHosts(
+                virtualHosts + originalDestinationRoute + wildcardRoute
+            )
+        if (properties.egress.headersToRemove.isNotEmpty()) {
+            routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
+        }
         return routeConfiguration.build()
     }
 

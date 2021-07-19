@@ -11,6 +11,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRequestHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeadersToRemove
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasVirtualHostsInOrder
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hostRewriteHeaderIsEmpty
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -151,6 +152,39 @@ internal class EnvoyEgressRoutesFactoryTest {
         val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
 
         // then
+        routeConfig.hasRequestHeadersToRemove(listOf("x-special-case-header", "x-custom"))
+    }
+
+    @Test
+    fun `should create route config for domains`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
+            egress.headersToRemove = mutableListOf("x-special-case-header", "x-custom")
+        })
+        val routesSpecifications = listOf(
+            RouteSpecification("example_pl_1553", listOf("example.pl:1553"), DependencySettings()),
+            RouteSpecification("example_com_1553", listOf("example.com:1553"), DependencySettings())
+        )
+
+        // when
+        val routeConfig = routesFactory.createEgressDomainRoutes(routesSpecifications, routeName = "1553")
+
+        // then
+
+        routeConfig.hasVirtualHostsInOrder(
+            {
+                it.domainsCount == 1 && it.name == "example_pl_1553" && it.domainsList[0] == "example.pl:1553"
+            },
+            {
+                it.domainsCount == 1 && it.name == "example_com_1553" && it.domainsList[0] == "example.com:1553"
+            },
+            {
+                it.domainsCount == 1 && it.name == "original-destination-route" && it.domainsList[0] == "envoy-original-destination"
+            },
+            {
+                it.domainsCount == 1 && it.name == "wildcard-route" && it.domainsList[0] == "*"
+            }
+        )
         routeConfig.hasRequestHeadersToRemove(listOf("x-special-case-header", "x-custom"))
     }
 }

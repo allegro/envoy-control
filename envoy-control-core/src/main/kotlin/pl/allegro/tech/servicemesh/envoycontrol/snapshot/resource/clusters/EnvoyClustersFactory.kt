@@ -264,12 +264,25 @@ class EnvoyClustersFactory(
     }
 
     private fun getStrictDnsClustersForGroup(group: Group): List<Cluster> {
+        val useTransparentProxy = group.listenersConfig?.useTransparentProxy ?: false
         return group.proxySettings.outgoing.getDomainDependencies().map {
-            strictDnsCluster(it.getClusterName(), it.getHost(), it.getPort(), it.useSsl())
+            strictDnsCluster(
+                it.getClusterName(),
+                it.getHost(),
+                it.getPort(),
+                it.useSsl(),
+                useTransparentProxy
+            )
         }
     }
 
-    private fun strictDnsCluster(clusterName: String, host: String, port: Int, ssl: Boolean): Cluster {
+    private fun strictDnsCluster(
+        clusterName: String,
+        host: String,
+        port: Int,
+        ssl: Boolean,
+        useTransparentProxy: Boolean
+    ): Cluster {
         var clusterBuilder = Cluster.newBuilder()
 
         if (properties.clusterOutlierDetection.enabled) {
@@ -301,7 +314,7 @@ class EnvoyClustersFactory(
             )
             .setLbPolicy(properties.loadBalancing.policy)
 
-        if (ssl) {
+        if (shouldAttachCertificateToCluster(ssl, useTransparentProxy)) {
             val commonTlsContext = CommonTlsContext.newBuilder()
                 .setValidationContext(
                     CertificateValidationContext.newBuilder()
@@ -423,6 +436,9 @@ class EnvoyClustersFactory(
             }
         )
     }
+
+    private fun shouldAttachCertificateToCluster(ssl: Boolean, useTransparentProxy: Boolean) =
+        ssl && !useTransparentProxy
 
     private fun Cluster.LbSubsetConfig.Builder.addTagsAndCanarySelector() = this.addSubsetSelectors(
         Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()

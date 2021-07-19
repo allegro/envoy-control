@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
-import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest
+import org.testcontainers.containers.Network
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.util.UUID
 
@@ -13,7 +13,7 @@ class RedirectServiceContainer(
     override fun configure() {
         super.configure()
         withExposedPorts(PORT)
-        withNetwork(BaseEnvoyTest.network)
+        withNetwork(Network.SHARED)
         withEnv(mapOf(
             "SERVER_REDIRECT" to redirectTo,
             "SERVER_REDIRECT_PATH" to "/",
