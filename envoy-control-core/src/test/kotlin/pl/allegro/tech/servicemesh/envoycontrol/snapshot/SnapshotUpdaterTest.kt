@@ -528,6 +528,7 @@ class SnapshotUpdaterTest {
         val groupWithBlacklistedDependency = groupOf(services = serviceDependencies("mock-service"))
 
         val groups = listOf(allServicesGroup, groupWithBlacklistedDependency)
+        val domainsSuffixes = mutableListOf(".test.domain", ".domain2")
 
         val updater = snapshotUpdater(
             cache = cache,
@@ -535,11 +536,19 @@ class SnapshotUpdaterTest {
                 outgoingPermissions.allServicesDependencies.notIncludedByPrefix = mutableSetOf(
                     "mock-", "regression-tests"
                 )
+                egress.domains = domainsSuffixes
             },
             groups = groups
         )
 
         val expectedWhitelistedServices = setOf("s1", "mockito", "s2", "frontend").toTypedArray()
+        val expectedDomainsWhitelistedServices = setOf(
+            "s1", "s1.test.domain", "s1.domain2", "mockito", "mockito.test.domain", "mockito.domain2",
+            "s2", "s2.test.domain", "s2.domain2", "frontend", "frontend.test.domain", "frontend.domain2"
+        ).toTypedArray()
+        val expectedBlacklistedServices = setOf("mock-service").toTypedArray()
+        val expectedDomainsBlacklistedServices =
+            setOf("mock-service", "mock-service.test.domain", "mock-service.domain2").toTypedArray()
 
         // when
         updater.start(

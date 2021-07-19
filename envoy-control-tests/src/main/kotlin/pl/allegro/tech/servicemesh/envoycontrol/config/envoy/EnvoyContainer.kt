@@ -15,7 +15,7 @@ class EnvoyContainer(
     private val localServiceIp: () -> String,
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
-    private val logLevel: String = "debug",
+    private val logLevel: String = "info",
     image: String = DEFAULT_IMAGE,
     private val apiVersion: Int = 3
 ) : SSLGenericContainer<EnvoyContainer>(

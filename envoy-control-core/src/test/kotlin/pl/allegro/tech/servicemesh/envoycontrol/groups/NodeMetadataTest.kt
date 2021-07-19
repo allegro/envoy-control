@@ -11,7 +11,10 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.MethodSource
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import java.net.URI
 
 @Suppress("LargeClass")
 class NodeMetadataTest {
@@ -71,7 +74,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = "/path", pathPrefix = "/prefix")
 
         // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties()) }
         assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -87,7 +90,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = path, pathPrefix = pathPrefix, pathRegex = pathRegex)
 
         // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties()) }
         assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -98,8 +101,87 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = null, pathPrefix = null, pathRegex = null)
 
         // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint() }
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties()) }
         assertThat(exception.status.description).isEqualTo("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should create group with oauth configuration`() {
+        // given
+        val snapshotProperties = createJwtSnapshotProperties()
+        val oauth = OAuthTestDependencies("oauth2-mock", "offline", "strict")
+        val proto = incomingEndpointProto(pathPrefix = "/prefix", includeNullFields = true, oauth = oauth)
+
+        // when
+        val result = proto.toIncomingEndpoint(snapshotProperties)
+
+        // then
+        assertThat(result.oauth?.provider).isEqualTo(oauth.provider)
+        assertThat(result.oauth?.verification).isEqualTo(OAuth.Verification.OFFLINE)
+        assertThat(result.oauth?.policy).isEqualTo(OAuth.Policy.STRICT)
+    }
+
+    @Test
+    fun `should reject endpoint with invalid oauth provider`() {
+        // given
+        val oauthProvider = "oauth2-mock-invalid"
+        val snapshotProperties = createJwtSnapshotProperties()
+        val oauth = OAuthTestDependencies(oauthProvider, "offline", "strict")
+        val proto = incomingEndpointProto(pathPrefix = "/prefix", includeNullFields = true, oauth = oauth)
+
+        // when
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties) }
+
+        // then
+        assertThat(exception.status.description).isEqualTo("Invalid OAuth provider value: $oauthProvider")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should reject endpoint without oauth provider`() {
+        // given
+        val snapshotProperties = createJwtSnapshotProperties()
+        val oauth = OAuthTestDependencies(null, "offline", "strict")
+        val proto = incomingEndpointProto(pathPrefix = "/prefix", includeNullFields = true, oauth = oauth)
+
+        // when
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties) }
+
+        // then
+        assertThat(exception.status.description).isEqualTo("OAuth provider value cannot be null")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should reject endpoint with oauth verification different than offline`() {
+        // given
+        val oauthVerification = "online"
+        val snapshotProperties = createJwtSnapshotProperties()
+        val oauth = OAuthTestDependencies("oauth2-mock", oauthVerification, "strict")
+        val proto = incomingEndpointProto(pathPrefix = "/prefix", includeNullFields = true, oauth = oauth)
+
+        // when
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties) }
+
+        // then
+        assertThat(exception.status.description).isEqualTo("Invalid OAuth verification value: $oauthVerification")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should reject endpoint with invalid oauth policy`() {
+        // given
+        val oauthPolicy = "custom"
+        val snapshotProperties = createJwtSnapshotProperties()
+        val oauth = OAuthTestDependencies("oauth2-mock", "offline", oauthPolicy)
+        val proto = incomingEndpointProto(pathPrefix = "/prefix", includeNullFields = true, oauth = oauth)
+
+        // when
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties) }
+
+        // then
+        assertThat(exception.status.description).isEqualTo("Invalid OAuth policy value: $oauthPolicy")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -109,7 +191,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = "/path", pathPrefix = null, includeNullFields = true)
 
         // when
-        val result = proto.toIncomingEndpoint()
+        val result = proto.toIncomingEndpoint(snapshotProperties())
 
         // then
         // no exception thrown
@@ -123,7 +205,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = null, pathPrefix = "/prefix", includeNullFields = true)
 
         // when
-        val result = proto.toIncomingEndpoint()
+        val result = proto.toIncomingEndpoint(snapshotProperties())
 
         // then
         // no exception thrown
@@ -137,7 +219,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = "/path", pathRegex = null, includeNullFields = true)
 
         // when
-        val result = proto.toIncomingEndpoint()
+        val result = proto.toIncomingEndpoint(snapshotProperties())
 
         // then
         // no exception thrown
@@ -151,7 +233,7 @@ class NodeMetadataTest {
         val proto = incomingEndpointProto(path = null, pathRegex = "/regex", includeNullFields = true)
 
         // when
-        val result = proto.toIncomingEndpoint()
+        val result = proto.toIncomingEndpoint(snapshotProperties())
 
         // then
         // no exception thrown
@@ -406,7 +488,7 @@ class NodeMetadataTest {
             path = "/path",
             healthCheckPath = "/status/ping"
         )
-        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming(snapshotProperties())
 
         // expects
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
@@ -582,7 +664,7 @@ class NodeMetadataTest {
             incomingSettings = true,
             path = "/path"
         )
-        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming(snapshotProperties())
 
         // expects
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
@@ -599,7 +681,7 @@ class NodeMetadataTest {
             healthCheckPath = "/status/ping",
             healthCheckClusterName = "local_service_health_check"
         )
-        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming()
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming(snapshotProperties())
 
         // expects
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
@@ -732,5 +814,21 @@ class NodeMetadataTest {
         assertThat(list).hasSize(1)
         val single = list.single().settings
         return assertThat(single)
+    }
+
+    private fun createJwtSnapshotProperties(): SnapshotProperties {
+        val snapshotProperties = SnapshotProperties()
+        val jwtFilterProperties = JwtFilterProperties()
+        val oauthProviders = mapOf(
+            "oauth2-mock" to
+                OAuthProvider(
+                    jwksUri = URI.create("http://localhost:8080/jwks-address/"),
+                    clusterName = "oauth"
+                )
+        )
+        jwtFilterProperties.providers = oauthProviders
+        snapshotProperties.jwt = jwtFilterProperties
+
+        return snapshotProperties
     }
 }

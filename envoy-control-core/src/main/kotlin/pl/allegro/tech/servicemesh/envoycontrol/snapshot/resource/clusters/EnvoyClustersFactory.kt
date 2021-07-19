@@ -39,8 +39,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.SanUriMatcherFactory
@@ -67,6 +69,13 @@ class EnvoyClustersFactory(
     private val tlsContextMatch = Struct.newBuilder()
         .putFields(tlsProperties.tlsContextMetadataMatchKey, Value.newBuilder().setBoolValue(true).build())
         .build()
+
+    private val clustersForJWT: List<Cluster> =
+        properties.jwt.providers.values.mapNotNull(this::clusterForOAuthProvider)
+
+    companion object {
+        private val logger by logger()
+    }
 
     fun getClustersForServices(
         services: Collection<ClusterConfiguration>,
@@ -103,7 +112,59 @@ class EnvoyClustersFactory(
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
-        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group)
+        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clustersForJWT
+
+    private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster? {
+        if (provider.createCluster) {
+            val cluster = Cluster.newBuilder()
+                .setName(provider.clusterName)
+                .setType(Cluster.DiscoveryType.STRICT_DNS)
+                .setConnectTimeout(Durations.fromMillis(provider.connectionTimeout.toMillis()))
+                .setLoadAssignment(
+                    ClusterLoadAssignment.newBuilder()
+                        .setClusterName(provider.clusterName)
+                        .addEndpoints(
+                            LocalityLbEndpoints.newBuilder().addLbEndpoints(
+                                LbEndpoint.newBuilder().setEndpoint(
+                                    Endpoint.newBuilder().setAddress(
+                                        Address.newBuilder().setSocketAddress(
+                                            SocketAddress.newBuilder()
+                                                .setAddress(provider.jwksUri.host)
+                                                .setPortValue(provider.clusterPort)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                )
+
+            if (provider.jwksUri.scheme == "https") {
+                cluster.setTransportSocket(
+                    TransportSocket.newBuilder()
+                        .setName("envoy.transport_sockets.tls")
+                        .setTypedConfig(
+                            Any.pack(
+                                UpstreamTlsContext.newBuilder().setSni(provider.jwksUri.host)
+                                    .setCommonTlsContext(
+                                        CommonTlsContext.newBuilder()
+                                            .setValidationContext(
+                                                CertificateValidationContext.newBuilder()
+                                                    .setTrustedCa(
+                                                        DataSource.newBuilder().setFilename(properties.trustedCaFile)
+                                                    )
+                                            )
+                                    ).build()
+                            )
+                        )
+                )
+            } else {
+                logger.warn("Jwks url [${provider.jwksUri}] is not using HTTPS scheme.")
+            }
+            return cluster.build()
+        } else {
+            return null
+        }
+    }
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {

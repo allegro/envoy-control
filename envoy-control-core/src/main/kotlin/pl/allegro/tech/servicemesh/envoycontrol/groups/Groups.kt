@@ -56,6 +56,6 @@ data class ListenersConfig(
         const val defaultAddUpstreamExternalAddressHeader = false
         const val defaultResourcesDir = "envoy"
         const val defaultHasStaticSecretsDefined: Boolean = false
-        const val defaultUseTransparentProxy: Boolean = false
+        const val defaultUseTransparentProxy: Boolean = true
     }
 }
