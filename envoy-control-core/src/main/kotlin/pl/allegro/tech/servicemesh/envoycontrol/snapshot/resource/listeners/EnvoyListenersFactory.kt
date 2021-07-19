@@ -23,6 +23,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Dependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
@@ -37,6 +38,8 @@ class EnvoyListenersFactory(
     snapshotProperties: SnapshotProperties,
     envoyHttpFilters: EnvoyHttpFilters
 ) {
+
+    private val logger by logger()
 
     companion object {
         const val DOMAIN_PROXY_LISTENER_ADDRESS = "0.0.0.0"
@@ -113,7 +116,7 @@ class EnvoyListenersFactory(
             createIngressListener(group, listenersConfig, globalSnapshot),
             createEgressListener(group, listenersConfig, globalSnapshot)
         )
-
+        logger.info("1. Building Egress Virtual Listeners {}", group)
         return if (group.listenersConfig?.useTransparentProxy == true) {
             listeners + createEgressVirtualListeners(group, globalSnapshot)
         } else {
@@ -183,6 +186,7 @@ class EnvoyListenersFactory(
     }
 
     private fun createEgressVirtualListeners(group: Group, globalSnapshot: GlobalSnapshot): List<Listener> {
+        logger.info("Building Egress Virtual Listeners {}", group)
         val tcpProxy = group.proxySettings.outgoing.getDomainDependencies().filter {
             it.useSsl()
         }.groupBy(
