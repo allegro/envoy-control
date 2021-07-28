@@ -38,7 +38,6 @@ val AdsCustomHealthCheck = EnvoyConfig("envoy/config_ads_custom_health_check.yam
 val AdsDynamicForwardProxy = EnvoyConfig("envoy/config_ads_dynamic_forward_proxy.yaml")
 val FaultyConfig = EnvoyConfig("envoy/bad_config.yaml")
 val Ads = EnvoyConfig("envoy/config_ads.yaml")
-val AdsV2 = EnvoyConfig("envoy/config_ads_v2.yaml")
 val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml")
 val Echo2EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
     serviceName = "echo2",
