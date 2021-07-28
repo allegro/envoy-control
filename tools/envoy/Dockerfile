@@ -1,4 +1,4 @@
-FROM allegro/envoy-dev:v1.16.1-dev-lua-segfault-fix-1-16-0-backport-20201118-df9dc819
+FROM envoyproxy/envoy:v1.18.2
 
 ENV PORT=9999:9999
 ENV PORT=80:80

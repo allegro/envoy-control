@@ -41,7 +41,7 @@ class LocalReplyMappingTest {
                     "path":"%REQ(:path)%"
                 }""",
                 "$localReplyPrefix.matchers[1].response-flag-matcher" to listOf(
-                    "NR"
+                    "NC"
                 ),
                 "$localReplyPrefix.matchers[1].status-code-to-return" to 522,
                 "$localReplyPrefix.matchers[1].body-to-return" to "my-custom no route body",
@@ -94,7 +94,7 @@ class LocalReplyMappingTest {
 
             assertThat(
                 response.body()?.string()
-            ).contains("Request to service: service-2 responseFlags:NR body: my-custom no route body")
+            ).contains("Request to service: service-2 responseFlags:NC body: my-custom no route body")
             assertThat(response.code()).isEqualTo(522)
         }
     }
@@ -108,7 +108,7 @@ class LocalReplyMappingTest {
 
             assertThat(
                 response.body()?.string()
-            ).contains("""{"destination":{"serviceTag":null,"path":"/api","serviceName":"service-2"},"path":"/api","body":"","responseFlags":"NR"}""")
+            ).contains("""{"destination":{"serviceTag":null,"path":"/api","serviceName":"service-2"},"path":"/api","body":"","responseFlags":"NC"}""")
             assertThat(response.code()).isEqualTo(510)
         }
     }
