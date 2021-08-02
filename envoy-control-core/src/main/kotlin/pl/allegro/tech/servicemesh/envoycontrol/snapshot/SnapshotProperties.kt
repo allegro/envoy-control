@@ -325,7 +325,7 @@ data class OAuthProvider(
     var clusterPort: Int = 443,
     var cacheDuration: Duration = Duration.ofSeconds(300),
     var connectionTimeout: Duration = Duration.ofSeconds(1),
-    var selectorToTokenField: Map<String, String> = emptyMap()
+    var matchings: Map<Client, TokenField> = emptyMap()
 )
 
 class JwtFilterProperties {
@@ -339,3 +339,4 @@ class JwtFilterProperties {
 }
 
 typealias ProviderName = String
+typealias TokenField = String

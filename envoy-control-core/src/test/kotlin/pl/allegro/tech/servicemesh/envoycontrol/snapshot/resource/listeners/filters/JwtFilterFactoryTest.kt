@@ -23,7 +23,7 @@ internal class JwtFilterFactoryTest {
         JwtFilterProperties().also {
             it.forwardJwt = true
             it.providers = mapOf(
-                "provider" to OAuthProvider(URI.create("http://provider/jwks"), true, "provider-cluster", selectorToTokenField = mapOf("oauth" to "authorities"))
+                "provider" to OAuthProvider(URI.create("http://provider/jwks"), true, "provider-cluster", matchings = mapOf("oauth" to "authorities"))
             )
         }
     )
@@ -157,7 +157,7 @@ internal class JwtFilterFactoryTest {
                 pathToProvider.map { (path, provider) ->
                     IncomingEndpoint(
                         path,
-                        clients = setOf(ClientWithSelector("client", "oauth")),
+                        clients = setOf(ClientWithSelector("oauth", "client")),
                         oauth = null
                     )
                 }

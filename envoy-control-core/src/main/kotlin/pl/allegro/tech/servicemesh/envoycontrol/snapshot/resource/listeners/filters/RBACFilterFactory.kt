@@ -73,7 +73,7 @@ class RBACFilterFactory(
 
     data class EndpointWithPolicy(val endpoint: IncomingEndpoint, val policy: Policy.Builder)
 
-    private val oAuthSelectors: List<String> = jwtProperties.providers.values.flatMap { it.selectorToTokenField.keys }
+    private val oAuthMatchingsClients: List<Client> = jwtProperties.providers.values.flatMap { it.matchings.keys }
 
     private fun getIncomingEndpointPolicies(
         incomingPermissions: Incoming,
@@ -254,7 +254,7 @@ class RBACFilterFactory(
         snapshot: GlobalSnapshot
     ): List<Principal> {
         val providerForSelector = jwtProperties.providers.values.firstOrNull {
-            it.selectorToTokenField.containsKey(clientWithSelector.selector)
+            it.matchings.containsKey(clientWithSelector.name)
         }
         val selectorMatching = if (providerForSelector == null) {
             getSelectorMatching(clientWithSelector, incomingPermissionsProperties)
@@ -292,7 +292,7 @@ class RBACFilterFactory(
         principal: Principal,
         policy: OAuth.Policy?
     ): Principal {
-        if (client.selector in oAuthSelectors) {
+        if (client.name in oAuthMatchingsClients) {
             return principal // don't merge if client has OAuth selector
         } else {
             return when (policy) {
@@ -385,14 +385,14 @@ class RBACFilterFactory(
                 )
                 .addPath(
                     MetadataMatcher.PathSegment.newBuilder()
-                        .setKey(oAuthProvider.selectorToTokenField[client.selector]).build()
+                        .setKey(oAuthProvider.matchings[client.name]).build()
                 )
                 .setValue(
                     ValueMatcher.newBuilder().setListMatch(
                         ListMatcher.newBuilder().setOneOf(
                             ValueMatcher.newBuilder().setStringMatch(
                                 StringMatcher.newBuilder()
-                                    .setExact(client.name)
+                                    .setExact(client.selector)
                             )
                         )
                     )
