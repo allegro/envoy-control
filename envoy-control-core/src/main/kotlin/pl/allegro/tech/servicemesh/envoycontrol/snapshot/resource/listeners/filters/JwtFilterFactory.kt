@@ -31,7 +31,7 @@ class JwtFilterFactory(
         }.toMap()
 
     fun createJwtFilter(group: Group): HttpFilter? {
-        return if (shouldCreateFilter(group)) {
+         return if (shouldCreateFilter(group)) {
             HttpFilter.newBuilder()
                 .setName("envoy.filters.http.jwt_authn")
                 .setTypedConfig(
@@ -56,7 +56,7 @@ class JwtFilterFactory(
     }
 
     private fun containsClientsWithSelector(it: IncomingEndpoint) =
-        selectorToOAuthProvider.keys.intersect(it.clients).isNotEmpty()
+        selectorToOAuthProvider.keys.intersect(it.clients.map { it.selector }).isNotEmpty()
 
     private fun getJwtProviders(): Map<ProviderName, JwtProvider> =
         properties.providers.entries.associate {
