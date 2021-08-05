@@ -320,7 +320,7 @@ class DynamicForwardProxyProperties {
 }
 data class OAuthProvider(
     var jwksUri: URI = URI.create("http://localhost"),
-    val createCluster: Boolean = false,
+    var createCluster: Boolean = false,
     var clusterName: String = "",
     var clusterPort: Int = 443,
     var cacheDuration: Duration = Duration.ofSeconds(300),
