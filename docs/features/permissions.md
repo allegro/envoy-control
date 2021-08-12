@@ -76,7 +76,7 @@ metadata:
       endpoints:
         - path: /example
           methods: [GET]
-          clients: [service-first, oauth-selector:team1]
+          clients: [service-first, oauth-prefix:team1]
           oauth:
             provider: 'first-provider'
             verification: offline
@@ -95,10 +95,10 @@ The new oauth section of incoming permissions defines how a given endpoint uses 
     * using `allowMissingOrFailed` only allows requests with valid JWT.
 
 
-Example illustrating mechanism allowing clients with defined selectors:
+Example illustrating mechanism allowing clients with selectors:
 
 Let's suppose we have OAuth Provider `second-provider` defined in the configuration. This provider has value
-`oauth-selector` to `authorities` in `selectorToTokenField` map. [See configuration](../configuration.md#jwt-filter).
+`oauth-prefix` to `authorities` in `matchings` map. [See configuration](../configuration.md#jwt-filter).
 Then request is allowed when it has token from `second-provider` and it contains `team1` in the `authorities` field.
 ## Configuration
 

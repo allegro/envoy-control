@@ -25,9 +25,9 @@ class JwtFilterFactory(
 ) {
 
     private val jwtProviders: Map<ProviderName, JwtProvider> = getJwtProviders()
-    private val selectorToOAuthProvider: Map<String, String> =
-        properties.providers.entries.flatMap { (name, provider) ->
-            provider.selectorToTokenField.keys.map { selector -> selector to name }
+    private val clientToOAuthProviderName: Map<String, String> =
+        properties.providers.entries.flatMap { (providerName, provider) ->
+            provider.matchings.keys.map { client -> client to providerName }
         }.toMap()
 
     fun createJwtFilter(group: Group): HttpFilter? {
@@ -56,7 +56,7 @@ class JwtFilterFactory(
     }
 
     private fun containsClientsWithSelector(it: IncomingEndpoint) =
-        selectorToOAuthProvider.keys.intersect(it.clients.map { it.selector }).isNotEmpty()
+        clientToOAuthProviderName.keys.intersect(it.clients.map { it.name }).isNotEmpty()
 
     private fun getJwtProviders(): Map<ProviderName, JwtProvider> =
         properties.providers.entries.associate {
@@ -91,8 +91,8 @@ class JwtFilterFactory(
             providers.add(endpoint.oauth.provider)
         }
 
-        providers.addAll(endpoint.clients.filter { it.selector in selectorToOAuthProvider.keys }
-            .mapNotNull { selectorToOAuthProvider[it.selector] })
+        providers.addAll(endpoint.clients.filter { it.name in clientToOAuthProviderName.keys }
+            .mapNotNull { clientToOAuthProviderName[it.name] })
 
         return if (providers.isNotEmpty()) {
             requirementRuleWithPathMatching(endpoint.path, endpoint.pathMatchingType, providers)

@@ -23,7 +23,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         it.providers =
             mapOf(
                 "oauth-provider" to OAuthProvider(
-                    selectorToTokenField = mapOf("oauth-selector" to "authorities")
+                    matchings = mapOf("oauth-prefix" to "authorities")
                 )
             )
         it.fieldRequiredInToken = "exp"
@@ -90,9 +90,9 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
     @Test
     fun `should generate RBAC rules for Clients with OAuth selectors`() {
         // given
-        val selector = "oauth-selector"
-        val client = "team1"
-        val oAuthPrincipal = oAuthClientPrincipal(getTokenFieldForSelector(selector), client)
+        val selector = "team1"
+        val client = "oauth-prefix"
+        val oAuthPrincipal = oAuthClientPrincipal(getTokenFieldForClientWithSelector("oauth-provider", client), selector)
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 oAuthPrincipal,
@@ -254,10 +254,10 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         Assertions.assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
-    private fun getTokenFieldForSelector(selector: String) =
-        jwtProperties.providers["oauth-provider"]!!.selectorToTokenField[selector]!!
+    private fun getTokenFieldForClientWithSelector(provider: String, client: String) =
+        jwtProperties.providers[provider]!!.matchings[client]!!
 
-    private fun oAuthClientPrincipal(tokenFieldForSelector: String, client: String) = """{
+    private fun oAuthClientPrincipal(selectorMatching: String, selector: String) = """{
                        "metadata": {
                         "filter": "envoy.filters.http.jwt_authn",
                         "path": [
@@ -265,14 +265,14 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                           "key": "jwt"
                          },
                          {
-                          "key": "$tokenFieldForSelector"
+                          "key": "$selectorMatching"
                          }
                         ],
                         "value": {
                          "list_match": {
                           "one_of": {
                            "string_match": {
-                            "exact": "$client"
+                            "exact": "$selector"
                            }
                           }
                          }
