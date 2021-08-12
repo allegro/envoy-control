@@ -209,4 +209,3 @@ Property                                                                        
 **envoy-control.envoy.snapshot.jwt.providers.{providerName}.cacheDuration**                   | Duration of caching public key fetched from provider                                                                                                  | 300s
 **envoy-control.envoy.snapshot.jwt.providers.{providerName}.connectionTimeout**               | Connection timeout for request fetching JWKs                                                                                                          | 1s
 **envoy-control.envoy.snapshot.jwt.providers.{providerName}.matchings.{matching}**            | Name of the token field that should be verified for given selector                                                                                    | empty map
-F
