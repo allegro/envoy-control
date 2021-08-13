@@ -5,7 +5,7 @@
 
 One of the pillars of Service Mesh is security.
 Envoy Control provides a simple and fine-grained way to restrict traffic between applications.
-Using Envoy's [metadata](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/core/base.proto#core-metadata)
+Using Envoy's [metadata](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/core/base.proto#core-metadata) (TODO_deprecate_v2: fix link)
 section you can provide additional configuration to the Control Plane.
 The information provided in `metadata.proxy_settings` section is interpreted by Control Plane
 and it will create a corresponding configuration for `Envoy`.
@@ -40,7 +40,7 @@ metadata:
 In the `incoming` section this configuration defines access to routes:
 
 * `/example`
-    * using a `path` header matcher (more on this in [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/api-v2/config/rbac/v2/rbac.proto#config-rbac-v2-permission))
+    * using a `path` header matcher (more on this in [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/rbac/v3/rbac.proto.html#config-rbac-v2-permission))
     * using methods `GET` and `DELETE`
     * to clients `service-first`
 * all other routes

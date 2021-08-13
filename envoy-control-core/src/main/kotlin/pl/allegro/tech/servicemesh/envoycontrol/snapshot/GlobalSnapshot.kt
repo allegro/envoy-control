@@ -10,6 +10,7 @@ data class GlobalSnapshot(
     val endpoints: SnapshotResources<ClusterLoadAssignment>,
     val clusterConfigurations: Map<String, ClusterConfiguration>,
     val securedClusters: SnapshotResources<Cluster>,
+    // TODO_deprecate_v2: do we need those v2 clusters here?
     val v2Clusters: SnapshotResources<Cluster>,
     val v2SecuredClusters: SnapshotResources<Cluster>
 )

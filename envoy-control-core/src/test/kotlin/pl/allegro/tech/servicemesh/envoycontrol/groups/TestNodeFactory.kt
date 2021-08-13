@@ -1,4 +1,5 @@
 @file:Suppress("MatchingDeclarationName")
+
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import com.google.protobuf.ListValue
@@ -6,52 +7,7 @@ import com.google.protobuf.NullValue
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
-
-fun nodeV2(
-    serviceDependencies: Set<String> = emptySet(),
-    ads: Boolean? = null,
-    serviceName: String? = null,
-    incomingSettings: Boolean = false,
-    clients: List<String> = listOf("client1"),
-    idleTimeout: String? = null,
-    responseTimeout: String? = null,
-    connectionIdleTimeout: String? = null,
-    healthCheckPath: String? = null,
-    healthCheckClusterName: String? = null
-): NodeV2 {
-    val meta = NodeV2.newBuilder().metadataBuilder
-
-    serviceName?.let {
-        meta.putFields("service_name", string(serviceName))
-    }
-
-    ads?.let {
-        meta.putFields("ads", Value.newBuilder().setBoolValue(ads).build())
-    }
-
-    if (incomingSettings || serviceDependencies.isNotEmpty()) {
-        meta.putFields(
-            "proxy_settings",
-            proxySettingsProto(
-                path = "/endpoint",
-                clients = clients,
-                serviceDependencies = serviceDependencies,
-                incomingSettings = incomingSettings,
-                idleTimeout = idleTimeout,
-                responseTimeout = responseTimeout,
-                connectionIdleTimeout = connectionIdleTimeout,
-                healthCheckPath = healthCheckPath,
-                healthCheckClusterName = healthCheckClusterName
-            )
-        )
-    }
-
-    return NodeV2.newBuilder()
-        .setMetadata(meta)
-        .build()
-}
 
 fun nodeV3(
     serviceDependencies: Set<String> = emptySet(),
@@ -113,10 +69,12 @@ fun ProxySettings.with(
     serviceDependencies: Set<ServiceDependency> = emptySet(),
     domainDependencies: Set<DomainDependency> = emptySet(),
     allServicesDependencies: Boolean = false,
-    defaultServiceSettings: DependencySettings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-        Durations.fromSeconds(120),
-        Durations.fromSeconds(120)
-    ))
+    defaultServiceSettings: DependencySettings = DependencySettings(
+        timeoutPolicy = Outgoing.TimeoutPolicy(
+            Durations.fromSeconds(120),
+            Durations.fromSeconds(120)
+        )
+    )
 ): ProxySettings {
     return copy(
         outgoing = Outgoing(
@@ -180,7 +138,14 @@ fun proxySettingsProto(
 }
 
 class OutgoingDependenciesProtoScope {
-    class Dependency(val service: String? = null, val domain: String? = null, val domainPattern: String? = null, val idleTimeout: String? = null, val requestTimeout: String? = null, val handleInternalRedirect: Boolean? = null)
+    class Dependency(
+        val service: String? = null,
+        val domain: String? = null,
+        val domainPattern: String? = null,
+        val idleTimeout: String? = null,
+        val requestTimeout: String? = null,
+        val handleInternalRedirect: Boolean? = null
+    )
 
     val dependencies = mutableListOf<Dependency>()
 

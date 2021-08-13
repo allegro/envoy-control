@@ -305,7 +305,7 @@ class MetadataNodeGroupTest {
     }
 
     @Test
-    fun `should throw exception when V2 node request configuration and support is disabled`() {
+    fun `should throw exception when V2 node request configuration is send`() {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
@@ -321,27 +321,6 @@ class MetadataNodeGroupTest {
             }
     }
 
-    @Test
-    fun `should assign V2 node to group with listed dependencies when support for V2 is enabled`() {
-        // given
-        val nodeGroup = MetadataNodeGroup(
-            createSnapshotProperties(outgoingPermissions = true, supportV2 = true)
-        )
-        val node = nodeV2(serviceDependencies = setOf("a", "b", "c"), ads = false)
-
-        // when
-        val group = nodeGroup.hash(node)
-
-        // then
-        assertThat(group).isEqualTo(
-            ServicesGroup(
-                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-                communicationMode = XDS,
-                version = ResourceVersion.V2
-            )
-        )
-    }
-
     private fun createMetadataBuilderWithDefaults(): Struct.Builder? {
         val metadata = NodeV3.newBuilder().metadataBuilder
         metadata.putFields("ingress_host", Value.newBuilder().setStringValue("127.0.0.1").build())
@@ -354,11 +333,9 @@ class MetadataNodeGroupTest {
     private fun createSnapshotProperties(
         allServicesDependenciesValue: String = "*",
         outgoingPermissions: Boolean = false,
-        incomingPermissions: Boolean = false,
-        supportV2: Boolean = false
+        incomingPermissions: Boolean = false
     ): SnapshotProperties {
         val snapshotProperties = SnapshotProperties()
-        snapshotProperties.supportV2Configuration = supportV2
         snapshotProperties.outgoingPermissions.enabled = outgoingPermissions
         snapshotProperties.outgoingPermissions.allServicesDependencies.identifier = allServicesDependenciesValue
         snapshotProperties.incomingPermissions.enabled = incomingPermissions

@@ -34,7 +34,6 @@ import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
-import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 
@@ -49,20 +48,6 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
      * It contains the versions of XDS resources and the contents for a provided node JSON
      * extracted from Envoy's config_dump endpoint.
      */
-    @PostMapping(value = ["/snapshot"], consumes = ["application/json"], produces = ["application/v2+json"])
-    fun snapshot(@RequestBody node: NodeV2): ResponseEntity<SnapshotDebugInfo> {
-        val nodeHash = nodeGroup.hash(node)
-        val snapshot = cache.getSnapshot(nodeHash)
-        return if (snapshot == null) {
-            throw SnapshotNotFoundException()
-        } else {
-            ResponseEntity(
-                SnapshotDebugInfo(snapshot),
-                HttpStatus.OK
-            )
-        }
-    }
-
     @PostMapping(
         value = ["/snapshot"],
         consumes = ["application/json"],

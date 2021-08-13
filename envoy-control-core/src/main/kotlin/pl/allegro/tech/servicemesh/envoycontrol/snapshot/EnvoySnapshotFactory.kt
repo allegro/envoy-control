@@ -46,12 +46,8 @@ class EnvoySnapshotFactory(
         )
         val securedClusters = clustersFactory.getSecuredClusters(clusters)
 
-        var v2Clusters = emptyList<Cluster>()
-        var v2SecuredClusters = emptyList<Cluster>()
-        if (properties.supportV2Configuration) {
-            v2Clusters = clustersFactory.mapToV2Clusters(clusters, communicationMode)
-            v2SecuredClusters = clustersFactory.mapToV2Clusters(securedClusters, communicationMode)
-        }
+        val v2Clusters = emptyList<Cluster>()
+        val v2SecuredClusters = emptyList<Cluster>()
 
         val endpoints: List<ClusterLoadAssignment> = endpointsFactory.createLoadAssignment(
             clusters = clusterConfigurations.keys,
@@ -243,8 +239,7 @@ class EnvoySnapshotFactory(
         val routes = listOf(
             egressRoutesFactory.createEgressRouteConfig(
                 group.serviceName, egressRouteSpecification,
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
-                group.version
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
         )

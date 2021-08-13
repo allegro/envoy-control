@@ -10,7 +10,6 @@ import java.net.URI
 import java.time.Duration
 
 class SnapshotProperties {
-    var supportV2Configuration = false
     var routes = RoutesProperties()
     var localService = LocalServiceProperties()
     var egress = EgressProperties()
