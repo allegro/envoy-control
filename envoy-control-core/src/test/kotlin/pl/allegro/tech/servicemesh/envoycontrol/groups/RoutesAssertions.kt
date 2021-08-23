@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
@@ -23,6 +24,7 @@ fun RouteConfiguration.hasRequestHeaderToAdd(key: String, value: String): RouteC
     assertThat(this.requestHeadersToAddList).anySatisfy {
         assertThat(it.header.key).isEqualTo(key)
         assertThat(it.header.value).isEqualTo(value)
+        assertThat(it.append).isEqualTo(BoolValue.of(false))
     }
     return this
 }
