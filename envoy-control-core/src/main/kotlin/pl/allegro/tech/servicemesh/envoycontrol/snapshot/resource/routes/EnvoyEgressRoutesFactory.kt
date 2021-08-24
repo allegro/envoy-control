@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
+import com.google.protobuf.BoolValue
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
@@ -105,7 +106,7 @@ class EnvoyEgressRoutesFactory(
                                 HeaderValue.newBuilder()
                                     .setKey(properties.incomingPermissions.serviceNameHeader)
                                     .setValue(serviceName)
-                            )
+                            ).setAppend(BoolValue.of(false))
                     )
                 }
             }

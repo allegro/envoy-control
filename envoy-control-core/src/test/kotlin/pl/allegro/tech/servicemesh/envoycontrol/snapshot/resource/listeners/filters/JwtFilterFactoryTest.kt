@@ -6,6 +6,7 @@ import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtAuthenticatio
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
@@ -22,7 +23,7 @@ internal class JwtFilterFactoryTest {
         JwtFilterProperties().also {
             it.forwardJwt = true
             it.providers = mapOf(
-                "provider" to OAuthProvider(URI.create("http://provider/jwks"), true, "provider-cluster")
+                "provider" to OAuthProvider(URI.create("http://provider/jwks"), true, "provider-cluster", matchings = mapOf("oauth" to "authorities"))
             )
         }
     )
@@ -103,6 +104,28 @@ internal class JwtFilterFactoryTest {
         assertThat(generatedFilter).isEqualTo(expectedJwtFilter)
     }
 
+    @Test
+    fun `should create JWT filter for group with ClientWithSelector and without oauth section in Incoming`() {
+        // given
+        val group = createGroupWithClientWithSelector(mapOf("/" to "provider"))
+        val expectedJwtFilter = getJwtFilter(
+            singleProviderJson(
+                """ 
+            "requires": {
+                "requiresAny": {
+                    "requirements": [{"providerName": "provider"}, {"allowMissingOrFailed": {} }]
+                 }
+            }"""
+            )
+        )
+        // when
+        val generatedFilter = jwtFilterFactory.createJwtFilter(group)
+
+        // then
+        assertThat(generatedFilter).isNotNull
+        assertThat(generatedFilter).isEqualTo(expectedJwtFilter)
+    }
+
     private fun getJwtFilter(providersJson: String): HttpFilter? {
         val jwt = JwtAuthentication.newBuilder()
         JsonFormat.parser().merge(providersJson, jwt)
@@ -123,6 +146,19 @@ internal class JwtFilterFactoryTest {
                     IncomingEndpoint(
                         path,
                         oauth = OAuth(provider, policy = policy)
+                    )
+                }
+            )
+        )
+    )
+    private fun createGroupWithClientWithSelector(pathToProvider: Map<String, String>) = ServicesGroup(
+        CommunicationMode.ADS, proxySettings = ProxySettings(
+            Incoming(
+                pathToProvider.map { (path, provider) ->
+                    IncomingEndpoint(
+                        path,
+                        clients = setOf(ClientWithSelector("oauth", "client")),
+                        oauth = null
                     )
                 }
             )
