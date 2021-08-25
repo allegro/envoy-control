@@ -4,12 +4,12 @@ buildscript {
     }
     dependencies {
         classpath group: 'pl.allegro.tech.build',   name: 'axion-release-plugin', version: '1.10.2'
-        classpath 'io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.12.0'
-        classpath group: 'com.bmuschko', name: 'gradle-nexus-plugin', version: '2.3.1'
     }
 }
 
 plugins {
+    id 'signing'
+
     id 'pl.allegro.tech.build.axion-release' version '1.10.2'
     id 'org.jetbrains.kotlin.jvm' version '1.3.72'
     id 'org.jetbrains.kotlin.plugin.spring' version '1.3.72'
@@ -17,9 +17,10 @@ plugins {
     id "org.jlleitschuh.gradle.ktlint" version "9.4.0"
     id "org.jlleitschuh.gradle.ktlint-idea" version "9.4.0"
     id "io.gitlab.arturbosch.detekt" version "1.13.1"
-}
+    id 'io.github.gradle-nexus.publish-plugin' version '1.0.0'
+    id 'com.github.johnrengelman.shadow' version '6.1.0'
 
-apply plugin: 'io.codearte.nexus-staging'
+}
 
 scmVersion {
     tag {
@@ -74,11 +75,22 @@ allprojects {
     ]
 }
 
+
+nexusPublishing {
+    repositories {
+            sonatype {
+                username = System.getenv("SONATYPE_USERNAME")
+                password = System.getenv("SONATYPE_PASSWORD")
+            }
+    }
+}
+
 subprojects {
 
     apply plugin: 'maven-publish'
     apply plugin: 'org.jlleitschuh.gradle.ktlint'
     apply plugin: 'io.gitlab.arturbosch.detekt'
+    apply plugin: 'signing'
 
     sourceCompatibility = 1.8
     [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
@@ -97,20 +109,47 @@ subprojects {
         }
     }
 
-    publishing {
-        repositories {
-            maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/allegro/envoy-control")
-                credentials {
-                    username = githubUsername
-                    password = githubPassword
-                }
-            }
+    if (System.getenv("GPG_KEY_ID")) {
+        signing {
+            useInMemoryPgpKeys(
+                System.getenv("GPG_KEY_ID"),
+                System.getenv("GPG_PRIVATE_KEY"),
+                System.getenv("GPG_PRIVATE_KEY_PASSWORD")
+            )
+            sign publishing.publications
         }
+    }
+
+    publishing {
         publications {
-            maven(MavenPublication) {
-                from project.components.java
+            sonatype(MavenPublication) { publication ->
+                from project.shadow.component(publication)
+                pom {
+                    name = project.name
+                    description 'Production-ready Control Plane for Service Mesh based on Envoy Proxy.'
+                    url ='https://github.com/allegro/envoy-control'
+                    inceptionYear = '2019'
+
+                    scm {
+                        url = 'https://github.com/allegro/envoy-control'
+                        connection = 'scm:git@github.com:allegro/envoy-control.git'
+                        developerConnection = 'scm:git@github.com:allegro/envoy-control.git'
+                    }
+
+                    licenses {
+                        license {
+                            name = 'The Apache Software License, Version 2.0'
+                            url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id = 'skylab'
+                            name = 'Team Skylab-Helix'
+                        }
+                    }
+                }
             }
         }
 
@@ -152,44 +191,4 @@ subprojects {
 
 wrapper {
     gradleVersion = '6.6.1'
-}
-
-subprojects {
-    apply plugin: 'com.bmuschko.nexus'
-
-    modifyPom {
-        project {
-            name project.name
-            description 'Production-ready Control Plane for Service Mesh based on Envoy Proxy.'
-            url 'https://github.com/allegro/envoy-control'
-            inceptionYear '2019'
-
-            scm {
-                url 'https://github.com/allegro/envoy-control'
-                connection 'scm:git@github.com:allegro/envoy-control.git'
-                developerConnection 'scm:git@github.com:allegro/envoy-control.git'
-            }
-
-            licenses {
-                license {
-                    name 'The Apache Software License, Version 2.0'
-                    url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                }
-            }
-
-            developers {
-                developer {
-                    id 'skylab'
-                    name 'Team Skylab-Helix'
-                }
-            }
-        }
-    }
-}
-
-nexusStaging {
-    packageGroup = "pl.allegro"
-
-    numberOfRetries = 50
-    delayBetweenRetriesInMillis = 5000
 }
