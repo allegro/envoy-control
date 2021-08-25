@@ -43,8 +43,6 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         setOf(),
         SnapshotResources.create(listOf(), ""),
         mapOf(),
-        SnapshotResources.create(listOf(), ""),
-        SnapshotResources.create(listOf(), ""),
         SnapshotResources.create(listOf(), "")
     )
 
