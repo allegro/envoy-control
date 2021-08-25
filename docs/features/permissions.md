@@ -5,7 +5,7 @@
 
 One of the pillars of Service Mesh is security.
 Envoy Control provides a simple and fine-grained way to restrict traffic between applications.
-Using Envoy's [metadata](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/core/base.proto#core-metadata) (TODO_deprecate_v2: fix link)
+Using Envoy's [metadata](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/base.proto.html?highlight=metadata#config-core-v3-metadata)
 section you can provide additional configuration to the Control Plane.
 The information provided in `metadata.proxy_settings` section is interpreted by Control Plane
 and it will create a corresponding configuration for `Envoy`.

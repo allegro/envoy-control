@@ -43,7 +43,7 @@ for all clusters with properties [described here](../configuration.md#outlier-de
 ## Retry policy
 
 You can configure
-[retry policies](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/route/route.proto#envoy-api-msg-route-retrypolicy) (TODO_deprecate_v2: fix link)
+[retry policies](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#envoy-v3-api-msg-config-route-v3-retrypolicy)
 for ingress traffic with properties [described here](../configuration.md#retries).
 
 ## Metadata
