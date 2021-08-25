@@ -561,12 +561,12 @@ class SnapshotUpdaterTest {
         hasSnapshot(cache, allServicesGroup)
             .hasOnlyClustersFor(*expectedWhitelistedServices)
             .hasOnlyEndpointsFor(*expectedWhitelistedServices)
-            .hasOnlyEgressRoutesForClusters(expected = *expectedWhitelistedServices)
+            .hasOnlyEgressRoutesForClusters(expected = *expectedDomainsWhitelistedServices)
 
         hasSnapshot(cache, groupWithBlacklistedDependency)
-            .hasOnlyClustersFor("mock-service")
-            .hasOnlyEndpointsFor("mock-service")
-            .hasOnlyEgressRoutesForClusters(expected = *arrayOf("mock-service"))
+            .hasOnlyClustersFor(*expectedBlacklistedServices)
+            .hasOnlyEndpointsFor(*expectedBlacklistedServices)
+            .hasOnlyEgressRoutesForClusters(expected = *expectedDomainsBlacklistedServices)
     }
 
     @Test

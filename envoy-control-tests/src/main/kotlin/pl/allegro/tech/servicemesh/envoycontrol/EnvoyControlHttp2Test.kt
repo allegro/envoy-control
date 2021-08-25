@@ -13,7 +13,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import java.time.Duration
 
 class XdsEnvoyControlHttp2Test : EnvoyControlHttp2Test {
     companion object {
@@ -107,7 +106,7 @@ interface EnvoyControlHttp2Test {
             tags = listOf("envoy")
         )
 
-        untilAsserted(Duration.ofSeconds(12000)) {
+        untilAsserted {
             // when
             val response = envoy().egressOperations.callService("proxy1")
             assertThat(response).isOk()
