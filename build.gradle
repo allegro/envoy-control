@@ -102,6 +102,7 @@ subprojects {
     }
 
     test {
+        jvmArgs('-Djunit.jupiter.extensions.autodetection.enabled=true')
         useJUnitPlatform()
         testLogging {
             events "passed", "skipped", "failed"

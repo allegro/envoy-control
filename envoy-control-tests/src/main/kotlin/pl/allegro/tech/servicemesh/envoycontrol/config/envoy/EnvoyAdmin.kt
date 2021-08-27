@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 
 class EnvoyAdmin(
@@ -114,7 +115,7 @@ class EnvoyAdmin(
                 .url("$address/$path")
                 .build()
         )
-            .execute()
+            .execute().addToCloseableResponses()
 
     private fun post(path: String): Response =
         client.newCall(
@@ -122,7 +123,7 @@ class EnvoyAdmin(
                 .post(RequestBody.create(MediaType.get("application/json"), "{}"))
                 .url("$address/$path")
                 .build()
-        ).execute()
+        ).execute().addToCloseableResponses()
 
     data class AdminInstance(val ip: String, val cluster: String)
 }

@@ -12,7 +12,6 @@ class ContainerPool<OWNER, CONTAINER : GenericContainer<*>>(private val containe
     fun acquire(owner: OWNER): CONTAINER {
         val container = freeContainers.poll() ?: containerFactory()
         container.start()
-
         usedContainers[owner] = container
         return container
     }

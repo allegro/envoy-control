@@ -10,7 +10,7 @@ on:
 jobs:
   resilence_test:
     name: resilence_test
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: '-Dfile.encoding=utf-8 -Dorg.gradle.daemon=false'
 

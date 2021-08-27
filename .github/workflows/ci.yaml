@@ -10,7 +10,7 @@ on:
 jobs:
   ci:
     name: CI
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: '-Dfile.encoding=utf-8 -Dorg.gradle.daemon=false'
 
@@ -38,7 +38,7 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Test with Gradle
-        run: ./gradlew clean check -i
+        run: ./gradlew clean check
 
       - name: Junit report
         uses: allegro-actions/junit-reporter@v1

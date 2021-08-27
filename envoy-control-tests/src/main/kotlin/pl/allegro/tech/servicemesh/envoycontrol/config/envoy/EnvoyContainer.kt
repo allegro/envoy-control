@@ -4,7 +4,6 @@ import com.github.dockerjava.api.command.InspectContainerResponse
 import org.springframework.core.io.ClassPathResource
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.output.Slf4jLogConsumer
-import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
@@ -71,7 +70,6 @@ class EnvoyContainer(
             "-l", logLevel,
             "--bootstrap-version", apiVersion.toString()
         )
-        waitingFor(Wait.forListeningPort())
     }
 
     fun addDnsEntry(host: String, ip: String) {

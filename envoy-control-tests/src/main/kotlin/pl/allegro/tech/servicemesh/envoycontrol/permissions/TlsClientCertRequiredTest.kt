@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLException
 
 class TlsClientCertRequiredTest {
 
@@ -38,23 +38,12 @@ class TlsClientCertRequiredTest {
         val envoy = EnvoyExtension(envoyControl, config = Echo1EnvoyAuthConfig, localService = service)
     }
 
-    private fun registerEchoWithEnvoyOnIngress() {
-        consul.server.operations.registerServiceWithEnvoyOnIngress(
-            extension = envoy,
-            id = "echo",
-            name = "echo",
-            tags = listOf("mtls:enabled")
-        )
-    }
     @Test
     @SuppressWarnings("SwallowedException")
     fun `should reject client without a certificate during TLS handshake`() {
-        registerEchoWithEnvoyOnIngress()
-        envoy.waitForReadyServices("echo")
-
         untilAsserted {
             // expects
-            assertThrows<SSLHandshakeException> {
+            assertThrows<SSLException> {
                 envoy.ingressOperations.callLocalServiceInsecure("/status/", useTls = true)
             }
             envoy.assertReportedPeerCertificateNotFoundError()

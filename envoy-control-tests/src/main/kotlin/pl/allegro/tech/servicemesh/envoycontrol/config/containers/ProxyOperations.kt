@@ -4,6 +4,7 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import java.time.Duration
 
 class ProxyOperations(val address: String) {
@@ -18,6 +19,6 @@ class ProxyOperations(val address: String) {
                 .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
                 .build()
         )
-            .execute()
+            .execute().addToCloseableResponses()
     }
 }
