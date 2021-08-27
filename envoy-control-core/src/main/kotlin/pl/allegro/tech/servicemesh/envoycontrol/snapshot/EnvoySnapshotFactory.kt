@@ -246,7 +246,7 @@ class EnvoySnapshotFactory(
                 group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
                 group.version
             ),
-            ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
+            ingressRoutesFactory.createSecuredIngressRouteConfig(group.serviceName, group.proxySettings)
         )
 
         val listeners = if (properties.dynamicListeners.enabled) {

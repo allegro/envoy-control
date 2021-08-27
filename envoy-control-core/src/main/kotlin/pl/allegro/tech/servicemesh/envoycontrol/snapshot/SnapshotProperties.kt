@@ -31,6 +31,7 @@ class SnapshotProperties {
     var metrics: MetricsProperties = MetricsProperties()
     var dynamicForwardProxy = DynamicForwardProxyProperties()
     var jwt = JwtFilterProperties()
+    var requireServiceName = false
 }
 
 class MetricsProperties {
@@ -249,6 +250,7 @@ class EgressProperties {
 
 class IngressProperties {
     var headersToRemove = mutableListOf<String>()
+    var addServiceNameHeaderToResponse = false
 }
 
 class CommonHttpProperties {

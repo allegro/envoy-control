@@ -175,11 +175,7 @@ class MetadataNodeGroup(
     }
 
     private fun serviceName(metadata: NodeMetadata): String {
-        return when (properties.incomingPermissions.enabled) {
-            true -> metadata.serviceName.orEmpty()
-            // TODO: https://github.com/allegro/envoy-control/issues/91
-            false -> ""
-        }
+        return metadata.serviceName.orEmpty()
     }
 
     private fun proxySettings(metadata: NodeMetadata): ProxySettings {
