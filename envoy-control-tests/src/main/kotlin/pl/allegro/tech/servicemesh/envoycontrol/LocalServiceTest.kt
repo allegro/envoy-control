@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import okhttp3.Headers
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -23,7 +24,8 @@ class LocalServiceTest {
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(
             consul, mapOf(
-                "$prefix.ingress.add-service-name-header-to-response" to true
+                "$prefix.ingress.add-service-name-header-to-response" to true,
+                "$prefix.ingress.add-requested-service-name-header-to-response" to true
             )
         )
 
@@ -44,10 +46,11 @@ class LocalServiceTest {
         // when
         untilAsserted {
             // when
-            val response = envoy.ingressOperations.callLocalService("/")
+            val response = envoy.ingressOperations.callLocalService("/", headers = Headers.of("host", "test-service"))
 
             assertThat(response).isOk()
             assertThat(response.header("x-service-name")).isEqualTo("echo2")
+            assertThat(response.header("x-requested-service-name")).isEqualTo("test-service")
         }
     }
 }

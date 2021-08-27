@@ -251,6 +251,9 @@ class EgressProperties {
 class IngressProperties {
     var headersToRemove = mutableListOf<String>()
     var addServiceNameHeaderToResponse = false
+    var addRequestedServiceNameHeaderToResponse = false
+    var serviceNameHeader = "x-service-name"
+    var requestedServiceNameHeader = "x-requested-service-name"
 }
 
 class CommonHttpProperties {

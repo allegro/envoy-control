@@ -177,8 +177,17 @@ class EnvoyIngressRoutesFactory(
             builder.addResponseHeadersToAdd(
                 HeaderValueOption.newBuilder().setHeader(
                     HeaderValue.newBuilder()
-                        .setKey(properties.incomingPermissions.serviceNameHeader)
+                        .setKey(properties.ingress.serviceNameHeader)
                         .setValue(serviceName).build()
+                )
+            )
+        }
+        if (properties.ingress.addRequestedServiceNameHeaderToResponse) {
+            builder.addResponseHeadersToAdd(
+                HeaderValueOption.newBuilder().setHeader(
+                    HeaderValue.newBuilder()
+                        .setKey(properties.ingress.requestedServiceNameHeader)
+                        .setValue("%REQ(:authority)%").build()
                 )
             )
         }
