@@ -1,0 +1,96 @@
+# Java Gradle CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-java/ for more details
+#
+version: 2.1
+
+executors:
+  my-executor:
+    machine:
+      image: ubuntu-2004:202010-01
+    environment:
+      JVM_OPTS: -Xmx3200m
+      TERM: dumb
+    working_directory: ~/repo
+
+jobs:
+  build:
+    executor: my-executor
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "build.gradle" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+      - run: ./gradlew dependencies
+
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: v1-dependencies-{{ checksum "build.gradle" }}
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  test:
+    executor: my-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "build.gradle" }}
+            - v1-dependencies-
+      - run:
+          name: unit and integration tests
+          command: ./gradlew check
+      - run:
+          name: Save test results
+          command: |
+            mkdir -p ~/test-results/junit/
+            find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/test-results/junit/ \;
+          when: always
+      - store_test_results:
+          path: ~/test-results
+      - store_artifacts:
+          path: ~/test-results/junit
+
+  resilience_test:
+    executor: my-executor
+    steps:
+      - attach_workspace:
+          at: .
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "build.gradle" }}
+            - v1-dependencies-
+      - run:
+          name: reliability tests
+          command: ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20
+          no_output_timeout: 20m
+      - run:
+          name: Save reliability test results
+          command: |
+            mkdir -p ~/reliability-test-results/junit/
+            find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/reliability-test-results/junit/ \;
+          when: always
+      - store_test_results:
+          path: ~/reliability-test-results
+      - store_artifacts:
+          path: ~/reliability-test-results/junit
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - resilience_test:
+          requires:
+            - build
