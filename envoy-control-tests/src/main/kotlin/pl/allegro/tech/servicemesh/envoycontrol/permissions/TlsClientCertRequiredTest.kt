@@ -38,9 +38,20 @@ class TlsClientCertRequiredTest {
         val envoy = EnvoyExtension(envoyControl, config = Echo1EnvoyAuthConfig, localService = service)
     }
 
+    private fun registerEchoWithEnvoyOnIngress() {
+        consul.server.operations.registerServiceWithEnvoyOnIngress(
+            extension = envoy,
+            id = "echo",
+            name = "echo",
+            tags = listOf("mtls:enabled")
+        )
+    }
     @Test
     @SuppressWarnings("SwallowedException")
     fun `should reject client without a certificate during TLS handshake`() {
+        registerEchoWithEnvoyOnIngress()
+        envoy.waitForReadyServices("echo")
+
         untilAsserted {
             // expects
             assertThrows<SSLHandshakeException> {
