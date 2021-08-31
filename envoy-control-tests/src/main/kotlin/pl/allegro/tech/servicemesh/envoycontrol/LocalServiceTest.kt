@@ -25,7 +25,7 @@ class LocalServiceTest {
         val envoyControl = EnvoyControlExtension(
             consul, mapOf(
                 "$prefix.ingress.add-service-name-header-to-response" to true,
-                "$prefix.ingress.add-requested-service-name-header-to-response" to true
+                "$prefix.ingress.add-requested-authority-header-to-response" to true
             )
         )
 
@@ -50,7 +50,7 @@ class LocalServiceTest {
 
             assertThat(response).isOk()
             assertThat(response.header("x-service-name")).isEqualTo("echo2")
-            assertThat(response.header("x-requested-service-name")).isEqualTo("test-service")
+            assertThat(response.header("x-requested-authority")).isEqualTo("test-service")
         }
     }
 }

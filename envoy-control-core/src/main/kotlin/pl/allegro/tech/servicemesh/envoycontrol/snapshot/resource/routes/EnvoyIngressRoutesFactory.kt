@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
+import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
@@ -179,16 +180,16 @@ class EnvoyIngressRoutesFactory(
                     HeaderValue.newBuilder()
                         .setKey(properties.ingress.serviceNameHeader)
                         .setValue(serviceName).build()
-                )
+                ).setAppend(BoolValue.of(false))
             )
         }
-        if (properties.ingress.addRequestedServiceNameHeaderToResponse) {
+        if (properties.ingress.addRequestedAuthorityHeaderToResponse) {
             builder.addResponseHeadersToAdd(
                 HeaderValueOption.newBuilder().setHeader(
                     HeaderValue.newBuilder()
-                        .setKey(properties.ingress.requestedServiceNameHeader)
+                        .setKey(properties.ingress.requestedAuthorityHeader)
                         .setValue("%REQ(:authority)%").build()
-                )
+                ).setAppend(BoolValue.of(false))
             )
         }
 

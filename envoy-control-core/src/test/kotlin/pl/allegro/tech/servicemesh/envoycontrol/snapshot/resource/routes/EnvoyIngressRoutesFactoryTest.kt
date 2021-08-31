@@ -133,6 +133,7 @@ internal class EnvoyIngressRoutesFactoryTest {
         val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
             ingress.headersToRemove = mutableListOf("x-via-vip", "x-special-case-header")
             ingress.addServiceNameHeaderToResponse = true
+            ingress.addRequestedAuthorityHeaderToResponse = true
         })
         val proxySettingsOneEndpoint = ProxySettings(
                 incoming = Incoming(
@@ -151,5 +152,6 @@ internal class EnvoyIngressRoutesFactoryTest {
         routeConfig
             .hasRequestHeadersToRemove(listOf("x-via-vip", "x-special-case-header"))
             .hasResponseHeaderToAdd("x-service-name", "service_1")
+            .hasResponseHeaderToAdd("x-requested-authority", "%REQ(:authority)%")
     }
 }
