@@ -386,7 +386,9 @@ interface Dependency {
         private const val DEFAULT_HTTPS_POLICY = false
     }
 
+    @JvmDefault
     fun useSsl(): Boolean = DEFAULT_HTTPS_POLICY
+    @JvmDefault
     fun getPort(): Int = DEFAULT_HTTP_PORT
 }
 
