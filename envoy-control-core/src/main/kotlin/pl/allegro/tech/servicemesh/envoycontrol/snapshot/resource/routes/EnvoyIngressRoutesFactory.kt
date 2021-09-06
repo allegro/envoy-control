@@ -1,8 +1,11 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
+import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
+import io.envoyproxy.envoy.config.core.v3.HeaderValue
+import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.Route
@@ -143,7 +146,7 @@ class EnvoyIngressRoutesFactory(
         routeAction: RouteAction.Builder
     ) = routeAction.clone().setRetryPolicy(retryPolicy)
 
-    fun createSecuredIngressRouteConfig(proxySettings: ProxySettings): RouteConfiguration {
+    fun createSecuredIngressRouteConfig(serviceName: String, proxySettings: ProxySettings): RouteConfiguration {
         val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
             true -> {
                 statusClusters + endpoints
@@ -168,10 +171,26 @@ class EnvoyIngressRoutesFactory(
         val builder = RouteConfiguration.newBuilder()
             .setName("ingress_secured_routes")
 
-        when {
-            properties.ingress.headersToRemove.isNotEmpty() -> {
-                builder.addAllRequestHeadersToRemove(properties.ingress.headersToRemove)
-            }
+        if (properties.ingress.headersToRemove.isNotEmpty()) {
+            builder.addAllRequestHeadersToRemove(properties.ingress.headersToRemove)
+        }
+        if (properties.ingress.addServiceNameHeaderToResponse) {
+            builder.addResponseHeadersToAdd(
+                HeaderValueOption.newBuilder().setHeader(
+                    HeaderValue.newBuilder()
+                        .setKey(properties.ingress.serviceNameHeader)
+                        .setValue(serviceName).build()
+                ).setAppend(BoolValue.of(false))
+            )
+        }
+        if (properties.ingress.addRequestedAuthorityHeaderToResponse) {
+            builder.addResponseHeadersToAdd(
+                HeaderValueOption.newBuilder().setHeader(
+                    HeaderValue.newBuilder()
+                        .setKey(properties.ingress.requestedAuthorityHeader)
+                        .setValue("%REQ(:authority)%").build()
+                ).setAppend(BoolValue.of(false))
+            )
         }
 
         return builder

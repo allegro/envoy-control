@@ -21,12 +21,12 @@ class NodeMetadataValidatorTest {
 
     val validator = NodeMetadataValidator(SnapshotProperties().apply {
         outgoingPermissions = createOutgoingPermissions(
-                enabled = true,
-                servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2")
+            enabled = true,
+            servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2")
         )
         incomingPermissions = createIncomingPermissions(
-                enabled = true,
-                servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2")
+            enabled = true,
+            servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2")
         )
     })
 
@@ -34,9 +34,9 @@ class NodeMetadataValidatorTest {
     fun `should fail if service has no privilege to use incoming wildcard`() {
         // given
         val node = nodeV3(
-                serviceName = "regular-1",
-                incomingSettings = true,
-                clients = listOf("*")
+            serviceName = "regular-1",
+            incomingSettings = true,
+            clients = listOf("*")
         )
         val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
@@ -56,9 +56,9 @@ class NodeMetadataValidatorTest {
     fun `should fail if service mixes incoming wildcard and normal permissions`() {
         // given
         val node = nodeV3(
-                serviceName = "vis-1",
-                incomingSettings = true,
-                clients = listOf("*", "something")
+            serviceName = "vis-1",
+            incomingSettings = true,
+            clients = listOf("*", "something")
         )
         val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
@@ -99,9 +99,9 @@ class NodeMetadataValidatorTest {
     fun `should not fail if service has privilege to use incoming wildcard`() {
         // given
         val node = nodeV3(
-                serviceName = "vis-1",
-                incomingSettings = true,
-                clients = listOf("*")
+            serviceName = "vis-1",
+            incomingSettings = true,
+            clients = listOf("*")
         )
 
         val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
@@ -128,7 +128,10 @@ class NodeMetadataValidatorTest {
     fun `should not fail if outgoing-permissions is disabled`() {
         // given
         val permissionsDisabledValidator = NodeMetadataValidator(SnapshotProperties().apply {
-            outgoingPermissions = createOutgoingPermissions(enabled = false, servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2"))
+            outgoingPermissions = createOutgoingPermissions(
+                enabled = false,
+                servicesAllowedToUseWildcard = mutableSetOf("vis-1", "vis-2")
+            )
         })
         val node = nodeV3(
             serviceDependencies = setOf("*", "a", "b", "c"),
@@ -166,7 +169,8 @@ class NodeMetadataValidatorTest {
         val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
 
         // when
-        val exception = catchThrowable { configurationModeValidator.onV3StreamRequest(streamId = 123, request = request) }
+        val exception =
+            catchThrowable { configurationModeValidator.onV3StreamRequest(streamId = 123, request = request) }
 
         // expects
         assertThat(exception).isInstanceOf(ConfigurationModeNotSupportedException::class.java)
@@ -224,9 +228,45 @@ class NodeMetadataValidatorTest {
             }
     }
 
+    @Test
+    fun `should fail when service name is empty`() {
+        // given
+        val requireServiceNameValidator = NodeMetadataValidator(SnapshotProperties().apply {
+            requireServiceName = true
+        })
+        val node = nodeV3(
+            serviceDependencies = setOf("*", "a", "b", "c"),
+            serviceName = ""
+        )
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
+
+        // expects
+        assertThatExceptionOfType(ServiceNameNotProvidedException::class.java)
+            .isThrownBy { requireServiceNameValidator.onV3StreamRequest(streamId = 123, request = request) }
+            .satisfies {
+                assertThat(it.status.description).isEqualTo(
+                    "Service name has not been provided."
+                )
+                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+            }
+    }
+
+    @Test
+    fun `should not throw an exception when service name is empty and validation disabled`() {
+        // given
+        val node = nodeV3(
+            serviceDependencies = setOf("a", "b", "c"),
+            serviceName = ""
+        )
+        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
+
+        // then
+        assertDoesNotThrow { validator.onV3StreamRequest(123, request = request) }
+    }
+
     private fun createIncomingPermissions(
-            enabled: Boolean = false,
-            servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
+        enabled: Boolean = false,
+        servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
     ): IncomingPermissionsProperties {
         val incomingPermissions = IncomingPermissionsProperties()
         incomingPermissions.enabled = enabled

@@ -152,7 +152,8 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-                communicationMode = XDS
+                communicationMode = XDS,
+                serviceName = "app1"
             )
         )
     }
