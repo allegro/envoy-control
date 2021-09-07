@@ -244,7 +244,12 @@ class EnvoySnapshotFactory(
             clustersFactory.getClustersForGroup(group, globalSnapshot)
 
         val routes = mutableListOf(
-            ingressRoutesFactory.createSecuredIngressRouteConfig(group.proxySettings)
+            egressRoutesFactory.createEgressRouteConfig(
+                group.serviceName, egressRouteSpecification,
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
+                group.version
+            ),
+            ingressRoutesFactory.createSecuredIngressRouteConfig(group.serviceName, group.proxySettings)
         )
 
         if (group.listenersConfig?.useTransparentProxy == true) {

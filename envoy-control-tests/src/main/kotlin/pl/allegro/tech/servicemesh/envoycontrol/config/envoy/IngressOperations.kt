@@ -6,6 +6,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 import pl.allegro.tech.servicemesh.envoycontrol.config.ClientsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 
 class IngressOperations(val envoy: EnvoyContainer) {
 
@@ -26,7 +27,7 @@ class IngressOperations(val envoy: EnvoyContainer) {
                             .url(envoy.ingressListenerUrl() + endpoint)
                             .build()
             )
-                    .execute()
+                    .execute().addToCloseableResponses()
 
     private fun callLocalService(
         endpoint: String,
@@ -41,5 +42,5 @@ class IngressOperations(val envoy: EnvoyContainer) {
                 .url(envoy.ingressListenerUrl(useTls) + endpoint)
                 .build()
         )
-            .execute()
+            .execute().addToCloseableResponses()
 }

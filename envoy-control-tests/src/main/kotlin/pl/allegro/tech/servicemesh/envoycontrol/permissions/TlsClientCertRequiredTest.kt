@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLException
 
 class TlsClientCertRequiredTest {
 
@@ -43,7 +43,7 @@ class TlsClientCertRequiredTest {
     fun `should reject client without a certificate during TLS handshake`() {
         untilAsserted {
             // expects
-            assertThrows<SSLHandshakeException> {
+            assertThrows<SSLException> {
                 envoy.ingressOperations.callLocalServiceInsecure("/status/", useTls = true)
             }
             envoy.assertReportedPeerCertificateNotFoundError()
