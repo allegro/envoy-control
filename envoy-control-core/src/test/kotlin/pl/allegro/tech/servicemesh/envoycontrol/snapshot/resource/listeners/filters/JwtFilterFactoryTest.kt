@@ -154,7 +154,7 @@ internal class JwtFilterFactoryTest {
     private fun createGroupWithClientWithSelector(pathToProvider: Map<String, String>) = ServicesGroup(
         CommunicationMode.ADS, proxySettings = ProxySettings(
             Incoming(
-                pathToProvider.map { (path, provider) ->
+                pathToProvider.map { (path, _) ->
                     IncomingEndpoint(
                         path,
                         clients = setOf(ClientWithSelector("oauth", "client")),

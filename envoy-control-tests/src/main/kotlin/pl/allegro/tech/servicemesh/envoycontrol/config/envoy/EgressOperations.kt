@@ -7,6 +7,7 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import java.time.Duration
 
@@ -79,6 +80,6 @@ class EgressOperations(val envoy: EnvoyContainer) {
                 .url(HttpUrl.get(envoy.egressListenerUrl()).newBuilder(pathAndQuery)!!.build())
                 .build()
         )
-            .execute()
+            .execute().addToCloseableResponses()
     }
 }

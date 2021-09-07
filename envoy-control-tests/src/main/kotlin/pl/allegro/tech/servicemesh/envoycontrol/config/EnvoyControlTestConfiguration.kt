@@ -15,6 +15,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyConta
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EgressOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.IngressOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
@@ -87,7 +88,9 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         ) {
             assertThat(envoyControls == 1 || envoyControls == 2).isTrue()
             assertThat(envoys == 1 || envoys == 2).isTrue()
+            EnvoyControlTestConfiguration.envoys = envoys
 
+            EnvoyControlTestConfiguration.envoyControls = envoyControls
             localServiceContainer = EchoContainer().also { it.start() }
 
             Companion.envoyControls = envoyControls
@@ -270,7 +273,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     .build()
             )
 
-            return request.execute()
+            return request.execute().addToCloseableResponses()
         }
 
         fun callLocalService(

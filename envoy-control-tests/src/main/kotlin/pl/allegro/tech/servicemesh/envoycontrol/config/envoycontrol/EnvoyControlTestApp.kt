@@ -17,6 +17,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.http.HttpStatus
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControl
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.debug.Versions
@@ -103,7 +104,7 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/state")
                     .build()
             )
-            .execute()
+            .execute().addToCloseableResponses()
         return objectMapper.readValue(response.body()?.use { it.string() }, ServicesState::class.java)
     }
 
@@ -114,7 +115,7 @@ class EnvoyControlRunnerTestApp(
                 .post(RequestBody.create(MediaType.get("application/json"), nodeJson))
                 .url("http://localhost:$appPort/snapshot")
                 .build()
-        ).execute()
+        ).execute().addToCloseableResponses()
 
         if (response.code() == HttpStatus.NOT_FOUND.value()) {
             return SnapshotDebugResponse(found = false)
@@ -137,7 +138,7 @@ class EnvoyControlRunnerTestApp(
                 .get()
                 .url(url)
                 .build()
-        ).execute()
+        ).execute().addToCloseableResponses()
 
         if (response.code() == HttpStatus.NOT_FOUND.value()) {
             return SnapshotDebugResponse(found = false)
@@ -164,7 +165,7 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/actuator/health")
                     .build()
             )
-            .execute()
+            .execute().addToCloseableResponses()
 
     override fun postChaosFaultRequest(
         username: String,
@@ -182,7 +183,7 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/chaos/fault/read-network-delay")
                     .build()
             )
-            .execute()
+            .execute().addToCloseableResponses()
     }
 
     override fun getExperimentsListRequest(
@@ -198,7 +199,7 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/chaos/fault/read-network-delay")
                     .build()
             )
-            .execute()
+            .execute().addToCloseableResponses()
     }
 
     override fun deleteChaosFaultRequest(
@@ -215,7 +216,7 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/chaos/fault/read-network-delay/$faultId")
                     .build()
             )
-            .execute()
+            .execute().addToCloseableResponses()
     }
 
     override fun meterRegistry() = app.context().getBean(MeterRegistry::class.java)
