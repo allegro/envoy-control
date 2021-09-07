@@ -35,7 +35,7 @@ class EnvoySnapshotFactory(
 ) {
 
     companion object {
-        private const val DEFAULT_HTTP_PORT = 80
+        const val DEFAULT_HTTP_PORT = 80
     }
 
     fun newSnapshot(
@@ -244,11 +244,6 @@ class EnvoySnapshotFactory(
             clustersFactory.getClustersForGroup(group, globalSnapshot)
 
         val routes = mutableListOf(
-            egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, egressRouteSpecification,
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
-                group.version
-            ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.serviceName, group.proxySettings)
         )
 
