@@ -34,7 +34,12 @@ node:
       outgoing:
         dependencies:
           - service: "*"
+          - service: "echo"
+            timeoutPolicy:
+              requestTimeout: "15s"
           - domain: "https://www.example.com"
+          - domain: "https://my.example.com"
+          - domain: "http://myhttp.example.com:5678"
 
 
 static_resources:
