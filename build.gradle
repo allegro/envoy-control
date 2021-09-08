@@ -1,3 +1,4 @@
+
 buildscript {
     repositories {
         mavenCentral()
@@ -18,7 +19,6 @@ plugins {
     id "org.jlleitschuh.gradle.ktlint-idea" version "9.4.0"
     id "io.gitlab.arturbosch.detekt" version "1.13.1"
     id 'io.github.gradle-nexus.publish-plugin' version '1.0.0'
-    id 'com.github.johnrengelman.shadow' version '6.1.0'
 
 }
 
@@ -78,10 +78,10 @@ allprojects {
 
 nexusPublishing {
     repositories {
-            sonatype {
-                username = System.getenv("SONATYPE_USERNAME")
-                password = System.getenv("SONATYPE_PASSWORD")
-            }
+        sonatype {
+            username = System.getenv("SONATYPE_USERNAME")
+            password = System.getenv("SONATYPE_PASSWORD")
+        }
     }
 }
 
@@ -121,10 +121,15 @@ subprojects {
         }
     }
 
+    java {
+        withSourcesJar()
+        withJavadocJar()
+    }
+
     publishing {
         publications {
             sonatype(MavenPublication) { publication ->
-                from project.shadow.component(publication)
+                from project.components.java
                 pom {
                     name = project.name
                     description 'Production-ready Control Plane for Service Mesh based on Envoy Proxy.'
