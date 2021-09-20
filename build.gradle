@@ -132,7 +132,7 @@ subprojects {
                 from project.components.java
                 pom {
                     name = project.name
-                    description 'Production-ready Control Plane for Service Mesh based on Envoy Proxy.'
+                    description = 'Production-ready Control Plane for Service Mesh based on Envoy Proxy.'
                     url ='https://github.com/allegro/envoy-control'
                     inceptionYear = '2019'
 
