@@ -7,7 +7,8 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.pszymczyk.consul.infrastructure.Ports
 import io.micrometer.core.instrument.MeterRegistry
 import okhttp3.Credentials
-import okhttp3.MediaType
+
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -93,7 +94,7 @@ class EnvoyControlRunnerTestApp(
 
     override fun getHealthStatus(): Health {
         val response = getApplicationStatusResponse()
-        return objectMapper.readValue(response.body()?.use { it.string() }, Health::class.java)
+        return objectMapper.readValue(response.body?.use { it.string() }, Health::class.java)
     }
 
     override fun getState(): ServicesState {
@@ -105,25 +106,25 @@ class EnvoyControlRunnerTestApp(
                     .build()
             )
             .execute().addToCloseableResponses()
-        return objectMapper.readValue(response.body()?.use { it.string() }, ServicesState::class.java)
+        return objectMapper.readValue(response.body?.use { it.string() }, ServicesState::class.java)
     }
 
     override fun getSnapshot(nodeJson: String): SnapshotDebugResponse {
         val response = httpClient.newCall(
             Request.Builder()
                 .addHeader("Accept", "application/v3+json")
-                .post(RequestBody.create(MediaType.get("application/json"), nodeJson))
+                .post(RequestBody.create("application/json".toMediaType(), nodeJson))
                 .url("http://localhost:$appPort/snapshot")
                 .build()
         ).execute().addToCloseableResponses()
 
-        if (response.code() == HttpStatus.NOT_FOUND.value()) {
+        if (response.code == HttpStatus.NOT_FOUND.value()) {
             return SnapshotDebugResponse(found = false)
         } else if (!response.isSuccessful) {
-            throw SnapshotDebugResponseInvalidStatusException(response.code())
+            throw SnapshotDebugResponseInvalidStatusException(response.code)
         }
 
-        return response.body()
+        return response.body
             ?.use { objectMapper.readValue(it.byteStream(), SnapshotDebugResponse::class.java) }
             ?.copy(found = true) ?: throw SnapshotDebugResponseMissingException()
     }
@@ -140,13 +141,13 @@ class EnvoyControlRunnerTestApp(
                 .build()
         ).execute().addToCloseableResponses()
 
-        if (response.code() == HttpStatus.NOT_FOUND.value()) {
+        if (response.code == HttpStatus.NOT_FOUND.value()) {
             return SnapshotDebugResponse(found = false)
         } else if (!response.isSuccessful) {
-            throw SnapshotDebugResponseInvalidStatusException(response.code())
+            throw SnapshotDebugResponseInvalidStatusException(response.code)
         }
 
-        return response.body()
+        return response.body
             ?.use { objectMapper.readValue(it.byteStream(), SnapshotDebugResponse::class.java) }
             ?.copy(found = true) ?: throw SnapshotDebugResponseMissingException()
     }
@@ -174,7 +175,7 @@ class EnvoyControlRunnerTestApp(
     ): Response {
         val credentials = Credentials.basic(username, password)
         val request = objectMapper.writeValueAsString(networkDelay)
-        val requestBody = RequestBody.create(MediaType.get("application/json"), request)
+        val requestBody = RequestBody.create("application/json".toMediaType(), request)
         return httpClient
             .newCall(
                 Request.Builder()

@@ -80,7 +80,7 @@ class LocalReplyMappingTest {
             )
 
             assertThat(
-                response.body()?.string()
+                response.body?.string()
             ).contains("""{"body":"no healthy upstream","responseFlags":"UH","destination":"service-name: service-1, service-tag: not-existing"}""")
             assertThat(response.header("content-type")).isEqualTo("application/envoy+json")
             assertThat(response).isUnreachable()
@@ -93,9 +93,9 @@ class LocalReplyMappingTest {
         untilAsserted {
             // when
             val response = envoy.egressOperations.callService("service-2")
-            val body = response.body()?.string()
+            val body = response.body?.string()
             assertThat(body).contains("Request to service: service-2 responseFlags:NR body: my-custom no route body")
-            assertThat(response.code()).isEqualTo(522)
+            assertThat(response.code).isEqualTo(522)
         }
     }
 
@@ -111,9 +111,9 @@ class LocalReplyMappingTest {
         untilAsserted {
             // when
             val response = envoy.egressOperations.callService("service-2", pathAndQuery = "/api")
-            val apiResponse = jacksonObjectMapper().readValue<ApiResponse>(response.body()?.string() ?: "")
+            val apiResponse = jacksonObjectMapper().readValue<ApiResponse>(response.body?.string() ?: "")
             assertThat(apiResponse).isEqualTo(expectedApiResponse)
-            assertThat(response.code()).isEqualTo(510)
+            assertThat(response.code).isEqualTo(510)
         }
     }
 

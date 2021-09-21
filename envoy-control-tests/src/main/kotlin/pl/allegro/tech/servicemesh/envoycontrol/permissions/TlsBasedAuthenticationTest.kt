@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
-import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
@@ -332,7 +332,7 @@ internal class TlsBasedAuthenticationTest {
         val request = insecureClient.newCall(
                 Request.Builder()
                         .method("GET", null)
-                        .url(HttpUrl.get(address).newBuilder("/secured_endpoint")!!.build())
+                        .url(address.toHttpUrl().newBuilder("/secured_endpoint")!!.build())
                         .build()
         )
 

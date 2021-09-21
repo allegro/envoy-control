@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import okhttp3.Headers
+import okhttp3.Headers.Companion.headersOf
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -36,7 +36,7 @@ class LocalServiceCustomHealthCheckRouteTest {
     fun `should health check be routed to custom cluster`() {
         untilAsserted {
             // when
-            envoy.ingressOperations.callLocalService(endpoint = "/status/custom", headers = Headers.of())
+            envoy.ingressOperations.callLocalService(endpoint = "/status/custom", headers = headersOf())
 
             // then
             assertThat(envoy.container.admin().statValue("cluster.local_service_health_check.upstream_rq_200")?.toInt()).isGreaterThan(0)
@@ -44,7 +44,7 @@ class LocalServiceCustomHealthCheckRouteTest {
         }
 
         // and
-        envoy.ingressOperations.callLocalService(endpoint = "/status/ping", headers = Headers.of())
+        envoy.ingressOperations.callLocalService(endpoint = "/status/ping", headers = headersOf())
 
         // then
         assertThat(envoy.container.admin().statValue("cluster.local_service.upstream_rq_200")?.toInt()).isEqualTo(1)

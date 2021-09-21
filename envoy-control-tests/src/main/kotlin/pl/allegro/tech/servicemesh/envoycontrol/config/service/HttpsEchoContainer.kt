@@ -32,7 +32,7 @@ class HttpsEchoResponse(val response: Response) {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 
-    val body = response.use { it.body()?.string() } ?: ""
+    val body = response.use { it.body?.string() } ?: ""
 
     val requestHeaders by lazy<Map<String, String>> {
         objectMapper.convertValue(objectMapper.readTree(body).at("/headers"))

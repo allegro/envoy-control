@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
-import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
@@ -41,7 +41,7 @@ class EgressOperations(val envoy: EnvoyContainer) {
                     }
                 }
             }
-            .map { ResponseWithBody(it, it.body()?.string() ?: "") }
+            .map { ResponseWithBody(it, it.body?.string() ?: "") }
             .onEach { conditionFulfilled = conditionFulfilled || repeatUntil(it) }
             .withIndex()
             .takeWhile { (i, _) -> i < minRepeat || !conditionFulfilled }
@@ -73,7 +73,7 @@ class EgressOperations(val envoy: EnvoyContainer) {
                 .apply {
                     moreHeaders.forEach { name, value -> header(name, value) }
                 }
-                .url(HttpUrl.get(envoy.egressListenerUrl()).newBuilder(pathAndQuery)!!.build())
+                .url(envoy.egressListenerUrl().toHttpUrl().newBuilder(pathAndQuery)!!.build())
                 .build()
         )
             .execute().addToCloseableResponses()

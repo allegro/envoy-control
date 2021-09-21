@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
-import okhttp3.Headers
+import okhttp3.Headers.Companion.toHeaders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -172,7 +172,7 @@ internal class IncomingPermissionsAllowedClientTest {
         // when
         val echoResponse = echoEnvoy.ingressOperations.callLocalService(
             endpoint = "/log-unlisted-clients",
-            headers = Headers.of(mapOf("x-service-name" to "echo3"))
+            headers = mapOf("x-service-name" to "echo3").toHeaders()
         )
 
         // then
@@ -201,7 +201,7 @@ internal class IncomingPermissionsAllowedClientTest {
         // when
         val echoResponse = echoEnvoy.ingressOperations.callLocalService(
             endpoint = "/block-unlisted-clients",
-            headers = Headers.of(mapOf("x-service-name" to "echo3"))
+            headers = mapOf("x-service-name" to "echo3").toHeaders()
         )
 
         // then
@@ -222,7 +222,7 @@ internal class IncomingPermissionsAllowedClientTest {
         // when
         val echo2Response = echo2Envoy.ingressOperations.callLocalServiceInsecure(
             endpoint = "/log-unlisted-endpoint",
-            headers = Headers.of(mapOf("x-service-name" to "echo3")),
+            headers = mapOf("x-service-name" to "echo3").toHeaders(),
             useTls = true
         )
 
@@ -245,7 +245,7 @@ internal class IncomingPermissionsAllowedClientTest {
         // when
         val echoResponse = echoEnvoy.ingressOperations.callLocalServiceInsecure(
             endpoint = "/block-and-log-unlisted-endpoint",
-            headers = Headers.of(mapOf("x-service-name" to "echo3")),
+            headers = mapOf("x-service-name" to "echo3").toHeaders(),
             useTls = true
         )
 
