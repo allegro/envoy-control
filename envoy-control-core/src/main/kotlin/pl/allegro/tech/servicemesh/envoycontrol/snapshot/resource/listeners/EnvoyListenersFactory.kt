@@ -146,6 +146,7 @@ class EnvoyListenersFactory(
     ): Listener {
         return Listener.newBuilder()
             .setName("egress_listener")
+            .setDrainType(Listener.DrainType.MODIFY_ONLY)
             .setAddress(
                 Address.newBuilder().setSocketAddress(
                     SocketAddress.newBuilder()
@@ -169,6 +170,7 @@ class EnvoyListenersFactory(
 
         val listener = Listener.newBuilder()
             .setName("ingress_listener")
+            .setDrainType(Listener.DrainType.MODIFY_ONLY)
             .setAddress(
                 Address.newBuilder().setSocketAddress(
                     SocketAddress.newBuilder()
