@@ -122,6 +122,14 @@ class JWTFilterTest {
                         provider: 'first-provider'
                         verification: offline
                         policy: strict
+                    - path: '/log-with-clients'
+                      clients: [some-service, other-service]
+                      methods: [ GET ]
+                      unlistedClientsPolicy: log
+                      oauth:
+                        provider: 'first-provider'
+                        verification: offline
+                        policy: strict
         """.trimIndent()
         )
 
@@ -429,6 +437,20 @@ class JWTFilterTest {
         // when
         val response = envoy.ingressOperations.callLocalService(
             endpoint = "/no-clients", headers = headersOf("Authorization", "Bearer $token")
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
+    }
+
+    @Test
+    fun `should allow request  with token from unlisted client when policy is strict, unlisted clients policy is log and there are other clients defined`() {
+        // given
+        val token = tokenForProvider("first-provider")
+
+        // when
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/log-with-clients", headers = headersOf("Authorization", "Bearer $token")
         )
 
         // then
