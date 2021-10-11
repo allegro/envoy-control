@@ -164,7 +164,6 @@ class RemoteServicesTest {
                 // when
                 .getChanges(duration)
         )
-
             // then
             .expectSubscription()
             .expectNoEvent(Duration.ofSeconds(duration * 2))

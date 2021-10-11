@@ -6,7 +6,10 @@ import java.time.Duration
 
 fun <T> untilAsserted(wait: Duration = Duration.ofSeconds(90), fn: () -> (T)): T {
     var lastResult: T? = null
-    Awaitility.await().atMost(wait).untilAsserted { lastResult = fn() }
+    Awaitility.await().atMost(wait)
+        .pollDelay(Duration.ofMillis(100))
+        .pollInterval(Duration.ofMillis(500))
+        .untilAsserted { lastResult = fn() }
     Assertions.assertThat(lastResult).isNotNull
     return lastResult!!
 }

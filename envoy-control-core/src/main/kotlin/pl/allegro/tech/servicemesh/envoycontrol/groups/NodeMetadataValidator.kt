@@ -38,6 +38,10 @@ class ConfigurationModeNotSupportedException(serviceName: String?, mode: String)
     "Blocked service $serviceName from receiving updates. $mode is not supported by server."
 )
 
+class ServiceNameNotProvidedException : NodeMetadataValidationException(
+    "Service name has not been provided."
+)
+
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
@@ -81,9 +85,18 @@ class NodeMetadataValidator(
     }
 
     private fun validateMetadata(metadata: NodeMetadata) {
+        validateServiceName(metadata)
         validateDependencies(metadata)
         validateIncomingEndpoints(metadata)
         validateConfigurationMode(metadata)
+    }
+
+    private fun validateServiceName(metadata: NodeMetadata) {
+        if (properties.requireServiceName) {
+            if (metadata.serviceName.isNullOrEmpty()) {
+                throw ServiceNameNotProvidedException()
+            }
+        }
     }
 
     private fun validateDependencies(metadata: NodeMetadata) {

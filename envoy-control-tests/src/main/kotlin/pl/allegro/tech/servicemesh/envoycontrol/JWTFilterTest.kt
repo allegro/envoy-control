@@ -18,6 +18,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.Echo2EnvoyAuthConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.OAuthEnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.OAuthServerExtension
@@ -47,14 +48,14 @@ class JWTFilterTest {
                     "first-provider" to OAuthProvider(
                         jwksUri = URI.create("http://oauth/first-provider/jwks"),
                         clusterName = "oauth",
-                        selectorToTokenField = mapOf("oauth-selector" to "authorities")
+                        matchings = mapOf("first-provider-prefix" to "authorities")
                     ),
                     "second-provider" to OAuthProvider(
                         jwksUri = URI.create(oAuthServer.getJwksAddress("second-provider")),
                         createCluster = true,
                         clusterName = "second-provider",
                         clusterPort = oAuthServer.container().oAuthPort(),
-                        selectorToTokenField = mapOf("second-selector" to "authorities")
+                        matchings = mapOf("second-provider-prefix" to "authorities")
                     )
                 )
             )
@@ -91,14 +92,14 @@ class JWTFilterTest {
                         verification: offline
                         policy: strict
                     - path: '/rbac-clients-test'
-                      clients: ['team1:oauth-selector', 'team2:oauth-selector','team3:second-selector']
+                      clients: ['first-provider-prefix:team1', 'first-provider-prefix:team2','second-provider-prefix:team3']
                       unlistedClientsPolicy: blockAndLog
                       oauth:
                         provider: 'first-provider'
                         verification: offline
                         policy: strict
                     - path: '/oauth-or-tls'
-                      clients: ['team1:oauth-selector', 'team2:oauth-selector', 'echo2']
+                      clients: ['first-provider-prefix:team1', 'first-provider-prefix:team2', 'echo2']
                       unlistedClientsPolicy: blockAndLog
                       oauth:
                         provider: 'first-provider'
@@ -112,7 +113,7 @@ class JWTFilterTest {
                         verification: offline
                         policy: allowMissingOrFailed
                     - path: '/team-access'
-                      clients: ['team1:oauth-selector']
+                      clients: ['first-provider-prefix:team1']
                       unlistedClientsPolicy: blockAndLog
                     - pathPrefix: '/no-clients'
                       clients: []
@@ -459,7 +460,7 @@ class JWTFilterTest {
 
     private fun tokenForProvider(provider: String, clientId: String = "client1") =
         OkHttpClient().newCall(Request.Builder().post(FormBody.Builder().add("client_id", clientId).build()).url(oAuthServer.getTokenAddress(provider)).build())
-            .execute()
+            .execute().addToCloseableResponses()
             .body()!!.string()
 
     private fun registerClientWithAuthority(provider: String, clientId: String, authority: String) {
