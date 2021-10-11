@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import okhttp3.Headers
+import okhttp3.Headers.Companion.toHeaders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -93,7 +93,7 @@ class RequestIdTest {
         untilAsserted {
             // when
             val response = envoy.ingressOperations
-                .callLocalService(endpoint = "/", headers = Headers.of(requestIdHeader + extraHeaders))
+                .callLocalService(endpoint = "/", headers = (requestIdHeader + extraHeaders).toHeaders())
                 .asHttpsEchoResponse()
 
             // then
@@ -108,7 +108,7 @@ class RequestIdTest {
         untilAsserted {
             // when
             val response = envoy.ingressOperations
-                .callLocalService(endpoint = "/", headers = Headers.of(extraHeaders))
+                .callLocalService(endpoint = "/", headers = extraHeaders.toHeaders())
                 .asHttpsEchoResponse()
 
             // then

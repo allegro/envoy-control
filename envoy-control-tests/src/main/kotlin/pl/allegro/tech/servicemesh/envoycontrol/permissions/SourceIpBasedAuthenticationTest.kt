@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
-import okhttp3.Headers
+import okhttp3.Headers.Companion.headersOf
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
@@ -119,7 +119,7 @@ internal class SourceIpBasedAuthenticationTest : EnvoyControlTestConfiguration()
     private fun callEcho2(from: String): Response = call(address = from, pathAndQuery = "/secured_endpoint")
 
     private fun callEcho2ThroughEnvoy2Ingress(): Response =
-        callLocalService("/secured_endpoint", Headers.of(), envoyContainer2)
+        callLocalService("/secured_endpoint", headersOf(), envoyContainer2)
 
     private fun callEcho2ThroughEnvoy1() = callService(service = "echo2", pathAndQuery = "/secured_endpoint")
 }

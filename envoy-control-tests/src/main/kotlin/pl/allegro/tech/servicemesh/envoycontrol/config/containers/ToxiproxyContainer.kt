@@ -22,6 +22,7 @@ class ToxiproxyContainer(exposedPortsCount: Int = 0) :
 
     override fun configure() {
         super.configure()
+        this.addExposedPort(internalToxiproxyPort)
         waitingFor(Wait.forHttp("/version").forPort(internalToxiproxyPort))
     }
 

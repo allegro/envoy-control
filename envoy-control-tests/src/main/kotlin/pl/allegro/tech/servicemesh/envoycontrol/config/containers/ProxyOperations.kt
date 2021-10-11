@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.containers
 
-import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -16,7 +16,7 @@ class ProxyOperations(val address: String) {
         return client.newCall(
             Request.Builder()
                 .get()
-                .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
+                .url(address.toHttpUrl().newBuilder(pathAndQuery)!!.build())
                 .build()
         )
             .execute().addToCloseableResponses()

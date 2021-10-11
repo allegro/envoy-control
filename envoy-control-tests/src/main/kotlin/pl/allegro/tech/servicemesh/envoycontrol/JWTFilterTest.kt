@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import okhttp3.FormBody
-import okhttp3.Headers
+import okhttp3.Headers.Companion.headersOf
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -272,7 +272,7 @@ class JWTFilterTest {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token")
+            endpoint = "/rbac-clients-test", headers = headersOf("Authorization", "Bearer $token")
         )
 
         // then
@@ -291,10 +291,10 @@ class JWTFilterTest {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token")
+            endpoint = "/rbac-clients-test", headers = headersOf("Authorization", "Bearer $token")
         )
         val response2 = envoy.ingressOperations.callLocalService(
-            endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token2")
+            endpoint = "/rbac-clients-test", headers = headersOf("Authorization", "Bearer $token2")
         )
 
         // then
@@ -311,7 +311,7 @@ class JWTFilterTest {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token")
+            endpoint = "/rbac-clients-test", headers = headersOf("Authorization", "Bearer $token")
         )
 
         // then
@@ -379,7 +379,7 @@ class JWTFilterTest {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-                endpoint = "/rbac-clients-test", headers = Headers.of("Authorization", "Bearer $token")
+            endpoint = "/rbac-clients-test", headers = headersOf("Authorization", "Bearer $token")
         )
 
         // then
@@ -414,7 +414,7 @@ class JWTFilterTest {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/team-access", headers = Headers.of("Authorization", "Bearer $token")
+            endpoint = "/team-access", headers = headersOf("Authorization", "Bearer $token")
         )
 
         // then
@@ -428,7 +428,7 @@ class JWTFilterTest {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/no-clients", headers = Headers.of("Authorization", "Bearer $token")
+            endpoint = "/no-clients", headers = headersOf("Authorization", "Bearer $token")
         )
 
         // then
@@ -442,7 +442,7 @@ class JWTFilterTest {
 
         // when
         val response = envoy.ingressOperations.callLocalService(
-            endpoint = "/no-clients", headers = Headers.of("Authorization", "Bearer $token")
+            endpoint = "/no-clients", headers = headersOf("Authorization", "Bearer $token")
         )
 
         // then
@@ -461,7 +461,7 @@ class JWTFilterTest {
     private fun tokenForProvider(provider: String, clientId: String = "client1") =
         OkHttpClient().newCall(Request.Builder().post(FormBody.Builder().add("client_id", clientId).build()).url(oAuthServer.getTokenAddress(provider)).build())
             .execute().addToCloseableResponses()
-            .body()!!.string()
+            .body!!.string()
 
     private fun registerClientWithAuthority(provider: String, clientId: String, authority: String) {
         val body = """{
