@@ -22,9 +22,7 @@ class EnvoyControlV3SmokeTest {
 
         @JvmField
         @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul, mapOf(
-            "envoy-control.envoy.snapshot.support-v2-configuration" to false
-        ))
+        val envoyControl = EnvoyControlExtension(consul)
 
         @JvmField
         @RegisterExtension

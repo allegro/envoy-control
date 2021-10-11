@@ -165,25 +165,7 @@ class ControlPlane private constructor(
             )
             val grpcServerBuilder = grpcServerBuilder()
 
-            if (properties.envoy.snapshot.supportV2Configuration) {
-                val compositeDiscoveryServerCallbacksV2 = listOf(
-                    CompositeDiscoveryServerCallbacks(
-                        meterRegistry,
-                        buildSnapshotCollectingCallback(cache),
-                        loggingDiscoveryServerCallbacks,
-                        meteredConnectionsCallbacks,
-                        NodeMetadataValidator(properties.envoy.snapshot)
-                    )
-                )
-                grpcServerBuilder.withV2EnvoyServices(
-                    createV2Server(
-                        compositeDiscoveryServerCallbacksV2,
-                        groupChangeWatcher,
-                        cachedProtoResourcesSerializer
-                    )
-                )
-            }
-            grpcServerBuilder.withV3EnvoyServices(
+            grpcServerBuilder.withEnvoyServices(
                 createV3Server(
                     compositeDiscoveryServerCallbacksV3,
                     groupChangeWatcher,
@@ -345,15 +327,7 @@ class ControlPlane private constructor(
             return this
         }
 
-        private fun NettyServerBuilder.withV2EnvoyServices(discoveryServer: V2DiscoveryServer): NettyServerBuilder {
-            return this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
-                .addService(discoveryServer.clusterDiscoveryServiceImpl)
-                .addService(discoveryServer.endpointDiscoveryServiceImpl)
-                .addService(discoveryServer.listenerDiscoveryServiceImpl)
-                .addService(discoveryServer.routeDiscoveryServiceImpl)
-        }
-
-        private fun NettyServerBuilder.withV3EnvoyServices(discoveryServer: V3DiscoveryServer): NettyServerBuilder {
+        private fun NettyServerBuilder.withEnvoyServices(discoveryServer: V3DiscoveryServer): NettyServerBuilder {
             return this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
                 .addService(discoveryServer.clusterDiscoveryServiceImpl)
                 .addService(discoveryServer.endpointDiscoveryServiceImpl)

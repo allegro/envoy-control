@@ -77,14 +77,7 @@ class NodeMetadataValidator(
     }
 
     private fun validateV2Metadata(node: NodeV2) {
-        if (properties.supportV2Configuration) {
-            // Some validation logic is executed when NodeMetadata is created.
-            // This may throw NodeMetadataValidationException
-            val metadata = NodeMetadata(node.metadata, properties)
-            validateMetadata(metadata)
-        } else {
-            throw V2NotSupportedException()
-        }
+        throw V2NotSupportedException()
     }
 
     private fun validateMetadata(metadata: NodeMetadata) {
