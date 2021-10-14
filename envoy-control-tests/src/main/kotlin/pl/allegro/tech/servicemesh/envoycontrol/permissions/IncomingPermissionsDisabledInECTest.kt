@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
-import okhttp3.Headers
+import okhttp3.Headers.Companion.toHeaders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -43,7 +43,7 @@ internal class IncomingPermissionsDisabledInECTest {
             // when
             val response = envoy.ingressOperations.callLocalService(
                 endpoint = "/endpoint",
-                headers = Headers.of(mapOf("x-service-name" to "authorizedClient"))
+                headers = mapOf("x-service-name" to "authorizedClient").toHeaders()
             )
 
             // then
@@ -57,7 +57,7 @@ internal class IncomingPermissionsDisabledInECTest {
             // when
             val response = envoy.ingressOperations.callLocalService(
                 endpoint = "/endpoint",
-                headers = Headers.of(mapOf("x-service-name" to "unuthorizedClient"))
+                headers = mapOf("x-service-name" to "unuthorizedClient").toHeaders()
             )
 
             // then

@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
 import okhttp3.Headers
-import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -269,7 +269,7 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     .apply {
                         headers.forEach { name, value -> header(name, value) }
                     }
-                    .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
+                    .url(address.toHttpUrl().newBuilder(pathAndQuery)!!.build())
                     .build()
             )
 
@@ -378,23 +378,23 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
     fun ObjectAssert<Response>.isFrom(echoContainer: EchoContainer): ObjectAssert<Response> {
         matches {
-            it.body()?.use { it.string().contains(echoContainer.response) } ?: false
+            it.body?.use { it.string().contains(echoContainer.response) } ?: false
         }
         return this
     }
 
     fun ObjectAssert<Response>.isUnreachable(): ObjectAssert<Response> {
         matches({
-            it.body()?.close()
-            it.code() == 503 || it.code() == 504
+            it.body?.close()
+            it.code == 503 || it.code == 504
         }, "is unreachable")
         return this
     }
 
     fun ObjectAssert<Response>.isForbidden(): ObjectAssert<Response> {
         matches({
-            it.body()?.close()
-            it.code() == 403
+            it.body?.close()
+            it.code == 403
         }, "is forbidden")
         return this
     }

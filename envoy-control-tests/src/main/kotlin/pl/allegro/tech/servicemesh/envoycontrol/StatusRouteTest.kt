@@ -45,7 +45,7 @@ class StatusRouteTest {
                     "vhost.secured_local_service.vcluster.status.upstream_rq_200"
             )?.toInt()
             assertThat(statusUpstreamOk).isGreaterThan(0)
-            assertThat(ingressRoot.code()).isEqualTo(200)
+            assertThat(ingressRoot.code).isEqualTo(200)
         }
     }
 }

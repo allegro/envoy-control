@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
-import okhttp3.Headers
-import okhttp3.MediaType
+import okhttp3.Headers.Companion.toHeaders
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
@@ -678,7 +678,7 @@ class IncomingPermissionsLoggingModeTest {
             "echo",
             pathAndQuery = "/log-unlisted-clients",
             method = "POST",
-            body = RequestBody.create(MediaType.get("text/plain"), "{}")
+            body = RequestBody.create("application/json".toMediaType(), "{}")
         )
 
         // then
@@ -701,7 +701,7 @@ class IncomingPermissionsLoggingModeTest {
             "echo2",
             pathAndQuery = "/log-unlisted-clients",
             method = "POST",
-            body = RequestBody.create(MediaType.get("text/plain"), "{}")
+            body = RequestBody.create("text/plain".toMediaType(), "{}")
         )
 
         // then
@@ -723,7 +723,7 @@ class IncomingPermissionsLoggingModeTest {
         // when
         val echo2Response = echo2Envoy.ingressOperations.callLocalServiceInsecure(
             endpoint = "/log-unlisted-clients",
-            headers = Headers.of(mapOf("x-service-name" to "service-name-from-header")),
+            headers = mapOf("x-service-name" to "service-name-from-header").toHeaders(),
             useTls = true
         )
 

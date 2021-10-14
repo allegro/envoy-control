@@ -51,7 +51,7 @@ internal class ChaosControllerTest {
         )
 
         // then
-        assertThat(response.code()).isEqualTo(HttpStatus.UNAUTHORIZED.value())
+        assertThat(response.code).isEqualTo(HttpStatus.UNAUTHORIZED.value())
     }
 
     @Test
@@ -77,7 +77,7 @@ internal class ChaosControllerTest {
         val response = envoyControl.app.deleteChaosFaultRequest(faultId = sampleNetworkDelayId)
 
         // then
-        assertThat(response.code()).isEqualTo(HttpStatus.NO_CONTENT.value())
+        assertThat(response.code).isEqualTo(HttpStatus.NO_CONTENT.value())
     }
 
     @Test
@@ -86,7 +86,7 @@ internal class ChaosControllerTest {
         val response = envoyControl.app.getExperimentsListRequest()
 
         // then
-        assertThat(response.code()).isEqualTo(HttpStatus.OK.value())
+        assertThat(response.code).isEqualTo(HttpStatus.OK.value())
     }
 
     @Test
@@ -170,12 +170,12 @@ internal class ChaosControllerTest {
     }
 
     private fun convertResponseToNetworkDelayResponse(response: Response): NetworkDelayResponse =
-        response.body()
+        response.body
             ?.use { objectMapper.readValue(it.byteStream(), NetworkDelayResponse::class.java) }
             ?: throw ChaosFaultInvalidResponseException()
 
     private fun convertResponseToExperimentsListResponse(response: Response): ExperimentsListResponse =
-        response.body()
+        response.body
             ?.use { objectMapper.readValue(it.byteStream(), ExperimentsListResponse::class.java) }
             ?: throw ChaosFaultInvalidResponseException()
 

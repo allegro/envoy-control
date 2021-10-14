@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import okhttp3.MediaType
+
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -50,7 +51,7 @@ class EnvoyAdmin(
 
     fun isIngressReady() = statValue("http.ingress_http.rq_total") != "-1"
 
-    fun statValue(statName: String): String? = get("stats?filter=^$statName$").body()?.use {
+    fun statValue(statName: String): String? = get("stats?filter=^$statName$").body?.use {
         val splitedStats = it.string().lines().first().split(":")
         if (splitedStats.size != 2) {
             return "-1"
@@ -64,14 +65,14 @@ class EnvoyAdmin(
 
     private fun clusters(): List<ClusterStatus> {
         val response = get("clusters?format=json")
-        return response.body().use {
+        return response.body.use {
             objectMapper.readValue(it?.string(), ClusterStatuses::class.java).clusterStatuses
         }
     }
 
     private fun configDump(): String {
         val response = get("config_dump")
-        return response.body().use { it!!.string() }
+        return response.body.use { it!!.string() }
     }
 
     fun nodeInfo(): String {
@@ -92,7 +93,7 @@ class EnvoyAdmin(
     ): Int {
         val regex = "$cluster::$priority::$setting::(.+)".toRegex()
         val response = get("clusters")
-        return response.body()?.use { it.string().lines() }
+        return response.body?.use { it.string().lines() }
             ?.find { it.matches(regex) }
             ?.let { regex.find(it)!!.groupValues[1].toInt() }!!
     }
@@ -100,7 +101,7 @@ class EnvoyAdmin(
     fun cluster(cluster: String, ip: String): AdminInstance? {
         val regex = "$cluster::$ip:${EchoContainer.PORT}::zone::(.+)".toRegex()
         val response = get("clusters")
-        return response.body()?.use { it.string().lines() }
+        return response.body?.use { it.string().lines() }
             ?.find { it.matches(regex) }
             ?.let { AdminInstance(ip, cluster = regex.find(it)!!.groupValues[1]) }
     }
@@ -120,7 +121,7 @@ class EnvoyAdmin(
     private fun post(path: String): Response =
         client.newCall(
             Request.Builder()
-                .post(RequestBody.create(MediaType.get("application/json"), "{}"))
+                .post(RequestBody.create("application/json".toMediaType(), "{}"))
                 .url("$address/$path")
                 .build()
         ).execute().addToCloseableResponses()

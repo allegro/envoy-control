@@ -86,12 +86,13 @@ class RBACFilterFactory(
 
             val principals = clientsWithSelectors
                 .flatMap { client ->
-                    principalCache.computeIfAbsent(client) {
-                        mapClientWithSelectorToPrincipals(
-                            it,
-                            snapshot
-                        )
-                    }.map { mergeWithOAuthPolicy(client, it, incomingEndpoint.oauth?.policy) }
+                    getPrincipals(
+                        principalCache,
+                        client,
+                        snapshot,
+                        incomingEndpoint.unlistedClientsPolicy,
+                        incomingEndpoint.oauth
+                    ).map { mergeWithOAuthPolicy(client, it, incomingEndpoint.oauth?.policy) }
                 }
                 .toSet()
                 .ifEmpty {
@@ -107,6 +108,35 @@ class RBACFilterFactory(
             val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
             policy.addPermissions(combinedPermissions)
             EndpointWithPolicy(incomingEndpoint, policy)
+        }
+    }
+
+    private fun getPrincipals(
+        principalCache: MutableMap<ClientWithSelector, List<Principal>>,
+        client: ClientWithSelector,
+        snapshot: GlobalSnapshot,
+        unlistedClientsPolicy: Incoming.UnlistedPolicy,
+        oauth: OAuth?
+    ): List<Principal> {
+        val principals = principalCache.computeIfAbsent(client) {
+            mapClientWithSelectorToPrincipals(
+                it,
+                snapshot
+            )
+        }.toMutableList()
+        principals += principalForOAuthAndLogUnlistedClients(principals, unlistedClientsPolicy, oauth)
+        return principals
+    }
+
+    private fun principalForOAuthAndLogUnlistedClients(
+        principals: MutableList<Principal>,
+        unlistedClientsPolicy: Incoming.UnlistedPolicy,
+        oauth: OAuth?
+    ): List<Principal> {
+        return if (principals.isNotEmpty() && unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG && oauth != null) {
+            listOf(anyPrincipal)
+        } else {
+            emptyList()
         }
     }
 

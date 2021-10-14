@@ -146,7 +146,7 @@ interface EnvoyControlSmokeTest {
             val ingressRoot = envoy().ingressOperations.callLocalService("/")
 
             // then
-            assertThat(ingressRoot.code()).isEqualTo(200)
+            assertThat(ingressRoot.code).isEqualTo(200)
         }
     }
 }

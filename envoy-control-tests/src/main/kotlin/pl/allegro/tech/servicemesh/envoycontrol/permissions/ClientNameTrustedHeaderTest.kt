@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
-import okhttp3.Headers
+import okhttp3.Headers.Companion.toHeaders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -115,7 +115,7 @@ class ClientNameTrustedHeaderTest {
         // when
         val response = envoy2.ingressOperations.callLocalService(
             "/endpoint",
-            Headers.of(mapOf("x-client-name-trusted" to "fake-service"))
+            mapOf("x-client-name-trusted" to "fake-service").toHeaders()
         ).asHttpsEchoResponse()
 
         // then
