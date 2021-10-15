@@ -11,17 +11,17 @@ An example configuration:
 
 ```yaml
 metadata:
-    proxy_settings:
-        outgoing:
-            dependencies:
-                -   service: "*"
-                    timeoutPolicy:
-                        idleTimeout: 20s
-                        requestTimeout: 30s
-                -   service: "service-a"
-                        timeoutPolicy:
-                            idleTimeout: 40s
-                            requestTimeout: 50s 
+  proxy_settings:
+    outgoing:
+      dependencies:
+        - service: "*"
+          timeoutPolicy:
+            idleTimeout: 20s
+            requestTimeout: 30s
+        - service: "service-a"
+          timeoutPolicy:
+            idleTimeout: 40s
+            requestTimeout: 50s 
 ```
 In the `outgoing` section this configuration defines `timeoutPolicy` :
 
@@ -29,5 +29,5 @@ In the `outgoing` section this configuration defines `timeoutPolicy` :
 * `requestTimeout` - The amount of time that Envoy will wait for the entire request to be received.
 
 More over we have option to indicate `service-a` or use `*` which will be default properties for all
-other services. Last but not least if you don't provide this configuration it will be use default 
-props from envoy-control. 
+other services. Last but not least if you don't provide this configuration it will be use [default 
+properties](https://github.com/allegro/envoy-control/blob/master/docs/configuration.md) from envoy-control.
