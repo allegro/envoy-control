@@ -29,5 +29,5 @@ In the `outgoing` section this configuration defines `timeoutPolicy` :
 * `requestTimeout` - The amount of time that Envoy will wait for the entire request to be received.
 
 More over we have option to indicate `service-a` or use `*` which will be default properties for all
-other services. Last but not least if you don't provide this configuration it will be use [default 
-properties](https://github.com/allegro/envoy-control/blob/master/docs/configuration.md) from envoy-control.
+other services. Last but not least if you don't provide this configuration it will use [default 
+properties](https://github.com/allegro/envoy-control/blob/master/docs/configuration.md#snapshot-properties).
