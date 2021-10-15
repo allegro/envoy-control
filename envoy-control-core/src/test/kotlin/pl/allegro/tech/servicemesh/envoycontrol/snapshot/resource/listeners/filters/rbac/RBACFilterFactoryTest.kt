@@ -780,53 +780,19 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
         assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
-    private val expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson = """
-        {
-          "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
-              "permissions": [
-                {
-                  "and_rules": {
-                    "rules": [
-                      ${pathRule("/example")},
-                      {
-                        "or_rules": {
-                          "rules": [
-                            ${methodRule("GET")}
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ], "principals": [
-                ${authenticatedPrincipal("client1")}
-              ]
-            },
-            "IncomingEndpoint(path=/example2, pathMatchingType=PATH, methods=[POST], clients=[ClientWithSelector(name=client2, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
-              "permissions": [
-                {
-                  "and_rules": {
-                    "rules": [
-                      ${pathRule("/example2")},
-                      {
-                        "or_rules": {
-                          "rules": [
-                            ${methodRule("POST")}
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                }
-              ], "principals": [
-                ${authenticatedPrincipal("client2")}
-              ]
+    private val expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson =
+        createPolicies {
+            policy("IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)") {
+                permission { pathRule("/example") and (methodRule("GET") or emptyRule()) }
+                principal { authenticatedPrincipal("client1") }
             }
-          }
+            policy("IncomingEndpoint(path=/example2, pathMatchingType=PATH, methods=[POST], clients=[ClientWithSelector(name=client2, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)") {
+                permission { pathRule("/example2") and (methodRule("POST") or emptyRule()) }
+                principal { authenticatedPrincipal("client2") }
+            }
         }
-    """
 
+    // TODO move jsons to dsl
     private val expectedSourceIpFromDiscoveryWithSelectorAuthPermissionsJson = """
         {
           "policies": {
