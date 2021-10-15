@@ -50,11 +50,10 @@ for ingress traffic with properties [described here](../configuration.md#retries
 
 After Envoy connects to Envoy Control it sends its metadata.
 We extract some of the data from it to drive its dynamic configuration.
-Right now we're focused on [permissions](../features/permissions.md)
+Right now we're focused on [permissions](../features/permissions.md) and [timeouts](../features/timeouts.md)
 but in the future we will provide options to configure:
 
 * retries
-* timeouts
 * circuit breakers and more
 
 ## HTTP/1 and HTTP/2 for clusters
