@@ -16,12 +16,12 @@ metadata:
             dependencies:
                 -   service: "*"
                     timeoutPolicy:
-                        idleTimeout: 400
-                        requestTimeout: 800
+                        idleTimeout: 20s
+                        requestTimeout: 30s
                 -   service: "service-a"
                         timeoutPolicy:
-                            idleTimeout: 800
-                            requestTimeout: 1500
+                            idleTimeout: 40s
+                            requestTimeout: 50s 
 ```
 In the `outgoing` section this configuration defines `timeoutPolicy` :
 
@@ -29,4 +29,5 @@ In the `outgoing` section this configuration defines `timeoutPolicy` :
 * `requestTimeout` - The amount of time that Envoy will wait for the entire request to be received.
 
 More over we have option to indicate `service-a` or use `*` which will be default properties for all
-other services. 
+other services. Last but not least if you don't provide this configuration it will be use default 
+props from envoy-control. 
