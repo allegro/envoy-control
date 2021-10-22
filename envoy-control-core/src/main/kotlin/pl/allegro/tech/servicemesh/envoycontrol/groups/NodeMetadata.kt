@@ -75,6 +75,7 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
         handleInternalRedirect = properties.egress.handleInternalRedirect,
         timeoutPolicy = Outgoing.TimeoutPolicy(
             idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
+            connectionIdleTimeout = Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis()),
             requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
         )
     )
@@ -262,11 +263,16 @@ private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
 
 private fun Value.toOutgoingTimeoutPolicy(default: Outgoing.TimeoutPolicy): Outgoing.TimeoutPolicy {
     val idleTimeout = this.field("idleTimeout")?.toDuration()
+    val connectionIdleTimeout = this.field("connectionIdleTimeout")?.toDuration()
     val requestTimeout = this.field("requestTimeout")?.toDuration()
-    if (idleTimeout == null && requestTimeout == null) {
+    if (idleTimeout == null && requestTimeout == null && connectionIdleTimeout == null) {
         return default
     }
-    return Outgoing.TimeoutPolicy(idleTimeout ?: default.idleTimeout, requestTimeout ?: default.requestTimeout)
+    return Outgoing.TimeoutPolicy(
+        idleTimeout ?: default.idleTimeout,
+        connectionIdleTimeout ?: default.connectionIdleTimeout,
+        requestTimeout ?: default.requestTimeout
+    )
 }
 
 private fun Value.toOAuth(properties: SnapshotProperties): OAuth {
@@ -376,6 +382,7 @@ data class Outgoing(
 
     data class TimeoutPolicy(
         val idleTimeout: Duration? = null,
+        val connectionIdleTimeout: Duration? = null,
         val requestTimeout: Duration? = null
     )
 }

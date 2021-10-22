@@ -803,18 +803,34 @@ class SnapshotUpdaterTest {
     )
 }
 
+fun serviceDependencies(vararg dependencies: Pair<String, Outgoing.TimeoutPolicy?>): Set<ServiceDependency> =
+    dependencies.map {
+        ServiceDependency(
+            service = it.first,
+            settings = DependencySettings(
+                timeoutPolicy = it.second ?: Outgoing.TimeoutPolicy()
+            )
+        )
+    }.toSet()
+
 fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
     serviceNames.map {
         ServiceDependency(
             service = it,
             settings = DependencySettings(
-                timeoutPolicy = Outgoing.TimeoutPolicy(
-                    idleTimeout = Durations.fromSeconds(120L),
-                    requestTimeout = Durations.fromSeconds(120L)
-                )
+                timeoutPolicy = outgoingTimeoutPolicy()
             )
         )
     }.toSet()
+fun outgoingTimeoutPolicy(
+    idleTimeout: Long = 120L,
+    connectionIdleTimeout: Long = 120L,
+    requestTimeout: Long = 120L
+) = Outgoing.TimeoutPolicy(
+    idleTimeout = Durations.fromSeconds(idleTimeout),
+    connectionIdleTimeout = Durations.fromSeconds(connectionIdleTimeout),
+    requestTimeout = Durations.fromSeconds(requestTimeout)
+)
 
 fun domainDependencies(vararg serviceNames: String): Set<DomainDependency> =
     serviceNames.map {
