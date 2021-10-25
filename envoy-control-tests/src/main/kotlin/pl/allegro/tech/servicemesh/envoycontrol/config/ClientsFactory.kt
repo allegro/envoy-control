@@ -14,16 +14,28 @@ object ClientsFactory {
 
     // envoys default timeout is 15 seconds while OkHttp is 10
     private const val TIMEOUT_SECONDS: Long = 20
+    private var insecureOkHttpClient: OkHttpClient? = null
+    private var okHttpClient: OkHttpClient? = null
 
-    fun createClient(): OkHttpClient = OkHttpClient.Builder()
-        .readTimeout(Duration.ofSeconds(TIMEOUT_SECONDS))
-        .build()
+    fun createClient(): OkHttpClient = if (okHttpClient == null) {
+        OkHttpClient.Builder()
+            .connectTimeout(Duration.ofSeconds(TIMEOUT_SECONDS))
+            .readTimeout(Duration.ofSeconds(TIMEOUT_SECONDS))
+            .build().also { okHttpClient = it }
+    } else {
+        okHttpClient!!
+    }
 
-    fun createInsecureClient(): OkHttpClient = OkHttpClient.Builder()
-        .hostnameVerifier(NoopHostnameVerifier())
-        .sslSocketFactory(getInsecureSSLSocketFactory(), getInsecureTrustManager())
-        .readTimeout(Duration.ofSeconds(TIMEOUT_SECONDS))
-        .build()
+    fun createInsecureClient(): OkHttpClient = if (insecureOkHttpClient == null) {
+        OkHttpClient.Builder()
+            .hostnameVerifier(NoopHostnameVerifier())
+            .sslSocketFactory(getInsecureSSLSocketFactory(), getInsecureTrustManager())
+            .connectTimeout(Duration.ofSeconds(TIMEOUT_SECONDS))
+            .readTimeout(Duration.ofSeconds(TIMEOUT_SECONDS))
+            .build().also { insecureOkHttpClient = it }
+    } else {
+        insecureOkHttpClient!!
+    }
 
     private fun getInsecureSSLSocketFactory(): SSLSocketFactory {
         val builder = SSLContextBuilder()

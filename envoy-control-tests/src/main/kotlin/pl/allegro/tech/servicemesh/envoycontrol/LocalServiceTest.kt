@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import okhttp3.Headers
+import okhttp3.Headers.Companion.headersOf
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -46,7 +46,7 @@ class LocalServiceTest {
         // when
         untilAsserted {
             // when
-            val response = envoy.ingressOperations.callLocalService("/", headers = Headers.of("host", "test-service"))
+            val response = envoy.ingressOperations.callLocalService("/", headers = headersOf("host", "test-service"))
 
             assertThat(response).isOk()
             assertThat(response.header("x-service-name")).isEqualTo("echo2")

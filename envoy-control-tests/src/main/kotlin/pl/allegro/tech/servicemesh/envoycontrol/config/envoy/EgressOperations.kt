@@ -1,22 +1,18 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
+import pl.allegro.tech.servicemesh.envoycontrol.config.ClientsFactory
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import java.time.Duration
 
 class EgressOperations(val envoy: EnvoyContainer) {
 
-    private val client = OkHttpClient.Builder()
-        // envoys default timeout is 15 seconds while OkHttp is 10
-        .readTimeout(Duration.ofSeconds(20))
-        .build()
+    private val client by lazy { ClientsFactory.createClient() }
 
     fun callService(
         service: String,
@@ -45,7 +41,7 @@ class EgressOperations(val envoy: EnvoyContainer) {
                     }
                 }
             }
-            .map { ResponseWithBody(it, it.body()?.string() ?: "") }
+            .map { ResponseWithBody(it, it.body?.string() ?: "") }
             .onEach { conditionFulfilled = conditionFulfilled || repeatUntil(it) }
             .withIndex()
             .takeWhile { (i, _) -> i < minRepeat || !conditionFulfilled }
@@ -77,7 +73,7 @@ class EgressOperations(val envoy: EnvoyContainer) {
                 .apply {
                     moreHeaders.forEach { name, value -> header(name, value) }
                 }
-                .url(HttpUrl.get(envoy.egressListenerUrl()).newBuilder(pathAndQuery)!!.build())
+                .url(envoy.egressListenerUrl().toHttpUrl().newBuilder(pathAndQuery)!!.build())
                 .build()
         )
             .execute().addToCloseableResponses()
