@@ -208,15 +208,14 @@ class EnvoyClustersFactory(
     }
 
     private fun createClusterForGroup(dependencySettings: DependencySettings, cluster: Cluster?): Cluster? {
-        if (cluster == null) {
-            return null
+        return cluster?.let {
+            val idleTimeoutPolicy =
+                dependencySettings.timeoutPolicy.connectionIdleTimeout ?: cluster.commonHttpProtocolOptions.idleTimeout
+            Cluster.newBuilder(cluster)
+                .setCommonHttpProtocolOptions(
+                    HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy)
+                ).build()
         }
-        val idleTimeoutPolicy =
-            dependencySettings.timeoutPolicy.connectionIdleTimeout ?: cluster.commonHttpProtocolOptions.idleTimeout
-        return Cluster.newBuilder(cluster)
-            .setCommonHttpProtocolOptions(HttpProtocolOptions.newBuilder()
-                .setIdleTimeout(idleTimeoutPolicy)
-            ).build()
     }
 
     private fun shouldAddDynamicForwardProxyCluster(group: Group) =
