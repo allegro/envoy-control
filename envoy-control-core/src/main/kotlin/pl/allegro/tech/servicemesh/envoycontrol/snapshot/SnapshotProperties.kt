@@ -257,6 +257,7 @@ class IngressProperties {
 
 class CommonHttpProperties {
     var idleTimeout: Duration = Duration.ofSeconds(120)
+    var connectionIdleTimeout: Duration = Duration.ofSeconds(120)
     var requestTimeout: Duration = Duration.ofSeconds(120)
     var circuitBreakers: CircuitBreakers = CircuitBreakers()
 }
