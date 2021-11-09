@@ -24,7 +24,7 @@ class HttpIdleTimeoutTest {
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(
             consul, mapOf(
-                "envoy-control.envoy.snapshot.egress.commonHttp.idleTimeout" to Duration.ofSeconds(10)
+                "envoy-control.envoy.snapshot.egress.commonHttp.connectionIdleTimeout" to Duration.ofSeconds(10)
             )
         )
 
