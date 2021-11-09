@@ -28,9 +28,7 @@ class SnapshotUpdater(
     private val groupSnapshotScheduler: ParallelizableScheduler,
     private val onGroupAdded: Flux<out List<Group>>,
     private val meterRegistry: MeterRegistry,
-    private val versions: SnapshotsVersions,
-    envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters,
-    serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(properties.routing.serviceTags)
+    private val versions: SnapshotsVersions
 ) {
     companion object {
         private val logger by logger()

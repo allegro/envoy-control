@@ -62,7 +62,7 @@ class NodeMetadataValidator(
     }
 
     override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequestV2?) {
-        request?.node?.let { validateV2Metadata(it) }
+        request?.node?.let { validateV2Metadata() }
     }
 
     override fun onStreamResponse(
@@ -80,7 +80,7 @@ class NodeMetadataValidator(
         validateMetadata(metadata)
     }
 
-    private fun validateV2Metadata(node: NodeV2) {
+    private fun validateV2Metadata() {
         throw V2NotSupportedException()
     }
 

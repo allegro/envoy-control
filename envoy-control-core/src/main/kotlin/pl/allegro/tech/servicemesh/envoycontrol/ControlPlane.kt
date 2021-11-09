@@ -183,8 +183,7 @@ class ControlPlane private constructor(
                     groupSnapshotScheduler,
                     groupChangeWatcher.onGroupAdded(),
                     meterRegistry,
-                    snapshotsVersions,
-                    envoyHttpFilters
+                    snapshotsVersions
                 ),
                 nodeGroup,
                 cache,
@@ -210,19 +209,6 @@ class ControlPlane private constructor(
             cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
         ): V3DiscoveryServer {
             return V3DiscoveryServer(
-                compositeDiscoveryServerCallbacks,
-                groupChangeWatcher,
-                executorGroup,
-                cachedProtoResourcesSerializer
-            )
-        }
-
-        private fun createV2Server(
-            compositeDiscoveryServerCallbacks: List<CompositeDiscoveryServerCallbacks>,
-            groupChangeWatcher: GroupChangeWatcher,
-            cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
-        ): V2DiscoveryServer {
-            return V2DiscoveryServer(
                 compositeDiscoveryServerCallbacks,
                 groupChangeWatcher,
                 executorGroup,
