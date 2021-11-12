@@ -36,6 +36,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
@@ -51,7 +53,7 @@ class EnvoyClustersFactory(
     private val properties: SnapshotProperties
 ) {
     private val httpProtocolOptions: HttpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(
-        Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis())
+        Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis())
     ).build()
 
     private val dynamicForwardProxyCluster: Cluster = createDynamicForwardProxyCluster()
@@ -181,12 +183,21 @@ class EnvoyClustersFactory(
             }
         }
 
+        val serviceDependencies = group.proxySettings.outgoing.getServiceDependencies().associateBy { it.service }
+
         val clustersForGroup = when (group) {
-            is ServicesGroup -> group.proxySettings.outgoing.getServiceDependencies().mapNotNull {
-                clusters[it.service]
+            is ServicesGroup -> serviceDependencies.mapNotNull {
+                createClusterForGroup(it.value.settings, clusters[it.key])
             }
-            is AllServicesGroup -> globalSnapshot.allServicesNames.mapNotNull {
-                clusters[it]
+            is AllServicesGroup -> {
+                globalSnapshot.allServicesNames.mapNotNull {
+                    val dependency = serviceDependencies[it]
+                    if (dependency != null && dependency.settings.timeoutPolicy.idleTimeout != null) {
+                        createClusterForGroup(serviceDependencies[it]!!.settings, clusters[it])
+                    } else {
+                        createClusterForGroup(group.proxySettings.outgoing.defaultServiceSettings, clusters[it])
+                    }
+                }
             }
         }
 
@@ -194,6 +205,17 @@ class EnvoyClustersFactory(
             return listOf(dynamicForwardProxyCluster) + clustersForGroup
         }
         return clustersForGroup
+    }
+
+    private fun createClusterForGroup(dependencySettings: DependencySettings, cluster: Cluster?): Cluster? {
+        return cluster?.let {
+            val idleTimeoutPolicy =
+                dependencySettings.timeoutPolicy.connectionIdleTimeout ?: cluster.commonHttpProtocolOptions.idleTimeout
+            Cluster.newBuilder(cluster)
+                .setCommonHttpProtocolOptions(
+                    HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy)
+                ).build()
+        }
     }
 
     private fun shouldAddDynamicForwardProxyCluster(group: Group) =
@@ -289,7 +311,7 @@ class EnvoyClustersFactory(
             configureOutlierDetection(clusterBuilder)
         }
 
-        clusterBuilder = clusterBuilder.setName(clusterName)
+        clusterBuilder = clusterBuilder.setName(domainDependency.getClusterName())
             .setType(Cluster.DiscoveryType.STRICT_DNS)
             .setConnectTimeout(Durations.fromMillis(properties.staticClusterConnectionTimeout.toMillis()))
             /*
@@ -300,12 +322,13 @@ class EnvoyClustersFactory(
              */
             .setDnsLookupFamily(Cluster.DnsLookupFamily.V4_ONLY)
             .setLoadAssignment(
-                ClusterLoadAssignment.newBuilder().setClusterName(clusterName).addEndpoints(
+                ClusterLoadAssignment.newBuilder().setClusterName(domainDependency.getClusterName()).addEndpoints(
                     LocalityLbEndpoints.newBuilder().addLbEndpoints(
                         LbEndpoint.newBuilder().setEndpoint(
                             Endpoint.newBuilder().setAddress(
                                 Address.newBuilder().setSocketAddress(
-                                    SocketAddress.newBuilder().setAddress(host).setPortValue(port)
+                                    SocketAddress.newBuilder().setAddress(domainDependency.getHost())
+                                        .setPortValue(domainDependency.getPort())
                                 )
                             )
                         )
@@ -315,6 +338,7 @@ class EnvoyClustersFactory(
             .setLbPolicy(properties.loadBalancing.policy)
 
         if (shouldAttachCertificateToCluster(ssl, useTransparentProxy)) {
+
             val commonTlsContext = CommonTlsContext.newBuilder()
                 .setValidationContext(
                     CertificateValidationContext.newBuilder()
@@ -336,8 +360,14 @@ class EnvoyClustersFactory(
             clusterBuilder
                 .setTransportSocket(transportSocket)
                 .setUpstreamHttpProtocolOptions(
-                    UpstreamHttpProtocolOptions.newBuilder().setAutoSanValidation(true).setAutoSni(true).build()
+                    UpstreamHttpProtocolOptions.newBuilder()
+                        .setAutoSanValidation(true)
+                        .setAutoSni(true)
+                        .build()
                 )
+        }
+        domainDependency.settings.timeoutPolicy.connectionIdleTimeout?.let {
+            clusterBuilder.setCommonHttpProtocolOptions(HttpProtocolOptions.newBuilder().setIdleTimeout(it))
         }
 
         return clusterBuilder.build()
