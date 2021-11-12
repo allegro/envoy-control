@@ -289,20 +289,14 @@ class EnvoyClustersFactory(
         val useTransparentProxy = group.listenersConfig?.useTransparentProxy ?: false
         return group.proxySettings.outgoing.getDomainDependencies().map {
             strictDnsCluster(
-                it.getClusterName(),
-                it.getHost(),
-                it.getPort(),
-                it.useSsl(),
+                it,
                 useTransparentProxy
             )
         }
     }
 
     private fun strictDnsCluster(
-        clusterName: String,
-        host: String,
-        port: Int,
-        ssl: Boolean,
+        domainDependency: DomainDependency,
         useTransparentProxy: Boolean
     ): Cluster {
         var clusterBuilder = Cluster.newBuilder()
@@ -337,7 +331,7 @@ class EnvoyClustersFactory(
             )
             .setLbPolicy(properties.loadBalancing.policy)
 
-        if (shouldAttachCertificateToCluster(ssl, useTransparentProxy)) {
+        if (shouldAttachCertificateToCluster(domainDependency.useSsl(), useTransparentProxy)) {
 
             val commonTlsContext = CommonTlsContext.newBuilder()
                 .setValidationContext(
