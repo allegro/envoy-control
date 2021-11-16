@@ -116,7 +116,7 @@ class MetadataNodeGroup(
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
         val useTransparentProxy = metadata.fieldsMap["use_transparent_proxy"]?.boolValue
-            ?: ListenersConfig.defaultHasStaticSecretsDefined
+            ?: ListenersConfig.defaultUseTransparentProxy
 
         return ListenersConfig(
             listenersHostPort.ingressHost,
