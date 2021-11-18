@@ -1,5 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -78,7 +80,7 @@ class LocalReplyMappingTest {
             )
 
             assertThat(
-                response.body()?.string()
+                response.body?.string()
             ).contains("""{"body":"no healthy upstream","responseFlags":"UH","destination":"service-name: service-1, service-tag: not-existing"}""")
             assertThat(response.header("content-type")).isEqualTo("application/envoy+json")
             assertThat(response).isUnreachable()
@@ -91,25 +93,31 @@ class LocalReplyMappingTest {
         untilAsserted {
             // when
             val response = envoy.egressOperations.callService("service-2")
-
-            assertThat(
-                response.body()?.string()
-            ).contains("Request to service: service-2 responseFlags:NR body: my-custom no route body")
-            assertThat(response.code()).isEqualTo(522)
+            val body = response.body?.string()
+            assertThat(body).contains("Request to service: service-2 responseFlags:NR body: my-custom no route body")
+            assertThat(response.code).isEqualTo(522)
         }
     }
 
     @Test
     fun `should map no healthy upstream to different json format and rewrite status code to 510 when requesting api path`() {
+        val expectedApiResponse = ApiResponse(
+            path = "/api",
+            body = "",
+            responseFlags = "NR",
+            destination = Destination(null, "/api", "service-2")
+        )
         // when
         untilAsserted {
             // when
             val response = envoy.egressOperations.callService("service-2", pathAndQuery = "/api")
-
-            assertThat(
-                response.body()?.string()
-            ).contains("""{"destination":{"serviceTag":null,"path":"/api","serviceName":"service-2"},"path":"/api","body":"","responseFlags":"NR"}""")
-            assertThat(response.code()).isEqualTo(510)
+            val apiResponse = jacksonObjectMapper().readValue<ApiResponse>(response.body?.string() ?: "")
+            assertThat(apiResponse).isEqualTo(expectedApiResponse)
+            assertThat(response.code).isEqualTo(510)
         }
     }
+
+    private data class ApiResponse(val path: String, val body: String, val responseFlags: String, val destination: Destination)
+
+    private data class Destination(val serviceTag: String?, val path: String, val serviceName: String)
 }

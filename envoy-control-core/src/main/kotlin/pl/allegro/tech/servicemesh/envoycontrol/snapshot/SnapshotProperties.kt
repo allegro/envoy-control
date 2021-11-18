@@ -4,7 +4,9 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
+import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
+import java.net.URI
 import java.time.Duration
 
 class SnapshotProperties {
@@ -28,6 +30,8 @@ class SnapshotProperties {
     var shouldSendMissingEndpoints = false
     var metrics: MetricsProperties = MetricsProperties()
     var dynamicForwardProxy = DynamicForwardProxyProperties()
+    var jwt = JwtFilterProperties()
+    var requireServiceName = false
 }
 
 class MetricsProperties {
@@ -241,14 +245,20 @@ class EgressProperties {
     var neverRemoveClusters = true
     var hostHeaderRewriting = HostHeaderRewritingProperties()
     var headersToRemove = mutableListOf<String>()
+    var domains = mutableListOf<String>()
 }
 
 class IngressProperties {
     var headersToRemove = mutableListOf<String>()
+    var addServiceNameHeaderToResponse = false
+    var addRequestedAuthorityHeaderToResponse = false
+    var serviceNameHeader = "x-service-name"
+    var requestedAuthorityHeader = "x-requested-authority"
 }
 
 class CommonHttpProperties {
     var idleTimeout: Duration = Duration.ofSeconds(120)
+    var connectionIdleTimeout: Duration = Duration.ofSeconds(120)
     var requestTimeout: Duration = Duration.ofSeconds(120)
     var circuitBreakers: CircuitBreakers = CircuitBreakers()
 }
@@ -314,3 +324,25 @@ class DynamicForwardProxyProperties {
     var maxHostTtl = Duration.ofSeconds(300) // default Envoy's value
     var connectionTimeout = Duration.ofSeconds(1)
 }
+data class OAuthProvider(
+    var jwksUri: URI = URI.create("http://localhost"),
+    var createCluster: Boolean = false,
+    var clusterName: String = "",
+    var clusterPort: Int = 443,
+    var cacheDuration: Duration = Duration.ofSeconds(300),
+    var connectionTimeout: Duration = Duration.ofSeconds(1),
+    var matchings: Map<Client, TokenField> = emptyMap()
+)
+
+class JwtFilterProperties {
+    var forwardJwt: Boolean = true
+    var forwardPayloadHeader = "x-oauth-token-validated"
+    var payloadInMetadata = "jwt"
+    var fieldRequiredInToken = "exp"
+    var defaultVerificationType = OAuth.Verification.OFFLINE
+    var defaultOAuthPolicy = OAuth.Policy.STRICT
+    var providers = mapOf<ProviderName, OAuthProvider>()
+}
+
+typealias ProviderName = String
+typealias TokenField = String

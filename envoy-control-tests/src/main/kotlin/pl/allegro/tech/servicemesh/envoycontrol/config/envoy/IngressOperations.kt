@@ -1,21 +1,23 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
 import okhttp3.Headers
+import okhttp3.Headers.Companion.headersOf
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
 import pl.allegro.tech.servicemesh.envoycontrol.config.ClientsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 
 class IngressOperations(val envoy: EnvoyContainer) {
 
     private val client by lazy { ClientsFactory.createClient() }
     private val insecureClient by lazy { ClientsFactory.createInsecureClient() }
 
-    fun callLocalService(endpoint: String, headers: Headers = Headers.of()): Response =
+    fun callLocalService(endpoint: String, headers: Headers = headersOf()): Response =
         callLocalService(endpoint, headers, client)
 
-    fun callLocalServiceInsecure(endpoint: String, headers: Headers = Headers.of(), useTls: Boolean = false): Response =
+    fun callLocalServiceInsecure(endpoint: String, headers: Headers = headersOf(), useTls: Boolean = false): Response =
         callLocalService(endpoint, headers, insecureClient, useTls)
 
     fun callPostLocalService(endpoint: String, headers: Headers, body: RequestBody): Response =
@@ -26,7 +28,7 @@ class IngressOperations(val envoy: EnvoyContainer) {
                             .url(envoy.ingressListenerUrl() + endpoint)
                             .build()
             )
-                    .execute()
+                    .execute().addToCloseableResponses()
 
     private fun callLocalService(
         endpoint: String,
@@ -41,5 +43,5 @@ class IngressOperations(val envoy: EnvoyContainer) {
                 .url(envoy.ingressListenerUrl(useTls) + endpoint)
                 .build()
         )
-            .execute()
+            .execute().addToCloseableResponses()
 }

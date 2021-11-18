@@ -82,12 +82,16 @@ class SnapshotUpdaterTest {
     val clusterWithEnvoyInstances = ClusterState(
         ServicesState(
             serviceNameToInstances = mapOf(
-                "service" to ServiceInstances("service", setOf(ServiceInstance(
-                    id = "id",
-                    tags = setOf("envoy"),
-                    address = "127.0.0.3",
-                    port = 4444
-                )))
+                "service" to ServiceInstances(
+                    "service", setOf(
+                        ServiceInstance(
+                            id = "id",
+                            tags = setOf("envoy"),
+                            address = "127.0.0.3",
+                            port = 4444
+                        )
+                    )
+                )
             )
         ),
         Locality.LOCAL, "cluster"
@@ -97,20 +101,30 @@ class SnapshotUpdaterTest {
     fun `should generate allServicesGroup snapshots with timeouts from proxySettings`() {
         val cache = MockCache()
 
-        val allServicesGroup = AllServicesGroup(communicationMode = XDS, proxySettings = ProxySettings(outgoing = Outgoing(
-            serviceDependencies = listOf(ServiceDependency(
-                service = "existingService1",
-                settings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-                    idleTimeout = Durations.parse("10s"),
-                    requestTimeout = Durations.parse("9s")
-                ))
-            )),
-            defaultServiceSettings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.parse("8s"),
-                requestTimeout = Durations.parse("7s")
-            )),
-            allServicesDependencies = true
-        )))
+        val allServicesGroup = AllServicesGroup(
+            communicationMode = XDS, proxySettings = ProxySettings(
+                outgoing = Outgoing(
+                    serviceDependencies = listOf(
+                        ServiceDependency(
+                            service = "existingService1",
+                            settings = DependencySettings(
+                                timeoutPolicy = Outgoing.TimeoutPolicy(
+                                    idleTimeout = Durations.parse("10s"),
+                                    requestTimeout = Durations.parse("9s")
+                                )
+                            )
+                        )
+                    ),
+                    defaultServiceSettings = DependencySettings(
+                        timeoutPolicy = Outgoing.TimeoutPolicy(
+                            idleTimeout = Durations.parse("8s"),
+                            requestTimeout = Durations.parse("7s")
+                        )
+                    ),
+                    allServicesDependencies = true
+                )
+            )
+        )
 
         cache.setSnapshot(allServicesGroup, uninitializedSnapshot)
 
@@ -144,10 +158,12 @@ class SnapshotUpdaterTest {
             cache.setSnapshot(it, uninitializedSnapshot)
         }
 
-        cache.setSnapshot(groupOf(
-            services = serviceDependencies("existingService1", "existingService2"),
-            domains = domainDependencies("http://domain")
-        ), uninitializedSnapshot)
+        cache.setSnapshot(
+            groupOf(
+                services = serviceDependencies("existingService1", "existingService2"),
+                domains = domainDependencies("http://domain")
+            ), uninitializedSnapshot
+        )
 
         cache.setSnapshot(groupOf(services = serviceDependencies("nonExistingService3")), uninitializedSnapshot)
 
@@ -178,10 +194,12 @@ class SnapshotUpdaterTest {
         hasSnapshot(cache, groupWithServiceName)
             .hasOnlyClustersFor("existingService2")
 
-        hasSnapshot(cache, groupOf(
-            services = serviceDependencies("existingService1", "existingService2"),
-            domains = domainDependencies("http://domain")
-        )).hasOnlyClustersFor("existingService1", "existingService2", "domain_80")
+        hasSnapshot(
+            cache, groupOf(
+                services = serviceDependencies("existingService1", "existingService2"),
+                domains = domainDependencies("http://domain")
+            )
+        ).hasOnlyClustersFor("existingService1", "existingService2", "domain_80")
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("nonExistingService3")))
             .withoutClusters()
@@ -239,8 +257,10 @@ class SnapshotUpdaterTest {
 
         assertThat(snapshot.routes().resources().values).hasSize(2)
         // two fallbacks: proxying direct IP requests and 503 for missing services
-        assertThat(snapshot.routes().resources().values
-            .first { it.name == "default_routes" }.virtualHostsCount)
+        assertThat(
+            snapshot.routes().resources().values
+                .first { it.name == "default_routes" }.virtualHostsCount
+        )
             .isEqualTo(2)
     }
 
@@ -263,8 +283,10 @@ class SnapshotUpdaterTest {
         // then
         val snapshot = cache.getSnapshot(servicesGroup)
         assertThat(snapshot).isEqualTo(null)
-        assertThat(simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
-            .counter()?.count()).isEqualTo(1.0)
+        assertThat(
+            simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
+                .counter()?.count()
+        ).isEqualTo(1.0)
     }
 
     @Test
@@ -289,11 +311,13 @@ class SnapshotUpdaterTest {
 
         // when
         val results = updater
-            .services(Flux
-                .just(
-                    clusterWithEnvoyInstances,
-                    clusterWithNoInstances)
-                .delayElements(Duration.ofMillis(10))
+            .services(
+                Flux
+                    .just(
+                        clusterWithEnvoyInstances,
+                        clusterWithNoInstances
+                    )
+                    .delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
@@ -372,12 +396,16 @@ class SnapshotUpdaterTest {
         val clusterLocal = ClusterState(
             ServicesState(
                 serviceNameToInstances = mapOf(
-                    "service" to ServiceInstances("service", setOf(ServiceInstance(
-                        id = "id",
-                        tags = setOf("envoy"),
-                        address = "127.0.0.3",
-                        port = 4444
-                    ))),
+                    "service" to ServiceInstances(
+                        "service", setOf(
+                            ServiceInstance(
+                                id = "id",
+                                tags = setOf("envoy"),
+                                address = "127.0.0.3",
+                                port = 4444
+                            )
+                        )
+                    ),
                     "servicePresentInJustOneRemote" to ServiceInstances("servicePresentInJustOneRemote", setOf())
                 )
             ),
@@ -405,21 +433,25 @@ class SnapshotUpdaterTest {
 
         // when
         val resultsRemoteWithBothServices = updater
-            .services(Flux
-                .just(
-                    clusterLocal,
-                    remoteClusterWithBothServices)
-                .delayElements(Duration.ofMillis(10))
+            .services(
+                Flux
+                    .just(
+                        clusterLocal,
+                        remoteClusterWithBothServices
+                    )
+                    .delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
         // when
         val resultsRemoteWithJustOneService = updater
-            .services(Flux
-                .just(
-                    clusterLocal,
-                    remoteClusterWithJustOneService)
-                .delayElements(Duration.ofMillis(10))
+            .services(
+                Flux
+                    .just(
+                        clusterLocal,
+                        remoteClusterWithJustOneService
+                    )
+                    .delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
@@ -460,11 +492,12 @@ class SnapshotUpdaterTest {
 
         // when
         val results = updater
-            .services(Flux
-                .just(
-                    clusterWithEnvoyInstances,
-                    stateWithNoServices
-                ).delayElements(Duration.ofMillis(10))
+            .services(
+                Flux
+                    .just(
+                        clusterWithEnvoyInstances,
+                        stateWithNoServices
+                    ).delayElements(Duration.ofMillis(10))
             )
             .collectList().block()!!
 
@@ -495,6 +528,7 @@ class SnapshotUpdaterTest {
         val groupWithBlacklistedDependency = groupOf(services = serviceDependencies("mock-service"))
 
         val groups = listOf(allServicesGroup, groupWithBlacklistedDependency)
+        val domainsSuffixes = mutableListOf(".test.domain", ".domain2")
 
         val updater = snapshotUpdater(
             cache = cache,
@@ -502,27 +536,37 @@ class SnapshotUpdaterTest {
                 outgoingPermissions.allServicesDependencies.notIncludedByPrefix = mutableSetOf(
                     "mock-", "regression-tests"
                 )
+                egress.domains = domainsSuffixes
             },
             groups = groups
         )
 
         val expectedWhitelistedServices = setOf("s1", "mockito", "s2", "frontend").toTypedArray()
+        val expectedDomainsWhitelistedServices = setOf(
+            "s1", "s1.test.domain", "s1.domain2", "mockito", "mockito.test.domain", "mockito.domain2",
+            "s2", "s2.test.domain", "s2.domain2", "frontend", "frontend.test.domain", "frontend.domain2"
+        ).toTypedArray()
+        val expectedBlacklistedServices = setOf("mock-service").toTypedArray()
+        val expectedDomainsBlacklistedServices =
+            setOf("mock-service", "mock-service.test.domain", "mock-service.domain2").toTypedArray()
 
         // when
-        updater.start(fluxOfServices(
-            "s1", "mockito", "regression-tests", "s2", "frontend", "mock-service"
-        )).collectList().block()
+        updater.start(
+            fluxOfServices(
+                "s1", "mockito", "regression-tests", "s2", "frontend", "mock-service"
+            )
+        ).collectList().block()
 
         // then
         hasSnapshot(cache, allServicesGroup)
             .hasOnlyClustersFor(*expectedWhitelistedServices)
             .hasOnlyEndpointsFor(*expectedWhitelistedServices)
-            .hasOnlyEgressRoutesForClusters(*expectedWhitelistedServices)
+            .hasOnlyEgressRoutesForClusters(*expectedDomainsWhitelistedServices)
 
         hasSnapshot(cache, groupWithBlacklistedDependency)
-            .hasOnlyClustersFor("mock-service")
-            .hasOnlyEndpointsFor("mock-service")
-            .hasOnlyEgressRoutesForClusters("mock-service")
+            .hasOnlyClustersFor(*expectedBlacklistedServices)
+            .hasOnlyEndpointsFor(*expectedBlacklistedServices)
+            .hasOnlyEgressRoutesForClusters(*expectedDomainsBlacklistedServices)
     }
 
     @Test
@@ -774,24 +818,44 @@ class SnapshotUpdaterTest {
     )
 }
 
+fun serviceDependencies(vararg dependencies: Pair<String, Outgoing.TimeoutPolicy?>): Set<ServiceDependency> =
+    dependencies.map {
+        ServiceDependency(
+            service = it.first,
+            settings = DependencySettings(
+                timeoutPolicy = it.second ?: Outgoing.TimeoutPolicy()
+            )
+        )
+    }.toSet()
+
 fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
     serviceNames.map {
         ServiceDependency(
             service = it,
-            settings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.fromSeconds(120L),
-                requestTimeout = Durations.fromSeconds(120L)
-            ))
+            settings = DependencySettings(
+                timeoutPolicy = outgoingTimeoutPolicy()
+            )
         )
     }.toSet()
+fun outgoingTimeoutPolicy(
+    idleTimeout: Long = 120L,
+    connectionIdleTimeout: Long = 120L,
+    requestTimeout: Long = 120L
+) = Outgoing.TimeoutPolicy(
+    idleTimeout = Durations.fromSeconds(idleTimeout),
+    connectionIdleTimeout = Durations.fromSeconds(connectionIdleTimeout),
+    requestTimeout = Durations.fromSeconds(requestTimeout)
+)
 
 fun domainDependencies(vararg serviceNames: String): Set<DomainDependency> =
     serviceNames.map {
         DomainDependency(
             domain = it,
-            settings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.fromSeconds(120L),
-                requestTimeout = Durations.fromSeconds(120L)
-            ))
+            settings = DependencySettings(
+                timeoutPolicy = Outgoing.TimeoutPolicy(
+                    idleTimeout = Durations.fromSeconds(120L),
+                    requestTimeout = Durations.fromSeconds(120L)
+                )
+            )
         )
     }.toSet()

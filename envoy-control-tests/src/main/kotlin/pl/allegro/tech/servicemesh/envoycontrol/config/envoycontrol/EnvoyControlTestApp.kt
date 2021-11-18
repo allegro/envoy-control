@@ -7,7 +7,8 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.pszymczyk.consul.infrastructure.Ports
 import io.micrometer.core.instrument.MeterRegistry
 import okhttp3.Credentials
-import okhttp3.MediaType
+
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -17,6 +18,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.http.HttpStatus
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControl
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.debug.Versions
@@ -92,7 +94,7 @@ class EnvoyControlRunnerTestApp(
 
     override fun getHealthStatus(): Health {
         val response = getApplicationStatusResponse()
-        return objectMapper.readValue(response.body()?.use { it.string() }, Health::class.java)
+        return objectMapper.readValue(response.body?.use { it.string() }, Health::class.java)
     }
 
     override fun getState(): ServicesState {
@@ -103,26 +105,26 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/state")
                     .build()
             )
-            .execute()
-        return objectMapper.readValue(response.body()?.use { it.string() }, ServicesState::class.java)
+            .execute().addToCloseableResponses()
+        return objectMapper.readValue(response.body?.use { it.string() }, ServicesState::class.java)
     }
 
     override fun getSnapshot(nodeJson: String): SnapshotDebugResponse {
         val response = httpClient.newCall(
             Request.Builder()
                 .addHeader("Accept", "application/v3+json")
-                .post(RequestBody.create(MediaType.get("application/json"), nodeJson))
+                .post(RequestBody.create("application/json".toMediaType(), nodeJson))
                 .url("http://localhost:$appPort/snapshot")
                 .build()
-        ).execute()
+        ).execute().addToCloseableResponses()
 
-        if (response.code() == HttpStatus.NOT_FOUND.value()) {
+        if (response.code == HttpStatus.NOT_FOUND.value()) {
             return SnapshotDebugResponse(found = false)
         } else if (!response.isSuccessful) {
-            throw SnapshotDebugResponseInvalidStatusException(response.code())
+            throw SnapshotDebugResponseInvalidStatusException(response.code)
         }
 
-        return response.body()
+        return response.body
             ?.use { objectMapper.readValue(it.byteStream(), SnapshotDebugResponse::class.java) }
             ?.copy(found = true) ?: throw SnapshotDebugResponseMissingException()
     }
@@ -137,15 +139,15 @@ class EnvoyControlRunnerTestApp(
                 .get()
                 .url(url)
                 .build()
-        ).execute()
+        ).execute().addToCloseableResponses()
 
-        if (response.code() == HttpStatus.NOT_FOUND.value()) {
+        if (response.code == HttpStatus.NOT_FOUND.value()) {
             return SnapshotDebugResponse(found = false)
         } else if (!response.isSuccessful) {
-            throw SnapshotDebugResponseInvalidStatusException(response.code())
+            throw SnapshotDebugResponseInvalidStatusException(response.code)
         }
 
-        return response.body()
+        return response.body
             ?.use { objectMapper.readValue(it.byteStream(), SnapshotDebugResponse::class.java) }
             ?.copy(found = true) ?: throw SnapshotDebugResponseMissingException()
     }
@@ -164,7 +166,7 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/actuator/health")
                     .build()
             )
-            .execute()
+            .execute().addToCloseableResponses()
 
     override fun postChaosFaultRequest(
         username: String,
@@ -173,7 +175,7 @@ class EnvoyControlRunnerTestApp(
     ): Response {
         val credentials = Credentials.basic(username, password)
         val request = objectMapper.writeValueAsString(networkDelay)
-        val requestBody = RequestBody.create(MediaType.get("application/json"), request)
+        val requestBody = RequestBody.create("application/json".toMediaType(), request)
         return httpClient
             .newCall(
                 Request.Builder()
@@ -182,7 +184,7 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/chaos/fault/read-network-delay")
                     .build()
             )
-            .execute()
+            .execute().addToCloseableResponses()
     }
 
     override fun getExperimentsListRequest(
@@ -198,7 +200,7 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/chaos/fault/read-network-delay")
                     .build()
             )
-            .execute()
+            .execute().addToCloseableResponses()
     }
 
     override fun deleteChaosFaultRequest(
@@ -215,7 +217,7 @@ class EnvoyControlRunnerTestApp(
                     .url("http://localhost:$appPort/chaos/fault/read-network-delay/$faultId")
                     .build()
             )
-            .execute()
+            .execute().addToCloseableResponses()
     }
 
     override fun meterRegistry() = app.context().getBean(MeterRegistry::class.java)

@@ -15,7 +15,8 @@ class EnvoyContainer(
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
     private val logLevel: String = "info",
-    image: String = DEFAULT_IMAGE
+    image: String = DEFAULT_IMAGE,
+    private val apiVersion: Int = 3
 ) : SSLGenericContainer<EnvoyContainer>(
     dockerfileBuilder = DockerfileBuilder()
         .from(image)
@@ -34,7 +35,7 @@ class EnvoyContainer(
         const val ENVOY_UID_ENV_NAME = "ENVOY_UID"
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
-        const val DEFAULT_IMAGE = "allegro/envoy-dev:v1.16.1-dev-lua-segfault-fix-1-16-0-backport-20201118-df9dc819"
+        const val DEFAULT_IMAGE = "envoyproxy/envoy:v1.17.1"
         private const val ADMIN_PORT = 10000
     }
 
@@ -66,7 +67,8 @@ class EnvoyContainer(
             config.privateKey,
             config.serviceName,
             "--config-yaml", config.configOverride,
-            "-l", logLevel
+            "-l", logLevel,
+            "--bootstrap-version", apiVersion.toString()
         )
     }
 

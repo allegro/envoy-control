@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import okhttp3.Headers
-import okhttp3.MediaType
+import okhttp3.Headers.Companion.toHeaders
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
@@ -57,45 +57,45 @@ internal class AdminRouteTest {
                 Arguments.of("admin root", {
                     envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy/",
-                        headers = Headers.of(mapOf(disableHeader))
+                        headers = mapOf(disableHeader).toHeaders()
                     )
                 }),
                 Arguments.of("admin root without trailing slash", {
                     envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy",
-                        headers = Headers.of(mapOf(disableHeader))
+                        headers = mapOf(disableHeader).toHeaders()
                     )
                 }),
                 Arguments.of("clusters", {
                     envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy/clusters",
-                        headers = Headers.of(mapOf(disableHeader))
+                        headers = mapOf(disableHeader).toHeaders()
                     )
                 }),
                 Arguments.of("config dump as unauthorized", {
                     envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy/config_dump",
-                        headers = Headers.of(mapOf(disableHeader))
+                        headers = mapOf(disableHeader).toHeaders()
                     )
                 }),
                 Arguments.of("config dump as authorized", {
                     envoy.ingressOperations.callLocalService(
                         endpoint = "/status/envoy/config_dump",
-                        headers = Headers.of(mapOf(disableHeader, "authorization" to "admin_secret_token"))
+                        headers = mapOf(disableHeader, "authorization" to "admin_secret_token").toHeaders()
                     )
                 }),
                 Arguments.of("reset counters as unauthorized", {
                     envoy.ingressOperations.callPostLocalService(
                         endpoint = "/status/envoy/reset_counters",
-                        headers = Headers.of(mapOf(disableHeader)),
-                        body = RequestBody.create(MediaType.get("application/json"), "{}")
+                        headers = mapOf(disableHeader).toHeaders(),
+                        body = RequestBody.create("application/json".toMediaType(), "{}")
                     )
                 }),
                 Arguments.of("reset counters as authorized", {
                     envoy.ingressOperations.callPostLocalService(
                         endpoint = "/status/envoy/reset_counters",
-                        headers = Headers.of(mapOf(disableHeader, "authorization" to "admin_secret_token")),
-                        body = RequestBody.create(MediaType.get("application/json"), "{}")
+                        headers = mapOf(disableHeader, "authorization" to "admin_secret_token").toHeaders(),
+                        body = RequestBody.create("application/json".toMediaType(), "{}")
                     )
                 })
             )
@@ -105,7 +105,10 @@ internal class AdminRouteTest {
     @Test
     fun `should get admin redirected port on ingress port when enabled`() {
         // when
-        val response = envoy.ingressOperations.callLocalService(endpoint = "/status/envoy", headers = Headers.of(emptyMap()))
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = "/status/envoy",
+            headers = emptyMap<String, String>().toHeaders()
+        )
 
         // then
         assertThat(response.isSuccessful).isTrue()
@@ -116,27 +119,27 @@ internal class AdminRouteTest {
         // when
         val configDumpResponseUnauthorized = envoy.ingressOperations.callLocalService(
             endpoint = "/status/envoy/config_dump",
-            headers = Headers.of(emptyMap())
+            headers = emptyMap<String, String>().toHeaders()
         )
         val configDumpResponseAuthorized = envoy.ingressOperations.callLocalService(
             endpoint = "/status/envoy/config_dump",
-            headers = Headers.of(mapOf("authorization" to "admin_secret_token"))
+            headers = mapOf("authorization" to "admin_secret_token").toHeaders()
         )
         val resetCountersResponseUnauthorized = envoy.ingressOperations.callPostLocalService(
             endpoint = "/status/envoy/reset_counters",
-            headers = Headers.of(emptyMap()),
-            body = RequestBody.create(MediaType.get("application/json"), "{}")
+            headers = emptyMap<String, String>().toHeaders(),
+            body = RequestBody.create("application/json".toMediaType(), "{}")
         )
         val resetCountersResponseAuthorized = envoy.ingressOperations.callPostLocalService(
             endpoint = "/status/envoy/reset_counters",
-            headers = Headers.of(mapOf("authorization" to "admin_secret_token")),
-            body = RequestBody.create(MediaType.get("application/json"), "{}")
+            headers = mapOf("authorization" to "admin_secret_token").toHeaders(),
+            body = RequestBody.create("application/json".toMediaType(), "{}")
         )
 
         // then
-        assertThat(configDumpResponseUnauthorized.code()).isEqualTo(401)
+        assertThat(configDumpResponseUnauthorized.code).isEqualTo(401)
         assertThat(configDumpResponseAuthorized.isSuccessful).isTrue()
-        assertThat(resetCountersResponseUnauthorized.code()).isEqualTo(401)
+        assertThat(resetCountersResponseUnauthorized.code).isEqualTo(401)
         assertThat(resetCountersResponseAuthorized.isSuccessful).isTrue()
     }
 
@@ -147,6 +150,6 @@ internal class AdminRouteTest {
         request: () -> Response
     ) {
         // expect
-        assertThat(request.invoke().code()).describedAs(caseDescription).isEqualTo(403)
+        assertThat(request.invoke().code).describedAs(caseDescription).isEqualTo(403)
     }
 }

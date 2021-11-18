@@ -77,7 +77,7 @@ class HostHeaderRewritingTest {
 
 fun ObjectAssert<Response>.hasHostHeaderWithValue(overriddenHostHeader: String): ObjectAssert<Response> {
     matches({
-        it.body()?.use { it.string().contains("\"host\": \"$overriddenHostHeader\"") } ?: false
+        it.body?.use { it.string().contains("\"host\": \"$overriddenHostHeader\"") } ?: false
     }, "Header Host should be overridden with value: $overriddenHostHeader")
     return this
 }

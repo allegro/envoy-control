@@ -115,6 +115,7 @@ fun ProxySettings.with(
     allServicesDependencies: Boolean = false,
     defaultServiceSettings: DependencySettings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
         Durations.fromSeconds(120),
+        Durations.fromSeconds(120),
         Durations.fromSeconds(120)
     ))
 ): ProxySettings {
@@ -180,7 +181,13 @@ fun proxySettingsProto(
 }
 
 class OutgoingDependenciesProtoScope {
-    class Dependency(val service: String? = null, val domain: String? = null, val domainPattern: String? = null, val idleTimeout: String? = null, val requestTimeout: String? = null, val handleInternalRedirect: Boolean? = null)
+    class Dependency(val service: String? = null,
+        val domain: String? = null,
+        val domainPattern: String? = null,
+        val idleTimeout: String? = null,
+        val connectionIdleTimeout: String? = null,
+        val requestTimeout: String? = null,
+        val handleInternalRedirect: Boolean? = null)
 
     val dependencies = mutableListOf<Dependency>()
 
@@ -193,12 +200,14 @@ class OutgoingDependenciesProtoScope {
     fun withService(
         serviceName: String,
         idleTimeout: String? = null,
+        connectionIdleTimeout: String? = null,
         requestTimeout: String? = null,
         handleInternalRedirect: Boolean? = null
     ) = dependencies.add(
         Dependency(
             service = serviceName,
             idleTimeout = idleTimeout,
+            connectionIdleTimeout = connectionIdleTimeout,
             requestTimeout = requestTimeout,
             handleInternalRedirect = handleInternalRedirect
         )
@@ -207,11 +216,13 @@ class OutgoingDependenciesProtoScope {
     fun withDomain(
         url: String,
         idleTimeout: String? = null,
+        connectionIdleTimeout: String? = null,
         requestTimeout: String? = null
     ) = dependencies.add(
         Dependency(
             domain = url,
             idleTimeout = idleTimeout,
+            connectionIdleTimeout = connectionIdleTimeout,
             requestTimeout = requestTimeout
         )
     )
@@ -219,11 +230,13 @@ class OutgoingDependenciesProtoScope {
     fun withDomainPattern(
         pattern: String,
         idleTimeout: String? = null,
+        connectionIdleTimeout: String? = null,
         requestTimeout: String? = null
     ) = dependencies.add(
         Dependency(
             domainPattern = pattern,
             idleTimeout = idleTimeout,
+            connectionIdleTimeout = connectionIdleTimeout,
             requestTimeout = requestTimeout
         )
     )
@@ -249,6 +262,7 @@ fun outgoingDependenciesProto(
                         domain = it.domain,
                         domainPattern = it.domainPattern,
                         idleTimeout = it.idleTimeout,
+                        connectionIdleTimeout = it.connectionIdleTimeout,
                         requestTimeout = it.requestTimeout,
                         handleInternalRedirect = it.handleInternalRedirect
                     )
@@ -264,19 +278,21 @@ fun outgoingDependencyProto(
     domainPattern: String? = null,
     handleInternalRedirect: Boolean? = null,
     idleTimeout: String? = null,
+    connectionIdleTimeout: String? = null,
     requestTimeout: String? = null
 ) = struct {
     service?.also { putFields("service", string(service)) }
     domain?.also { putFields("domain", string(domain)) }
     domainPattern?.also { putFields("domainPattern", string(domainPattern)) }
     handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(handleInternalRedirect)) }
-    if (idleTimeout != null || requestTimeout != null) {
-        putFields("timeoutPolicy", outgoingTimeoutPolicy(idleTimeout, requestTimeout))
+    if (idleTimeout != null || requestTimeout != null || connectionIdleTimeout != null) {
+        putFields("timeoutPolicy", outgoingTimeoutPolicy(idleTimeout, connectionIdleTimeout, requestTimeout))
     }
 }
 
-fun outgoingTimeoutPolicy(idleTimeout: String? = null, requestTimeout: String? = null) = struct {
+fun outgoingTimeoutPolicy(idleTimeout: String? = null, connectionIdleTimeout: String? = null, requestTimeout: String? = null) = struct {
     idleTimeout?.also { putFields("idleTimeout", string(idleTimeout)) }
+    connectionIdleTimeout?.also { putFields("connectionIdleTimeout", string(connectionIdleTimeout)) }
     requestTimeout?.also { putFields("requestTimeout", string(requestTimeout)) }
 }
 
@@ -285,7 +301,8 @@ fun incomingEndpointProto(
     pathPrefix: String? = null,
     pathRegex: String? = null,
     includeNullFields: Boolean = false,
-    clients: List<String> = listOf("client1")
+    clients: List<String> = listOf("client1"),
+    oauth: OAuthTestDependencies? = null
 ): Value = struct {
 
     this.putPathFields(path, "path", includeNullFields)
@@ -293,6 +310,7 @@ fun incomingEndpointProto(
     this.putPathFields(pathRegex, "pathRegex", includeNullFields)
 
     putFields("clients", list { clients.forEach { addValues(string(it)) } })
+    oauth?.let { putFields("oauth", putOauthFields(it)) }
 }
 
 fun Struct.Builder.putPathFields(path: String?, fieldName: String, includeNullFields: Boolean) {
@@ -302,6 +320,24 @@ fun Struct.Builder.putPathFields(path: String?, fieldName: String, includeNullFi
         else -> null
     }?.also {
         this.putFields(fieldName, it)
+    }
+}
+
+class OAuthTestDependencies(
+    val provider: String?,
+    val verification: String?,
+    val policy: String?
+)
+
+fun putOauthFields(oauthDependencies: OAuthTestDependencies?) = struct {
+    oauthDependencies?.provider?.let {
+        putFields("provider", string(it))
+    }
+    oauthDependencies?.verification?.let {
+        putFields("verification", string(it))
+    }
+    oauthDependencies?.policy?.let {
+        putFields("policy", string(it))
     }
 }
 

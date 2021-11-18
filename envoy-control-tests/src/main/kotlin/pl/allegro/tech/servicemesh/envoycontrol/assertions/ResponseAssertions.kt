@@ -11,30 +11,30 @@ fun ObjectAssert<Response>.isOk(): ObjectAssert<Response> {
 
 fun ObjectAssert<Response>.isForbidden(): ObjectAssert<Response> {
     matches({
-        it.body()?.close()
-        it.code() == 403
+        it.body?.close()
+        it.code == 403
     }, "is forbidden")
     return this
 }
 
 fun ObjectAssert<Response>.isUnreachable(): ObjectAssert<Response> {
     matches({
-        it.body()?.close()
-        it.code() == 503 || it.code() == 504
+        it.body?.close()
+        it.code == 503 || it.code == 504
     }, "is unreachable")
     return this
 }
 
 fun ObjectAssert<Response>.isFrom(echoServiceExtension: EchoServiceExtension): ObjectAssert<Response> {
     matches {
-        it.body()?.use { it.string().contains(echoServiceExtension.container().response) } ?: false
+        it.body?.use { it.string().contains(echoServiceExtension.container().response) } ?: false
     }
     return this
 }
 
 fun ObjectAssert<Response>.isEitherFrom(vararg echoContainers: EchoServiceExtension): ObjectAssert<Response> {
     matches {
-        val serviceResponse = it.body()?.string() ?: ""
+        val serviceResponse = it.body?.string() ?: ""
         echoContainers.any { containerExtension -> serviceResponse.contains(containerExtension.container().response) }
     }
     return this

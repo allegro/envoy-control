@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
 import okhttp3.Headers
-import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -15,6 +14,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyConta
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EgressOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.IngressOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
@@ -70,6 +70,7 @@ val AdsWithStaticListeners = EnvoyConfig("envoy/config_ads_static_listeners.yaml
 val AdsWithNoDependencies = EnvoyConfig("envoy/config_ads_no_dependencies.yaml")
 val Xds = EnvoyConfig("envoy/config_xds.yaml")
 val RandomConfigFile = listOf(Ads, Xds, DeltaAds).random()
+val OAuthEnvoyConfig = EnvoyConfig("envoy/config_oauth.yaml")
 
 @Deprecated("use extension approach instead, e.g. RetryPolicyTest")
 abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
@@ -101,7 +102,9 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         ) {
             assertThat(envoyControls == 1 || envoyControls == 2).isTrue()
             assertThat(envoys == 1 || envoys == 2).isTrue()
+            EnvoyControlTestConfiguration.envoys = envoys
 
+            EnvoyControlTestConfiguration.envoyControls = envoyControls
             localServiceContainer = EchoContainer().also { it.start() }
 
             Companion.envoyControls = envoyControls
@@ -280,11 +283,11 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
                     .apply {
                         headers.forEach { name, value -> header(name, value) }
                     }
-                    .url(HttpUrl.get(address).newBuilder(pathAndQuery)!!.build())
+                    .url(address.toHttpUrl().newBuilder(pathAndQuery)!!.build())
                     .build()
             )
 
-            return request.execute()
+            return request.execute().addToCloseableResponses()
         }
 
         fun callLocalService(
@@ -389,23 +392,23 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
 
     fun ObjectAssert<Response>.isFrom(echoContainer: EchoContainer): ObjectAssert<Response> {
         matches {
-            it.body()?.use { it.string().contains(echoContainer.response) } ?: false
+            it.body?.use { it.string().contains(echoContainer.response) } ?: false
         }
         return this
     }
 
     fun ObjectAssert<Response>.isUnreachable(): ObjectAssert<Response> {
         matches({
-            it.body()?.close()
-            it.code() == 503 || it.code() == 504
+            it.body?.close()
+            it.code == 503 || it.code == 504
         }, "is unreachable")
         return this
     }
 
     fun ObjectAssert<Response>.isForbidden(): ObjectAssert<Response> {
         matches({
-            it.body()?.close()
-            it.code() == 403
+            it.body?.close()
+            it.code == 403
         }, "is forbidden")
         return this
     }

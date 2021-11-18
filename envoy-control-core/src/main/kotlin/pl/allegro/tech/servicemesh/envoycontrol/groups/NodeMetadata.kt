@@ -35,7 +35,7 @@ data class ProxySettings(
     val outgoing: Outgoing = Outgoing()
 ) {
     constructor(proto: Value?, properties: SnapshotProperties) : this(
-        incoming = proto?.field("incoming").toIncoming(),
+        incoming = proto?.field("incoming").toIncoming(properties),
         outgoing = proto?.field("outgoing").toOutgoing(properties)
     )
 
@@ -75,6 +75,7 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
         handleInternalRedirect = properties.egress.handleInternalRedirect,
         timeoutPolicy = Outgoing.TimeoutPolicy(
             idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
+            connectionIdleTimeout = Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis()),
             requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
         )
     )
@@ -181,10 +182,10 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 }
 
-fun Value?.toIncoming(): Incoming {
+fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     return Incoming(
-        endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint() },
+        endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint(properties) },
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
         healthCheck = this?.field("healthCheck").toHealthCheck(),
@@ -215,7 +216,7 @@ fun Value?.toHealthCheck(): HealthCheck {
     }
 }
 
-fun Value.toIncomingEndpoint(): IncomingEndpoint {
+fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
     val pathPrefix = this.field("pathPrefix")?.stringValue
     val path = this.field("path")?.stringValue
     val pathRegex = this.field("pathRegex")?.stringValue
@@ -227,14 +228,15 @@ fun Value.toIncomingEndpoint(): IncomingEndpoint {
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
     val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
     val unlistedClientsPolicy = this.field("unlistedClientsPolicy").toUnlistedPolicy()
+    val oauth = properties.let { this.field("oauth")?.toOAuth(it) }
 
     return when {
-        path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy)
+        path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
         pathPrefix != null -> IncomingEndpoint(
-            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy
+            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy, oauth
         )
         pathRegex != null -> IncomingEndpoint(
-            pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy
+            pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy, oauth
         )
         else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
@@ -261,12 +263,57 @@ private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
 
 private fun Value.toOutgoingTimeoutPolicy(default: Outgoing.TimeoutPolicy): Outgoing.TimeoutPolicy {
     val idleTimeout = this.field("idleTimeout")?.toDuration()
+    val connectionIdleTimeout = this.field("connectionIdleTimeout")?.toDuration()
     val requestTimeout = this.field("requestTimeout")?.toDuration()
-    if (idleTimeout == null && requestTimeout == null) {
+    if (idleTimeout == null && requestTimeout == null && connectionIdleTimeout == null) {
         return default
     }
-    return Outgoing.TimeoutPolicy(idleTimeout ?: default.idleTimeout, requestTimeout ?: default.requestTimeout)
+    return Outgoing.TimeoutPolicy(
+        idleTimeout ?: default.idleTimeout,
+        connectionIdleTimeout ?: default.connectionIdleTimeout,
+        requestTimeout ?: default.requestTimeout
+    )
 }
+
+private fun Value.toOAuth(properties: SnapshotProperties): OAuth {
+    val provider = this.field("provider").toOauthProvider(properties)
+    val policy = this.field("policy").toOAuthPolicy(properties.jwt.defaultOAuthPolicy)
+    val verification = this.field("verification").toOAuthVerification(properties.jwt.defaultVerificationType)
+
+    return OAuth(provider, verification, policy)
+}
+
+fun Value?.toOauthProvider(properties: SnapshotProperties) = this?.stringValue
+    ?.takeIf { it.isNotEmpty() }
+    ?.let { if (properties.jwt.providers.keys.contains(it)) {
+            it
+        } else {
+            throw NodeMetadataValidationException("Invalid OAuth provider value: $it")
+        }
+    }
+    ?: throw NodeMetadataValidationException("OAuth provider value cannot be null")
+
+fun Value?.toOAuthVerification(defaultVerification: OAuth.Verification) = this?.stringValue
+    ?.takeIf { it.isNotEmpty() }
+    ?.let {
+        when (it) {
+            "offline" -> OAuth.Verification.OFFLINE
+            else -> throw NodeMetadataValidationException("Invalid OAuth verification value: $it")
+        }
+     }
+    ?: defaultVerification
+
+fun Value?.toOAuthPolicy(defaultPolicy: OAuth.Policy) = this?.stringValue
+    ?.takeIf { it.isNotEmpty() }
+    ?.let {
+        when (it) {
+            "allowMissing" -> OAuth.Policy.ALLOW_MISSING
+            "allowMissingOrFailed" -> OAuth.Policy.ALLOW_MISSING_OR_FAILED
+            "strict" -> OAuth.Policy.STRICT
+            else -> throw NodeMetadataValidationException("Invalid OAuth policy value: $it")
+        }
+    }
+    ?: defaultPolicy
 
 @Suppress("SwallowedException")
 fun Value.toDuration(): Duration? {
@@ -335,6 +382,7 @@ data class Outgoing(
 
     data class TimeoutPolicy(
         val idleTimeout: Duration? = null,
+        val connectionIdleTimeout: Duration? = null,
         val requestTimeout: Duration? = null
     )
 }
@@ -418,7 +466,8 @@ data class IncomingEndpoint(
     override val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
     override val methods: Set<String> = emptySet(),
     val clients: Set<ClientWithSelector> = emptySet(),
-    val unlistedClientsPolicy: Incoming.UnlistedPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG
+    val unlistedClientsPolicy: Incoming.UnlistedPolicy = Incoming.UnlistedPolicy.BLOCKANDLOG,
+    val oauth: OAuth? = null
 ) : EndpointBase
 
 enum class PathMatchingType {
@@ -427,6 +476,21 @@ enum class PathMatchingType {
 
 enum class CommunicationMode {
     ADS, XDS
+}
+
+data class OAuth(
+    val provider: String = "",
+    val verification: Verification = Verification.OFFLINE,
+    val policy: Policy = Policy.ALLOW_MISSING
+) {
+
+    enum class Verification {
+        OFFLINE, ONLINE
+    }
+
+    enum class Policy {
+        STRICT, ALLOW_MISSING, ALLOW_MISSING_OR_FAILED
+    }
 }
 
 interface EndpointBase {

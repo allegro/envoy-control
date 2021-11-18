@@ -17,6 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOneDomain
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOnlyRoutesInOrder
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeadersToRemove
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasSingleVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
@@ -97,7 +98,7 @@ internal class EnvoyIngressRoutesFactoryTest {
         )
 
         // when
-        val routeConfig = routesFactory.createSecuredIngressRouteConfig(proxySettingsOneEndpoint)
+        val routeConfig = routesFactory.createSecuredIngressRouteConfig("service_1", proxySettingsOneEndpoint)
 
         // then
         routeConfig
@@ -127,10 +128,12 @@ internal class EnvoyIngressRoutesFactoryTest {
     }
 
     @Test
-    fun `should create route config with headers to remove`() {
+    fun `should create route config with headers to remove and add`() {
         // given
         val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
             ingress.headersToRemove = mutableListOf("x-via-vip", "x-special-case-header")
+            ingress.addServiceNameHeaderToResponse = true
+            ingress.addRequestedAuthorityHeaderToResponse = true
         })
         val proxySettingsOneEndpoint = ProxySettings(
                 incoming = Incoming(
@@ -143,9 +146,12 @@ internal class EnvoyIngressRoutesFactoryTest {
         )
 
         // when
-        val routeConfig = routesFactory.createSecuredIngressRouteConfig(proxySettingsOneEndpoint)
+        val routeConfig = routesFactory.createSecuredIngressRouteConfig("service_1", proxySettingsOneEndpoint)
 
         // then
-        routeConfig.hasRequestHeadersToRemove(listOf("x-via-vip", "x-special-case-header"))
+        routeConfig
+            .hasRequestHeadersToRemove(listOf("x-via-vip", "x-special-case-header"))
+            .hasResponseHeaderToAdd("x-service-name", "service_1")
+            .hasResponseHeaderToAdd("x-requested-authority", "%REQ(:authority)%")
     }
 }

@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
-import okhttp3.Headers
+import okhttp3.Headers.Companion.headersOf
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -48,7 +48,7 @@ internal class StatusRouteIncomingPermissionsTest {
     fun `should allow access to status endpoint by all clients`() {
         untilAsserted {
             // when
-            val response = envoy.ingressOperations.callLocalService("/status/", Headers.of())
+            val response = envoy.ingressOperations.callLocalService("/status/", headersOf())
             val statusUpstreamOk = envoy.container.admin().statValue(
                 "vhost.secured_local_service.vcluster.status.upstream_rq_200"
             )?.toInt()

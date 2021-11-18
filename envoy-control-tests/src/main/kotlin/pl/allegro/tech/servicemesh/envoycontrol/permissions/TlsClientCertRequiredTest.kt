@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import javax.net.ssl.SSLHandshakeException
+import java.io.IOException
 
 class TlsClientCertRequiredTest {
 
@@ -22,12 +22,14 @@ class TlsClientCertRequiredTest {
 
         @JvmField
         @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul, mapOf(
-            "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
-            "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.require-client-certificate" to true,
-            "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo")
-        ))
+        val envoyControl = EnvoyControlExtension(
+            consul, mapOf(
+                "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+                "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
+                "envoy-control.envoy.snapshot.incoming-permissions.tls-authentication.require-client-certificate" to true,
+                "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo")
+            )
+        )
 
         @JvmField
         @RegisterExtension
@@ -43,7 +45,7 @@ class TlsClientCertRequiredTest {
     fun `should reject client without a certificate during TLS handshake`() {
         untilAsserted {
             // expects
-            assertThrows<SSLHandshakeException> {
+            assertThrows<IOException> {
                 envoy.ingressOperations.callLocalServiceInsecure("/status/", useTls = true)
             }
             envoy.assertReportedPeerCertificateNotFoundError()

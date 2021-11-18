@@ -12,33 +12,42 @@ class EnvoyDefaultFilters(
     private val snapshotProperties: SnapshotProperties
 ) {
     private val rbacFilterFactory = RBACFilterFactory(
-            snapshotProperties.incomingPermissions,
-            snapshotProperties.routes.status
+        snapshotProperties.incomingPermissions,
+        snapshotProperties.routes.status,
+        jwtProperties = snapshotProperties.jwt
     )
     private val luaFilterFactory = LuaFilterFactory(
         snapshotProperties.incomingPermissions
     )
+    private val jwtFilterFactory = JwtFilterFactory(
+        snapshotProperties.jwt
+    )
 
     private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
-            snapshotProperties.routing.serviceTags.header,
-            snapshotProperties.routing.serviceTags.metadataKey
+        snapshotProperties.routing.serviceTags.header,
+        snapshotProperties.routing.serviceTags.metadataKey
     )
     private val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagFilterRules)
     private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
     private val defaultHeaderToMetadataFilter = { _: Group, _: GlobalSnapshot -> headerToMetadataHttpFilter }
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
     private val defaultEnvoyRouterHttpFilter = { _: Group, _: GlobalSnapshot -> envoyRouterHttpFilter }
-    private val defaultRbacFilter = {
-        group: Group, snapshot: GlobalSnapshot -> rbacFilterFactory.createHttpFilter(group, snapshot)
+    private val defaultRbacFilter = { group: Group, snapshot: GlobalSnapshot ->
+        rbacFilterFactory.createHttpFilter(group, snapshot)
     }
-    private val defaultRbacLoggingFilter = {
-        group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressRbacLoggingFilter(group)
-    }
-
-    private val defaultClientNameHeaderFilter = {
-        group: Group, _: GlobalSnapshot -> luaFilterFactory.ingressClientNameHeaderFilter()
+    private val defaultRbacLoggingFilter = { group: Group, _: GlobalSnapshot ->
+        luaFilterFactory.ingressRbacLoggingFilter(group)
     }
 
+    private val defaultClientNameHeaderFilter = { _: Group, _: GlobalSnapshot ->
+        luaFilterFactory.ingressClientNameHeaderFilter()
+    }
+
+    private val defaultJwtHttpFilter = { group: Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
+
+    private val defaultAuthorizationHeaderFilter = { _: Group, _: GlobalSnapshot ->
+        authorizationHeaderToMetadataFilter()
+    }
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
 
     /**
@@ -51,7 +60,12 @@ class EnvoyDefaultFilters(
      * * defaultEnvoyRouterHttpFilter - router filter should be always the last filter.
      */
     val defaultIngressFilters = listOf(
-        defaultClientNameHeaderFilter, defaultRbacLoggingFilter, defaultRbacFilter, defaultEnvoyRouterHttpFilter
+        defaultClientNameHeaderFilter,
+        defaultAuthorizationHeaderFilter,
+        defaultJwtHttpFilter,
+        defaultRbacLoggingFilter,
+        defaultRbacFilter,
+        defaultEnvoyRouterHttpFilter
     )
     val defaultIngressMetadata: Metadata = luaFilterFactory.ingressScriptsMetadata()
 
@@ -60,19 +74,19 @@ class EnvoyDefaultFilters(
         key: String = snapshotProperties.loadBalancing.canary.metadataKey
     ): Config.Builder {
         val headerToMetadataConfig = Config.newBuilder()
-                .addRequestRules(
-                        Config.Rule.newBuilder()
-                                .setHeader("x-canary")
-                                .setRemove(false)
-                                .setOnHeaderPresent(
-                                        Config.KeyValuePair.newBuilder()
-                                                .setKey(key)
-                                                .setMetadataNamespace("envoy.lb")
-                                                .setType(Config.ValueType.STRING)
-                                                .build()
-                                )
-                                .build()
-                )
+            .addRequestRules(
+                Config.Rule.newBuilder()
+                    .setHeader("x-canary")
+                    .setRemove(false)
+                    .setOnHeaderPresent(
+                        Config.KeyValuePair.newBuilder()
+                            .setKey(key)
+                            .setMetadataNamespace("envoy.lb")
+                            .setType(Config.ValueType.STRING)
+                            .build()
+                    )
+                    .build()
+            )
 
         rules.forEach {
             headerToMetadataConfig.addRequestRules(it)
@@ -88,10 +102,32 @@ class EnvoyDefaultFilters(
 
     private fun headerToMetadataHttpFilter(headerToMetadataConfig: Config.Builder): HttpFilter {
         return HttpFilter.newBuilder()
-                .setName("envoy.filters.http.header_to_metadata")
-                .setTypedConfig(Any.pack(
-                        headerToMetadataConfig.build()
-                ))
-                .build()
+            .setName("envoy.filters.http.header_to_metadata")
+            .setTypedConfig(
+                Any.pack(
+                    headerToMetadataConfig.build()
+                )
+            )
+            .build()
     }
+
+    private fun authorizationHeaderToMetadataFilter(): HttpFilter =
+        HttpFilter.newBuilder().setName("envoy.filters.http.header_to_metadata").setTypedConfig(
+            Any.pack(
+                Config.newBuilder()
+                    .addRequestRules(
+                        Config.Rule.newBuilder().setHeader("authorization")
+                            .setOnHeaderMissing(
+                                Config.KeyValuePair.newBuilder().setKey("jwt-status").setValue("missing")
+                            )
+                            .setOnHeaderPresent(
+                                Config.KeyValuePair.newBuilder().setKey("jwt-status").setValue("present")
+                            )
+                            .setRemove(false)
+                            .build()
+
+                    )
+                    .build()
+            )
+        ).build()
 }

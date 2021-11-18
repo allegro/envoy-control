@@ -1,10 +1,12 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import com.google.protobuf.Duration
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.SnapshotResources
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
+import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
@@ -13,9 +15,12 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
+import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
@@ -23,6 +28,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.outgoingTimeoutPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
@@ -40,6 +46,7 @@ class EnvoySnapshotFactoryTest {
         const val EGRESS_PORT = 3380
         const val CLUSTER_NAME = "cluster-name"
         const val DEFAULT_SERVICE_NAME = "service-name"
+        const val DEFAULT_IDLE_TIMEOUT = 100L
     }
 
     @Test
@@ -111,10 +118,95 @@ class EnvoySnapshotFactoryTest {
         assertThat(listeners.size).isEqualTo(0)
     }
 
+    @Test
+    fun shouldGetSnapshotClustersWithDefaultConnectionIdleTimeout() {
+        // given
+        val defaultProperties = SnapshotProperties().also { it.dynamicListeners.enabled = false }
+        val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
+
+        val cluster = createCluster(defaultProperties)
+        val group: Group = createServicesGroup(dependencies = arrayOf(cluster.name to null)
+        )
+        val globalSnapshot = createGlobalSnapshot(cluster)
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        val actualCluster = snapshot.clusters().resources()[CLUSTER_NAME]!!
+        assertThat(actualCluster.commonHttpProtocolOptions.idleTimeout.seconds).isEqualTo(DEFAULT_IDLE_TIMEOUT)
+    }
+
+    @Test
+    fun shouldGetSnapshotClustersWithCustomConnectionIdleTimeout() {
+        // given
+        val defaultProperties = SnapshotProperties().also { it.dynamicListeners.enabled = false }
+        val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
+
+        val cluster = createCluster(defaultProperties)
+        val group: Group = createServicesGroup(dependencies = arrayOf(cluster.name to outgoingTimeoutPolicy(connectionIdleTimeout = 10)))
+        val globalSnapshot = createGlobalSnapshot(cluster)
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        val actualCluster = snapshot.clusters().resources()[CLUSTER_NAME]!!
+        assertThat(actualCluster.commonHttpProtocolOptions.idleTimeout.seconds).isEqualTo(10)
+    }
+
+    @Test
+    fun shouldGetSnapshotClustersWithCustomConnectionIdleTimeoutFromWildcardDependency() {
+        // given
+        val defaultProperties = SnapshotProperties().also { it.dynamicListeners.enabled = false }
+        val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
+
+        val wildcardTimeoutPolicy = outgoingTimeoutPolicy(connectionIdleTimeout = 12)
+        val cluster = createCluster(defaultProperties)
+        val group: Group = createAllServicesGroup(
+            dependencies = arrayOf(cluster.name to null, "*" to wildcardTimeoutPolicy),
+            defaultServiceSettings = DependencySettings(timeoutPolicy = wildcardTimeoutPolicy)
+        )
+        val globalSnapshot = createGlobalSnapshot(cluster)
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        val actualCluster = snapshot.clusters().resources()[cluster.name]!!
+        assertThat(actualCluster.commonHttpProtocolOptions.idleTimeout.seconds).isEqualTo(12)
+    }
+
+    @Test
+    fun shouldGetSnapshotClustersWithCustomConnectionIdleTimeoutDespiteWildcardDependency() {
+        // given
+        val defaultProperties = SnapshotProperties().also { it.dynamicListeners.enabled = false }
+        val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
+
+        val wildcardTimeoutPolicy = outgoingTimeoutPolicy(connectionIdleTimeout = 12)
+        val cluster1 = createCluster(defaultProperties)
+        val cluster2 = createCluster(defaultProperties, clusterName = "cluster-name-2")
+        val group: Group = createAllServicesGroup(
+            dependencies = arrayOf(cluster1.name to outgoingTimeoutPolicy(connectionIdleTimeout = 1), cluster2.name to null, "*" to wildcardTimeoutPolicy),
+            defaultServiceSettings = DependencySettings(timeoutPolicy = wildcardTimeoutPolicy)
+        )
+        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        val actualCluster1 = snapshot.clusters().resources()[cluster1.name]!!
+        val actualCluster2 = snapshot.clusters().resources()[cluster2.name]!!
+
+        assertThat(actualCluster1.commonHttpProtocolOptions.idleTimeout.seconds).isEqualTo(1)
+        assertThat(actualCluster2.commonHttpProtocolOptions.idleTimeout.seconds).isEqualTo(12)
+    }
+
     private fun createServicesGroup(
         mode: CommunicationMode = CommunicationMode.XDS,
         serviceName: String = DEFAULT_SERVICE_NAME,
-        dependencies: Array<String> = emptyArray(),
+        dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
         listenersConfigExists: Boolean = true
     ): ServicesGroup {
         val listenersConfig = when (listenersConfigExists) {
@@ -125,6 +217,25 @@ class EnvoySnapshotFactoryTest {
             mode,
             serviceName,
             ProxySettings().with(serviceDependencies = serviceDependencies(*dependencies)),
+            listenersConfig
+        )
+    }
+
+    private fun createAllServicesGroup(
+        mode: CommunicationMode = CommunicationMode.XDS,
+        serviceName: String = DEFAULT_SERVICE_NAME,
+        dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
+        defaultServiceSettings: DependencySettings,
+        listenersConfigExists: Boolean = true
+    ): AllServicesGroup {
+        val listenersConfig = when (listenersConfigExists) {
+            true -> createListenersConfig()
+            false -> null
+        }
+        return AllServicesGroup(
+            mode,
+            serviceName,
+            ProxySettings().with(serviceDependencies = serviceDependencies(*dependencies), defaultServiceSettings = defaultServiceSettings),
             listenersConfig
         )
     }
@@ -167,25 +278,30 @@ class EnvoySnapshotFactoryTest {
         )
     }
 
-    private fun createGlobalSnapshot(cluster: Cluster?): GlobalSnapshot {
+    private fun createGlobalSnapshot(vararg clusters: Cluster): GlobalSnapshot {
         return GlobalSnapshot(
-            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(), emptySet(),
-            SnapshotResources.create<ClusterLoadAssignment>(emptyList<ClusterLoadAssignment>(), "v1").resources(), emptyMap(),
-            SnapshotResources.create<Cluster>(listOf(cluster), "v3").resources(),
-            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(),
-            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources()
+            SnapshotResources.create(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"), clusters.map { it.name }.toSet(),
+            SnapshotResources.create(emptyList(), "v1"), emptyMap(),
+            SnapshotResources.create(clusters.toList(), "v3"),
+            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
+            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
         )
     }
 
-    private fun createCluster(defaultProperties: SnapshotProperties): Cluster? {
-        return Cluster.newBuilder().setName(CLUSTER_NAME)
+    private fun createCluster(defaultProperties: SnapshotProperties, clusterName: String = CLUSTER_NAME, serviceName: String = DEFAULT_SERVICE_NAME, idleTimeout: Long = DEFAULT_IDLE_TIMEOUT): Cluster {
+        return Cluster.newBuilder().setName(clusterName)
             .setType(Cluster.DiscoveryType.EDS)
             .setConnectTimeout(Durations.fromMillis(defaultProperties.edsConnectionTimeout.toMillis()))
             .setEdsClusterConfig(
                 Cluster.EdsClusterConfig.newBuilder().setEdsConfig(
                     ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
-                ).setServiceName(DEFAULT_SERVICE_NAME)
+                ).setServiceName(serviceName)
             )
-            .setLbPolicy(defaultProperties.loadBalancing.policy).build()
+            .setLbPolicy(defaultProperties.loadBalancing.policy)
+            .setCommonHttpProtocolOptions(
+                HttpProtocolOptions.newBuilder()
+                    .setIdleTimeout(Duration.newBuilder().setSeconds(idleTimeout).build())
+            )
+            .build()
     }
 }
