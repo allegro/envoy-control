@@ -8,8 +8,8 @@ import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.Metadata
-import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
@@ -28,6 +28,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.globalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.outgoingTimeoutPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
@@ -280,11 +281,13 @@ class EnvoySnapshotFactoryTest {
 
     private fun createGlobalSnapshot(vararg clusters: Cluster): GlobalSnapshot {
         return GlobalSnapshot(
-            SnapshotResources.create(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"), clusters.map { it.name }.toSet(),
-            SnapshotResources.create(emptyList(), "v1"), emptyMap(),
-            SnapshotResources.create(clusters.toList(), "v3"),
-            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
-            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
+            SnapshotResources.create<Cluster>(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(),
+            clusters.map { it.name }.toSet(),
+            SnapshotResources.create<ClusterLoadAssignment>(emptyList<ClusterLoadAssignment>(), "v1").resources(),
+            emptyMap(),
+            SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources(),
+            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(),
+            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources()
         )
     }
 

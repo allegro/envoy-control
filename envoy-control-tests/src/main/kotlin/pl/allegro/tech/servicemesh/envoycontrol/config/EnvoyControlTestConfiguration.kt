@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
 import okhttp3.Headers
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
