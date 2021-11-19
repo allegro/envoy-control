@@ -45,8 +45,6 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         setOf(),
         SnapshotResources.create<ClusterLoadAssignment>(listOf<ClusterLoadAssignment>(), "").resources(),
         mapOf(),
-        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources(),
-        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources(),
         SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources()
     )
 

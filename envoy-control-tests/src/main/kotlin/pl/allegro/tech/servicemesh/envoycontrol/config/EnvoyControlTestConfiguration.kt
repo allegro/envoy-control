@@ -54,7 +54,6 @@ val DeltaAdsAllDependencies = AdsAllDependencies.copy(
 """.trimIndent()
 )
 
-val AdsV2 = EnvoyConfig("envoy/config_ads_v2.yaml")
 val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml")
 val Echo2EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
     serviceName = "echo2",

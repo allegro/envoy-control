@@ -4,6 +4,7 @@ import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 import java.util.UUID
+import java.util.Locale
 
 class EchoContainer : GenericContainer<EchoContainer>("hashicorp/http-echo:latest"), ServiceContainer {
 
@@ -13,7 +14,7 @@ class EchoContainer : GenericContainer<EchoContainer>("hashicorp/http-echo:lates
         super.configure()
         withExposedPorts(PORT)
         withNetwork(Network.SHARED)
-        withCommand(String.format("-text=%s", response))
+        withCommand(String.format(Locale.getDefault(), "-text=%s", response))
         waitingFor(Wait.forHttp("/").forStatusCode(200))
     }
 

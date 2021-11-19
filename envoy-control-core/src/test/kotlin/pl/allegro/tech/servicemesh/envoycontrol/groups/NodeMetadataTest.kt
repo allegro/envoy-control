@@ -48,14 +48,6 @@ class NodeMetadataTest {
         )
     }
 
-    private val defaultDependencySettings = DependencySettings(
-        handleInternalRedirect = false,
-        timeoutPolicy = Outgoing.TimeoutPolicy(
-            idleTimeout = Durations.fromMillis(1000),
-            requestTimeout = Durations.fromMillis(3000)
-        )
-    )
-
     private fun snapshotProperties(
         allServicesDependenciesIdentifier: String = "*",
         handleInternalRedirect: Boolean = false,

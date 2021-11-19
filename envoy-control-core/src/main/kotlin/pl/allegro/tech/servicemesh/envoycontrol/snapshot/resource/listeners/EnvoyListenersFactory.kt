@@ -39,7 +39,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config.LocalReplyConfigFactory
@@ -112,7 +111,6 @@ class EnvoyListenersFactory(
         TLS("tls")
     }
 
-    val defaultApiConfigSourceV2: ApiConfigSource = apiConfigSource(ApiVersion.V2)
     val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource(ApiVersion.V3)
 
     fun apiConfigSource(apiVersion: ApiVersion): ApiConfigSource {
@@ -230,7 +228,7 @@ class EnvoyListenersFactory(
     ): Filter {
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix("egress_http")
-            .setRds(egressRds(group.communicationMode, group.version))
+            .setRds(egressRds(group.communicationMode))
             .setHttpProtocolOptions(egressHttp1ProtocolOptions())
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
             .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
@@ -289,17 +287,15 @@ class EnvoyListenersFactory(
             .build()
     }
 
-    private fun egressRds(communicationMode: CommunicationMode, version: ResourceVersion): Rds {
+    private fun egressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
             .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
 
-        if (version == ResourceVersion.V3) {
-            configSource.setResourceApiVersion(ApiVersion.V3)
-        }
+        configSource.resourceApiVersion = ApiVersion.V3
 
         when (communicationMode) {
-            ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-            XDS -> setXdsConfigSourceVersion(version, configSource)
+            ADS -> configSource.ads = AggregatedConfigSource.getDefaultInstance()
+            XDS -> configSource.apiConfigSource = defaultApiConfigSourceV3
         }
 
         return Rds.newBuilder()
@@ -327,7 +323,7 @@ class EnvoyListenersFactory(
             .setDelayedCloseTimeout(durationInSeconds(0))
             .setCommonHttpProtocolOptions(httpProtocolOptions)
             .setCodecType(HttpConnectionManager.CodecType.AUTO)
-            .setRds(ingressRds(group.communicationMode, group.version))
+            .setRds(ingressRds(group.communicationMode))
             .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
 
         if (listenersConfig.useRemoteAddress) {
@@ -348,31 +344,21 @@ class EnvoyListenersFactory(
             .build()
     }
 
-    private fun ingressRds(communicationMode: CommunicationMode, version: ResourceVersion): Rds {
+    private fun ingressRds(communicationMode: CommunicationMode): Rds {
         val configSource = ConfigSource.newBuilder()
             .setInitialFetchTimeout(ingressRdsInitialFetchTimeout)
 
-        if (version == ResourceVersion.V3) {
-            configSource.setResourceApiVersion(ApiVersion.V3)
-        }
+        configSource.resourceApiVersion = ApiVersion.V3
 
         when (communicationMode) {
-            ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-            XDS -> setXdsConfigSourceVersion(version, configSource)
+            ADS -> configSource.ads = AggregatedConfigSource.getDefaultInstance()
+            XDS -> configSource.apiConfigSource = defaultApiConfigSourceV3
         }
 
         return Rds.newBuilder()
             .setRouteConfigName("ingress_secured_routes")
             .setConfigSource(configSource.build())
             .build()
-    }
-
-    private fun setXdsConfigSourceVersion(version: ResourceVersion, configSource: ConfigSource.Builder) {
-        if (version == ResourceVersion.V3) {
-            configSource.apiConfigSource = defaultApiConfigSourceV3
-        } else {
-            configSource.apiConfigSource = defaultApiConfigSourceV2
-        }
     }
 
     fun AccessLog.Builder.buildFromSettings(settings: StatusCodeFilterSettings) {

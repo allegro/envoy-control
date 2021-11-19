@@ -285,9 +285,7 @@ class EnvoySnapshotFactoryTest {
             clusters.map { it.name }.toSet(),
             SnapshotResources.create<ClusterLoadAssignment>(emptyList<ClusterLoadAssignment>(), "v1").resources(),
             emptyMap(),
-            SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources(),
-            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(),
-            SnapshotResources.create<Cluster>(emptyList<Cluster>(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources()
+            SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources()
         )
     }
 
