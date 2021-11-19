@@ -162,9 +162,9 @@ class EnvoyClustersFactory(
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
-            globalSnapshot.securedClusters.resources()
+            globalSnapshot.securedClusters
         } else {
-            globalSnapshot.clusters.resources()
+            globalSnapshot.clusters
         }
 
         val serviceDependencies = group.proxySettings.outgoing.getServiceDependencies().associateBy { it.service }

@@ -63,7 +63,7 @@ class NodeMetadataValidator(
     }
 
     override fun onV2StreamDeltaRequest(streamId: Long, request: DeltaDiscoveryRequest?) {
-        request?.node?.let { validateV2Metadata(it) }
+        request?.node?.let { validateV2Metadata() }
     }
 
     override fun onV3StreamDeltaRequest(
