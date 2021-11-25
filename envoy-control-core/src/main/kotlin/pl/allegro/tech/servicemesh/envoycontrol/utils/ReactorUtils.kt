@@ -49,7 +49,10 @@ fun <T> Flux<T>.measureBuffer(
  * operator and calculate difference between them
  */
 fun <T> Flux<T>.measureDiscardedItems(name: String, meterRegistry: MeterRegistry): Flux<T> = this
-    .doOnDiscard(Any::class.java) { meterRegistry.counter("reactor-discarded-items.$name").increment() }
+    .doOnDiscard(Any::class.java) {
+        meterRegistry.counter("reactor-discarded-items.$name").increment()
+        logger.warn("Discarded item: {}", it)
+    }
 
 fun <T> Flux<T>.onBackpressureLatestMeasured(name: String, meterRegistry: MeterRegistry): Flux<T> =
     measureDiscardedItems("$name-before", meterRegistry)
