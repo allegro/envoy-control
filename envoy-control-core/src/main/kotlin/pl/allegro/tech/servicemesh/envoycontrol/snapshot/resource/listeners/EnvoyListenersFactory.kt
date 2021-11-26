@@ -138,13 +138,12 @@ class EnvoyListenersFactory(
 
         group.listenersConfig?.egressPort.let {
             val filterChain: FilterChain.Builder = FilterChain.newBuilder()
-            group.listenersConfig?.useTransparentProxy.let {
+           if (group.listenersConfig?.useTransparentProxy == true) {
                 filterChain.setFilterChainMatch(
                     FilterChainMatch.newBuilder()
                         .setDestinationPort(UInt32Value.of(group.listenersConfig!!.egressPort))
                 )
-                listener.setTrafficDirection(TrafficDirection.OUTBOUND)
-                    .setUseOriginalDst(BoolValue.of(true))
+                listener.setTrafficDirection(TrafficDirection.OUTBOUND).useOriginalDst = BoolValue.of(true)
             }
             listener.addFilterChains(filterChain.addFilters(createEgressFilter(group, globalSnapshot)).build())
         }
