@@ -860,12 +860,7 @@ class SnapshotUpdaterTest {
                 "ingress_listener",
                 1235
             )
-        hasSnapshot(cache, group)
-            .hasListener(
-                "egress_listener",
-                1234,
-                filterMatchPort = 1234
-            )
+
         hasSnapshot(cache, group)
             .hasOnlyEgressRoutesForClusters(
                 "default_routes",
