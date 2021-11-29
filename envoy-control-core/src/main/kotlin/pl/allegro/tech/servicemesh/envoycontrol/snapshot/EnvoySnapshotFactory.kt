@@ -33,6 +33,11 @@ class EnvoySnapshotFactory(
     private val properties: SnapshotProperties,
     private val meterRegistry: MeterRegistry
 ) {
+
+    companion object {
+        const val DEFAULT_HTTP_PORT = 80
+    }
+
     fun newSnapshot(
         servicesStates: MultiClusterState,
         clusterConfigurations: Map<String, ClusterConfiguration>,
@@ -149,22 +154,17 @@ class EnvoySnapshotFactory(
         return newSnapshotForGroup
     }
 
-    private fun getEgressRoutesSpecification(
-        group: Group,
-        globalSnapshot: GlobalSnapshot
-    ): Collection<RouteSpecification> {
-        return getServiceRouteSpecifications(group, globalSnapshot) +
-            getDomainRouteSpecifications(group) + getDomainPatternRouteSpecifications(group)
-    }
-
-    private fun getDomainRouteSpecifications(group: Group): List<RouteSpecification> {
-        return group.proxySettings.outgoing.getDomainDependencies().map {
-            RouteSpecification(
-                clusterName = it.getClusterName(),
-                routeDomains = listOf(it.getRouteDomain()),
-                settings = it.settings
-            )
-        }
+    private fun getDomainRouteSpecifications(group: Group): Map<DomainRoutesGrouper, Collection<RouteSpecification>> {
+        return group.proxySettings.outgoing.getDomainDependencies().groupBy(
+            { DomainRoutesGrouper(it.getPort(), it.useSsl()) },
+            {
+                RouteSpecification(
+                    clusterName = it.getClusterName(),
+                    routeDomains = listOf(it.getRouteDomain()),
+                    settings = it.settings
+                )
+            }
+        )
     }
 
     private fun getDomainPatternRouteSpecifications(group: Group): RouteSpecification {
@@ -226,18 +226,33 @@ class EnvoySnapshotFactory(
     ): Snapshot {
 
         // TODO(dj): This is where serious refactoring needs to be done
-        val egressRouteSpecification = getEgressRoutesSpecification(group, globalSnapshot)
+        val egressDomainRouteSpecifications = getDomainRouteSpecifications(group)
+        val egressServiceRouteSpecification = getServiceRouteSpecifications(group, globalSnapshot)
+        val egressRouteSpecification = egressServiceRouteSpecification +
+            egressDomainRouteSpecifications.values.flatten().toSet() + getDomainPatternRouteSpecifications(group)
 
         val clusters: List<Cluster> =
             clustersFactory.getClustersForGroup(group, globalSnapshot)
 
-        val routes = listOf(
-            egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, egressRouteSpecification,
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
-            ),
+        val routes = mutableListOf(
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.serviceName, group.proxySettings)
         )
+
+        if (group.listenersConfig?.useTransparentProxy == true) {
+            createRoutesWhenUsingTransparentProxy(
+                routes,
+                group,
+                egressServiceRouteSpecification,
+                egressDomainRouteSpecifications
+            )
+        } else {
+            routes.add(
+                egressRoutesFactory.createEgressRouteConfig(
+                    group.serviceName, egressRouteSpecification,
+                    group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
+                )
+            )
+        }
 
         val listeners = if (properties.dynamicListeners.enabled) {
             listenersFactory.createListeners(group, globalSnapshot)
@@ -264,6 +279,44 @@ class EnvoySnapshotFactory(
         )
     }
 
+    private fun createRoutesWhenUsingTransparentProxy(
+        routes: MutableList<RouteConfiguration>,
+        group: Group,
+        egressRouteSpecification: Collection<RouteSpecification>,
+        egressDomainRouteSpecifications: Map<DomainRoutesGrouper, Collection<RouteSpecification>>
+    ) {
+        // routes for listener binded to port
+        routes.add(
+            egressRoutesFactory.createEgressRouteConfig(
+                group.serviceName, emptyList(),
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
+            )
+        )
+        // routes for listener on port http = 80
+        routes.add(
+            egressRoutesFactory.createEgressRouteConfig(
+                group.serviceName, egressRouteSpecification +
+                    egressDomainRouteSpecifications.getOrDefault(
+                        DomainRoutesGrouper(DEFAULT_HTTP_PORT, false), emptyList()
+                    ),
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
+                DEFAULT_HTTP_PORT.toString()
+            )
+        )
+
+        // routes for listeners different than port 80 and not ssl, because ssl is handled by tcp proxy
+        egressDomainRouteSpecifications
+            .filter { it.key.port != DEFAULT_HTTP_PORT && !it.key.useSsl }
+            .forEach {
+                routes.add(
+                    egressRoutesFactory.createEgressDomainRoutes(
+                        it.value,
+                        it.key.port.toString().toLowerCase()
+                    )
+                )
+            }
+    }
+
     private fun createSnapshot(
         clusters: List<Cluster> = emptyList(),
         clustersVersion: ClustersVersion = ClustersVersion.EMPTY_VERSION,
@@ -287,6 +340,11 @@ class EnvoySnapshotFactory(
             SecretsVersion.EMPTY_VERSION.value
         )
 }
+
+data class DomainRoutesGrouper(
+    val port: Int,
+    val useSsl: Boolean
+)
 
 data class ClusterConfiguration(
     val serviceName: String,

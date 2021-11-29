@@ -285,7 +285,8 @@ private fun Value.toOAuth(properties: SnapshotProperties): OAuth {
 
 fun Value?.toOauthProvider(properties: SnapshotProperties) = this?.stringValue
     ?.takeIf { it.isNotEmpty() }
-    ?.let { if (properties.jwt.providers.keys.contains(it)) {
+    ?.let {
+        if (properties.jwt.providers.keys.contains(it)) {
             it
         } else {
             throw NodeMetadataValidationException("Invalid OAuth provider value: $it")
@@ -300,7 +301,7 @@ fun Value?.toOAuthVerification(defaultVerification: OAuth.Verification) = this?.
             "offline" -> OAuth.Verification.OFFLINE
             else -> throw NodeMetadataValidationException("Invalid OAuth verification value: $it")
         }
-     }
+    }
     ?: defaultVerification
 
 fun Value?.toOAuthPolicy(defaultPolicy: OAuth.Policy) = this?.stringValue
@@ -386,13 +387,25 @@ data class Outgoing(
         val requestTimeout: Duration? = null
     )
 }
-
-interface Dependency
+// TODO: Make it default method, currently some problems with kotlin version, might upgrade in next PR
+interface Dependency {
+    fun getPort(): Int
+    fun useSsl(): Boolean
+}
 
 data class ServiceDependency(
     val service: String,
     val settings: DependencySettings = DependencySettings()
-) : Dependency
+) : Dependency {
+    companion object {
+        private const val DEFAULT_HTTP_PORT = 80
+        private const val DEFAULT_HTTPS_POLICY = false
+    }
+
+    override fun getPort() = DEFAULT_HTTP_PORT
+
+    override fun useSsl() = DEFAULT_HTTPS_POLICY
+}
 
 data class DomainDependency(
     val domain: String,
@@ -400,11 +413,11 @@ data class DomainDependency(
 ) : Dependency {
     val uri = URL(domain)
 
-    fun getPort(): Int = uri.port.takeIf { it != -1 } ?: uri.defaultPort
+    override fun getPort(): Int = uri.port.takeIf { it != -1 } ?: uri.defaultPort
+
+    override fun useSsl() = uri.protocol == "https"
 
     fun getHost(): String = uri.host
-
-    fun useSsl() = uri.protocol == "https"
 
     fun getClusterName(): String {
         val clusterName = getHost() + ":" + getPort()
@@ -417,7 +430,16 @@ data class DomainDependency(
 data class DomainPatternDependency(
     val domainPattern: String,
     val settings: DependencySettings = DependencySettings()
-) : Dependency
+) : Dependency {
+    companion object {
+        private const val DEFAULT_HTTP_PORT = 80
+        private const val DEFAULT_HTTPS_POLICY = false
+    }
+
+    override fun getPort() = DEFAULT_HTTP_PORT
+
+    override fun useSsl() = DEFAULT_HTTPS_POLICY
+}
 
 data class DependencySettings(
     val handleInternalRedirect: Boolean = false,

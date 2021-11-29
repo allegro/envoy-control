@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 import com.github.dockerjava.api.command.InspectContainerResponse
 import org.springframework.core.io.ClassPathResource
 import org.testcontainers.containers.BindMode
+import org.testcontainers.containers.Container
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
@@ -21,6 +22,7 @@ class EnvoyContainer(
     dockerfileBuilder = DockerfileBuilder()
         .from(image)
         .run("apt-get update && apt-get install -y curl iproute2 iptables dnsmasq")
+        .run("adduser --disabled-password --gecos \"\" test")
 ) {
 
     companion object {
@@ -70,6 +72,36 @@ class EnvoyContainer(
             "-l", logLevel,
             "--bootstrap-version", apiVersion.toString()
         )
+    }
+
+    fun addIptablesRedirect(redirectToPort: Int, destinationPort: Int) {
+        execInContainer(
+            "sh",
+            "-c",
+            "iptables -t nat -A OUTPUT -p tcp -m tcp --dport $destinationPort -m owner --uid-owner 0 -j RETURN"
+        )
+        execInContainer(
+            "sh",
+            "-c",
+            "iptables -t nat -A OUTPUT -p tcp -m tcp --dport $destinationPort -m owner --gid-owner 0 -j RETURN"
+        )
+        execInContainer(
+            "sh",
+            "-c",
+            "iptables -t nat -A OUTPUT -p tcp --dport $destinationPort -j REDIRECT --to-ports $redirectToPort"
+        )
+    }
+
+    fun cleanIptables() {
+        execInContainer("sh", "-c", "iptables -t nat -F")
+    }
+
+    fun callInContainer(hostname: String, path: String = "", isHttps: Boolean = false): Container.ExecResult? {
+        if (isHttps) {
+            // because we are using self signed certificate
+            return execInContainer("su", "test", "-c", "curl https://$hostname/$path --insecure")
+        }
+        return execInContainer("su", "test", "-c", "curl http://$hostname/$path")
     }
 
     fun addDnsEntry(host: String, ip: String) {
