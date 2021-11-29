@@ -12,7 +12,6 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
@@ -70,8 +69,7 @@ class EnvoyEgressRoutesFactory(
     fun createEgressRouteConfig(
         serviceName: String,
         routes: Collection<RouteSpecification>,
-        addUpstreamAddressHeader: Boolean,
-        resourceVersion: ResourceVersion = ResourceVersion.V3
+        addUpstreamAddressHeader: Boolean
     ): RouteConfiguration {
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
@@ -87,7 +85,7 @@ class EnvoyEgressRoutesFactory(
                                     .build()
                             )
                             .setRoute(
-                                createRouteAction(routeSpecification, resourceVersion)
+                                createRouteAction(routeSpecification)
                             ).build()
                     )
                     .build()
@@ -121,10 +119,7 @@ class EnvoyEgressRoutesFactory(
         return routeConfiguration.build()
     }
 
-    private fun createRouteAction(
-        routeSpecification: RouteSpecification,
-        resourceVersion: ResourceVersion
-    ): RouteAction.Builder {
+    private fun createRouteAction(routeSpecification: RouteSpecification): RouteAction.Builder {
         val routeAction = RouteAction.newBuilder()
             .setCluster(routeSpecification.clusterName)
 
@@ -134,12 +129,7 @@ class EnvoyEgressRoutesFactory(
         }
 
         if (routeSpecification.settings.handleInternalRedirect) {
-            when (resourceVersion) {
-                ResourceVersion.V2 ->
-                    routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
-                ResourceVersion.V3 ->
-                    routeAction.internalRedirectPolicy = InternalRedirectPolicy.newBuilder().build()
-            }
+            routeAction.internalRedirectPolicy = InternalRedirectPolicy.newBuilder().build()
         }
 
         if (properties.egress.hostHeaderRewriting.enabled && routeSpecification.settings.rewriteHostHeader) {

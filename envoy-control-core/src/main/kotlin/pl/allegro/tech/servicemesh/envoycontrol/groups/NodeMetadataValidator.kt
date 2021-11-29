@@ -8,7 +8,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
-import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
 
@@ -62,7 +61,7 @@ class NodeMetadataValidator(
     }
 
     override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequestV2?) {
-        request?.node?.let { validateV2Metadata(it) }
+        request?.node?.let { validateV2Metadata() }
     }
 
     override fun onStreamResponse(
@@ -80,15 +79,8 @@ class NodeMetadataValidator(
         validateMetadata(metadata)
     }
 
-    private fun validateV2Metadata(node: NodeV2) {
-        if (properties.supportV2Configuration) {
-            // Some validation logic is executed when NodeMetadata is created.
-            // This may throw NodeMetadataValidationException
-            val metadata = NodeMetadata(node.metadata, properties)
-            validateMetadata(metadata)
-        } else {
-            throw V2NotSupportedException()
-        }
+    private fun validateV2Metadata() {
+        throw V2NotSupportedException()
     }
 
     private fun validateMetadata(metadata: NodeMetadata) {

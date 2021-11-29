@@ -43,7 +43,7 @@ class LocalReplyMappingTest {
                     "path":"%REQ(:path)%"
                 }""",
                 "$localReplyPrefix.matchers[1].response-flag-matcher" to listOf(
-                    "NR"
+                    "NC"
                 ),
                 "$localReplyPrefix.matchers[1].status-code-to-return" to 522,
                 "$localReplyPrefix.matchers[1].body-to-return" to "my-custom no route body",
@@ -94,7 +94,7 @@ class LocalReplyMappingTest {
             // when
             val response = envoy.egressOperations.callService("service-2")
             val body = response.body?.string()
-            assertThat(body).contains("Request to service: service-2 responseFlags:NR body: my-custom no route body")
+            assertThat(body).contains("Request to service: service-2 responseFlags:NC body: my-custom no route body")
             assertThat(response.code).isEqualTo(522)
         }
     }
@@ -104,7 +104,7 @@ class LocalReplyMappingTest {
         val expectedApiResponse = ApiResponse(
             path = "/api",
             body = "",
-            responseFlags = "NR",
+            responseFlags = "NC",
             destination = Destination(null, "/api", "service-2")
         )
         // when

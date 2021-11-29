@@ -46,13 +46,6 @@ class EnvoySnapshotFactory(
         )
         val securedClusters = clustersFactory.getSecuredClusters(clusters)
 
-        var v2Clusters = emptyList<Cluster>()
-        var v2SecuredClusters = emptyList<Cluster>()
-        if (properties.supportV2Configuration) {
-            v2Clusters = clustersFactory.mapToV2Clusters(clusters, communicationMode)
-            v2SecuredClusters = clustersFactory.mapToV2Clusters(securedClusters, communicationMode)
-        }
-
         val endpoints: List<ClusterLoadAssignment> = endpointsFactory.createLoadAssignment(
             clusters = clusterConfigurations.keys,
             multiClusterState = servicesStates
@@ -63,9 +56,7 @@ class EnvoySnapshotFactory(
             clusters = clusters,
             securedClusters = securedClusters,
             endpoints = endpoints,
-            properties = properties.outgoingPermissions,
-            v2Clusters = v2Clusters,
-            v2SecuredClusters = v2SecuredClusters
+            properties = properties.outgoingPermissions
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 
@@ -226,7 +217,7 @@ class EnvoySnapshotFactory(
         egressRouteSpecifications: Collection<RouteSpecification>
     ): List<ClusterLoadAssignment> {
         return egressRouteSpecifications
-            .mapNotNull { globalSnapshot.endpoints.resources().get(it.clusterName) }
+            .mapNotNull { globalSnapshot.endpoints.resources()[it.clusterName] }
     }
 
     private fun newSnapshotForGroup(
@@ -243,8 +234,7 @@ class EnvoySnapshotFactory(
         val routes = listOf(
             egressRoutesFactory.createEgressRouteConfig(
                 group.serviceName, egressRouteSpecification,
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
-                group.version
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
             ),
             ingressRoutesFactory.createSecuredIngressRouteConfig(group.serviceName, group.proxySettings)
         )

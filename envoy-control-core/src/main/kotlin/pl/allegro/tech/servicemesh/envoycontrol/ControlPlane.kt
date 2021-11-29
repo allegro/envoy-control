@@ -5,7 +5,6 @@ import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.envoyproxy.controlplane.server.DefaultExecutorGroup
 import io.envoyproxy.controlplane.server.ExecutorGroup
-import io.envoyproxy.controlplane.server.V2DiscoveryServer
 import io.envoyproxy.controlplane.server.V3DiscoveryServer
 import io.envoyproxy.controlplane.server.callback.SnapshotCollectingCallback
 import io.grpc.Server
@@ -165,25 +164,7 @@ class ControlPlane private constructor(
             )
             val grpcServerBuilder = grpcServerBuilder()
 
-            if (properties.envoy.snapshot.supportV2Configuration) {
-                val compositeDiscoveryServerCallbacksV2 = listOf(
-                    CompositeDiscoveryServerCallbacks(
-                        meterRegistry,
-                        buildSnapshotCollectingCallback(cache),
-                        loggingDiscoveryServerCallbacks,
-                        meteredConnectionsCallbacks,
-                        NodeMetadataValidator(properties.envoy.snapshot)
-                    )
-                )
-                grpcServerBuilder.withV2EnvoyServices(
-                    createV2Server(
-                        compositeDiscoveryServerCallbacksV2,
-                        groupChangeWatcher,
-                        cachedProtoResourcesSerializer
-                    )
-                )
-            }
-            grpcServerBuilder.withV3EnvoyServices(
+            grpcServerBuilder.withEnvoyServices(
                 createV3Server(
                     compositeDiscoveryServerCallbacksV3,
                     groupChangeWatcher,
@@ -201,8 +182,7 @@ class ControlPlane private constructor(
                     groupSnapshotScheduler,
                     groupChangeWatcher.onGroupAdded(),
                     meterRegistry,
-                    snapshotsVersions,
-                    envoyHttpFilters
+                    snapshotsVersions
                 ),
                 nodeGroup,
                 cache,
@@ -228,19 +208,6 @@ class ControlPlane private constructor(
             cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
         ): V3DiscoveryServer {
             return V3DiscoveryServer(
-                compositeDiscoveryServerCallbacks,
-                groupChangeWatcher,
-                executorGroup,
-                cachedProtoResourcesSerializer
-            )
-        }
-
-        private fun createV2Server(
-            compositeDiscoveryServerCallbacks: List<CompositeDiscoveryServerCallbacks>,
-            groupChangeWatcher: GroupChangeWatcher,
-            cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
-        ): V2DiscoveryServer {
-            return V2DiscoveryServer(
                 compositeDiscoveryServerCallbacks,
                 groupChangeWatcher,
                 executorGroup,
@@ -345,15 +312,7 @@ class ControlPlane private constructor(
             return this
         }
 
-        private fun NettyServerBuilder.withV2EnvoyServices(discoveryServer: V2DiscoveryServer): NettyServerBuilder {
-            return this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
-                .addService(discoveryServer.clusterDiscoveryServiceImpl)
-                .addService(discoveryServer.endpointDiscoveryServiceImpl)
-                .addService(discoveryServer.listenerDiscoveryServiceImpl)
-                .addService(discoveryServer.routeDiscoveryServiceImpl)
-        }
-
-        private fun NettyServerBuilder.withV3EnvoyServices(discoveryServer: V3DiscoveryServer): NettyServerBuilder {
+        private fun NettyServerBuilder.withEnvoyServices(discoveryServer: V3DiscoveryServer): NettyServerBuilder {
             return this.addService(discoveryServer.aggregatedDiscoveryServiceImpl)
                 .addService(discoveryServer.clusterDiscoveryServiceImpl)
                 .addService(discoveryServer.endpointDiscoveryServiceImpl)
