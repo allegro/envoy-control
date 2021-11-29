@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
-import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLog
@@ -94,6 +93,4 @@ class AccessLogFilter(
     }
 
     private fun stringValue(value: String) = Value.newBuilder().setStringValue(value).build()
-
-    private fun durationInSeconds(value: Long) = Duration.newBuilder().setSeconds(value).build()
 }

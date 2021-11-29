@@ -1,7 +1,7 @@
 # Integration with Envoy
 
 Envoy Control exposes configuration to Envoy via
-[v2 xDS API](https://www.envoyproxy.io/docs/envoy/latest/configuration/overview/v2_overview).
+[v3 xDS API](https://www.envoyproxy.io/docs/envoy/latest/configuration/overview/overview).
 The integration is based on [java-control-plane](https://github.com/envoyproxy/java-control-plane) project.
 
 ## Sample Envoy configuration
@@ -27,7 +27,7 @@ The behavior is changed so that the `503` status code is returned.
 ## ADS Support
 
 By default, the xDS is used instead of
-[Aggregated Discovery Service](https://www.envoyproxy.io/docs/envoy/latest/configuration/overview/v2_overview#aggregated-discovery-service)
+[Aggregated Discovery Service](https://www.envoyproxy.io/docs/envoy/latest/configuration/overview/xds_api#aggregated-discovery-service)
 (ADS). To use ADS for given node put the
 ```
 ads: true
@@ -43,7 +43,7 @@ for all clusters with properties [described here](../configuration.md#outlier-de
 ## Retry policy
 
 You can configure
-[retry policies](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/route/route.proto#envoy-api-msg-route-retrypolicy)
+[retry policies](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto#envoy-v3-api-msg-config-route-v3-retrypolicy)
 for ingress traffic with properties [described here](../configuration.md#retries).
 
 ## Metadata

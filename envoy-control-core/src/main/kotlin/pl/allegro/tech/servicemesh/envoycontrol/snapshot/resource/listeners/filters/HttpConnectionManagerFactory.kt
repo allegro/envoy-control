@@ -14,7 +14,6 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.HttpFilterFactory
@@ -33,12 +32,11 @@ class HttpConnectionManagerFactory(
         snapshotProperties.dynamicListeners.localReplyMapper
     ).configuration
 
-    val dynamicForwardProxyFilter = DynamicForwardProxyFilter(
+    private val dynamicForwardProxyFilter = DynamicForwardProxyFilter(
         snapshotProperties.dynamicForwardProxy
     ).filter
 
-    private val defaultApiConfigSourceV2: ApiConfigSource = apiConfigSource(ApiVersion.V2)
-    private val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource(ApiVersion.V3)
+    private val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource()
     private val accessLogFilter = AccessLogFilter(snapshotProperties)
 
     @SuppressWarnings("LongParameterList")
@@ -55,7 +53,7 @@ class HttpConnectionManagerFactory(
 
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix(statPrefix)
-            .setRds(setupRds(group.communicationMode, group.version, initialFetchTimeout, routeConfigName))
+            .setRds(setupRds(group.communicationMode, initialFetchTimeout, routeConfigName))
             .setGenerateRequestId(BoolValue.newBuilder().setValue(listenersConfig.generateRequestId).build())
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
 
@@ -109,20 +107,16 @@ class HttpConnectionManagerFactory(
 
     private fun setupRds(
         communicationMode: CommunicationMode,
-        version: ResourceVersion,
         rdsInitialFetchTimeout: Duration,
         routeConfigName: String
     ): Rds {
         val configSource = ConfigSource.newBuilder()
             .setInitialFetchTimeout(rdsInitialFetchTimeout)
-
-        if (version == ResourceVersion.V3) {
-            configSource.setResourceApiVersion(ApiVersion.V3)
-        }
+        configSource.resourceApiVersion = ApiVersion.V3
 
         when (communicationMode) {
-            CommunicationMode.ADS -> configSource.setAds(AggregatedConfigSource.getDefaultInstance())
-            CommunicationMode.XDS -> setXdsConfigSourceVersion(version, configSource)
+            CommunicationMode.ADS -> configSource.ads = AggregatedConfigSource.getDefaultInstance()
+            CommunicationMode.XDS -> configSource.apiConfigSource = defaultApiConfigSourceV3
         }
 
         return Rds.newBuilder()
@@ -133,14 +127,6 @@ class HttpConnectionManagerFactory(
             .build()
     }
 
-    private fun setXdsConfigSourceVersion(version: ResourceVersion, configSource: ConfigSource.Builder) {
-        if (version == ResourceVersion.V3) {
-            configSource.apiConfigSource = defaultApiConfigSourceV3
-        } else {
-            configSource.apiConfigSource = defaultApiConfigSourceV2
-        }
-    }
-
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
         return Http1ProtocolOptions.newBuilder()
             .setAcceptHttp10(true)
@@ -148,10 +134,10 @@ class HttpConnectionManagerFactory(
             .build()
     }
 
-    private fun apiConfigSource(apiVersion: ApiVersion): ApiConfigSource {
+    private fun apiConfigSource(): ApiConfigSource {
         return ApiConfigSource.newBuilder()
             .setApiType(ApiConfigSource.ApiType.GRPC)
-            .setTransportApiVersion(apiVersion)
+            .setTransportApiVersion(ApiVersion.V3)
             .addGrpcServices(
                 GrpcService.newBuilder()
                     .setEnvoyGrpc(

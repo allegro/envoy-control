@@ -51,13 +51,6 @@ class EnvoySnapshotFactory(
         )
         val securedClusters = clustersFactory.getSecuredClusters(clusters)
 
-        var v2Clusters = emptyList<Cluster>()
-        var v2SecuredClusters = emptyList<Cluster>()
-        if (properties.supportV2Configuration) {
-            v2Clusters = clustersFactory.mapToV2Clusters(clusters, communicationMode)
-            v2SecuredClusters = clustersFactory.mapToV2Clusters(securedClusters, communicationMode)
-        }
-
         val endpoints: List<ClusterLoadAssignment> = endpointsFactory.createLoadAssignment(
             clusters = clusterConfigurations.keys,
             multiClusterState = servicesStates
@@ -68,9 +61,7 @@ class EnvoySnapshotFactory(
             clusters = clusters,
             securedClusters = securedClusters,
             endpoints = endpoints,
-            properties = properties.outgoingPermissions,
-            v2Clusters = v2Clusters,
-            v2SecuredClusters = v2SecuredClusters
+            properties = properties.outgoingPermissions
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 
@@ -226,7 +217,7 @@ class EnvoySnapshotFactory(
         egressRouteSpecifications: Collection<RouteSpecification>
     ): List<ClusterLoadAssignment> {
         return egressRouteSpecifications
-            .mapNotNull { globalSnapshot.endpoints.resources().get(it.clusterName) }
+            .mapNotNull { globalSnapshot.endpoints.resources()[it.clusterName] }
     }
 
     private fun newSnapshotForGroup(
@@ -258,8 +249,7 @@ class EnvoySnapshotFactory(
             routes.add(
                 egressRoutesFactory.createEgressRouteConfig(
                     group.serviceName, egressRouteSpecification,
-                    group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
-                    group.version
+                    group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
                 )
             )
         }
@@ -299,8 +289,7 @@ class EnvoySnapshotFactory(
         routes.add(
             egressRoutesFactory.createEgressRouteConfig(
                 group.serviceName, emptyList(),
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
-                group.version
+                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
             )
         )
         // routes for listener on port http = 80
@@ -311,7 +300,7 @@ class EnvoySnapshotFactory(
                         DomainRoutesGrouper(DEFAULT_HTTP_PORT, false), emptyList()
                     ),
                 group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
-                group.version, DEFAULT_HTTP_PORT.toString()
+                DEFAULT_HTTP_PORT.toString()
             )
         )
 
@@ -322,7 +311,6 @@ class EnvoySnapshotFactory(
                 routes.add(
                     egressRoutesFactory.createEgressDomainRoutes(
                         it.value,
-                        group.version,
                         it.key.port.toString().toLowerCase()
                     )
                 )

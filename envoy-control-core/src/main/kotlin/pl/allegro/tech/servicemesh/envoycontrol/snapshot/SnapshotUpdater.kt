@@ -9,8 +9,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
@@ -28,9 +26,7 @@ class SnapshotUpdater(
     private val groupSnapshotScheduler: ParallelizableScheduler,
     private val onGroupAdded: Flux<out List<Group>>,
     private val meterRegistry: MeterRegistry,
-    private val versions: SnapshotsVersions,
-    envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters,
-    serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(properties.routing.serviceTags)
+    private val versions: SnapshotsVersions
 ) {
     companion object {
         private val logger by logger()

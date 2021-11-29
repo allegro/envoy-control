@@ -39,7 +39,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
@@ -106,13 +105,6 @@ class EnvoyClustersFactory(
         }
     }
 
-    fun mapToV2Clusters(
-        clusters: List<Cluster>,
-        communicationMode: CommunicationMode
-    ): List<Cluster> {
-        return clusters.map { mapToV2Cluster(it, communicationMode) }
-    }
-
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
         getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clustersForJWT
 
@@ -170,17 +162,9 @@ class EnvoyClustersFactory(
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
-            if (group.version == ResourceVersion.V3) {
-                globalSnapshot.securedClusters.resources()
-            } else {
-                globalSnapshot.v2SecuredClusters.resources()
-            }
+            globalSnapshot.securedClusters.resources()
         } else {
-            if (group.version == ResourceVersion.V3) {
-                globalSnapshot.clusters.resources()
-            } else {
-                globalSnapshot.v2Clusters.resources()
-            }
+            globalSnapshot.clusters.resources()
         }
 
         val serviceDependencies = group.proxySettings.outgoing.getServiceDependencies().associateBy { it.service }
@@ -220,32 +204,6 @@ class EnvoyClustersFactory(
 
     private fun shouldAddDynamicForwardProxyCluster(group: Group) =
         group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()
-
-    private fun mapToV2Cluster(cluster: Cluster, communicationMode: CommunicationMode): Cluster {
-        return cluster.let {
-            val v2Cluster = Cluster.newBuilder(it)
-            val v2EdsClusterConfig = Cluster.EdsClusterConfig.newBuilder(v2Cluster.edsClusterConfig)
-
-            when (communicationMode) {
-                ADS -> v2Cluster.setEdsClusterConfig(
-                    v2EdsClusterConfig.setEdsConfig(
-                        ConfigSource.newBuilder(v2EdsClusterConfig.edsConfig).setResourceApiVersion(ApiVersion.V2)
-                    )
-                ).build()
-                XDS ->
-                    v2Cluster.setEdsClusterConfig(
-                        v2EdsClusterConfig.setEdsConfig(
-                            ConfigSource.newBuilder(v2EdsClusterConfig.edsConfig)
-                                .setResourceApiVersion(ApiVersion.V2)
-                                .setApiConfigSource(
-                                    ApiConfigSource.newBuilder(v2EdsClusterConfig.edsConfig.apiConfigSource)
-                                        .setTransportApiVersion(ApiVersion.V2)
-                                )
-                        )
-                    ).build()
-            }
-        }
-    }
 
     private fun enableTlsForGroup(group: Group): Boolean {
         return group.listenersConfig?.hasStaticSecretsDefined ?: false
