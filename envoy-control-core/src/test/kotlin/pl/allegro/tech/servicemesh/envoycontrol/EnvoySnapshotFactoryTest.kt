@@ -281,9 +281,7 @@ class EnvoySnapshotFactoryTest {
         return GlobalSnapshot(
             SnapshotResources.create(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"), clusters.map { it.name }.toSet(),
             SnapshotResources.create(emptyList(), "v1"), emptyMap(),
-            SnapshotResources.create(clusters.toList(), "v3"),
-            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
-            SnapshotResources.create(emptyList(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
+            SnapshotResources.create(clusters.toList(), "v3")
         )
     }
 

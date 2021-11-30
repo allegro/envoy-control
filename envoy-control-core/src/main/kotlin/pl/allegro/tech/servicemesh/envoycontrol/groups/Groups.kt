@@ -5,27 +5,20 @@ sealed class Group {
     abstract val serviceName: String
     abstract val proxySettings: ProxySettings
     abstract val listenersConfig: ListenersConfig?
-    abstract val version: ResourceVersion
-}
-
-enum class ResourceVersion {
-    V2, V3
 }
 
 data class ServicesGroup(
     override val communicationMode: CommunicationMode,
     override val serviceName: String = "",
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val listenersConfig: ListenersConfig? = null,
-    override val version: ResourceVersion = ResourceVersion.V3
+    override val listenersConfig: ListenersConfig? = null
 ) : Group()
 
 data class AllServicesGroup(
     override val communicationMode: CommunicationMode,
     override val serviceName: String = "",
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val listenersConfig: ListenersConfig? = null,
-    override val version: ResourceVersion = ResourceVersion.V3
+    override val listenersConfig: ListenersConfig? = null
 ) : Group()
 
 data class ListenersConfig(
@@ -42,7 +35,8 @@ data class ListenersConfig(
     val resourcesDir: String = defaultResourcesDir,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
     val accessLogFilterSettings: AccessLogFilterSettings,
-    val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined
+    val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined,
+    val useTransparentProxy: Boolean = defaultUseTransparentProxy
 ) {
 
     companion object {
@@ -55,5 +49,6 @@ data class ListenersConfig(
         const val defaultAddUpstreamExternalAddressHeader = false
         const val defaultResourcesDir = "envoy"
         const val defaultHasStaticSecretsDefined: Boolean = false
+        const val defaultUseTransparentProxy: Boolean = false
     }
 }

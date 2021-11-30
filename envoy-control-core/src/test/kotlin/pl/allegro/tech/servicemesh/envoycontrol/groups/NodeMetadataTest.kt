@@ -48,14 +48,6 @@ class NodeMetadataTest {
         )
     }
 
-    private val defaultDependencySettings = DependencySettings(
-        handleInternalRedirect = false,
-        timeoutPolicy = Outgoing.TimeoutPolicy(
-            idleTimeout = Durations.fromMillis(1000),
-            requestTimeout = Durations.fromMillis(3000)
-        )
-    )
-
     private fun snapshotProperties(
         allServicesDependenciesIdentifier: String = "*",
         handleInternalRedirect: Boolean = false,
@@ -329,6 +321,22 @@ class NodeMetadataTest {
         val dependency = outgoing.getDomainDependencies().single()
         assertThat(dependency.getHost()).isEqualTo("domain")
         assertThat(dependency.getPort()).isEqualTo(80)
+    }
+
+    @Test
+    fun `should return correct host and default port for https domain dependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "https://domain")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainDependencies().single()
+        assertThat(dependency.getHost()).isEqualTo("domain")
+        assertThat(dependency.getPort()).isEqualTo(443)
     }
 
     @Test

@@ -1,6 +1,6 @@
 # Access log filter configuration
 
-Using Envoy's [metadata](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/core/base.proto#core-metadata)
+Using Envoy's [metadata](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/base.proto.html#core-metadata)
 section you can provide additional configuration to the Control Plane.
 Configuration provided in `metadata.access_log_filter` will be used to set up an access log filter for `Envoy`.
 

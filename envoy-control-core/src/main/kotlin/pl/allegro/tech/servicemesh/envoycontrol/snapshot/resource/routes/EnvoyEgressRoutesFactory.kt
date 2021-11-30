@@ -12,7 +12,6 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ResourceVersion
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
@@ -71,7 +70,7 @@ class EnvoyEgressRoutesFactory(
         serviceName: String,
         routes: Collection<RouteSpecification>,
         addUpstreamAddressHeader: Boolean,
-        resourceVersion: ResourceVersion = ResourceVersion.V3
+        routeName: String = "default_routes"
     ): RouteConfiguration {
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
@@ -87,14 +86,14 @@ class EnvoyEgressRoutesFactory(
                                     .build()
                             )
                             .setRoute(
-                                createRouteAction(routeSpecification, resourceVersion)
+                                createRouteAction(routeSpecification)
                             ).build()
                     )
                     .build()
             }
 
         var routeConfiguration = RouteConfiguration.newBuilder()
-            .setName("default_routes")
+            .setName(routeName)
             .addAllVirtualHosts(
                 virtualHosts + originalDestinationRoute + wildcardRoute
             ).also {
@@ -121,10 +120,44 @@ class EnvoyEgressRoutesFactory(
         return routeConfiguration.build()
     }
 
-    private fun createRouteAction(
-        routeSpecification: RouteSpecification,
-        resourceVersion: ResourceVersion
-    ): RouteAction.Builder {
+    /**
+     * @see TestResources.createRoute
+     */
+    fun createEgressDomainRoutes(
+        routes: Collection<RouteSpecification>,
+        routeName: String
+    ): RouteConfiguration {
+        val virtualHosts = routes
+            .filter { route -> route.routeDomains.isNotEmpty() }
+            .map { routeSpecification ->
+                VirtualHost.newBuilder()
+                    .setName(routeSpecification.clusterName)
+                    .addAllDomains(routeSpecification.routeDomains)
+                    .addRoutes(
+                        Route.newBuilder()
+                            .setMatch(
+                                RouteMatch.newBuilder()
+                                    .setPrefix("/")
+                                    .build()
+                            )
+                            .setRoute(
+                                createRouteAction(routeSpecification)
+                            ).build()
+                    )
+                    .build()
+            }
+        val routeConfiguration = RouteConfiguration.newBuilder()
+            .setName(routeName)
+            .addAllVirtualHosts(
+                virtualHosts + originalDestinationRoute + wildcardRoute
+            )
+        if (properties.egress.headersToRemove.isNotEmpty()) {
+            routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
+        }
+        return routeConfiguration.build()
+    }
+
+    private fun createRouteAction(routeSpecification: RouteSpecification): RouteAction.Builder {
         val routeAction = RouteAction.newBuilder()
             .setCluster(routeSpecification.clusterName)
 
@@ -134,12 +167,7 @@ class EnvoyEgressRoutesFactory(
         }
 
         if (routeSpecification.settings.handleInternalRedirect) {
-            when (resourceVersion) {
-                ResourceVersion.V2 ->
-                    routeAction.setInternalRedirectAction(RouteAction.InternalRedirectAction.HANDLE_INTERNAL_REDIRECT)
-                ResourceVersion.V3 ->
-                    routeAction.internalRedirectPolicy = InternalRedirectPolicy.newBuilder().build()
-            }
+            routeAction.internalRedirectPolicy = InternalRedirectPolicy.newBuilder().build()
         }
 
         if (properties.egress.hostHeaderRewriting.enabled && routeSpecification.settings.rewriteHostHeader) {

@@ -14,9 +14,6 @@ class MetadataNodeGroup(
     private val logger by logger()
 
     override fun hash(node: NodeV2): Group {
-        if (properties.supportV2Configuration) {
-            return createV2Group(node)
-        }
         throw V2NotSupportedException()
     }
 
@@ -115,6 +112,8 @@ class MetadataNodeGroup(
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
+        val useTransparentProxy = metadata.fieldsMap["use_transparent_proxy"]?.boolValue
+            ?: ListenersConfig.defaultUseTransparentProxy
 
         return ListenersConfig(
             listenersHostPort.ingressHost,
@@ -130,24 +129,16 @@ class MetadataNodeGroup(
             resourcesDir,
             addUpstreamExternalAddressHeader,
             accessLogFilterSettings,
-            hasStaticSecretsDefined
+            hasStaticSecretsDefined,
+            useTransparentProxy
         )
     }
 
     private fun createV3Group(node: NodeV3): Group {
-        val metadata = NodeMetadata(node.metadata, properties)
-        return createGroup(metadata, node.id, node.metadata, ResourceVersion.V3)
-    }
-
-    private fun createV2Group(node: NodeV2): Group {
-        val metadata = NodeMetadata(node.metadata, properties)
-        return createGroup(metadata, node.id, node.metadata, ResourceVersion.V2)
-    }
-
-    private fun createGroup(nodeMetadata: NodeMetadata, id: String, metadata: Struct, version: ResourceVersion): Group {
+        val nodeMetadata = NodeMetadata(node.metadata, properties)
         val serviceName = serviceName(nodeMetadata)
         val proxySettings = proxySettings(nodeMetadata)
-        val listenersConfig = createListenersConfig(id, metadata)
+        val listenersConfig = createListenersConfig(node.id, node.metadata)
 
         return when {
             hasAllServicesDependencies(nodeMetadata) ->
@@ -155,16 +146,14 @@ class MetadataNodeGroup(
                     nodeMetadata.communicationMode,
                     serviceName,
                     proxySettings,
-                    listenersConfig,
-                    version
+                    listenersConfig
                 )
             else ->
                 ServicesGroup(
                     nodeMetadata.communicationMode,
                     serviceName,
                     proxySettings,
-                    listenersConfig,
-                    version
+                    listenersConfig
                 )
         }
     }
