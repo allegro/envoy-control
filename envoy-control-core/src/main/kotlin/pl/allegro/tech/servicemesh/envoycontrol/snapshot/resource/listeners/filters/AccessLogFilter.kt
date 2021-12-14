@@ -55,6 +55,7 @@ class AccessLogFilter(
                             .putFields("request_path", stringValue("%REQ(:PATH)%"))
                             .putFields("response_code", stringValue("%RESPONSE_CODE%"))
                             .putFields("response_flags", stringValue("%RESPONSE_FLAGS%"))
+                            .putFields("request_id", stringValue("%REQ(X-REQUEST-ID)%"))
                             .putFields("bytes_received", stringValue("%BYTES_RECEIVED%"))
                             .putFields("bytes_sent", stringValue("%BYTES_SENT%"))
                             .putFields("duration_ms", stringValue("%DURATION%"))
