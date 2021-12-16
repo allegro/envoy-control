@@ -150,7 +150,11 @@ class EnvoyIngressRoutesFactory(
         routeAction: RouteAction.Builder
     ) = routeAction.clone().setRetryPolicy(retryPolicy)
 
-    fun createSecuredIngressRouteConfig(serviceName: String, proxySettings: ProxySettings, group: Group): RouteConfiguration {
+    fun createSecuredIngressRouteConfig(
+        serviceName: String,
+        proxySettings: ProxySettings,
+        group: Group
+    ): RouteConfiguration {
         val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
             true -> {
                 statusClusters + endpoints
