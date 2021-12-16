@@ -16,11 +16,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util
 class AccessLogFilter(
     snapshotProperties: SnapshotProperties
 ) {
-    private val listenersFactoryProperties = snapshotProperties.dynamicListeners
-    private val accessLogTimeFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.timeFormat)
-    private val accessLogMessageFormat = stringValue(listenersFactoryProperties.httpFilters.accessLog.messageFormat)
-    private val accessLogLevel = stringValue(listenersFactoryProperties.httpFilters.accessLog.level)
-    private val accessLogLogger = stringValue(listenersFactoryProperties.httpFilters.accessLog.logger)
+    private val accessLog = snapshotProperties.dynamicListeners.httpFilters.accessLog
+    private val accessLogTimeFormat = stringValue(accessLog.timeFormat)
+    private val accessLogMessageFormat = stringValue(accessLog.messageFormat)
+    private val accessLogLevel = stringValue(accessLog.level)
+    private val accessLogLogger = stringValue(accessLog.logger)
 
     fun createFilter(
         accessLogPath: String,
@@ -55,7 +55,6 @@ class AccessLogFilter(
                             .putFields("request_path", stringValue("%REQ(:PATH)%"))
                             .putFields("response_code", stringValue("%RESPONSE_CODE%"))
                             .putFields("response_flags", stringValue("%RESPONSE_FLAGS%"))
-                            .putFields("request_id", stringValue("%REQ(X-REQUEST-ID)%"))
                             .putFields("bytes_received", stringValue("%BYTES_RECEIVED%"))
                             .putFields("bytes_sent", stringValue("%BYTES_SENT%"))
                             .putFields("duration_ms", stringValue("%DURATION%"))
@@ -65,6 +64,7 @@ class AccessLogFilter(
                             )
                             .putFields("upstream_host", stringValue("%UPSTREAM_HOST%"))
                             .putFields("user_agent", stringValue("%REQ(USER-AGENT)%"))
+                            .putAllFields(accessLog.customFields.mapValues { stringValue(it.value) })
                             .build()
                     )
                     .build()
