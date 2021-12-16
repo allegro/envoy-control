@@ -32,7 +32,7 @@ class EnvoyDefaultFilters(
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
 
     /**
-     * Default filters should not be private, user should has an option to pick any filter.
+     * Default filters should not be private, user should have an option to pick any filter.
      * Remember: order matters.
      */
     val defaultEnvoyRouterHttpFilter = { _: Group, _: GlobalSnapshot -> envoyRouterHttpFilter }
