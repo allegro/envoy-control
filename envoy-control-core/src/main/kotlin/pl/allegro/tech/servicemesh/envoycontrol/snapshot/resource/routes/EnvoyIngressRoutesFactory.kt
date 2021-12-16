@@ -6,6 +6,7 @@ import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
 import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
+import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.Route
@@ -15,6 +16,7 @@ import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualCluster
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
@@ -22,6 +24,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
+
+typealias IngressMetadataFactory = (node: Group) -> Metadata
 
 class EnvoyIngressRoutesFactory(
     private val properties: SnapshotProperties,
@@ -98,7 +102,7 @@ class EnvoyIngressRoutesFactory(
         .map { HttpMethod.valueOf(it.key) to retryPolicy(it.value) }
         .toMap()
 
-    private fun ingressRoutes(localRouteAction: RouteAction.Builder): List<Route> {
+    private fun ingressRoutes(localRouteAction: RouteAction.Builder, group: Group): List<Route> {
         val nonRetryRoute = Route.newBuilder()
             .setMatch(
                 RouteMatch.newBuilder()
@@ -116,7 +120,7 @@ class EnvoyIngressRoutesFactory(
                     .setRoute(clusterRouteActionWithRetryPolicy(retryPolicy, localRouteAction))
             }
         return (retryRoutes + nonRetryRoute).map { builder ->
-            builder.setMetadata(filterMetadata).build()
+            builder.setMetadata(filterMetadata(group)).build()
         }
     }
 
@@ -146,7 +150,7 @@ class EnvoyIngressRoutesFactory(
         routeAction: RouteAction.Builder
     ) = routeAction.clone().setRetryPolicy(retryPolicy)
 
-    fun createSecuredIngressRouteConfig(serviceName: String, proxySettings: ProxySettings): RouteConfiguration {
+    fun createSecuredIngressRouteConfig(serviceName: String, proxySettings: ProxySettings, group: Group): RouteConfiguration {
         val virtualClusters = when (statusRouteVirtualClusterEnabled()) {
             true -> {
                 statusClusters + endpoints
@@ -162,7 +166,7 @@ class EnvoyIngressRoutesFactory(
             .addDomains("*")
             .addAllVirtualClusters(virtualClusters)
             .addAllRoutes(adminRoutesFactory.generateAdminRoutes())
-            .addAllRoutes(generateSecuredIngressRoutes(proxySettings))
+            .addAllRoutes(generateSecuredIngressRoutes(proxySettings, group))
             .also {
                 if (properties.localService.retryPolicy.default.enabled) {
                     it.retryPolicy = defaultRetryPolicy
@@ -198,7 +202,7 @@ class EnvoyIngressRoutesFactory(
             .build()
     }
 
-    private fun generateSecuredIngressRoutes(proxySettings: ProxySettings): List<Route> {
+    private fun generateSecuredIngressRoutes(proxySettings: ProxySettings, group: Group): List<Route> {
         val localRouteAction = clusterRouteAction(
             proxySettings.incoming.timeoutPolicy.responseTimeout,
             proxySettings.incoming.timeoutPolicy.idleTimeout
@@ -206,7 +210,7 @@ class EnvoyIngressRoutesFactory(
 
         val customHealthCheckRoute = customHealthCheckRoute(proxySettings)
 
-        return customHealthCheckRoute + ingressRoutes(localRouteAction)
+        return customHealthCheckRoute + ingressRoutes(localRouteAction, group)
     }
 
     private fun statusRouteVirtualClusterEnabled() =

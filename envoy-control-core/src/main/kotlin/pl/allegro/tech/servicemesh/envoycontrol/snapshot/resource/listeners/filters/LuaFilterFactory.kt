@@ -10,7 +10,7 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 
-class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsProperties) {
+class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermissionsProperties) {
 
     private val ingressRbacLoggingScript: String = this::class.java.classLoader
         .getResource("lua/ingress_rbac_logging.lua")!!.readText()
@@ -26,55 +26,6 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
 
     private val trustedClientIdentityHeader = incomingPermissionsProperties.trustedClientIdentityHeader
 
-    private val ingressScriptsMetadata = Metadata.newBuilder()
-        .putFilterMetadata("envoy.filters.http.lua",
-            Struct.newBuilder()
-                .putFields("client_identity_headers",
-                    Value.newBuilder()
-                        .setListValue(ListValue.newBuilder()
-                            .addAllValues(
-                                incomingPermissionsProperties.clientIdentityHeaders
-                                    .map { Value.newBuilder().setStringValue(it).build() }
-                            )
-                            .build()
-                        ).build()
-                )
-                .putFields("request_id_headers",
-                    Value.newBuilder()
-                        .setListValue(ListValue.newBuilder()
-                            .addAllValues(
-                                incomingPermissionsProperties.requestIdentificationHeaders
-                                    .map { Value.newBuilder().setStringValue(it).build() }
-                            )
-                            .build()
-                        ).build()
-                )
-                .putFields(
-                    "trusted_client_identity_header",
-                    Value.newBuilder()
-                        .setStringValue(trustedClientIdentityHeader)
-                        .build()
-                )
-                .putFields(
-                    "san_uri_lua_pattern",
-                    Value.newBuilder()
-                        .setStringValue(
-                            SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
-                                .sanUriWildcardRegexForLua
-                        ).build()
-                ).putFields("clients_allowed_to_all_endpoints",
-                    Value.newBuilder()
-                        .setListValue(ListValue.newBuilder()
-                            .addAllValues(
-                                incomingPermissionsProperties.clientsAllowedToAllEndpoints
-                                    .map { Value.newBuilder().setStringValue(it).build() }
-                            )
-                            .build()
-                        ).build()
-                )
-                .build()
-        ).build()
-
     fun ingressRbacLoggingFilter(group: Group): HttpFilter? =
         ingressRbacLoggingFilter.takeIf { group.proxySettings.incoming.permissionsEnabled }
 
@@ -87,8 +38,63 @@ class LuaFilterFactory(incomingPermissionsProperties: IncomingPermissionsPropert
             .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientNameHeaderScript).build()))
             .build()
 
+    fun ingressScriptsMetadata(group: Group): Metadata {
+        return Metadata.newBuilder()
+            .putFilterMetadata("envoy.filters.http.lua",
+                Struct.newBuilder()
+                    .putFields("client_identity_headers",
+                        Value.newBuilder()
+                            .setListValue(ListValue.newBuilder()
+                                .addAllValues(
+                                    incomingPermissionsProperties.clientIdentityHeaders
+                                        .map { Value.newBuilder().setStringValue(it).build() }
+                                )
+                                .build()
+                            ).build()
+                    )
+                    .putFields("request_id_headers",
+                        Value.newBuilder()
+                            .setListValue(ListValue.newBuilder()
+                                .addAllValues(
+                                    incomingPermissionsProperties.requestIdentificationHeaders
+                                        .map { Value.newBuilder().setStringValue(it).build() }
+                                )
+                                .build()
+                            ).build()
+                    )
+                    .putFields(
+                        "trusted_client_identity_header",
+                        Value.newBuilder()
+                            .setStringValue(trustedClientIdentityHeader)
+                            .build()
+                    )
+                    .putFields(
+                        "san_uri_lua_pattern",
+                        Value.newBuilder()
+                            .setStringValue(
+                                SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
+                                    .sanUriWildcardRegexForLua
+                            ).build()
+                    ).putFields("clients_allowed_to_all_endpoints",
+                        Value.newBuilder()
+                            .setListValue(ListValue.newBuilder()
+                                .addAllValues(
+                                    incomingPermissionsProperties.clientsAllowedToAllEndpoints
+                                        .map { Value.newBuilder().setStringValue(it).build() }
+                                )
+                                .build()
+                            ).build()
+                    )
+                    .putFields(
+                        "service_name",
+                        Value.newBuilder()
+                            .setStringValue(group.serviceName)
+                            .build()
+                    )
+                    .build()
+            ).build()
+    }
+
     fun ingressClientNameHeaderFilter(): HttpFilter? =
         ingressClientNameHeaderFilter.takeIf { trustedClientIdentityHeader.isNotEmpty() }
-
-    fun ingressScriptsMetadata(): Metadata = ingressScriptsMetadata
 }
