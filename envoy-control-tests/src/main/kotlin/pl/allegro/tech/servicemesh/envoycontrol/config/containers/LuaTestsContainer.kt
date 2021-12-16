@@ -6,7 +6,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.GenericContainer as BaseGenericContainer
 
-class LuaTestsContainer : BaseGenericContainer<LuaTestsContainer>("vpanov/lua-busted@$hash") {
+open class LuaTestsContainer : BaseGenericContainer<LuaTestsContainer>("vpanov/lua-busted@$hash") {
 
     companion object {
         const val hash = "sha256:21676428f30907d4081b5c02cae12e952b6de5bef544643c9eeaf2b416eccb70"
@@ -15,10 +15,10 @@ class LuaTestsContainer : BaseGenericContainer<LuaTestsContainer>("vpanov/lua-bu
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 
-    private val LUA_SRC_DIR = "lua"
-    private val LUA_SRC_DIR_DEST = "/lua"
-    private val LUA_SPEC_DIR = "lua_spec"
-    private val LUA_SPEC_DIR_DST = "/lua_spec"
+    val LUA_SRC_DIR = "lua"
+    val LUA_SRC_DIR_DEST = "/lua"
+    val LUA_SPEC_DIR = "lua_spec"
+    val LUA_SPEC_DIR_DST = "/lua_spec"
 
     override fun configure() {
         super.configure()
