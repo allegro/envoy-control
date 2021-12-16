@@ -30,21 +30,26 @@ class EnvoyDefaultFilters(
     private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
     private val defaultHeaderToMetadataFilter = { _: Group, _: GlobalSnapshot -> headerToMetadataHttpFilter }
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
-    private val defaultEnvoyRouterHttpFilter = { _: Group, _: GlobalSnapshot -> envoyRouterHttpFilter }
-    private val defaultRbacFilter = { group: Group, snapshot: GlobalSnapshot ->
+
+    /**
+     * Default filters should not be private, user should has an option to pick any filter.
+     * Remember: order matters.
+     */
+    val defaultEnvoyRouterHttpFilter = { _: Group, _: GlobalSnapshot -> envoyRouterHttpFilter }
+    val defaultRbacFilter = { group: Group, snapshot: GlobalSnapshot ->
         rbacFilterFactory.createHttpFilter(group, snapshot)
     }
-    private val defaultRbacLoggingFilter = { group: Group, _: GlobalSnapshot ->
+    val defaultRbacLoggingFilter = { group: Group, _: GlobalSnapshot ->
         luaFilterFactory.ingressRbacLoggingFilter(group)
     }
 
-    private val defaultClientNameHeaderFilter = { _: Group, _: GlobalSnapshot ->
+    val defaultClientNameHeaderFilter = { _: Group, _: GlobalSnapshot ->
         luaFilterFactory.ingressClientNameHeaderFilter()
     }
 
-    private val defaultJwtHttpFilter = { group: Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
+    val defaultJwtHttpFilter = { group: Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
 
-    private val defaultAuthorizationHeaderFilter = { _: Group, _: GlobalSnapshot ->
+    val defaultAuthorizationHeaderFilter = { _: Group, _: GlobalSnapshot ->
         authorizationHeaderToMetadataFilter()
     }
     val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
