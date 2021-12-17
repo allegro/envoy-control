@@ -15,10 +15,10 @@ open class LuaTestsContainer : BaseGenericContainer<LuaTestsContainer>("vpanov/l
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 
-    val LUA_SRC_DIR = "lua"
-    val LUA_SRC_DIR_DEST = "/lua"
-    val LUA_SPEC_DIR = "lua_spec"
-    val LUA_SPEC_DIR_DST = "/lua_spec"
+    open val LUA_SRC_DIR = "lua"
+    open val LUA_SRC_DIR_DEST = "/lua"
+    open val LUA_SPEC_DIR = "lua_spec"
+    open val LUA_SPEC_DIR_DST = "/lua_spec"
 
     override fun configure() {
         super.configure()
