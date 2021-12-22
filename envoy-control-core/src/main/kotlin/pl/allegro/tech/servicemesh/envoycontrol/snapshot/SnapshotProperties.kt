@@ -54,6 +54,7 @@ class AccessLogProperties {
         "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
     var level = "TRACE"
     var logger = "envoy.AccessLog"
+    var customFields = mapOf<String, String>()
 }
 
 class OutgoingPermissionsProperties {
