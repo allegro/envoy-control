@@ -45,6 +45,6 @@ The package should be available in `{root}/envoy-control-runner/build/distributi
 To apply [ktlint](https://ktlint.github.io/) formatting rules to IntelliJ IDEA. Run: `./gradlew ktlintApplyToIdea`
 
 ## Linter
-A linter - [detekt](https://arturbosch.github.io/detekt/) runs when Envoy Control is built. You can run it separately:
+A linter - [detekt](https://detekt.github.io/detekt/) runs when Envoy Control is built. You can run it separately:
 `./gradlew detekt`.
 
