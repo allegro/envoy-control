@@ -2,10 +2,12 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.HealthCheck
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming.TimeoutPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRedirectRoute
@@ -96,9 +98,18 @@ internal class EnvoyIngressRoutesFactoryTest {
                 timeoutPolicy = TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout)
             )
         )
+        val group = ServicesGroup(
+            CommunicationMode.XDS,
+            "service_1",
+            proxySettingsOneEndpoint
+        )
 
         // when
-        val routeConfig = routesFactory.createSecuredIngressRouteConfig("service_1", proxySettingsOneEndpoint)
+        val routeConfig = routesFactory.createSecuredIngressRouteConfig(
+            "service_1",
+            proxySettingsOneEndpoint,
+            group
+        )
 
         // then
         routeConfig
@@ -136,17 +147,26 @@ internal class EnvoyIngressRoutesFactoryTest {
             ingress.addRequestedAuthorityHeaderToResponse = true
         })
         val proxySettingsOneEndpoint = ProxySettings(
-                incoming = Incoming(
-                        healthCheck = HealthCheck(
-                                path = "",
-                                clusterName = "health_check_cluster"
-                        ),
-                        permissionsEnabled = true
-                )
+            incoming = Incoming(
+                healthCheck = HealthCheck(
+                    path = "",
+                    clusterName = "health_check_cluster"
+                ),
+                permissionsEnabled = true
+            )
+        )
+        val group = ServicesGroup(
+            CommunicationMode.XDS,
+            "service_1",
+            proxySettingsOneEndpoint
         )
 
         // when
-        val routeConfig = routesFactory.createSecuredIngressRouteConfig("service_1", proxySettingsOneEndpoint)
+        val routeConfig = routesFactory.createSecuredIngressRouteConfig(
+            "service_1",
+            proxySettingsOneEndpoint,
+            group
+        )
 
         // then
         routeConfig
