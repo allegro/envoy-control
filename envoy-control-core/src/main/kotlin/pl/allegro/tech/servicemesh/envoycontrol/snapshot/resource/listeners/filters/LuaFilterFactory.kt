@@ -91,6 +91,18 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
                             .setStringValue(group.serviceName)
                             .build()
                     )
+                    .putFields(
+                        "ingress_host",
+                        Value.newBuilder()
+                            .setStringValue(group.listenersConfig?.ingressHost ?: "")
+                            .build()
+                    )
+                    .putFields(
+                        "ingress_port",
+                        Value.newBuilder()
+                            .setStringValue(group.listenersConfig?.ingressPort.toString())
+                            .build()
+                    )
                     .build()
             ).build()
     }
