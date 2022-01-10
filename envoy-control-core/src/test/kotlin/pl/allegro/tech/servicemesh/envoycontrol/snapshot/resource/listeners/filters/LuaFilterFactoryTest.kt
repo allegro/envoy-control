@@ -15,15 +15,13 @@ internal class LuaFilterFactoryTest {
     fun `should create metadata with service name, host and port`() {
         // given
         val expectedServiceName = "service-1"
-        val expectedIngressHost = "127.0.0.1"
-        val expectedIngressPort = 3000
+        val expectedDiscoveryServiceName = "consul-service-1"
         val group: Group = ServicesGroup(
             communicationMode = CommunicationMode.XDS,
             serviceName = expectedServiceName,
+            discoveryServiceName = expectedDiscoveryServiceName,
             listenersConfig = ListenersConfig(
                 ingressHost = "127.0.0.1",
-                ingressPort = expectedIngressPort,
-                egressHost = expectedIngressHost,
                 egressPort = 3001,
                 accessLogFilterSettings = AccessLogFilterSettings(null)
             )
@@ -36,18 +34,14 @@ internal class LuaFilterFactoryTest {
             .getFilterMetadataOrThrow("envoy.filters.http.lua")
             .getFieldsOrThrow("service_name")
             .stringValue
-        val givenIngressHost = metadata
+
+        val givenDiscoveryServiceName = metadata
             .getFilterMetadataOrThrow("envoy.filters.http.lua")
-            .getFieldsOrThrow("ingress_host")
-            .stringValue
-        val givenIngressPort = metadata
-            .getFilterMetadataOrThrow("envoy.filters.http.lua")
-            .getFieldsOrThrow("ingress_port")
+            .getFieldsOrThrow("discovery_service_name")
             .stringValue
 
         // then
         assertThat(givenServiceName).isEqualTo(expectedServiceName)
-        assertThat(givenIngressHost).isEqualTo(expectedIngressHost)
-        assertThat(givenIngressPort).isEqualTo(expectedIngressPort.toString())
+        assertThat(givenDiscoveryServiceName).isEqualTo(expectedDiscoveryServiceName)
     }
 }
