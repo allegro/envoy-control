@@ -137,7 +137,7 @@ class MetadataNodeGroup(
     private fun createV3Group(node: NodeV3): Group {
         val nodeMetadata = NodeMetadata(node.metadata, properties)
         val serviceName = serviceName(nodeMetadata)
-        val discoveryServiceName = discoveryServiceName(nodeMetadata)
+        val discoveryServiceName = nodeMetadata.discoveryServiceName
         val proxySettings = proxySettings(nodeMetadata)
         val listenersConfig = createListenersConfig(node.id, node.metadata)
 
@@ -168,10 +168,6 @@ class MetadataNodeGroup(
 
     private fun serviceName(metadata: NodeMetadata): String {
         return metadata.serviceName.orEmpty()
-    }
-
-    private fun discoveryServiceName(metadata: NodeMetadata): String {
-        return metadata.discoveryServiceName.orEmpty()
     }
 
     private fun proxySettings(metadata: NodeMetadata): ProxySettings {
