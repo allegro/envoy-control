@@ -101,6 +101,7 @@ internal class EnvoyIngressRoutesFactoryTest {
         val group = ServicesGroup(
             CommunicationMode.XDS,
             "service_1",
+            "service_1",
             proxySettingsOneEndpoint
         )
 
@@ -157,6 +158,7 @@ internal class EnvoyIngressRoutesFactoryTest {
         )
         val group = ServicesGroup(
             CommunicationMode.XDS,
+            "service_1",
             "service_1",
             proxySettingsOneEndpoint
         )

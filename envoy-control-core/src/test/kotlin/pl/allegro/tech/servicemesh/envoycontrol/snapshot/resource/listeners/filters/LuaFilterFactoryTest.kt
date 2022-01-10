@@ -12,19 +12,14 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 internal class LuaFilterFactoryTest {
 
     @Test
-    fun `should create metadata with service name, host and port`() {
+    fun `should create metadata with service name and discovery service name`() {
         // given
         val expectedServiceName = "service-1"
         val expectedDiscoveryServiceName = "consul-service-1"
         val group: Group = ServicesGroup(
             communicationMode = CommunicationMode.XDS,
             serviceName = expectedServiceName,
-            discoveryServiceName = expectedDiscoveryServiceName,
-            listenersConfig = ListenersConfig(
-                ingressHost = "127.0.0.1",
-                egressPort = 3001,
-                accessLogFilterSettings = AccessLogFilterSettings(null)
-            )
+            discoveryServiceName = expectedDiscoveryServiceName
         )
         val factory = LuaFilterFactory(IncomingPermissionsProperties())
 

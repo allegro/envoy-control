@@ -45,6 +45,7 @@ class EnvoySnapshotFactoryTest {
         const val EGRESS_PORT = 3380
         const val CLUSTER_NAME = "cluster-name"
         const val DEFAULT_SERVICE_NAME = "service-name"
+        const val DEFAULT_DISCOVER_SERVICE_NAME = "service-name"
         const val DEFAULT_IDLE_TIMEOUT = 100L
     }
 
@@ -205,6 +206,7 @@ class EnvoySnapshotFactoryTest {
     private fun createServicesGroup(
         mode: CommunicationMode = CommunicationMode.XDS,
         serviceName: String = DEFAULT_SERVICE_NAME,
+        discoveryServiceName: String = DEFAULT_DISCOVER_SERVICE_NAME,
         dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
         listenersConfigExists: Boolean = true
     ): ServicesGroup {
@@ -215,6 +217,7 @@ class EnvoySnapshotFactoryTest {
         return ServicesGroup(
             mode,
             serviceName,
+            discoveryServiceName,
             ProxySettings().with(serviceDependencies = serviceDependencies(*dependencies)),
             listenersConfig
         )
@@ -223,6 +226,7 @@ class EnvoySnapshotFactoryTest {
     private fun createAllServicesGroup(
         mode: CommunicationMode = CommunicationMode.XDS,
         serviceName: String = DEFAULT_SERVICE_NAME,
+        discoveryServiceName: String = DEFAULT_DISCOVER_SERVICE_NAME,
         dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
         defaultServiceSettings: DependencySettings,
         listenersConfigExists: Boolean = true
@@ -234,6 +238,7 @@ class EnvoySnapshotFactoryTest {
         return AllServicesGroup(
             mode,
             serviceName,
+            discoveryServiceName,
             ProxySettings().with(serviceDependencies = serviceDependencies(*dependencies), defaultServiceSettings = defaultServiceSettings),
             listenersConfig
         )
