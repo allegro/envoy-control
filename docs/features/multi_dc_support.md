@@ -18,7 +18,7 @@ The extra challenge here is to not end up in an infinite loop.
 
 ### Instance synchronization
 The second strategy is to have all instances from all clusters available in Envoy but with different
-[priorities](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/load_balancing/priority).
+[priorities](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/priority).
 Only if there are no instances in the local cluster, an instance from remote cluster will be used.
 The main benefit of this approach is a lack of single point of failure and maintainability at the cost of extra logic
 in Control Plane.
