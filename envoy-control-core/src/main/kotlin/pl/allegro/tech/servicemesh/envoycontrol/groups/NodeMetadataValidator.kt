@@ -41,10 +41,15 @@ class ServiceNameNotProvidedException : NodeMetadataValidationException(
     "Service name has not been provided."
 )
 
+class RateLimitIncorrectValidationException(rateLimit: String?) : NodeMetadataValidationException(
+    "Rate limit value: $rateLimit is incorrect."
+)
+
 class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
     companion object {
+        private val RATE_LIMIT_PATTERN = Regex("^(?:0|[1-9][0-9]*)\\/[s,m,h]$")
         private val logger by logger()
     }
 
@@ -87,6 +92,7 @@ class NodeMetadataValidator(
         validateServiceName(metadata)
         validateDependencies(metadata)
         validateIncomingEndpoints(metadata)
+        validateIncomingRateLimitEndpoints(metadata)
         validateConfigurationMode(metadata)
     }
 
@@ -131,6 +137,22 @@ class NodeMetadataValidator(
                 if (metadata.serviceName !in tlsProperties.servicesAllowedToUseWildcard) {
                     throw WildcardPrincipalValidationException(metadata.serviceName)
                 }
+            }
+        }
+    }
+
+    private fun validateIncomingRateLimitEndpoints(metadata: NodeMetadata) {
+        metadata.proxySettings.incoming.rateLimitEndpoints.forEach { incomingRateLimitEndpoint ->
+            val clients = incomingRateLimitEndpoint.clients.map { it.name }
+
+            if (clients.contains(tlsProperties.wildcardClientIdentifier)) {
+                if (clients.size != 1) {
+                    throw WildcardPrincipalMixedWithOthersValidationException(metadata.serviceName)
+                }
+            }
+
+            if (!(incomingRateLimitEndpoint.rateLimit matches RATE_LIMIT_PATTERN))  {
+                throw RateLimitIncorrectValidationException(incomingRateLimitEndpoint.rateLimit)
             }
         }
     }

@@ -5,12 +5,14 @@ import com.google.protobuf.Duration
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
+import io.envoyproxy.envoy.config.route.v3.RateLimit
 import io.envoyproxy.envoy.config.route.v3.RedirectAction
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.Route
 import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.VirtualCluster
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 
@@ -209,6 +211,48 @@ fun Route.ingressRoute() {
     this.matchingOnPrefix("/")
         .publicAccess()
         .toCluster("local_service")
+}
+
+fun Route.hasRateLimitsInOrder(vararg conditions: RateLimit.() -> Unit): Route = apply {
+    assertThat(this.route.rateLimitsList).hasSameSizeAs(conditions)
+    assertThat(
+        this.route.rateLimitsList.zip(conditions)
+            .map { (route, condition) -> condition(route) }
+    ).hasSameSizeAs(conditions)
+}
+
+fun RateLimit.hasOnlyHeaderValueMatchActionWithMatchersInOrder(vararg conditions: HeaderMatcher.() -> Unit): RateLimit = apply {
+    assertThat(this.actionsCount).isEqualTo(1)
+    val action = this.getActions(0)
+    assertThat(action.actionSpecifierCase).isEqualTo(RateLimit.Action.ActionSpecifierCase.HEADER_VALUE_MATCH)
+    assertThat(action.headerValueMatch.headersList).hasSameSizeAs(conditions)
+    assertThat(
+        action.headerValueMatch.headersList.zip(conditions)
+            .map { (route, condition) -> condition(route) }
+    ).hasSameSizeAs(conditions)
+}
+
+fun HeaderMatcher.prefixPathMatcher(prefix: String) {
+    assertThat(this.headerMatchSpecifierCase).isEqualTo(HeaderMatcher.HeaderMatchSpecifierCase.PREFIX_MATCH)
+    assertThat(this.name).isEqualTo(":path")
+    assertThat(this.prefixMatch).isEqualTo(prefix)
+}
+
+fun HeaderMatcher.pathMatcher(prefix: String) {
+    assertThat(this.headerMatchSpecifierCase).isEqualTo(HeaderMatcher.HeaderMatchSpecifierCase.EXACT_MATCH)
+    assertThat(this.name).isEqualTo(":path")
+    assertThat(this.exactMatch).isEqualTo(prefix)
+}
+
+fun HeaderMatcher.googleRegexMethodMatcher(regex: String) = googleRegexMatcher(":method", regex)
+
+fun HeaderMatcher.googleRegexPathMatcher(regex: String) = googleRegexMatcher(":path", regex)
+
+fun HeaderMatcher.googleRegexMatcher(name: String, prefix: String) {
+    assertThat(this.headerMatchSpecifierCase).isEqualTo(HeaderMatcher.HeaderMatchSpecifierCase.SAFE_REGEX_MATCH)
+    assertThat(this.name).isEqualTo(name)
+    assertThat(this.safeRegexMatch.engineTypeCase).isEqualTo(RegexMatcher.EngineTypeCase.GOOGLE_RE2)
+    assertThat(this.safeRegexMatch.regex).isEqualTo(prefix)
 }
 
 fun configDumpAuthorizedRoute(): (Route) -> Unit = {

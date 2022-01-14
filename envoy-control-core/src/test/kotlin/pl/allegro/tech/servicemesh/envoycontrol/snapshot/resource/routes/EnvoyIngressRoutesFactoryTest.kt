@@ -2,27 +2,37 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.HealthCheck
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming.TimeoutPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminPostRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRedirectRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.adminRoute
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpAuthorizedRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.configDumpRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.googleRegexMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.googleRegexMethodMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.googleRegexPathMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOneDomain
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOnlyHeaderValueMatchActionWithMatchersInOrder
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasOnlyRoutesInOrder
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRateLimitsInOrder
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeadersToRemove
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasSingleVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.groups.pathMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.prefixPathMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPoliciesProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
@@ -93,7 +103,15 @@ internal class EnvoyIngressRoutesFactoryTest {
                     clusterName = "health_check_cluster"
                 ),
                 permissionsEnabled = true,
-                timeoutPolicy = TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout)
+                timeoutPolicy = TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout),
+                rateLimitEndpoints = listOf(
+                    IncomingRateLimitEndpoint("/hello", PathMatchingType.PATH_PREFIX, setOf("GET", "POST"),
+                        setOf(ClientWithSelector("client-1", "selector")), "100/s"),
+                    IncomingRateLimitEndpoint("/banned", PathMatchingType.PATH, setOf("GET"),
+                        setOf(ClientWithSelector("*")), "0/m"),
+                    IncomingRateLimitEndpoint("/a/.*", PathMatchingType.PATH_REGEX, emptySet(),
+                        setOf(ClientWithSelector("client-2")), "0/m")
+                )
             )
         )
 
@@ -111,6 +129,27 @@ internal class EnvoyIngressRoutesFactoryTest {
                         ingressRoute()
                         matchingOnMethod("GET")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
+                        hasRateLimitsInOrder(
+                            {
+                                hasOnlyHeaderValueMatchActionWithMatchersInOrder(
+                                    { prefixPathMatcher( "/hello") },
+                                    { googleRegexMethodMatcher( "^GET$|^POST$") },
+                                    { googleRegexMatcher( "x-service-name", "^client-1:selector$") }
+                                )
+                            },
+                            {
+                                hasOnlyHeaderValueMatchActionWithMatchersInOrder(
+                                    { pathMatcher( "/banned") },
+                                    { googleRegexMethodMatcher( "^GET$") }
+                                )
+                            },
+                            {
+                                hasOnlyHeaderValueMatchActionWithMatchersInOrder(
+                                    { googleRegexPathMatcher( "/a/.*") },
+                                    { googleRegexMatcher( "x-service-name", "^client-2$") }
+                                )
+                            }
+                        )
                     },
                     {
                         ingressRoute()

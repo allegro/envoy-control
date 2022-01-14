@@ -17,7 +17,8 @@ class ConsulOperations(port: Int) {
         address: String,
         port: Int,
         registerDefaultCheck: Boolean = false,
-        tags: List<String> = listOf("a")
+        tags: List<String> = listOf("a"),
+        beforeRegistration: (NewService) -> Unit = {}
     ): String {
         val service = NewService().also {
             it.id = id
@@ -30,6 +31,7 @@ class ConsulOperations(port: Int) {
                 check.interval = "3s"
             } else NewService.Check()
         }
+        beforeRegistration.invoke(service)
         client.agentServiceRegister(service)
         return service.id
     }
@@ -39,8 +41,9 @@ class ConsulOperations(port: Int) {
         id: String = UUID.randomUUID().toString(),
         name: String,
         registerDefaultCheck: Boolean = false,
-        tags: List<String> = listOf("a")
-    ) = registerService(id, name, extension.container().ipAddress(), extension.container().port(), registerDefaultCheck, tags)
+        tags: List<String> = listOf("a"),
+        beforeRegistration: (NewService) -> Unit = {}
+    ) = registerService(id, name, extension.container().ipAddress(), extension.container().port(), registerDefaultCheck, tags, beforeRegistration)
 
     fun registerServiceWithEnvoyOnIngress(
         extension: EnvoyExtension,

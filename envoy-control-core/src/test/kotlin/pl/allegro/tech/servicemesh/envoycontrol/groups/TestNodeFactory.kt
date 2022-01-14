@@ -73,9 +73,13 @@ fun ProxySettings.with(
         Durations.fromSeconds(120),
         Durations.fromSeconds(120),
         Durations.fromSeconds(120)
-    ))
+    )),
+    rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList()
 ): ProxySettings {
     return copy(
+        incoming = incoming.copy(
+            rateLimitEndpoints = rateLimitEndpoints
+        ),
         outgoing = Outgoing(
             serviceDependencies = serviceDependencies.toList(),
             domainDependencies = domainDependencies.toList(),

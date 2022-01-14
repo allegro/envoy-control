@@ -31,6 +31,7 @@ class SnapshotProperties {
     var dynamicForwardProxy = DynamicForwardProxyProperties()
     var jwt = JwtFilterProperties()
     var requireServiceName = false
+    var rateLimit = RateLimitProperties()
 }
 
 class MetricsProperties {
@@ -342,6 +343,11 @@ class JwtFilterProperties {
     var defaultVerificationType = OAuth.Verification.OFFLINE
     var defaultOAuthPolicy = OAuth.Policy.STRICT
     var providers = mapOf<ProviderName, OAuthProvider>()
+}
+
+class RateLimitProperties {
+    var domain: String = "rl"
+    var serviceName: String = "ratelimit-grpc"
 }
 
 typealias ProviderName = String
