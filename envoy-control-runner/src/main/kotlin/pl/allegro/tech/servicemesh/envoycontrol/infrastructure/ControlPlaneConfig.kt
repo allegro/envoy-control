@@ -131,6 +131,7 @@ class ControlPlaneConfig {
         GlobalStateChanges(clusterStateChanges, meterRegistry, properties.sync)
 
     @Bean
+    @ConditionalOnMissingBean(EnvoyHttpFilters::class)
     fun envoyHttpFilters(
         properties: EnvoyControlProperties
     ): EnvoyHttpFilters {

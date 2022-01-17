@@ -316,9 +316,8 @@ class EnvoySnapshotFactoryTest {
         val ingressRoutesFactory = EnvoyIngressRoutesFactory(
             SnapshotProperties(),
             EnvoyHttpFilters(
-                emptyList(), emptyList(),
-                Metadata.getDefaultInstance()
-            )
+                emptyList(), emptyList()
+            ) { Metadata.getDefaultInstance() }
         )
         val egressRoutesFactory = EnvoyEgressRoutesFactory(properties)
         val clustersFactory = EnvoyClustersFactory(properties)
