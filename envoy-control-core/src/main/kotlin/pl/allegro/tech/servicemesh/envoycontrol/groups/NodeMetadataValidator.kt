@@ -49,7 +49,7 @@ class NodeMetadataValidator(
     val properties: SnapshotProperties
 ) : DiscoveryServerCallbacks {
     companion object {
-        private val RATE_LIMIT_PATTERN = Regex("^(?:0|[1-9][0-9]*)\\/[s,m,h]$")
+        private val RATE_LIMIT_PATTERN = Regex("^(?:0|[1-9][0-9]*)/[smh]$")
         private val logger by logger()
     }
 

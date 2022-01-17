@@ -218,8 +218,8 @@ class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot,
         egressRouteSpecifications: Collection<RouteSpecification>
     ): List<ClusterLoadAssignment> =
-        ((egressRouteSpecifications.map { it.clusterName } +
-          if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()))
+        (egressRouteSpecifications.map { it.clusterName } +
+          if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList())
         .mapNotNull { globalSnapshot.endpoints.resources()[it] }
 
     private fun newSnapshotForGroup(

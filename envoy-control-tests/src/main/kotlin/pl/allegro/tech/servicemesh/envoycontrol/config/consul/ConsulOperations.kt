@@ -43,7 +43,15 @@ class ConsulOperations(port: Int) {
         registerDefaultCheck: Boolean = false,
         tags: List<String> = listOf("a"),
         beforeRegistration: (NewService) -> Unit = {}
-    ) = registerService(id, name, extension.container().ipAddress(), extension.container().port(), registerDefaultCheck, tags, beforeRegistration)
+    ) = registerService(
+        id,
+        name,
+        extension.container().ipAddress(),
+        extension.container().port(),
+        registerDefaultCheck,
+        tags,
+        beforeRegistration
+    )
 
     fun registerServiceWithEnvoyOnIngress(
         extension: EnvoyExtension,
@@ -51,7 +59,14 @@ class ConsulOperations(port: Int) {
         name: String,
         registerDefaultCheck: Boolean = false,
         tags: List<String> = listOf("a")
-    ) = registerService(id, name, extension.container.ipAddress(), EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT, registerDefaultCheck, tags)
+    ) = registerService(
+        id,
+        name,
+        extension.container.ipAddress(),
+        EnvoyContainer.INGRESS_LISTENER_CONTAINER_PORT,
+        registerDefaultCheck,
+        tags
+    )
 
     fun deregisterService(id: String) {
         client.agentServiceDeregister(id)

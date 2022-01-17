@@ -12,6 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.RedisBasedRateLimitContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.RedisContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
@@ -94,7 +95,7 @@ class XdsRateLimitTest : RateLimitTest {
     override fun rateLimitService() = rateLimitService
 }
 
-private val RATE_LIMIT_CONFIG = """
+val RATE_LIMIT_CONFIG = """
               node:
                 metadata:
                   proxy_settings:
@@ -128,7 +129,7 @@ interface RateLimitTest {
 
     fun envoy(): EnvoyExtension
 
-    fun rateLimitService(): ServiceExtension<RedisBasedRateLimitContainer>
+    fun rateLimitService(): ServiceExtension<out HttpContainer>
 
     @Test
     fun `should limit using rateLimit`() {

@@ -345,10 +345,10 @@ class JwtFilterProperties {
     var providers = mapOf<ProviderName, OAuthProvider>()
 }
 
-class RateLimitProperties {
-    var domain: String = "rl"
+data class RateLimitProperties(
+    var domain: String = "rl",
     var serviceName: String = "ratelimit-grpc"
-}
+)
 
 typealias ProviderName = String
 typealias TokenField = String

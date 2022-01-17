@@ -7,7 +7,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericCon
 
 class RedisBasedRateLimitContainer(
     private val redis: RedisContainer
-): GenericContainer<EchoContainer>("envoyproxy/ratelimit:4d2efd61"), ServiceContainer {
+): GenericContainer<EchoContainer>("envoyproxy/ratelimit:4d2efd61"), HttpContainer {
     override fun configure() {
         super.configure()
         withExposedPorts(HTTP_PORT, GRPC_PORT, DEBUG_PORT)
@@ -33,7 +33,7 @@ class RedisBasedRateLimitContainer(
 
     override fun port() = GRPC_PORT
 
-    fun httpPort() = HTTP_PORT
+    override fun httpPort() = HTTP_PORT
 
     companion object {
         const val DEBUG_PORT = 5698
