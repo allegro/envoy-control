@@ -23,7 +23,7 @@ class EnvoyContainer(
         .from(image)
         .run("apt-get update && apt-get install -y curl iproute2 iptables dnsmasq")
         .run("adduser --disabled-password --gecos \"\" test")
-) {
+
 
     companion object {
         val logger by loggerDelegate()
@@ -37,7 +37,7 @@ class EnvoyContainer(
         const val ENVOY_UID_ENV_NAME = "ENVOY_UID"
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
-        const val DEFAULT_IMAGE = "envoyproxy/envoy:v1.20.0"
+        const val DEFAULT_IMAGE = "envoyproxy/envoy:v1.20.1"
         private const val ADMIN_PORT = 10000
     }
 
@@ -69,8 +69,7 @@ class EnvoyContainer(
             config.privateKey,
             config.serviceName,
             "--config-yaml", config.configOverride,
-            "-l", logLevel,
-            "--bootstrap-version", apiVersion.toString()
+            "-l", logLevel
         )
     }
 
