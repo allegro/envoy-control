@@ -91,6 +91,12 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
                             .setStringValue(group.serviceName)
                             .build()
                     )
+                    .putFields(
+                        "discovery_service_name",
+                        Value.newBuilder()
+                            .setStringValue(group.discoveryServiceName ?: "")
+                            .build()
+                    )
                     .build()
             ).build()
     }
