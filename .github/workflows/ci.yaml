@@ -40,11 +40,11 @@ jobs:
       - name: Test with Gradle
         run: ./gradlew clean check
 
-      - name: Junit report
-        uses: allegro-actions/junit-reporter@v1
-        if: ${{ success() || failure() }}
-        with:
-          path: '**/test-results/*/*.xml'
+#      - name: Junit report
+#        uses: allegro-actions/junit-reporter@v1
+#        if: ${{ success() || failure() }}
+#        with:
+#          path: '**/test-results/*/*.xml'
 
       - name: Cleanup Gradle Cache
         run: |
