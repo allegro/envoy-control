@@ -137,7 +137,7 @@ interface RateLimitTest {
         val extension = rateLimitService()
         consul().server.operations.registerService(extension = extension,
             name = "ratelimit-grpc",
-            tags = listOf("envoy"), //this turns on HTTP2
+            tags = listOf("envoy"), // this turns on HTTP2
             beforeRegistration = { service ->
                 service.check.http = "http://${extension.container().ipAddress()}:${extension.container().httpPort()}/healthcheck"
                 service.check.interval = "3s"
@@ -191,7 +191,7 @@ interface RateLimitTest {
     }
 
     private fun awaitBeginningOfNextSecond() {
-        val nextSecondStart = ((System.currentTimeMillis() / 1000) + 1)*1000
+        val nextSecondStart = ((System.currentTimeMillis() / 1000) + 1) * 1000
         untilAsserted(poll = Duration.ofMillis(1)) {
             assertThat(System.currentTimeMillis()).isGreaterThanOrEqualTo(nextSecondStart)
         }
@@ -209,7 +209,7 @@ interface RateLimitTest {
         untilAsserted(poll = poll) {
             counter++
             val response = envoy().ingressOperations.callLocalService(endpoint,
-                clientServiceName?.let { headersOf("x-service-name", clientServiceName)} ?: headersOf())
+                clientServiceName?.let { headersOf("x-service-name", clientServiceName) } ?: headersOf())
 
             assertThat(response.code).isEqualTo(429)
         }
