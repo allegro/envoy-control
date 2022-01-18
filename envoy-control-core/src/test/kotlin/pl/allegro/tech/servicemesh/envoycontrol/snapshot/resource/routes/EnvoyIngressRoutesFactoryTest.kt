@@ -143,21 +143,21 @@ internal class EnvoyIngressRoutesFactoryTest {
                         hasRateLimitsInOrder(
                             {
                                 hasOnlyHeaderValueMatchActionWithMatchersInOrder(
-                                    { prefixPathMatcher( "/hello") },
-                                    { googleRegexMethodMatcher( "^GET$|^POST$") },
-                                    { googleRegexMatcher( "x-service-name", "^client-1:selector$") }
+                                    { prefixPathMatcher("/hello") },
+                                    { googleRegexMethodMatcher("^GET$|^POST$") },
+                                    { googleRegexMatcher("x-service-name", "^client-1:selector$") }
                                 )
                             },
                             {
                                 hasOnlyHeaderValueMatchActionWithMatchersInOrder(
-                                    { pathMatcher( "/banned") },
-                                    { googleRegexMethodMatcher( "^GET$") }
+                                    { pathMatcher("/banned") },
+                                    { googleRegexMethodMatcher("^GET$") }
                                 )
                             },
                             {
                                 hasOnlyHeaderValueMatchActionWithMatchersInOrder(
-                                    { googleRegexPathMatcher( "/a/.*") },
-                                    { googleRegexMatcher( "x-service-name", "^client-2$") }
+                                    { googleRegexPathMatcher("/a/.*") },
+                                    { googleRegexMatcher("x-service-name", "^client-2$") }
                                 )
                             }
                         )

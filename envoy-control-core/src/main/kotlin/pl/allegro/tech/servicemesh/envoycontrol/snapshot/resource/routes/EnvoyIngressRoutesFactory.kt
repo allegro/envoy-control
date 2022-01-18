@@ -74,7 +74,7 @@ class EnvoyIngressRoutesFactory(
                 hvm.addHeaders(HeaderMatcher.newBuilder()
                     .setRe2Match(endpoint.methods.joinToString(
                         separator = "|",
-                        transform = { "^$it\$"}))
+                        transform = { "^$it\$" }))
                     .setName(":method")
                 )
             }
@@ -82,7 +82,7 @@ class EnvoyIngressRoutesFactory(
                 hvm.addHeaders(HeaderMatcher.newBuilder()
                     .setRe2Match(endpoint.clients.joinToString(
                         separator = "|",
-                        transform = { "^${it.compositeName()}\$"}))
+                        transform = { "^${it.compositeName()}\$" }))
                     .setName(properties.incomingPermissions.serviceNameHeader)
                 )
             }

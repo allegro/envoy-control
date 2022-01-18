@@ -6,7 +6,7 @@ import java.security.MessageDigest
 
 fun getRuleId(serviceName: String, endpoint: IncomingRateLimitEndpoint): String {
     val methods = endpoint.methods.sorted().joinToString()
-    val clients = endpoint.clients.sorted().joinToString(transform = { "${it.name},${it.selector}"})
+    val clients = endpoint.clients.sorted().joinToString(transform = { "${it.name},${it.selector}" })
     val key = "$serviceName,${endpoint.path},${endpoint.pathMatchingType},$methods,$clients"
 
     return "${serviceName.replace("-", "_")}_${key.md5()}"

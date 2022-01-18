@@ -151,7 +151,7 @@ class NodeMetadataValidator(
                 }
             }
 
-            if (!(incomingRateLimitEndpoint.rateLimit matches RATE_LIMIT_PATTERN))  {
+            if (!(incomingRateLimitEndpoint.rateLimit matches RATE_LIMIT_PATTERN)) {
                 throw RateLimitIncorrectValidationException(incomingRateLimitEndpoint.rateLimit)
             }
         }
