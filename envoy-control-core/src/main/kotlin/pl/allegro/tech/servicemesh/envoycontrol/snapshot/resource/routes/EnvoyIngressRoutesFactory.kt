@@ -66,12 +66,12 @@ class EnvoyIngressRoutesFactory(
     ): RouteAction.Builder = apply {
         rateLimitEndpoints.forEach { endpoint ->
             val ruleId = getRuleId(serviceName, endpoint)
-            val hvm = RateLimit.Action.HeaderValueMatch.newBuilder()
+            val match = RateLimit.Action.HeaderValueMatch.newBuilder()
                 .setDescriptorValue(ruleId)
                 .addHeaders(createHeaderMatcher(endpoint.pathMatchingType, endpoint.path))
 
             if (endpoint.methods.isNotEmpty()) {
-                hvm.addHeaders(HeaderMatcher.newBuilder()
+                match.addHeaders(HeaderMatcher.newBuilder()
                     .setRe2Match(endpoint.methods.joinToString(
                         separator = "|",
                         transform = { "^$it\$" }))
@@ -79,7 +79,7 @@ class EnvoyIngressRoutesFactory(
                 )
             }
             if (endpoint.clients.isNotEmpty() && endpoint.clients != allClients) {
-                hvm.addHeaders(HeaderMatcher.newBuilder()
+                match.addHeaders(HeaderMatcher.newBuilder()
                     .setRe2Match(endpoint.clients.joinToString(
                         separator = "|",
                         transform = { "^${it.compositeName()}\$" }))
@@ -90,7 +90,7 @@ class EnvoyIngressRoutesFactory(
                 RateLimit.newBuilder()
                     .addActions(
                         RateLimit.Action.newBuilder()
-                            .setHeaderValueMatch(hvm)
+                            .setHeaderValueMatch(match)
                     )
                     .setLimit(
                         RateLimit.Override.newBuilder()

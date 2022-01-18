@@ -19,7 +19,7 @@ class RateLimitFilterFactoryTest {
     @Test
     fun `should not create ratelimit filter if no rate limits exist`() {
         // given
-        val group = createGroupWithIncomingRateLimits()
+        val group = createGroupWithIncomingRateLimits("service-abc")
 
         // when
         val filter = rateLimitFilterFactory.createGlobalRateLimitFilter(group)
@@ -31,7 +31,7 @@ class RateLimitFilterFactoryTest {
     @Test
     fun `should create ratelimit filter with proper domain and ratelimit service name`() {
         // given
-        val group = createGroupWithIncomingRateLimits(
+        val group = createGroupWithIncomingRateLimits("service-abc",
             IncomingRateLimitEndpoint("/hello", rateLimit = "0/s")
         )
         properties.domain = "rl_domain"
@@ -53,7 +53,7 @@ class RateLimitFilterFactoryTest {
     @Test
     fun `should not create Lua filter if no rate limits exist`() {
         // given
-        val group = createGroupWithIncomingRateLimits()
+        val group = createGroupWithIncomingRateLimits("service-abc")
 
         // when
         val filter = rateLimitFilterFactory.createLuaLimitOverrideFilter(group)
@@ -65,7 +65,7 @@ class RateLimitFilterFactoryTest {
     @Test
     fun `should create Lua filter with correct code`() {
         // given
-        val group = createGroupWithIncomingRateLimits(
+        val group = createGroupWithIncomingRateLimits("service-abc",
                 IncomingRateLimitEndpoint("/hello", rateLimit = "13/s"),
                 IncomingRateLimitEndpoint("/banned", rateLimit = "178/m")
         )
@@ -81,12 +81,12 @@ class RateLimitFilterFactoryTest {
         val lua = config.unpack(Lua::class.java)
         assertThat(lua.inlineCode.smartTrimmed()).containsExactly(*"""
             function envoy_on_request(request_handle)
-                request_handle:streamInfo():dynamicMetadata():set("envoy.filters.http.ratelimit.override", "_ecb42b24b3c81841bfdd244fedf430f8", {
+                request_handle:streamInfo():dynamicMetadata():set("envoy.filters.http.ratelimit.override", "service_abc_b1629b9eff2749d943f30a0885e21273", {
                     unit = "SECOND",
                     requests_per_unit = 13
                 });
                                                       
-                request_handle:streamInfo():dynamicMetadata():set("envoy.filters.http.ratelimit.override", "_1a28dd355c704b393dd4d8b6e44a9d1f", {
+                request_handle:streamInfo():dynamicMetadata():set("envoy.filters.http.ratelimit.override", "service_abc_eb67b9419a85455148e25fd02280305b", {
                     unit = "MINUTE",
                     requests_per_unit = 178
                 });                                                      
@@ -95,10 +95,13 @@ class RateLimitFilterFactoryTest {
         )
     }
 
-    private fun createGroupWithIncomingRateLimits(vararg rateLimitEndpoints: IncomingRateLimitEndpoint): Group =
-        ServicesGroup(CommunicationMode.ADS, proxySettings = ProxySettings(incoming = Incoming(
-            rateLimitEndpoints = rateLimitEndpoints.toList()
-        )))
+    private fun createGroupWithIncomingRateLimits(serviceName: String, vararg rateLimitEndpoints: IncomingRateLimitEndpoint): Group =
+        ServicesGroup(CommunicationMode.ADS,
+            serviceName = serviceName,
+            proxySettings = ProxySettings(incoming = Incoming(
+                rateLimitEndpoints = rateLimitEndpoints.toList()
+            ))
+        )
 
     private fun String.smartTrimmed(): Array<String> =
         lines()
