@@ -299,7 +299,8 @@ private fun Value.toOutgoingTimeoutPolicy(default: Outgoing.TimeoutPolicy): Outg
     )
 }
 
-private fun Value?.toRateLimit() = this?.stringValue ?: throw NodeMetadataValidationException("rateLimit value cannot be null")
+private fun Value?.toRateLimit() =
+    this?.stringValue ?: throw NodeMetadataValidationException("rateLimit value cannot be null")
 
 private fun Value.toOAuth(properties: SnapshotProperties): OAuth {
     val provider = this.field("provider").toOauthProvider(properties)

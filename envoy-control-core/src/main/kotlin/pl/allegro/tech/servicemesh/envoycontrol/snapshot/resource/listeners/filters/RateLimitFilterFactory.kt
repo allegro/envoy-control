@@ -62,10 +62,10 @@ class RateLimitFilterFactory(
             val (requestsPerUnit, unit) = convertToFilterRateLimit(endpoint.rateLimit)
 
             """
-                 request_handle:streamInfo():dynamicMetadata():set("envoy.filters.http.ratelimit.override", "$ruleId", {
-                   unit = "$unit",
-                   requests_per_unit = $requestsPerUnit
-                 });                                      
+             request_handle:streamInfo():dynamicMetadata():set("envoy.filters.http.ratelimit.override", "$ruleId", {
+               unit = "$unit",
+               requests_per_unit = $requestsPerUnit
+             });                                      
             """.trimIndent()
         }
 
@@ -75,8 +75,10 @@ class RateLimitFilterFactory(
                 "s" -> "SECOND"
                 "m" -> "MINUTE"
                 "h" -> "HOUR"
-                else -> throw RuntimeException("Internal exception: invalid unit ${it[1]} (should be validated earlier)")
+                else -> throw InternalInvalidUnitException(it[1])
             }
         }
-
 }
+
+private class InternalInvalidUnitException(unit: String):
+    RuntimeException("Internal exception: invalid unit $unit (should be validated earlier)")

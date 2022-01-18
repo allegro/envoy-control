@@ -37,7 +37,10 @@ class EnvoyIngressRoutesFactory(
     envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
 ) {
 
-    private val allClients = setOf(ClientWithSelector(properties.incomingPermissions.tlsAuthentication.wildcardClientIdentifier))
+    private val allClients = setOf(
+        ClientWithSelector(properties.incomingPermissions.tlsAuthentication.wildcardClientIdentifier)
+    )
+
     private val filterMetadata = envoyHttpFilters.ingressMetadata
     private fun clusterRouteAction(
         responseTimeout: Duration?,
@@ -57,7 +60,10 @@ class EnvoyIngressRoutesFactory(
             .addIngressRateLimits(serviceName, rateLimitEndpoints)
     }
 
-    private fun RouteAction.Builder.addIngressRateLimits(serviceName: String, rateLimitEndpoints: List<IncomingRateLimitEndpoint>): RouteAction.Builder = apply {
+    private fun RouteAction.Builder.addIngressRateLimits(
+        serviceName: String,
+        rateLimitEndpoints: List<IncomingRateLimitEndpoint>
+    ): RouteAction.Builder = apply {
         rateLimitEndpoints.forEach { endpoint ->
             val ruleId = getRuleId(serviceName, endpoint)
             val hvm = RateLimit.Action.HeaderValueMatch.newBuilder()
@@ -66,13 +72,17 @@ class EnvoyIngressRoutesFactory(
 
             if (endpoint.methods.isNotEmpty()) {
                 hvm.addHeaders(HeaderMatcher.newBuilder()
-                    .setRe2Match(endpoint.methods.joinToString(separator = "|", transform = { "^$it\$"}))
+                    .setRe2Match(endpoint.methods.joinToString(
+                        separator = "|",
+                        transform = { "^$it\$"}))
                     .setName(":method")
                 )
             }
             if (endpoint.clients.isNotEmpty() && endpoint.clients != allClients) {
                 hvm.addHeaders(HeaderMatcher.newBuilder()
-                    .setRe2Match(endpoint.clients.joinToString(separator = "|", transform = { "^${it.compositeName()}\$"}))
+                    .setRe2Match(endpoint.clients.joinToString(
+                        separator = "|",
+                        transform = { "^${it.compositeName()}\$"}))
                     .setName(properties.incomingPermissions.serviceNameHeader)
                 )
             }

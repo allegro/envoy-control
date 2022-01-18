@@ -264,7 +264,8 @@ class EnvoySnapshotFactory(
 
         // TODO(dj): endpoints depends on prerequisite of routes -> but only to extract clusterName,
         // which is present only in services (not domains) so it could be implemented differently.
-        val endpoints = getServicesEndpointsForGroup(group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot, egressRouteSpecification)
+        val endpoints = getServicesEndpointsForGroup(group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot,
+                            egressRouteSpecification)
 
         val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
 
