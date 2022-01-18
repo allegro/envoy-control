@@ -20,6 +20,10 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
         .fieldsMap["service_name"]
         ?.stringValue
 
+    val discoveryServiceName: String? = metadata
+        .fieldsMap["discovery_service_name"]
+        ?.stringValue
+
     val communicationMode = getCommunicationMode(metadata.fieldsMap["ads"])
 
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)

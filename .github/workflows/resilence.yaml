@@ -40,11 +40,11 @@ jobs:
       - name: Reliability tests
         run: ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20
 
-#      - name: Junit report
-#        uses: allegro-actions/junit-reporter@v1
-#        if: ${{ success() || failure() }}
-#        with:
-#          path: '**/test-results/*/*.xml'
+      - name: Junit report
+        uses: mikepenz/action-junit-report@v2
+        if: always()
+        with:
+          report_paths: '**/build/reports/tests/**/*.html'
 
       - name: Cleanup Gradle Cache
         run: |

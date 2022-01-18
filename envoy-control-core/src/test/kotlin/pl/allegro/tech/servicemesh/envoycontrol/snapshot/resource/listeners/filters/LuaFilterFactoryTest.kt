@@ -10,10 +10,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 internal class LuaFilterFactoryTest {
 
     @Test
-    fun `should create metadata with service name`() {
+    fun `should create metadata with service name and discovery service name`() {
         // given
         val expectedServiceName = "service-1"
-        val group: Group = ServicesGroup(CommunicationMode.XDS, expectedServiceName)
+        val expectedDiscoveryServiceName = "consul-service-1"
+        val group: Group = ServicesGroup(
+            communicationMode = CommunicationMode.XDS,
+            serviceName = expectedServiceName,
+            discoveryServiceName = expectedDiscoveryServiceName
+        )
         val factory = LuaFilterFactory(IncomingPermissionsProperties())
 
         // when
@@ -23,7 +28,13 @@ internal class LuaFilterFactoryTest {
             .getFieldsOrThrow("service_name")
             .stringValue
 
+        val givenDiscoveryServiceName = metadata
+            .getFilterMetadataOrThrow("envoy.filters.http.lua")
+            .getFieldsOrThrow("discovery_service_name")
+            .stringValue
+
         // then
         assertThat(givenServiceName).isEqualTo(expectedServiceName)
+        assertThat(givenDiscoveryServiceName).isEqualTo(expectedDiscoveryServiceName)
     }
 }
