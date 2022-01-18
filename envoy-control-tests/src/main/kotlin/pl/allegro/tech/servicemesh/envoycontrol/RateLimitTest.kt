@@ -18,7 +18,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.RedisContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import java.time.Duration
 
-class AdsRateLimitTest : RateLimitTest {
+open class AdsRateLimitTest : RateLimitTest {
     companion object {
 
         @JvmField
@@ -57,7 +57,7 @@ class AdsRateLimitTest : RateLimitTest {
     override fun rateLimitService() = rateLimitService
 }
 
-class XdsRateLimitTest : RateLimitTest {
+open class XdsRateLimitTest : RateLimitTest {
     companion object {
         @JvmField
         @RegisterExtension
