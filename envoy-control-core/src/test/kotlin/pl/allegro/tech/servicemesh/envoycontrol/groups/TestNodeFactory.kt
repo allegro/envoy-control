@@ -29,7 +29,7 @@ fun nodeV3(
     }
 
     discoveryServiceName?.let {
-        meta.putFields("service_name", string(discoveryServiceName))
+        meta.putFields("discovery_service_name", string(discoveryServiceName))
     }
 
     ads?.let {

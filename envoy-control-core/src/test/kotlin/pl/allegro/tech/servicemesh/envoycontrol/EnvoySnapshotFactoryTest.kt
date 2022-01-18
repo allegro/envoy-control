@@ -45,7 +45,7 @@ class EnvoySnapshotFactoryTest {
         const val EGRESS_PORT = 3380
         const val CLUSTER_NAME = "cluster-name"
         const val DEFAULT_SERVICE_NAME = "service-name"
-        const val DEFAULT_DISCOVER_SERVICE_NAME = "service-name"
+        const val DEFAULT_DISCOVER_SERVICE_NAME = "discovery-service-name"
         const val DEFAULT_IDLE_TIMEOUT = 100L
     }
 
