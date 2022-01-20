@@ -44,7 +44,7 @@ jobs:
         uses: mikepenz/action-junit-report@v2
         if: always()
         with:
-          report_paths: '**/build/reports/tests/**/*.html'
+          report_paths: '**/build/test-results/test/TEST-*.xml'
 
       - name: Cleanup Gradle Cache
         run: |
