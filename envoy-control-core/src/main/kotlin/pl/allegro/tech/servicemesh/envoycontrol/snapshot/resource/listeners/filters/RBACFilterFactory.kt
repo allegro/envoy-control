@@ -197,7 +197,7 @@ class RBACFilterFactory(
 
     private fun addFullAccessClients(policyBuilder: Policy.Builder): Policy.Builder {
         return policyBuilder.addAllPrincipals(fullAccessClients.flatMap { clientWithSelector ->
-            tlsPrincipals(clientWithSelector.name)
+            tlsPrincipals(clientWithSelector.name) + originalDestinationPrincipals(clientWithSelector.name)
         })
     }
 
@@ -279,6 +279,7 @@ class RBACFilterFactory(
         return clients.toSortedSet()
     }
 
+
     private fun mapClientWithSelectorToPrincipals(
         clientWithSelector: ClientWithSelector,
         snapshot: GlobalSnapshot
@@ -300,7 +301,7 @@ class RBACFilterFactory(
         } else if (providerForSelector != null && clientWithSelector.selector != null) {
             listOf(jwtClientWithSelectorPrincipal(clientWithSelector, providerForSelector))
         } else {
-            tlsPrincipals(clientWithSelector.name)
+            tlsPrincipals(clientWithSelector.name) + originalDestinationPrincipals(clientWithSelector.name)
         }
     }
 
@@ -465,6 +466,15 @@ class RBACFilterFactory(
             ).build()
         )
     }
+
+    private fun originalDestinationPrincipals(client: String) = Principal.newBuilder()
+        .setAndIds(Principal.Set.newBuilder()
+            .addIds(exactMatchPrincipal(":authority","envoy-original-destination"))
+            .addIds(exactMatchPrincipal(incomingPermissionsProperties.serviceNameHeader, client))
+        ).build()
+
+    private fun exactMatchPrincipal(headerName: String, match: String) = Principal.newBuilder()
+        .setHeader(HeaderMatcher.newBuilder().setName(headerName).setExactMatch(match))
 
     private fun createStaticIpRanges(): Map<Client, Principal> {
         val ranges = incomingPermissionsProperties.sourceIpAuthentication.ipFromRange
