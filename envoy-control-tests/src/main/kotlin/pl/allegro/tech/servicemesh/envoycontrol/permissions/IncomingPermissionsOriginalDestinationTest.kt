@@ -137,7 +137,7 @@ class IncomingPermissionsOriginalDestinationTest {
         Assertions.assertThat(response).isForbidden()
 
         Assertions.assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
-            protocol = "https",
+            protocol = "http",
             path = "/blocked-echo",
             method = "GET",
             clientName = "echo",

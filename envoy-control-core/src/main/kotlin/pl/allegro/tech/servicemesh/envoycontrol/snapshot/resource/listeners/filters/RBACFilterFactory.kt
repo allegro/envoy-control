@@ -197,7 +197,7 @@ class RBACFilterFactory(
 
     private fun addFullAccessClients(policyBuilder: Policy.Builder): Policy.Builder {
         return policyBuilder.addAllPrincipals(fullAccessClients.flatMap { clientWithSelector ->
-            tlsPrincipals(clientWithSelector.name) + originalDestinationPrincipals(clientWithSelector.name)
+            originalAndTlsPrincipals(clientWithSelector.name)
         })
     }
 
@@ -300,7 +300,7 @@ class RBACFilterFactory(
         } else if (providerForSelector != null && clientWithSelector.selector != null) {
             listOf(jwtClientWithSelectorPrincipal(clientWithSelector, providerForSelector))
         } else {
-            tlsPrincipals(clientWithSelector.name) + originalDestinationPrincipals(clientWithSelector.name)
+            originalAndTlsPrincipals(clientWithSelector.name)
         }
     }
 
@@ -455,15 +455,22 @@ class RBACFilterFactory(
         }
     }
 
-    private fun tlsPrincipals(client: String): List<Principal> {
+    private fun originalAndTlsPrincipals(client: String): List<Principal> {
+        return listOf(
+            Principal.newBuilder().setOrIds(
+                Principal.Set.newBuilder()
+                    .addIds(tlsPrincipals(client))
+                    .addIds(originalDestinationPrincipals(client))
+            ).build()
+        )
+    }
+    private fun tlsPrincipals(client: String): Principal {
         val stringMatcher = sanUriMatcherFactory.createSanUriMatcher(client)
 
-        return listOf(
-            Principal.newBuilder().setAuthenticated(
+        return Principal.newBuilder().setAuthenticated(
                 Principal.Authenticated.newBuilder()
                     .setPrincipalName(stringMatcher)
             ).build()
-        )
     }
 
     private fun originalDestinationPrincipals(client: String) = Principal.newBuilder()
