@@ -32,11 +32,11 @@ class IngressOperations(val envoy: EnvoyContainer) {
             )
                     .execute().addToCloseableResponses()
 
-    fun callServiceWithOriginalDst(service: EchoServiceExtension, path: String = "", serviceName: String,  useTls: Boolean = false) =
+    fun callServiceWithOriginalDst(service: EchoServiceExtension, path: String = "", serviceName: String, useTls: Boolean = false) =
         callLocalServiceInsecure(
             path,
             mapOf("x-envoy-original-dst-host" to service.container().address(),
-                "host" to "envoy-original-destination",  "x-service-name" to serviceName).toHeaders(),
+                "host" to "envoy-original-destination", "x-service-name" to serviceName).toHeaders(),
             useTls
         )
 

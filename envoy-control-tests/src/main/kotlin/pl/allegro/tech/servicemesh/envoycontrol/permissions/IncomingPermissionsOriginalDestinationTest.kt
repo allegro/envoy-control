@@ -53,9 +53,9 @@ class IncomingPermissionsOriginalDestinationTest {
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(
             consul, mapOf(
-                "${prefix}.incoming-permissions.enabled" to true,
-                "${prefix}.outgoing-permissions.enabled" to true,
-                "${prefix}.routes.status.create-virtual-cluster" to true
+                "$prefix.incoming-permissions.enabled" to true,
+                "$prefix.outgoing-permissions.enabled" to true,
+                "$prefix.routes.status.create-virtual-cluster" to true
             )
         )
 

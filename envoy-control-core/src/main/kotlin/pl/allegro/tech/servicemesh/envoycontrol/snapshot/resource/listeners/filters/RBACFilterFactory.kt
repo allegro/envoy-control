@@ -279,7 +279,6 @@ class RBACFilterFactory(
         return clients.toSortedSet()
     }
 
-
     private fun mapClientWithSelectorToPrincipals(
         clientWithSelector: ClientWithSelector,
         snapshot: GlobalSnapshot
@@ -468,9 +467,10 @@ class RBACFilterFactory(
     }
 
     private fun originalDestinationPrincipals(client: String) = Principal.newBuilder()
-        .setAndIds(Principal.Set.newBuilder()
-            .addIds(exactMatchPrincipal(":authority","envoy-original-destination"))
-            .addIds(exactMatchPrincipal(incomingPermissionsProperties.serviceNameHeader, client))
+        .setAndIds(
+            Principal.Set.newBuilder()
+                .addIds(exactMatchPrincipal(":authority", "envoy-original-destination"))
+                .addIds(exactMatchPrincipal(incomingPermissionsProperties.serviceNameHeader, client))
         ).build()
 
     private fun exactMatchPrincipal(headerName: String, match: String) = Principal.newBuilder()
