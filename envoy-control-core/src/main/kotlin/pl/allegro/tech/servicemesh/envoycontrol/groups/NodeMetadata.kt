@@ -188,8 +188,10 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
 
 fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
+    val rateLimitEndpointsField = this?.field("rateLimitEndpoints")?.list()
     return Incoming(
         endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint(properties) },
+        rateLimitEndpoints = rateLimitEndpointsField.orEmpty().map(Value::toIncomingRateLimitEndpoint),
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
         healthCheck = this?.field("healthCheck").toHealthCheck(),
@@ -245,6 +247,28 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
         else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
 }
+fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
+    val pathPrefix = this.field("pathPrefix")?.stringValue
+    val path = this.field("path")?.stringValue
+    val pathRegex = this.field("pathRegex")?.stringValue
+
+    if (isMoreThanOnePropertyDefined(path, pathPrefix, pathRegex)) {
+        throw NodeMetadataValidationException("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
+    }
+
+    val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
+    val clients = this.field("clients")?.list().orEmpty().map { decomposeClient(it.stringValue) }.toSet()
+    val rateLimit = this.field("rateLimit").toRateLimit()
+
+    return when {
+        path != null -> IncomingRateLimitEndpoint(path, PathMatchingType.PATH, methods, clients, rateLimit)
+        pathPrefix != null -> IncomingRateLimitEndpoint(
+            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, rateLimit)
+        pathRegex != null -> IncomingRateLimitEndpoint(
+            pathRegex, PathMatchingType.PATH_REGEX, methods, clients, rateLimit)
+        else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
+    }
+}
 
 fun isMoreThanOnePropertyDefined(vararg properties: String?): Boolean = properties.filterNotNull().count() > 1
 
@@ -278,6 +302,9 @@ private fun Value.toOutgoingTimeoutPolicy(default: Outgoing.TimeoutPolicy): Outg
         requestTimeout ?: default.requestTimeout
     )
 }
+
+private fun Value?.toRateLimit() =
+    this?.stringValue ?: throw NodeMetadataValidationException("rateLimit value cannot be null")
 
 private fun Value.toOAuth(properties: SnapshotProperties): OAuth {
     val provider = this.field("provider").toOauthProvider(properties)
@@ -340,6 +367,7 @@ fun Value.toDuration(): Duration? {
 
 data class Incoming(
     val endpoints: List<IncomingEndpoint> = emptyList(),
+    val rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList(),
     val permissionsEnabled: Boolean = false,
     val healthCheck: HealthCheck = HealthCheck(),
     val roles: List<Role> = emptyList(),
@@ -496,6 +524,14 @@ data class IncomingEndpoint(
     val oauth: OAuth? = null
 ) : EndpointBase
 
+data class IncomingRateLimitEndpoint(
+    val path: String,
+    val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
+    val methods: Set<String> = emptySet(),
+    val clients: Set<ClientWithSelector> = emptySet(),
+    val rateLimit: String = ""
+)
+
 enum class PathMatchingType {
     PATH, PATH_PREFIX, PATH_REGEX
 }
@@ -531,3 +567,5 @@ private fun Value.field(key: String): Value? = this.structValue?.fieldsMap?.get(
     ?.takeIf { it.kindCase != Value.KindCase.NULL_VALUE }
 
 private fun Value.list(): List<Value>? = this.listValue?.valuesList
+
+fun List<IncomingRateLimitEndpoint>.containsGlobalRateLimits(): Boolean = isNotEmpty()

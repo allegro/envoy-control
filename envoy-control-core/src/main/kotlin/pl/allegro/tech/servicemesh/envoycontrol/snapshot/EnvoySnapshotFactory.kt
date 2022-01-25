@@ -12,6 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
@@ -213,11 +214,16 @@ class EnvoySnapshotFactory(
     }
 
     private fun getServicesEndpointsForGroup(
+        rateLimitEndpoints: List<IncomingRateLimitEndpoint>,
         globalSnapshot: GlobalSnapshot,
         egressRouteSpecifications: Collection<RouteSpecification>
     ): List<ClusterLoadAssignment> {
-        return egressRouteSpecifications
-            .mapNotNull { globalSnapshot.endpoints.resources()[it.clusterName] }
+        val egressRouteClusters = egressRouteSpecifications.map(RouteSpecification::clusterName)
+        val rateLimitClusters =
+            if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
+        val allClusters = egressRouteClusters + rateLimitClusters
+
+        return allClusters.mapNotNull { name -> globalSnapshot.endpoints.resources()[name] }
     }
 
     private fun newSnapshotForGroup(
@@ -262,7 +268,8 @@ class EnvoySnapshotFactory(
 
         // TODO(dj): endpoints depends on prerequisite of routes -> but only to extract clusterName,
         // which is present only in services (not domains) so it could be implemented differently.
-        val endpoints = getServicesEndpointsForGroup(globalSnapshot, egressRouteSpecification)
+        val endpoints = getServicesEndpointsForGroup(group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot,
+                            egressRouteSpecification)
 
         val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
 

@@ -21,6 +21,9 @@ class EnvoyDefaultFilters(
     private val jwtFilterFactory = JwtFilterFactory(
         snapshotProperties.jwt
     )
+    private val rateLimitFilterFactory = RateLimitFilterFactory(
+        snapshotProperties.rateLimit
+    )
 
     private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
         snapshotProperties.routing.serviceTags.header,
@@ -30,12 +33,17 @@ class EnvoyDefaultFilters(
     private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
     private val defaultHeaderToMetadataFilter = { _: Group, _: GlobalSnapshot -> headerToMetadataHttpFilter }
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
-
     /**
      * Default filters should not be private, user should have an option to pick any filter.
      * Remember: order matters.
      */
     val defaultEnvoyRouterHttpFilter = { _: Group, _: GlobalSnapshot -> envoyRouterHttpFilter }
+    val defaultRateLimitLuaFilter = { group: Group, _: GlobalSnapshot ->
+        rateLimitFilterFactory.createLuaLimitOverrideFilter(group)
+    }
+    val defaultRateLimitFilter = { group: Group, _: GlobalSnapshot ->
+        rateLimitFilterFactory.createGlobalRateLimitFilter(group)
+    }
     val defaultRbacFilter = { group: Group, snapshot: GlobalSnapshot ->
         rbacFilterFactory.createHttpFilter(group, snapshot)
     }
@@ -69,6 +77,8 @@ class EnvoyDefaultFilters(
         defaultJwtHttpFilter,
         defaultRbacLoggingFilter,
         defaultRbacFilter,
+        defaultRateLimitLuaFilter,
+        defaultRateLimitFilter,
         defaultEnvoyRouterHttpFilter
     )
     val defaultIngressMetadata = { group: Group -> luaFilterFactory.ingressScriptsMetadata(group) }
