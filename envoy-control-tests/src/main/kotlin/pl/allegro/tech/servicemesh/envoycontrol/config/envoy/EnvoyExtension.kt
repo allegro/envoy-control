@@ -18,8 +18,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 class EnvoyExtension(
     private val envoyControl: EnvoyControlExtensionBase,
     private val localService: ServiceExtension<*>? = null,
-    private val config: EnvoyConfig = RandomConfigFile,
-    apiVersion: Int = 3
+    private val config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     companion object {
@@ -29,8 +28,7 @@ class EnvoyExtension(
     val container: EnvoyContainer = EnvoyContainer(
         config,
         { localService?.container()?.ipAddress() ?: "127.0.0.1" },
-        envoyControl.app.grpcPort,
-        apiVersion = apiVersion
+        envoyControl.app.grpcPort
     ).withNetwork(Network.SHARED)
 
     val ingressOperations: IngressOperations = IngressOperations(container)

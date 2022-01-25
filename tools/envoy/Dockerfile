@@ -1,4 +1,4 @@
-FROM envoyproxy/envoy:v1.18.2
+FROM envoyproxy/envoy:v1.20.1
 
 ENV PORT=9999:9999
 ENV PORT=80:80
