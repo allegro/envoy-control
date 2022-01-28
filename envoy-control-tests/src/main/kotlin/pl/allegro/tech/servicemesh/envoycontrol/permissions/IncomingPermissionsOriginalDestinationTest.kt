@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.permissions
 
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -95,11 +95,11 @@ class IncomingPermissionsOriginalDestinationTest {
 
     private fun waitForEnvoysInitialized() {
         untilAsserted {
-            Assertions.assertThat(
+            assertThat(
                 echoEnvoy.container.admin()
                     .isEndpointHealthy("echo2", echo2Envoy.container.ipAddress())
             ).isTrue()
-            Assertions.assertThat(
+            assertThat(
                 echo2Envoy.container.admin().isEndpointHealthy(
                     "echo",
                     echoEnvoy.container.ipAddress()
@@ -122,8 +122,8 @@ class IncomingPermissionsOriginalDestinationTest {
         )
 
         // then
-        Assertions.assertThat(response).isOk().isFrom(echoService2)
-        Assertions.assertThat(echo2Envoy.container).hasNoRBACDenials()
+        assertThat(response).isOk().isFrom(echoService2)
+        assertThat(echo2Envoy.container).hasNoRBACDenials()
     }
 
     @Test
@@ -134,9 +134,9 @@ class IncomingPermissionsOriginalDestinationTest {
         )
 
         // then
-        Assertions.assertThat(response).isForbidden()
+        assertThat(response).isForbidden()
 
-        Assertions.assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
+        assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
             path = "/blocked-echo",
             method = "GET",

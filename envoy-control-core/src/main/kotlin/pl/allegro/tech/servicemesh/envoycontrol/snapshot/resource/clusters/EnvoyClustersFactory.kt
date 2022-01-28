@@ -176,8 +176,8 @@ class EnvoyClustersFactory(
             is AllServicesGroup -> {
                 globalSnapshot.allServicesNames.mapNotNull {
                     val dependency = serviceDependencies[it]
-                    if (dependency != null && dependency.settings.timeoutPolicy.idleTimeout != null) {
-                        createClusterForGroup(serviceDependencies[it]!!.settings, clusters[it])
+                    if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
+                        createClusterForGroup(dependency.settings, clusters[it])
                     } else {
                         createClusterForGroup(group.proxySettings.outgoing.defaultServiceSettings, clusters[it])
                     }
