@@ -85,7 +85,12 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     )
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
     val services = rawDependencies.filter { it.service != null && it.service != allServiceDependenciesIdentifier }
-        .map { ServiceDependency(it.service.orEmpty(), it.value.toSettings(allServicesDefaultSettings)) }
+        .map {
+            ServiceDependency(
+                service = it.service.orEmpty(),
+                settings = it.value.toSettings(allServicesDefaultSettings)
+            )
+        }
     val domains = rawDependencies.filter { it.domain != null }
         .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
         .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
@@ -174,16 +179,42 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     val handleInternalRedirect = this?.field("handleInternalRedirect")?.boolValue
     val timeoutPolicy = this?.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(defaultSettings.timeoutPolicy)
     val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
+    val retryPolicy = this?.let { it.field("retryPolicy")?.let { retryPolicy -> mapProtoToRetryPolicy(retryPolicy) } }
 
-    return if (handleInternalRedirect == null && rewriteHostHeader == null && timeoutPolicy == null) {
+    return if (handleInternalRedirect == null && rewriteHostHeader == null && timeoutPolicy == null && retryPolicy == null) {
         defaultSettings
     } else {
         DependencySettings(
-            handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
-            timeoutPolicy ?: defaultSettings.timeoutPolicy,
-            rewriteHostHeader ?: defaultSettings.rewriteHostHeader
+            handleInternalRedirect = handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
+            timeoutPolicy = timeoutPolicy ?: defaultSettings.timeoutPolicy,
+            rewriteHostHeader = rewriteHostHeader ?: defaultSettings.rewriteHostHeader,
+            retryPolicy = retryPolicy
         )
     }
+}
+
+private fun mapProtoToRetryPolicy(value: Value): RetryPolicy {
+    return RetryPolicy(
+        retryOn = value.field("retryOn")?.stringValue,
+        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toInt(),
+        numberRetries = value.field("numberRetries")?.stringValue?.toInt(),
+        retryHostPredicate = value.field("retryHostPredicate")?.listValue?.valuesList?.map {
+            RetryHostPredicate(it.field("name")?.stringValue)
+        }?.toList(),
+        perTryTimeoutMs = value.field("perTryTimeoutMs")?.stringValue?.toInt(),
+        retryBackOff = value.field("retryBackOff")?.structValue?.let {
+            RetryBackOff(
+                baseInterval = it.fieldsMap["baseInterval"]?.stringValue,
+                maxInterval = it.fieldsMap["maxInterval"]?.stringValue
+            )
+        },
+        retryableStatusCodes = value.field("retryableStatusCodes")?.listValue?.valuesList?.map {
+            it.stringValue.toInt()
+        },
+        retryableHeaders = value.field("retryableHeaders")?.listValue?.valuesList?.map {
+            it.stringValue
+        }
+    )
 }
 
 fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
@@ -247,6 +278,7 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
         else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
 }
+
 fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
     val pathPrefix = this.field("pathPrefix")?.stringValue
     val path = this.field("path")?.stringValue
@@ -263,9 +295,11 @@ fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
     return when {
         path != null -> IncomingRateLimitEndpoint(path, PathMatchingType.PATH, methods, clients, rateLimit)
         pathPrefix != null -> IncomingRateLimitEndpoint(
-            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, rateLimit)
+            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, rateLimit
+        )
         pathRegex != null -> IncomingRateLimitEndpoint(
-            pathRegex, PathMatchingType.PATH_REGEX, methods, clients, rateLimit)
+            pathRegex, PathMatchingType.PATH_REGEX, methods, clients, rateLimit
+        )
         else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
 }
@@ -419,6 +453,7 @@ data class Outgoing(
         val requestTimeout: Duration? = null
     )
 }
+
 // TODO: Make it default method, currently some problems with kotlin version, might upgrade in next PR
 interface Dependency {
     fun getPort(): Int
@@ -476,7 +511,28 @@ data class DomainPatternDependency(
 data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
     val timeoutPolicy: Outgoing.TimeoutPolicy = Outgoing.TimeoutPolicy(),
-    val rewriteHostHeader: Boolean = false
+    val rewriteHostHeader: Boolean = false,
+    val retryPolicy: RetryPolicy? = null
+)
+
+data class RetryPolicy(
+    val retryOn: String? = null,
+    val hostSelectionRetryMaxAttempts: Int? = null,
+    val numberRetries: Int? = null,
+    val retryHostPredicate: List<RetryHostPredicate>? = null,
+    val perTryTimeoutMs: Int? = null,
+    val retryBackOff: RetryBackOff? = null,
+    val retryableStatusCodes: List<Int>? = null,
+    val retryableHeaders: List<String>? = null
+)
+
+data class RetryBackOff(
+    val baseInterval: String? = null,
+    val maxInterval: String? = null
+)
+
+data class RetryHostPredicate(
+    val name: String?
 )
 
 data class Role(
