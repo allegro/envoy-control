@@ -181,7 +181,12 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
     val retryPolicy = this?.let { it.field("retryPolicy")?.let { retryPolicy -> mapProtoToRetryPolicy(retryPolicy) } }
 
-    return if (handleInternalRedirect == null && rewriteHostHeader == null && timeoutPolicy == null && retryPolicy == null) {
+    val shouldAllBeDefault = handleInternalRedirect == null &&
+        rewriteHostHeader == null &&
+        timeoutPolicy == null &&
+        retryPolicy == null
+
+    return if (shouldAllBeDefault) {
         defaultSettings
     } else {
         DependencySettings(
