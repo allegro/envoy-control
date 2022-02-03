@@ -197,7 +197,7 @@ class RBACFilterFactory(
 
     private fun addFullAccessClients(policyBuilder: Policy.Builder): Policy.Builder {
         return policyBuilder.addAllPrincipals(fullAccessClients.flatMap { clientWithSelector ->
-            tlsPrincipals(clientWithSelector.name)
+            originalAndTlsPrincipals(clientWithSelector.name)
         })
     }
 
@@ -300,7 +300,7 @@ class RBACFilterFactory(
         } else if (providerForSelector != null && clientWithSelector.selector != null) {
             listOf(jwtClientWithSelectorPrincipal(clientWithSelector, providerForSelector))
         } else {
-            tlsPrincipals(clientWithSelector.name)
+            originalAndTlsPrincipals(clientWithSelector.name)
         }
     }
 
@@ -455,16 +455,33 @@ class RBACFilterFactory(
         }
     }
 
-    private fun tlsPrincipals(client: String): List<Principal> {
-        val stringMatcher = sanUriMatcherFactory.createSanUriMatcher(client)
-
+    private fun originalAndTlsPrincipals(client: String): List<Principal> {
         return listOf(
-            Principal.newBuilder().setAuthenticated(
-                Principal.Authenticated.newBuilder()
-                    .setPrincipalName(stringMatcher)
+            Principal.newBuilder().setOrIds(
+                Principal.Set.newBuilder()
+                    .addIds(tlsPrincipals(client))
+                    .addIds(originalDestinationPrincipals(client))
             ).build()
         )
     }
+    private fun tlsPrincipals(client: String): Principal {
+        val stringMatcher = sanUriMatcherFactory.createSanUriMatcher(client)
+
+        return Principal.newBuilder().setAuthenticated(
+                Principal.Authenticated.newBuilder()
+                    .setPrincipalName(stringMatcher)
+            ).build()
+    }
+
+    private fun originalDestinationPrincipals(client: String) = Principal.newBuilder()
+        .setAndIds(
+            Principal.Set.newBuilder()
+                .addIds(exactMatchPrincipal(":authority", "envoy-original-destination"))
+                .addIds(exactMatchPrincipal(incomingPermissionsProperties.serviceNameHeader, client))
+        ).build()
+
+    private fun exactMatchPrincipal(headerName: String, match: String) = Principal.newBuilder()
+        .setHeader(HeaderMatcher.newBuilder().setName(headerName).setExactMatch(match))
 
     private fun createStaticIpRanges(): Map<Client, Principal> {
         val ranges = incomingPermissionsProperties.sourceIpAuthentication.ipFromRange

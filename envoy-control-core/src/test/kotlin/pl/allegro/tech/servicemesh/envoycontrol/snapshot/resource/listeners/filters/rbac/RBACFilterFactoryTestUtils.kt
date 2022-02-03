@@ -59,12 +59,40 @@ interface RBACFilterFactoryTestUtils {
                 }"""
     }
 
+    fun originalAndAuthenticatedPrincipal(value: String): String {
+        return """{
+                "or_ids": {
+                    "ids":[${authenticatedPrincipal(value)}, ${originalDestinationPrincipal(value)}]
+            }
+        }
+        """
+    }
     fun authenticatedPrincipal(value: String): String {
         return """{
                     "authenticated": {
                       "principal_name": {
                         "exact": "spiffe://$value"
                       }
+                    }
+                }"""
+    }
+    fun originalDestinationPrincipal(value: String): String {
+        return """{
+                    "and_ids": {
+                        "ids": [
+                            {
+                                "header": {
+                                    "name": ":authority",
+                                    "exact_match": "envoy-original-destination"
+                                }
+                            },
+                            {
+                                "header": {
+                                    "name": "x-service-name",
+                                    "exact_match": "$value"
+                                }
+                            }
+                        ]
                     }
                 }"""
     }
@@ -91,7 +119,7 @@ interface RBACFilterFactoryTestUtils {
 
     fun getRBACFilterWithShadowRules(rules: String, shadowRules: String): HttpFilter {
         val rbacFilter = RBAC.newBuilder()
-        JsonFormat.parser().merge(wrapInFilter(rules), rbacFilter)
+         JsonFormat.parser().merge(wrapInFilter(rules), rbacFilter)
         JsonFormat.parser().merge(wrapInFilterShadow(shadowRules), rbacFilter)
         return HttpFilter.newBuilder()
             .setName("envoy.filters.http.rbac")
