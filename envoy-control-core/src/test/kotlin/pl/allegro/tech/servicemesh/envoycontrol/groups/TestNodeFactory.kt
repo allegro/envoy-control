@@ -2,7 +2,6 @@
 
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
-import com.google.protobuf.Duration
 import com.google.protobuf.ListValue
 import com.google.protobuf.NullValue
 import com.google.protobuf.Struct
@@ -156,7 +155,6 @@ fun proxySettingsProto(
     }
 }
 
-
 data class RetryPolicyInput(
     val retryOn: String? = null,
     val hostSelectionRetryMaxAttempts: Int? = null,
@@ -176,7 +174,6 @@ data class RetryBackOffInput(
 data class RetryHostPredicateInput(
     val name: String?
 )
-
 
 class OutgoingDependenciesProtoScope {
     class Dependency(
