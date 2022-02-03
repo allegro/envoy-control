@@ -176,7 +176,6 @@ class EnvoyEgressRoutesFactory(
             routeAction.setRetryPolicy(RequestPolicyMapper.mapToEnvoyRetryPolicyBuilder(policy))
         }
 
-
         if (routeSpecification.settings.handleInternalRedirect) {
             routeAction.internalRedirectPolicy = InternalRedirectPolicy.newBuilder().build()
         }
@@ -189,7 +188,7 @@ class EnvoyEgressRoutesFactory(
     }
 }
 
-class RequestPolicyMapper private constructor(){
+class RequestPolicyMapper private constructor() {
     companion object {
         fun mapToEnvoyRetryPolicyBuilder(retryPolicy: EnvoyControlRetryPolicy?): RetryPolicy? {
             retryPolicy?.let { policy ->
@@ -248,7 +247,6 @@ class RequestPolicyMapper private constructor(){
             }
             it.maxInterval?.let { maxInterval ->
                 retryBackOffBuilder.setMaxInterval(maxInterval)
-
             }
             return retryPolicyBuilder.setRetryBackOff(retryBackOffBuilder)
         }
