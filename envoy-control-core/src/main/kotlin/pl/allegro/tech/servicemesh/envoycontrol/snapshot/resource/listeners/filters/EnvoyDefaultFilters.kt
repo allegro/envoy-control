@@ -10,10 +10,14 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 class EnvoyDefaultFilters(
     private val snapshotProperties: SnapshotProperties
 ) {
+    private val incomingEndpointsPoliciesFactory = IncomingEndpointsPoliciesFactory(
+        snapshotProperties.incomingPermissions,
+        jwtProperties = snapshotProperties.jwt
+    )
     private val rbacFilterFactory = RBACFilterFactory(
         snapshotProperties.incomingPermissions,
         snapshotProperties.routes.status,
-        jwtProperties = snapshotProperties.jwt
+        incomingEndpointsPoliciesFactory = incomingEndpointsPoliciesFactory
     )
     private val luaFilterFactory = LuaFilterFactory(
         snapshotProperties.incomingPermissions

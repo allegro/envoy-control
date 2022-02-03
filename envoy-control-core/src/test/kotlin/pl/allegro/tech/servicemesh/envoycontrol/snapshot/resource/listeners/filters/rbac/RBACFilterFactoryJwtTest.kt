@@ -15,28 +15,44 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.IncomingEndpointsPoliciesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.RBACFilterFactory
 
 internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
 
-    private val jwtProperties = JwtFilterProperties().also {
-        it.providers =
+    private val jwtProperties = JwtFilterProperties().apply {
+        providers =
             mapOf(
                 "oauth-provider" to OAuthProvider(
                     matchings = mapOf("oauth-prefix" to "authorities")
                 )
             )
-        it.fieldRequiredInToken = "exp"
+        fieldRequiredInToken = "exp"
     }
 
-    private val rbacFilterFactoryWithOAuth = RBACFilterFactory(
-        IncomingPermissionsProperties().also {
-            it.enabled = true
-            it.overlappingPathsFix = true
+    private val rbacFilterFactoryWithOAuth = createRBACFilterFactory(
+        incomingProperties = {
+            enabled = true
+            overlappingPathsFix = true
         },
-        StatusRouteProperties(),
-        jwtProperties = jwtProperties
+        jwtFilterProperties = jwtProperties
     )
+
+    private fun createRBACFilterFactory(
+        incomingProperties: IncomingPermissionsProperties.() -> Unit,
+        jwtFilterProperties: JwtFilterProperties
+    ): RBACFilterFactory {
+        val incomingProps = IncomingPermissionsProperties().apply(incomingProperties)
+        val policiesFactory = IncomingEndpointsPoliciesFactory(
+            incomingProps,
+            jwtProperties = jwtFilterProperties
+        )
+        return RBACFilterFactory(
+            incomingProps,
+            StatusRouteProperties(),
+            incomingEndpointsPoliciesFactory = policiesFactory
+        )
+    }
 
     val snapshot = GlobalSnapshot(
         SnapshotResources.create(listOf(), ""),
@@ -90,7 +106,8 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         // given
         val selector = "team1"
         val client = "oauth-prefix"
-        val oAuthPrincipal = oAuthClientPrincipal(getTokenFieldForClientWithSelector("oauth-provider", client), selector)
+        val oAuthPrincipal =
+            oAuthClientPrincipal(getTokenFieldForClientWithSelector("oauth-provider", client), selector)
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 oAuthPrincipal,

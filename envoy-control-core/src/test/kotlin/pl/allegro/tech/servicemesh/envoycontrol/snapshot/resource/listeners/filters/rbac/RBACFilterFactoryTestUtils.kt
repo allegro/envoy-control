@@ -109,4 +109,8 @@ interface RBACFilterFactoryTestUtils {
             incoming = incomingPermission ?: Incoming()
         )
     )
+
+    fun createPolicies(closure: TestPoliciesBuilderScope.() -> Unit): String {
+        return TestPoliciesBuilderScope().apply(closure).toString()
+    }
 }
