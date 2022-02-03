@@ -2,6 +2,7 @@
 
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.Duration
 import com.google.protobuf.ListValue
 import com.google.protobuf.NullValue
 import com.google.protobuf.Struct
@@ -155,6 +156,28 @@ fun proxySettingsProto(
     }
 }
 
+
+data class RetryPolicyInput(
+    val retryOn: String? = null,
+    val hostSelectionRetryMaxAttempts: Int? = null,
+    val numberRetries: Int? = null,
+    val retryHostPredicate: List<RetryHostPredicateInput>? = null,
+    val perTryTimeoutMs: Int? = null,
+    val retryBackOff: RetryBackOffInput? = null,
+    val retryableStatusCodes: List<Int>? = null,
+    val retryableHeaders: List<String>? = null
+)
+
+data class RetryBackOffInput(
+    val baseInterval: String? = null,
+    val maxInterval: String? = null
+)
+
+data class RetryHostPredicateInput(
+    val name: String?
+)
+
+
 class OutgoingDependenciesProtoScope {
     class Dependency(
         val service: String? = null,
@@ -164,7 +187,7 @@ class OutgoingDependenciesProtoScope {
         val connectionIdleTimeout: String? = null,
         val requestTimeout: String? = null,
         val handleInternalRedirect: Boolean? = null,
-        val retryPolicy: RetryPolicy? = null
+        val retryPolicy: RetryPolicyInput? = null
     )
 
     val dependencies = mutableListOf<Dependency>()
@@ -181,7 +204,7 @@ class OutgoingDependenciesProtoScope {
         connectionIdleTimeout: String? = null,
         requestTimeout: String? = null,
         handleInternalRedirect: Boolean? = null,
-        retryPolicy: RetryPolicy? = null
+        retryPolicy: RetryPolicyInput? = null
     ) = dependencies.add(
         Dependency(
             service = serviceName,
@@ -261,7 +284,7 @@ fun outgoingDependencyProto(
     idleTimeout: String? = null,
     connectionIdleTimeout: String? = null,
     requestTimeout: String? = null,
-    retryPolicy: RetryPolicy? = null
+    retryPolicy: RetryPolicyInput? = null
 ) = struct {
     service?.also { putFields("service", string(service)) }
     domain?.also { putFields("domain", string(domain)) }
@@ -273,7 +296,7 @@ fun outgoingDependencyProto(
     }
 }
 
-private fun retryPolicyProto(retryPolicy: RetryPolicy) = struct {
+private fun retryPolicyProto(retryPolicy: RetryPolicyInput) = struct {
     retryPolicy.retryOn?.also { putFields("retryOn", string(it)) }
     retryPolicy.hostSelectionRetryMaxAttempts?.also { putFields("hostSelectionRetryMaxAttempts", integer(it)) }
     retryPolicy.numberRetries?.also { putFields("numberRetries", integer(it)) }
@@ -292,12 +315,12 @@ private fun retryableStatusCodesProto(retryableStatusCodes: List<Int>) = list {
     retryableStatusCodes.forEach { addValues(integer(it)) }
 }
 
-private fun retryBackOffProto(retryBackOff: RetryBackOff) = struct {
+private fun retryBackOffProto(retryBackOff: RetryBackOffInput) = struct {
     retryBackOff.baseInterval?.also { putFields("baseInterval", string(it)) }
     retryBackOff.maxInterval?.also { putFields("maxInterval", string(it)) }
 }
 
-private fun retryHostPredicateListProto(retryHostPredicateList: List<RetryHostPredicate>) = list {
+private fun retryHostPredicateListProto(retryHostPredicateList: List<RetryHostPredicateInput>) = list {
     retryHostPredicateList.forEach {
         addValues(it.name?.let { element -> struct { putFields("name", string(element)) } })
     }

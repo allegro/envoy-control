@@ -1,19 +1,25 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.BoolValue
+import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
 import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
 import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
+import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.Route
 import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 class EnvoyEgressRoutesFactory(
     private val properties: SnapshotProperties
@@ -166,6 +172,11 @@ class EnvoyEgressRoutesFactory(
             timeoutPolicy.requestTimeout?.let { routeAction.setTimeout(it) }
         }
 
+        routeSpecification.settings.retryPolicy?.let { policy ->
+            routeAction.setRetryPolicy(RequestPolicyMapper.mapToEnvoyRetryPolicyBuilder(policy))
+        }
+
+
         if (routeSpecification.settings.handleInternalRedirect) {
             routeAction.internalRedirectPolicy = InternalRedirectPolicy.newBuilder().build()
         }
@@ -175,5 +186,82 @@ class EnvoyEgressRoutesFactory(
         }
 
         return routeAction
+    }
+}
+
+class RequestPolicyMapper private constructor(){
+    companion object {
+        fun mapToEnvoyRetryPolicyBuilder(retryPolicy: EnvoyControlRetryPolicy?): RetryPolicy? {
+            retryPolicy?.let { policy ->
+                val retryPolicyBuilder = RetryPolicy.newBuilder()
+                val retryBackOffBuilder = RetryPolicy.RetryBackOff.newBuilder()
+
+                policy.retryOn?.let { retryPolicyBuilder.setRetryOn(it) }
+                policy.hostSelectionRetryMaxAttempts?.let {
+                    retryPolicyBuilder.setHostSelectionRetryMaxAttempts(it)
+                }
+                policy.numberRetries?.let { retryPolicyBuilder.setNumRetries(UInt32Value.of(it)) }
+                policy.retryHostPredicate?.let {
+                    buildRetryHostPredicate(it, retryPolicyBuilder)
+                }
+                policy.perTryTimeoutMs?.let { retryPolicyBuilder.setPerTryTimeout(Durations.fromMillis(it)) }
+                policy.retryBackOff?.let {
+                    buildRetryBackOff(it, retryBackOffBuilder, retryPolicyBuilder)
+                }
+                policy.retryableStatusCodes?.let {
+                    buildRetryableStatusCodes(it, retryPolicyBuilder)
+                }
+                policy.retryableHeaders?.let {
+                    buildRetryableHeaders(it, retryPolicyBuilder)
+                }
+
+                return retryPolicyBuilder.build()
+            }
+            return null
+        }
+
+        private fun buildRetryableHeaders(
+            it: List<String>,
+            retryPolicyBuilder: RetryPolicy.Builder
+        ) {
+            it.forEach { header ->
+                retryPolicyBuilder.addRetriableHeaders(
+                    HeaderMatcher.newBuilder().setName(header)
+                )
+            }
+        }
+
+        private fun buildRetryableStatusCodes(
+            it: List<Int>,
+            retryPolicyBuilder: RetryPolicy.Builder
+        ) {
+            it.forEach { statusCode -> retryPolicyBuilder.addRetriableStatusCodes(statusCode) }
+        }
+
+        private fun buildRetryBackOff(
+            it: RetryBackOff,
+            retryBackOffBuilder: RetryPolicy.RetryBackOff.Builder,
+            retryPolicyBuilder: RetryPolicy.Builder
+        ): RetryPolicy.Builder? {
+            it.baseInterval?.let { baseInterval ->
+                retryBackOffBuilder.setBaseInterval(baseInterval)
+            }
+            it.maxInterval?.let { maxInterval ->
+                retryBackOffBuilder.setMaxInterval(maxInterval)
+
+            }
+            return retryPolicyBuilder.setRetryBackOff(retryBackOffBuilder)
+        }
+
+        private fun buildRetryHostPredicate(
+            it: List<RetryHostPredicate>,
+            retryPolicyBuilder: RetryPolicy.Builder
+        ) {
+            it.forEach { host ->
+                retryPolicyBuilder.addRetryHostPredicate(
+                    RetryPolicy.RetryHostPredicate.newBuilder().setName(host.name)
+                )
+            }
+        }
     }
 }

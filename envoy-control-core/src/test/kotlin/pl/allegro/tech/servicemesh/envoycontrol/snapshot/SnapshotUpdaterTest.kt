@@ -9,6 +9,7 @@ import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.controlplane.cache.XdsRequest
 import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.envoyproxy.envoy.config.listener.v3.Listener
+import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
@@ -28,6 +29,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
@@ -44,6 +48,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.Envo
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.RequestPolicyMapper
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
@@ -142,6 +147,68 @@ class SnapshotUpdaterTest {
             .hasOnlyClustersFor("existingService1", "existingService2")
             .hasVirtualHostConfig(name = "existingService1", idleTimeout = "10s", requestTimeout = "9s")
             .hasVirtualHostConfig(name = "existingService2", idleTimeout = "8s", requestTimeout = "7s")
+    }
+
+    @Test
+    fun `should generate allServicesGroup snapshots with timeouts from proxySettings and retry policy`() {
+        val cache = MockCache()
+        val givenRetryPolicy = EnvoyControlRetryPolicy(
+            retryOn = "givenRetryOn",
+            hostSelectionRetryMaxAttempts = 1,
+            numberRetries = 2,
+            perTryTimeoutMs = 3,
+            retryableHeaders = listOf("givenTestHeader"),
+            retryableStatusCodes = listOf(504),
+            retryBackOff = RetryBackOff(
+                baseInterval = Durations.fromMillis(123),
+                maxInterval = Durations.fromMillis(234)
+            ),
+            retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost"))
+        )
+        val allServicesGroup = AllServicesGroup(
+            communicationMode = XDS, proxySettings = ProxySettings(
+                outgoing = Outgoing(
+                    serviceDependencies = listOf(
+                        ServiceDependency(
+                            service = "retryPolicyService1",
+                            settings = DependencySettings(
+                                timeoutPolicy = Outgoing.TimeoutPolicy(
+                                    idleTimeout = Durations.parse("10s"),
+                                    requestTimeout = Durations.parse("9s")
+                                ),
+                                retryPolicy = givenRetryPolicy
+                            )
+                        )
+                    ),
+                    defaultServiceSettings = DependencySettings(
+                        timeoutPolicy = Outgoing.TimeoutPolicy(
+                            idleTimeout = Durations.parse("8s"),
+                            requestTimeout = Durations.parse("7s")
+                        )
+                    ),
+                    allServicesDependencies = true
+                )
+            )
+        )
+
+        cache.setSnapshot(allServicesGroup, uninitializedSnapshot)
+
+        val updater = snapshotUpdater(
+            cache = cache,
+            properties = SnapshotProperties().apply {
+                incomingPermissions.enabled = true
+            },
+            groups = listOf(allServicesGroup)
+        )
+
+        updater.startWithServices("retryPolicyService1", "retryPolicyService2")
+
+        hasSnapshot(cache, allServicesGroup)
+            .hasOnlyClustersFor("retryPolicyService1", "retryPolicyService2")
+            .hasVirtualHostConfig(name = "retryPolicyService1", idleTimeout = "10s", requestTimeout = "9s")
+            .hasVirtualHostConfig(name = "retryPolicyService2", idleTimeout = "8s", requestTimeout = "7s")
+            .hasRetryPolicySpecified(name = "retryPolicyService1", retryPolicy = RequestPolicyMapper.mapToEnvoyRetryPolicyBuilder(givenRetryPolicy))
+            .hasRetryPolicySpecified(name = "retryPolicyService2", retryPolicy = null)
     }
 
     @Test
@@ -1036,6 +1103,17 @@ class SnapshotUpdaterTest {
         assertThat(routeAction).overridingErrorMessage("Expecting virtualHost for $name").isNotNull
         assertThat(routeAction?.timeout).isEqualTo(Durations.parse(requestTimeout))
         assertThat(routeAction?.idleTimeout).isEqualTo(Durations.parse(idleTimeout))
+        return this
+    }
+
+    private fun Snapshot.hasRetryPolicySpecified(name: String, retryPolicy: RetryPolicy?): Snapshot {
+        val routeAction = this.routes()
+            .resources()["default_routes"]!!.virtualHostsList.singleOrNull { it.name == name }?.routesList?.map { it.route }
+            ?.singleOrNull()
+        assertThat(routeAction).overridingErrorMessage("Expecting virtualHost for $name").isNotNull
+        retryPolicy?.also {
+            assertThat(routeAction?.retryPolicy).isEqualTo(retryPolicy)
+        }
         return this
     }
 

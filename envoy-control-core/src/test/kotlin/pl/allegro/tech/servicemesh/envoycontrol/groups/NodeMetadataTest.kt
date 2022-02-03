@@ -343,7 +343,20 @@ class NodeMetadataTest {
     @Test
     fun `should return retry policy`() {
         // given
-        val givenRetryPolicy = RetryPolicy(
+        val givenRetryPolicy = RetryPolicyInput(
+            retryOn = "givenRetryOn",
+            hostSelectionRetryMaxAttempts = 1,
+            numberRetries = 2,
+            perTryTimeoutMs = 3,
+            retryableHeaders = listOf("givenTestHeader"),
+            retryableStatusCodes = listOf(504),
+            retryBackOff = RetryBackOffInput(
+                baseInterval = "7s",
+                maxInterval = "8s"
+            ),
+            retryHostPredicate = listOf(RetryHostPredicateInput(name = "givenHost"))
+        )
+        val expectedRetryPolicy = RetryPolicy(
             retryOn = "givenRetryOn",
             hostSelectionRetryMaxAttempts = 1,
             numberRetries = 2,
@@ -351,8 +364,8 @@ class NodeMetadataTest {
             retryableHeaders = listOf("givenTestHeader"),
             retryableStatusCodes = listOf(504),
             retryBackOff = RetryBackOff(
-                baseInterval = "givenBaseInterval",
-                maxInterval = "givenMaxInterval"
+                baseInterval = Durations.fromSeconds(7),
+                maxInterval = Durations.fromSeconds(8)
             ),
             retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost"))
         )
@@ -367,8 +380,8 @@ class NodeMetadataTest {
         val outgoing = proto.toOutgoing(snapshotProperties())
 
         // expects
-        val dependency = outgoing.getServiceDependencies().single()
-        assertThat(dependency.settings.retryPolicy).isEqualTo(givenRetryPolicy)
+        val serviceDependency = outgoing.getServiceDependencies().single()
+        assertThat(serviceDependency.settings.retryPolicy).isEqualTo(expectedRetryPolicy)
     }
 
     @Test

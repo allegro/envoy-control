@@ -201,16 +201,16 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
 private fun mapProtoToRetryPolicy(value: Value): RetryPolicy {
     return RetryPolicy(
         retryOn = value.field("retryOn")?.stringValue,
-        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toInt(),
+        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toLong(),
         numberRetries = value.field("numberRetries")?.stringValue?.toInt(),
         retryHostPredicate = value.field("retryHostPredicate")?.listValue?.valuesList?.map {
             RetryHostPredicate(it.field("name")?.stringValue)
         }?.toList(),
-        perTryTimeoutMs = value.field("perTryTimeoutMs")?.stringValue?.toInt(),
+        perTryTimeoutMs = value.field("perTryTimeoutMs")?.stringValue?.toLong(),
         retryBackOff = value.field("retryBackOff")?.structValue?.let {
             RetryBackOff(
-                baseInterval = it.fieldsMap["baseInterval"]?.stringValue,
-                maxInterval = it.fieldsMap["maxInterval"]?.stringValue
+                baseInterval = it.fieldsMap["baseInterval"]?.toDuration(),
+                maxInterval = it.fieldsMap["maxInterval"]?.toDuration()
             )
         },
         retryableStatusCodes = value.field("retryableStatusCodes")?.listValue?.valuesList?.map {
@@ -522,18 +522,18 @@ data class DependencySettings(
 
 data class RetryPolicy(
     val retryOn: String? = null,
-    val hostSelectionRetryMaxAttempts: Int? = null,
+    val hostSelectionRetryMaxAttempts: Long? = null,
     val numberRetries: Int? = null,
     val retryHostPredicate: List<RetryHostPredicate>? = null,
-    val perTryTimeoutMs: Int? = null,
+    val perTryTimeoutMs: Long? = null,
     val retryBackOff: RetryBackOff? = null,
     val retryableStatusCodes: List<Int>? = null,
     val retryableHeaders: List<String>? = null
 )
 
 data class RetryBackOff(
-    val baseInterval: String? = null,
-    val maxInterval: String? = null
+    val baseInterval: Duration? = null,
+    val maxInterval: Duration? = null
 )
 
 data class RetryHostPredicate(
