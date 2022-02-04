@@ -13,18 +13,24 @@ fun nodeV3(
     serviceDependencies: Set<String> = emptySet(),
     ads: Boolean? = null,
     serviceName: String? = null,
+    discoveryServiceName: String? = null,
     incomingSettings: Boolean = false,
     clients: List<String> = listOf("client1"),
     idleTimeout: String? = null,
     responseTimeout: String? = null,
     connectionIdleTimeout: String? = null,
     healthCheckPath: String? = null,
-    healthCheckClusterName: String? = null
+    healthCheckClusterName: String? = null,
+    rateLimit: String? = null
 ): NodeV3 {
     val meta = NodeV3.newBuilder().metadataBuilder
 
     serviceName?.let {
         meta.putFields("service_name", string(serviceName))
+    }
+
+    discoveryServiceName?.let {
+        meta.putFields("discovery_service_name", string(discoveryServiceName))
     }
 
     ads?.let {
@@ -43,7 +49,8 @@ fun nodeV3(
                 responseTimeout = responseTimeout,
                 connectionIdleTimeout = connectionIdleTimeout,
                 healthCheckPath = healthCheckPath,
-                healthCheckClusterName = healthCheckClusterName
+                healthCheckClusterName = healthCheckClusterName,
+                rateLimit = rateLimit
             )
         )
     }
@@ -73,9 +80,13 @@ fun ProxySettings.with(
         Durations.fromSeconds(120),
         Durations.fromSeconds(120),
         Durations.fromSeconds(120)
-    ))
+    )),
+    rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList()
 ): ProxySettings {
     return copy(
+        incoming = incoming.copy(
+            rateLimitEndpoints = rateLimitEndpoints
+        ),
         outgoing = Outgoing(
             serviceDependencies = serviceDependencies.toList(),
             domainDependencies = domainDependencies.toList(),
@@ -101,7 +112,8 @@ fun proxySettingsProto(
     connectionIdleTimeout: String? = null,
     healthCheckPath: String? = null,
     healthCheckClusterName: String? = null,
-    clients: List<String> = listOf("client1")
+    clients: List<String> = listOf("client1"),
+    rateLimit: String? = null
 ): Value = struct {
     if (incomingSettings) {
         putFields("incoming", struct {
@@ -116,6 +128,11 @@ fun proxySettingsProto(
             putFields("endpoints", list {
                 addValues(incomingEndpointProto(path = path, clients = clients))
             })
+            if (rateLimit != null) {
+                putFields("rateLimitEndpoints", list {
+                    addValues(incomingRateLimitEndpointProto(path = path, rateLimit = rateLimit))
+                })
+            }
             putFields("timeoutPolicy", struct {
                 idleTimeout?.let {
                     putFields("idleTimeout", string(it))
@@ -267,6 +284,24 @@ fun incomingEndpointProto(
 
     putFields("clients", list { clients.forEach { addValues(string(it)) } })
     oauth?.let { putFields("oauth", putOauthFields(it)) }
+}
+
+fun incomingRateLimitEndpointProto(
+    path: String? = null,
+    pathPrefix: String? = null,
+    pathRegex: String? = null,
+    clients: List<String> = emptyList(),
+    methods: List<String> = emptyList(),
+    rateLimit: String = "0/s"
+): Value = struct {
+
+    this.putPathFields(path, "path", false)
+    this.putPathFields(pathPrefix, "pathPrefix", false)
+    this.putPathFields(pathRegex, "pathRegex", false)
+
+    putFields("clients", list { clients.forEach { addValues(string(it)) } })
+    putFields("methods", list { methods.forEach { addValues(string(it)) } })
+    putFields("rateLimit", string(rateLimit))
 }
 
 fun Struct.Builder.putPathFields(path: String?, fieldName: String, includeNullFields: Boolean) {

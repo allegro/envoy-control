@@ -1,24 +1,16 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.service
 
 import org.testcontainers.containers.Network
+import org.testcontainers.containers.wait.strategy.Wait
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
-import java.util.UUID
 
-class RedirectServiceContainer(
-    private val redirectTo: String
-) : GenericContainer<RedirectServiceContainer>("schmunk42/nginx-redirect:latest"), ServiceContainer {
-
-    val response = UUID.randomUUID().toString()
+class RedisContainer: GenericContainer<EchoContainer>("redis:alpine"), ServiceContainer {
 
     override fun configure() {
         super.configure()
         withExposedPorts(PORT)
         withNetwork(Network.SHARED)
-        withEnv(mapOf(
-            "SERVER_REDIRECT" to redirectTo,
-            "SERVER_REDIRECT_PATH" to "/",
-            "SERVER_REDIRECT_CODE" to "302"
-        ))
+        waitingFor(Wait.forListeningPort())
     }
 
     fun address(): String = "${ipAddress()}:$PORT"
@@ -26,6 +18,6 @@ class RedirectServiceContainer(
     override fun port() = PORT
 
     companion object {
-        const val PORT = 80
+        const val PORT = 6379
     }
 }

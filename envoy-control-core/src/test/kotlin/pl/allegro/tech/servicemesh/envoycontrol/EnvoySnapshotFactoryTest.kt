@@ -19,6 +19,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
@@ -47,6 +48,7 @@ class EnvoySnapshotFactoryTest {
         const val EGRESS_PORT = 3380
         const val CLUSTER_NAME = "cluster-name"
         const val DEFAULT_SERVICE_NAME = "service-name"
+        const val DEFAULT_DISCOVERY_SERVICE_NAME = "discovery-service-name"
         const val DEFAULT_IDLE_TIMEOUT = 100L
     }
 
@@ -204,11 +206,72 @@ class EnvoySnapshotFactoryTest {
         assertThat(actualCluster2.commonHttpProtocolOptions.idleTimeout.seconds).isEqualTo(12)
     }
 
+    @Test
+    fun `should fetch ratelimit service endpoint if there are global rate limits`() {
+        // given
+        val properties = SnapshotProperties().apply { rateLimit.serviceName = "rl_service" }
+        val envoySnapshotFactory = createSnapshotFactory(properties)
+
+        val group: Group = createServicesGroup(rateLimitEndpoints = listOf(
+            IncomingRateLimitEndpoint("/hello", rateLimit = "12/s")
+        ))
+        val cluster = createCluster(properties)
+        val globalSnapshot = createGlobalSnapshot(cluster).withEndpoint("rl_service")
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        assertThat(snapshot.endpoints().resources()).containsKey("rl_service")
+    }
+
+    @Test
+    fun `should not fetch ratelimit service endpoint if there are no global rate limits`() {
+        // given
+        val properties = SnapshotProperties().apply { rateLimit.serviceName = "rl_service" }
+        val envoySnapshotFactory = createSnapshotFactory(properties)
+
+        val group: Group = createServicesGroup(rateLimitEndpoints = emptyList())
+        val cluster = createCluster(properties)
+        val globalSnapshot = createGlobalSnapshot(cluster).withEndpoint("rl_service")
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        assertThat(snapshot.endpoints().resources()).doesNotContainKey("rl_service")
+    }
+
+    @Test
+    fun `should not fetch ratelimit service endpoint if there are global rate limits, but rate limit service does not exist`() {
+        // given
+        val properties = SnapshotProperties().apply { rateLimit.serviceName = "rl_service" }
+        val envoySnapshotFactory = createSnapshotFactory(properties)
+
+        val group: Group = createServicesGroup(rateLimitEndpoints = emptyList())
+        val cluster = createCluster(properties)
+        val globalSnapshot = createGlobalSnapshot(cluster)
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        assertThat(snapshot.endpoints().resources()).doesNotContainKey("rl_service")
+    }
+
+    private fun GlobalSnapshot.withEndpoint(clusterName: String): GlobalSnapshot = copy(
+        endpoints = SnapshotResources.create(listOf(ClusterLoadAssignment.newBuilder()
+            .setClusterName(clusterName)
+            .build()
+        ), "v1"))
+
     private fun createServicesGroup(
         mode: CommunicationMode = CommunicationMode.XDS,
         serviceName: String = DEFAULT_SERVICE_NAME,
+        discoveryServiceName: String = DEFAULT_DISCOVERY_SERVICE_NAME,
         dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
-        listenersConfigExists: Boolean = true
+        listenersConfigExists: Boolean = true,
+        rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList()
     ): ServicesGroup {
         val listenersConfig = when (listenersConfigExists) {
             true -> createListenersConfig()
@@ -217,7 +280,8 @@ class EnvoySnapshotFactoryTest {
         return ServicesGroup(
             mode,
             serviceName,
-            ProxySettings().with(serviceDependencies = serviceDependencies(*dependencies)),
+            discoveryServiceName,
+            ProxySettings().with(serviceDependencies = serviceDependencies(*dependencies), rateLimitEndpoints = rateLimitEndpoints),
             listenersConfig
         )
     }
@@ -225,6 +289,7 @@ class EnvoySnapshotFactoryTest {
     private fun createAllServicesGroup(
         mode: CommunicationMode = CommunicationMode.XDS,
         serviceName: String = DEFAULT_SERVICE_NAME,
+        discoveryServiceName: String = DEFAULT_DISCOVERY_SERVICE_NAME,
         dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
         defaultServiceSettings: DependencySettings,
         listenersConfigExists: Boolean = true
@@ -236,6 +301,7 @@ class EnvoySnapshotFactoryTest {
         return AllServicesGroup(
             mode,
             serviceName,
+            discoveryServiceName,
             ProxySettings().with(serviceDependencies = serviceDependencies(*dependencies), defaultServiceSettings = defaultServiceSettings),
             listenersConfig
         )
@@ -255,9 +321,8 @@ class EnvoySnapshotFactoryTest {
         val ingressRoutesFactory = EnvoyIngressRoutesFactory(
             SnapshotProperties(),
             EnvoyHttpFilters(
-                emptyList(), emptyList(),
-                Metadata.getDefaultInstance()
-            )
+                emptyList(), emptyList()
+            ) { Metadata.getDefaultInstance() }
         )
         val egressRoutesFactory = EnvoyEgressRoutesFactory(properties)
         val clustersFactory = EnvoyClustersFactory(properties)

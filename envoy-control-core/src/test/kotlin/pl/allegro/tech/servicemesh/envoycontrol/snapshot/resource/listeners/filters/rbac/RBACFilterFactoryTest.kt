@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.rbac
 
 import io.envoyproxy.controlplane.cache.SnapshotResources
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
@@ -21,7 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SelectorMatching
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SourceIpAuthenticationProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StatusRouteProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.rbac.RBACFilterFactoryTestUtils
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.RBACFilterFactory
 
 @Suppress("LargeClass") // TODO: https://github.com/allegro/envoy-control/issues/121
 internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
@@ -744,7 +744,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                   }
                 }
               ], "principals": [
-                ${authenticatedPrincipal("client1")}
+                ${originalAndAuthenticatedPrincipal("client1")}
               ]
             },
             "IncomingEndpoint(path=/example2, pathMatchingType=PATH, methods=[POST], clients=[ClientWithSelector(name=client2, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
@@ -764,7 +764,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                   }
                 }
               ], "principals": [
-                ${authenticatedPrincipal("client2")}
+                ${originalAndAuthenticatedPrincipal("client2")}
               ]
             }
           }
@@ -907,7 +907,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                 }
               ], "principals": [
                 { "orIds": { "ids": [${principalSourceIp("127.0.0.1")}] } },
-                ${authenticatedPrincipal(("client2"))}
+                ${originalAndAuthenticatedPrincipal(("client2"))}
               ]
             }
           }
@@ -935,8 +935,8 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                   }
                 }
               ], "principals": [
-                ${authenticatedPrincipal(("client1"))},
-                ${authenticatedPrincipal(("client2"))}
+                ${originalAndAuthenticatedPrincipal(("client1"))},
+                ${originalAndAuthenticatedPrincipal(("client2"))}
               ]
             }
           }
@@ -965,9 +965,9 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                   }
                 }
               ], "principals": [
-                ${authenticatedPrincipal(("client1"))},
-                ${authenticatedPrincipal(("client1-duplicated"))},
-                ${authenticatedPrincipal(("client2"))}
+                ${originalAndAuthenticatedPrincipal(("client1"))},
+                ${originalAndAuthenticatedPrincipal(("client1-duplicated"))},
+                ${originalAndAuthenticatedPrincipal(("client2"))}
               ]
             }
           }
@@ -995,8 +995,8 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                   }
                 }
               ], "principals": [
-                ${authenticatedPrincipal(("client1"))},
-                ${authenticatedPrincipal(("client2"))}
+                ${originalAndAuthenticatedPrincipal(("client1"))},
+                ${originalAndAuthenticatedPrincipal(("client2"))}
               ]
             },
             "${policyNames[1]}": {
@@ -1017,8 +1017,8 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                   }
                 }
               ], "principals": [
-                ${authenticatedPrincipal(("client1"))},
-                ${authenticatedPrincipal(("client2"))}
+                ${originalAndAuthenticatedPrincipal(("client1"))},
+                ${originalAndAuthenticatedPrincipal(("client2"))}
               ]
             }
           }
@@ -1249,8 +1249,8 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                       }
                 }
               ], "principals": [
-                ${authenticatedPrincipal(("client1"))},
-                ${authenticatedPrincipal(("client2"))}
+                ${originalAndAuthenticatedPrincipal(("client1"))},
+                ${originalAndAuthenticatedPrincipal(("client2"))}
               ]
             },
             "ALLOW_UNLISTED_POLICY": {
@@ -1310,10 +1310,10 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     """
 
     private val expectedRulesForAllowedClient = expectedPoliciesForAllowedClient(
-        "${authenticatedPrincipal("client1")}, ${authenticatedPrincipal("allowed-client")}"
+        "${originalAndAuthenticatedPrincipal("client1")}, ${originalAndAuthenticatedPrincipal("allowed-client")}"
     )
 
     private val expectedShadowRulesForAllowedClient = expectedPoliciesForAllowedClient(
-        authenticatedPrincipal("client1")
+        originalAndAuthenticatedPrincipal("client1")
     )
 }

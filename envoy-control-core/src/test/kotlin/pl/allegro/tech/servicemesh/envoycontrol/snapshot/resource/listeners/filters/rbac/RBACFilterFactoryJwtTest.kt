@@ -146,12 +146,12 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         )
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
-                authenticatedPrincipal("client1"),
+                originalAndAuthenticatedPrincipal("client1"),
                 "ClientWithSelector(name=client1, selector=null)",
                 "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             ),
             expectedPoliciesForOAuth(
-                authenticatedPrincipal("client1"),
+                originalAndAuthenticatedPrincipal("client1"),
                 "ClientWithSelector(name=client1, selector=null)",
                 "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             )
@@ -341,13 +341,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                   }
                 }]
               }
-            }, {
-              "authenticated": {
-                "principalName": {
-                  "exact": "spiffe://$client"
-                }
-              }
-            }]
+            }, ${originalAndAuthenticatedPrincipal(client)}]
           }
         }"""
         OAuth.Policy.ALLOW_MISSING -> """{
@@ -396,16 +390,10 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                   }
                 }]
               }
-            }, {
-              "authenticated": {
-                "principalName": {
-                  "exact": "spiffe://$client"
-                }
-              }
-            }]
+            }, ${originalAndAuthenticatedPrincipal(client)}]
           }
         }"""
-        OAuth.Policy.ALLOW_MISSING_OR_FAILED -> authenticatedPrincipal("client1")
+        OAuth.Policy.ALLOW_MISSING_OR_FAILED -> originalAndAuthenticatedPrincipal("client1")
     }
 
     private fun oAuthPrincipalsNoClients(policy: OAuth.Policy): String {

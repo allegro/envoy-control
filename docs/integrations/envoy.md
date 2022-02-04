@@ -37,7 +37,7 @@ in Envoy metadata config. Envoy Control will pick it up and use ADS for this nod
 ## Outlier detection
 
 You can configure global
-[outlier detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/outlier#arch-overview-outlier-detection)
+[outlier detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier#arch-overview-outlier-detection)
 for all clusters with properties [described here](../configuration.md#outlier-detection).
 
 ## Retry policy
@@ -62,6 +62,6 @@ By default Envoy Control will set HTTP/1 for all clusters under it's control.
 A preferred protocol for communication is HTTP/2 whenever it's available.
 If you have a heterogeneous environment and only some of your services support HTTP2 or run Envoy you might want to tweak this option.
 Based on `envoy-control.envoy.snapshot.egress.http2.enabled`
-Envoy Control will enable Http2 for clusters that have a [tag](https://github.com/allegro/envoy-control/blob/master/envoy-control-services/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/services/ServiceInstance.kt#L5)
-with a value equal to property `envoy-control.envoy.snapshot.egress.http2.tagName` only when it's present on every [instance](https://github.com/allegro/envoy-control/blob/master/envoy-control-services/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/services/ServiceInstance.kt).
+Envoy Control will enable Http2 for clusters that have a [tag](https://github.com/allegro/envoy-control/blob/master/envoy-control-services/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/services/ServiceInstances.kt#L5)
+with a value equal to property `envoy-control.envoy.snapshot.egress.http2.tagName` only when it's present on every [instance](https://github.com/allegro/envoy-control/blob/master/envoy-control-services/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/services/ServiceInstances.kt).
 By default `tagName` is `envoy` so if one of your discovery service sources uses that you need to change the value of `tagName`.

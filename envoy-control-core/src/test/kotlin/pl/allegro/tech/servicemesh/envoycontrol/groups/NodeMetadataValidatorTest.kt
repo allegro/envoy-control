@@ -264,6 +264,28 @@ class NodeMetadataValidatorTest {
         assertDoesNotThrow { validator.onV3StreamRequest(123, request = request) }
     }
 
+    @Test
+    fun `should throw an exception when rate limit is invalid`() {
+        // given
+        val node = nodeV3(
+            incomingSettings = true,
+            rateLimit = "0/j"
+        )
+        val request = DiscoveryRequestV3.newBuilder()
+            .setNode(node)
+            .build()
+
+        // then
+        assertThatExceptionOfType(RateLimitIncorrectValidationException::class.java)
+            .isThrownBy { validator.onV3StreamRequest(123, request = request) }
+            .satisfies {
+                assertThat(it.status.description).isEqualTo(
+                    "Rate limit value: 0/j is incorrect."
+                )
+                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+            }
+    }
+
     private fun createIncomingPermissions(
         enabled: Boolean = false,
         servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()

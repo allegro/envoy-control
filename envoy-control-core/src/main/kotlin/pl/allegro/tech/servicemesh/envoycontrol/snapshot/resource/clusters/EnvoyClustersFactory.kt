@@ -40,6 +40,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.containsGlobalRateLimits
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
@@ -106,7 +107,8 @@ class EnvoyClustersFactory(
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
-        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clustersForJWT
+        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clustersForJWT +
+            getRateLimitClusterForGroup(group, globalSnapshot)
 
     private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster? {
         if (provider.createCluster) {
@@ -160,6 +162,23 @@ class EnvoyClustersFactory(
         }
     }
 
+    private fun getRateLimitClusterForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
+        if (group.proxySettings.incoming.rateLimitEndpoints.containsGlobalRateLimits()) {
+            val cluster = globalSnapshot.clusters.resources()[properties.rateLimit.serviceName]
+
+            if (cluster != null) {
+                return listOf(Cluster.newBuilder(cluster).build())
+            }
+
+            logger.warn("ratelimit service [{}] cluster required for service [{}] has not been found.",
+                properties.rateLimit.serviceName,
+                group.serviceName
+            )
+        }
+
+        return emptyList()
+    }
+
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
             globalSnapshot.securedClusters
@@ -176,8 +195,8 @@ class EnvoyClustersFactory(
             is AllServicesGroup -> {
                 globalSnapshot.allServicesNames.mapNotNull {
                     val dependency = serviceDependencies[it]
-                    if (dependency != null && dependency.settings.timeoutPolicy.idleTimeout != null) {
-                        createClusterForGroup(serviceDependencies[it]!!.settings, clusters[it])
+                    if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
+                        createClusterForGroup(dependency.settings, clusters[it])
                     } else {
                         createClusterForGroup(group.proxySettings.outgoing.defaultServiceSettings, clusters[it])
                     }
@@ -244,12 +263,19 @@ class EnvoyClustersFactory(
     }
 
     private fun getStrictDnsClustersForGroup(group: Group): List<Cluster> {
+        val useTransparentProxy = group.listenersConfig?.useTransparentProxy ?: false
         return group.proxySettings.outgoing.getDomainDependencies().map {
-            strictDnsCluster(it)
+            strictDnsCluster(
+                it,
+                useTransparentProxy
+            )
         }
     }
 
-    private fun strictDnsCluster(domainDependency: DomainDependency): Cluster {
+    private fun strictDnsCluster(
+        domainDependency: DomainDependency,
+        useTransparentProxy: Boolean
+    ): Cluster {
         var clusterBuilder = Cluster.newBuilder()
 
         if (properties.clusterOutlierDetection.enabled) {
@@ -282,7 +308,8 @@ class EnvoyClustersFactory(
             )
             .setLbPolicy(properties.loadBalancing.policy)
 
-        if (domainDependency.useSsl()) {
+        if (shouldAttachCertificateToCluster(domainDependency.useSsl(), useTransparentProxy)) {
+
             val commonTlsContext = CommonTlsContext.newBuilder()
                 .setValidationContext(
                     CertificateValidationContext.newBuilder()
@@ -356,6 +383,15 @@ class EnvoyClustersFactory(
                 ).setServiceName(clusterConfiguration.serviceName)
             )
             .setLbPolicy(properties.loadBalancing.policy)
+            // TODO: if we want to have multiple memory-backend instances of ratelimit
+            // then we should have consistency hashed lb
+            // setting RING_HASH here is not enough (but it's probably required so I leave it here)
+            // .setLbPolicy(
+            //     when (properties.rateLimit.serviceName == clusterConfiguration.serviceName) {
+            //         true -> Cluster.LbPolicy.RING_HASH
+            //         else -> properties.loadBalancing.policy
+            //     }
+            // )
             .configureLbSubsets()
 
         cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
@@ -410,6 +446,9 @@ class EnvoyClustersFactory(
             }
         )
     }
+
+    private fun shouldAttachCertificateToCluster(ssl: Boolean, useTransparentProxy: Boolean) =
+        ssl && !useTransparentProxy
 
     private fun Cluster.LbSubsetConfig.Builder.addTagsAndCanarySelector() = this.addSubsetSelectors(
         Cluster.LbSubsetConfig.LbSubsetSelector.newBuilder()

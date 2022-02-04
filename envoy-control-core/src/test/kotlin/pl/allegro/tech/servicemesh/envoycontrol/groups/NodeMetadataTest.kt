@@ -324,6 +324,22 @@ class NodeMetadataTest {
     }
 
     @Test
+    fun `should return correct host and default port for https domain dependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "https://domain")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainDependencies().single()
+        assertThat(dependency.getHost()).isEqualTo("domain")
+        assertThat(dependency.getPort()).isEqualTo(443)
+    }
+
+    @Test
     fun `should deduplicate domains dependencies based on url`() {
         // given
         val proto = outgoingDependenciesProto {
