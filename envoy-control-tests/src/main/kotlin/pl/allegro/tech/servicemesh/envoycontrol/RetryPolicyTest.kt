@@ -8,10 +8,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import java.time.Duration
 
 class RetryPolicyTest {
@@ -25,6 +25,7 @@ node:
         dependencies:
           - service: "echo"
             retryPolicy:
+              retryOn: "retriable-status-codes"
               numberRetries: "8"
               retryableStatusCodes: ["200"]
             """.trimIndent()
@@ -67,24 +68,31 @@ node:
 
         untilAsserted {
             // then
-            assertThat(hasRetriedRequest(numberOfRetries = 3, metricName = "cluster.local_service.upstream_rq_retry")).isTrue()
+            assertThat(
+                hasRetriedRequest(
+                    numberOfRetries = 3,
+                    metricName = "cluster.local_service.upstream_rq_retry"
+                )
+            ).isTrue()
         }
     }
 
-
     @Test
-    fun `should retry 8 times when configured retry policy route for service`(){
-        consul.server.operations.registerService(service, name = "echo")
+    fun `should retry 8 times when configured retry policy route for service`() {
+        // given
+        service.container().start()
 
+        // when
+        consul.server.operations.registerService(service, name = "echo")
         untilAsserted {
+            // then
             val response = envoy.egressOperations.callService("echo")
             assertThat(response).isOk().isFrom(service)
         }
 
         untilAsserted(wait = Duration.ofSeconds(5)) {
             // then
-            //assertThat(hasRetriedRequest(numberOfRetries = 8, metricName = "vhost.service-1.vcluster.other.upstream_rq_retry")).isTrue()
-            assertThat(envoy.container.admin().statValue("vhost.echo.vcluster.other.upstream_rq_retry")!!.toLong()).isEqualTo(8)
+            assertThat(hasRetriedRequest(numberOfRetries = 8, metricName = "cluster.echo.upstream_rq_retry")).isTrue()
         }
     }
 
