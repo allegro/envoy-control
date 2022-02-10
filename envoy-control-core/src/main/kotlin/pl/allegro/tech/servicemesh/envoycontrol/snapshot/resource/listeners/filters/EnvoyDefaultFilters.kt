@@ -92,7 +92,7 @@ class EnvoyDefaultFilters(
      * This function is a recommended way to create list of ingress filters.
      */
     fun ingressFilters(vararg filters: (Group, GlobalSnapshot) -> HttpFilter?):
-        List<(Group, GlobalSnapshot) -> HttpFilter?>    {
+        List<(Group, GlobalSnapshot) -> HttpFilter?> {
         val preFilters = listOf(
             defaultClientNameHeaderFilter,
             defaultAuthorizationHeaderFilter,
