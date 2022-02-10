@@ -6,20 +6,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
-import io.envoyproxy.controlplane.cache.CacheStatusInfo;
-import io.envoyproxy.controlplane.cache.DeltaResponse;
-import io.envoyproxy.controlplane.cache.DeltaWatch;
-import io.envoyproxy.controlplane.cache.DeltaXdsRequest;
-import io.envoyproxy.controlplane.cache.NodeGroup;
-import io.envoyproxy.controlplane.cache.Resources;
-import io.envoyproxy.controlplane.cache.Response;
-import io.envoyproxy.controlplane.cache.Snapshot;
-import io.envoyproxy.controlplane.cache.SnapshotCache;
-import io.envoyproxy.controlplane.cache.StatusInfo;
-import io.envoyproxy.controlplane.cache.VersionedResource;
-import io.envoyproxy.controlplane.cache.Watch;
-import io.envoyproxy.controlplane.cache.WatchCancelledException;
-import io.envoyproxy.controlplane.cache.XdsRequest;
+import io.envoyproxy.controlplane.cache.*;
+import io.envoyproxy.controlplane.cache.GroupCacheStatusInfo;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +29,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static io.envoyproxy.controlplane.cache.Resources.RESOURCE_TYPES_IN_ORDER;
 
@@ -60,7 +49,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
     @GuardedBy("lock")
     private final Map<T, U> snapshots = new HashMap<>();
-    private final ConcurrentMap<T, ConcurrentMap<Resources.ResourceType, CacheStatusInfo<T>>> statuses = new ConcurrentHashMap<>();
+    private final CacheStatusInfoAggregator<T> statuses = new CacheStatusInfoAggregator<>();
 
     private AtomicLong watchCount = new AtomicLong();
 
@@ -83,10 +72,9 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         // we take a writeLock to prevent watches from being created
         writeLock.lock();
         try {
-            Map<Resources.ResourceType, CacheStatusInfo<T>>  status = statuses.get(group);
 
             // If we don't know about this group, do nothing.
-            if (status != null && status.values().stream().mapToLong(CacheStatusInfo::numWatches).sum() > 0) {
+            if (statuses.hasStatuses(group)) {
                 LOGGER.warn("tried to clear snapshot for group with existing watches, group={}", group);
 
                 return false;
@@ -101,6 +89,14 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         }
     }
 
+  public Watch createWatch(
+      boolean ads,
+      XdsRequest request,
+      Set<String> knownResourceNames,
+      Consumer<Response> responseConsumer) {
+    return createWatch(ads, request, knownResourceNames, responseConsumer, false);
+  }
+
     /**
      * {@inheritDoc}
      */
@@ -111,7 +107,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             Set<String> knownResourceNames,
             Consumer<Response> responseConsumer,
             boolean hasClusterChanged) {
-        Resources.ResourceType requestResourceType = request.getResourceType();
+    Resources.ResourceType requestResourceType = request.getResourceType();
         Preconditions.checkNotNull(requestResourceType, "unsupported type URL %s",
                 request.getTypeUrl());
         T group;
@@ -125,8 +121,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         // doesn't conflict
         readLock.lock();
         try {
-            CacheStatusInfo<T> status = statuses.computeIfAbsent(group, g -> new ConcurrentHashMap<>())
-                    .computeIfAbsent(requestResourceType, s -> new CacheStatusInfo<>(group));
+            CacheStatusInfo<T> status = statuses.getOrAddStatusInfo(group, requestResourceType);
             status.setLastWatchRequestTime(System.currentTimeMillis());
 
             U snapshot = snapshots.get(group);
@@ -160,20 +155,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
             // If the requested version is up-to-date or missing a response, leave an open watch.
             if (snapshot == null || request.getVersionInfo().equals(version)) {
-                long watchId = watchCount.incrementAndGet();
-
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("open watch {} for {}[{}] from node {} for version {}",
-                            watchId,
-                            request.getTypeUrl(),
-                            String.join(", ", request.getResourceNamesList()),
-                            group,
-                            request.getVersionInfo());
-                }
-
-                status.setWatch(watchId, watch);
-
-                watch.setStop(() -> status.removeWatch(watchId));
+                openWatch(status, watch, request.getTypeUrl(), request.getResourceNamesList(), group, request.getVersionInfo());
 
                 return watch;
             }
@@ -182,20 +164,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             boolean responded = respond(watch, snapshot, group);
 
             if (!responded) {
-                long watchId = watchCount.incrementAndGet();
-
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("did not respond immediately, leaving open watch {} for {}[{}] from node {} for version {}",
-                            watchId,
-                            request.getTypeUrl(),
-                            String.join(", ", request.getResourceNamesList()),
-                            group,
-                            request.getVersionInfo());
-                }
-
-                status.setWatch(watchId, watch);
-
-                watch.setStop(() -> status.removeWatch(watchId));
+                openWatch(status, watch, request.getTypeUrl(), request.getResourceNamesList(), group, request.getVersionInfo());
             }
 
             return watch;
@@ -231,8 +200,8 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         // doesn't conflict
         readLock.lock();
         try {
-            CacheStatusInfo<T> status = statuses.computeIfAbsent(group, g -> new ConcurrentHashMap<>())
-                .computeIfAbsent(requestResourceType, s -> new CacheStatusInfo<>(group));
+            DeltaCacheStatusInfo<T> status = statuses.getOrAddDeltaStatusInfo(group, requestResourceType);
+
             status.setLastWatchRequestTime(System.currentTimeMillis());
 
             U snapshot = snapshots.get(group);
@@ -248,16 +217,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             // If no snapshot, leave an open watch.
 
             if (snapshot == null) {
-                long watchId = setDeltaWatch(status, watch);
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("open watch {} for {}[{}] from node {} for version {}",
-                        watchId,
-                        request.getTypeUrl(),
-                        String.join(", ", watch.trackedResources().keySet()),
-                        group,
-                        requesterVersion);
-                }
-
+                openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
                 return watch;
             }
 
@@ -277,61 +237,29 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                         Collections.emptyList(),
                         version,
                         group);
-                    if (responseState.equals(ResponseState.RESPONDED) || responseState.equals(ResponseState.CANCELLED)) {
+                    if (responseState.isFinished()) {
                         return watch;
                     }
                 } else if (hasClusterChanged && requestResourceType.equals(Resources.ResourceType.ENDPOINT)) {
-                    Map<String, VersionedResource<?>> snapshotResources = snapshot.versionedResources(request.getResourceType());
-                    List<String> removedResources = findRemovedResources(watch,
-                        snapshotResources);
-                    Map<String, VersionedResource<?>> changedResources = findChangedResources(watch, snapshotResources);
-                    ResponseState responseState = respondDelta(
-                        watch,
-                        changedResources,
-                        removedResources,
-                        version,
-                        group);
-                    if (responseState.equals(ResponseState.RESPONDED) || responseState.equals(ResponseState.CANCELLED)) {
+                    ResponseState responseState = respondDelta(request, watch, snapshot, version, group);
+                    if (responseState.isFinished()) {
                         return watch;
                     }
                 }
 
-                long watchId = setDeltaWatch(status, watch);
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("open watch {} for {}[{}] from node {} for version {}",
-                        watchId,
-                        request.getTypeUrl(),
-                        String.join(", ", watch.trackedResources().keySet()),
-                        group,
-                        requesterVersion);
-                }
+                openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
 
                 return watch;
             }
 
             // Otherwise, version is different, the watch may be responded immediately
-            Map<String, VersionedResource<?>> snapshotResources = snapshot.versionedResources(request.getResourceType());
-            List<String> removedResources = findRemovedResources(watch,
-                snapshotResources);
-            Map<String, VersionedResource<?>> changedResources = findChangedResources(watch, snapshotResources);
-            ResponseState responseState = respondDelta(watch,
-                changedResources,
-                removedResources,
-                version,
-                group);
-            if (responseState.equals(ResponseState.RESPONDED) || responseState.equals(ResponseState.CANCELLED)) {
+            ResponseState responseState = respondDelta(request, watch, snapshot, version, group);
+
+            if (responseState.isFinished()) {
                 return watch;
             }
 
-            long watchId = setDeltaWatch(status, watch);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("did not respond immediately, leaving open watch {} for {}[{}] from node {} for version {}",
-                    watchId,
-                    request.getTypeUrl(),
-                    String.join(", ", watch.trackedResources().keySet()),
-                    group,
-                    requesterVersion);
-            }
+            openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
 
             return watch;
         } finally {
@@ -339,11 +267,23 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         }
     }
 
-    private long setDeltaWatch(CacheStatusInfo<T> status, DeltaWatch watch) {
+    private <V extends AbstractWatch<?, ?>> void openWatch(MutableStatusInfo<T, V> status,
+                                                           V watch,
+                                                           String url,
+                                                           Collection<String> resources,
+                                                           T group,
+                                                           String version) {
         long watchId = watchCount.incrementAndGet();
-        status.setDeltaWatch(watchId, watch);
-        watch.setStop(() -> status.removeDeltaWatch(watchId));
-        return watchId;
+        status.setWatch(watchId, watch);
+        watch.setStop(() -> status.removeWatch(watchId));
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("open watch {} for {}[{}] from node {} for version {}",
+                watchId,
+                url,
+                String.join(", ", resources),
+                group,
+                version);
+        }
     }
 
     /**
@@ -365,7 +305,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
      */
     @Override
     public Collection<T> groups() {
-        return ImmutableSet.copyOf(statuses.keySet());
+        return ImmutableSet.copyOf(statuses.groups());
     }
 
     /**
@@ -377,40 +317,47 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
     @Override
     public void setSnapshot(T group, U snapshot) {
         // we take a writeLock to prevent watches from being created while we update the snapshot
-        ConcurrentMap<Resources.ResourceType, CacheStatusInfo<T>> status;
+        Map<Resources.ResourceType, CacheStatusInfo<T>> status;
+        Map<Resources.ResourceType, DeltaCacheStatusInfo<T>> deltaStatus;
         U previousSnapshot;
         writeLock.lock();
         try {
             // Update the existing snapshot entry.
             previousSnapshot = snapshots.put(group, snapshot);
-            status = statuses.get(group);
+            status = statuses.getStatus(group);
+            deltaStatus = statuses.getDeltaStatus(group);
         } finally {
             writeLock.unlock();
         }
 
-        if (status == null) {
+        if (status.isEmpty() && deltaStatus.isEmpty()) {
             return;
         }
 
         // Responses should be in specific order and typeUrls has a list of resources in the right
         // order.
-        respondWithSpecificOrder(group, previousSnapshot, snapshot, status);
+        respondWithSpecificOrder(group, previousSnapshot, snapshot, status, deltaStatus);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public StatusInfo statusInfo(T group) {
+    public StatusInfo<T> statusInfo(T group) {
         readLock.lock();
 
         try {
-            ConcurrentMap<Resources.ResourceType, CacheStatusInfo<T>> statusMap = statuses.get(group);
-            if (statusMap == null || statusMap.isEmpty()) {
+            Map<Resources.ResourceType, CacheStatusInfo<T>> statusMap = statuses.getStatus(group);
+            Map<Resources.ResourceType, DeltaCacheStatusInfo<T>> deltaStatusMap = statuses.getDeltaStatus(group);
+
+            if (statusMap.isEmpty() && deltaStatusMap.isEmpty()) {
                 return null;
             }
 
-            return new GroupCacheStatusInfo<>(statusMap.values());
+            List<StatusInfo<T>> collection = Stream.concat(statusMap.values().stream(),
+                deltaStatusMap.values().stream()).collect(Collectors.toList());
+
+            return new GroupCacheStatusInfo<>(collection);
         } finally {
             readLock.unlock();
         }
@@ -419,83 +366,87 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
     @VisibleForTesting
     protected void respondWithSpecificOrder(T group,
                                             U previousSnapshot, U snapshot,
-                                            ConcurrentMap<Resources.ResourceType, CacheStatusInfo<T>> statusMap) {
+                                            Map<Resources.ResourceType, CacheStatusInfo<T>> statusMap,
+                                            Map<Resources.ResourceType, DeltaCacheStatusInfo<T>> deltaStatusMap) {
         for (Resources.ResourceType resourceType : RESOURCE_TYPES_IN_ORDER) {
             CacheStatusInfo<T> status = statusMap.get(resourceType);
-            if (status == null) continue; // todo: why this happens?
-            status.watchesRemoveIf((id, watch) -> {
-                if (!watch.request().getResourceType().equals(resourceType)) {
-                    return false;
-                }
-                String version = snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList());
+            if (status != null) {
+                status.watchesRemoveIf((id, watch) -> {
+                    if (!watch.request().getResourceType().equals(resourceType)) {
+                        return false;
+                    }
+                    String version = snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList());
 
-                if (!watch.request().getVersionInfo().equals(version)) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("responding to open watch {}[{}] with new version {}",
+                    if (!watch.request().getVersionInfo().equals(version)) {
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.debug("responding to open watch {}[{}] with new version {}",
                                 id,
                                 String.join(", ", watch.request().getResourceNamesList()),
                                 version);
+                        }
+
+                        respond(watch, snapshot, group);
+
+                        // Discard the watch. A new watch will be created for future snapshots once envoy ACKs the response.
+                        return true;
                     }
 
-                    respond(watch, snapshot, group);
+                    // Do not discard the watch. The request version is the same as the snapshot version, so we wait to respond.
+                    return false;
+                });
+            }
+            DeltaCacheStatusInfo<T> deltaStatus = deltaStatusMap.get(resourceType);
+            if (deltaStatus != null) {
+                Map<String, VersionedResource<?>> previousResources = previousSnapshot == null
+                    ? Collections.emptyMap()
+                    : previousSnapshot.versionedResources(resourceType);
+                Map<String, VersionedResource<?>> snapshotResources = snapshot.versionedResources(resourceType);
 
-                    // Discard the watch. A new watch will be created for future snapshots once envoy ACKs the response.
-                    return true;
-                }
+                Map<String, VersionedResource<?>> snapshotChangedResources = snapshotResources.entrySet()
+                    .stream()
+                    .filter(entry -> {
+                        VersionedResource<?> versionedResource = previousResources.get(entry.getKey());
+                        return versionedResource == null || !versionedResource
+                            .version().equals(entry.getValue().version());
+                    })
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-                // Do not discard the watch. The request version is the same as the snapshot version, so we wait to respond.
-                return false;
-            });
+                Set<String> snapshotRemovedResources = previousResources.keySet()
+                    .stream()
+                    .filter(s -> !snapshotResources.containsKey(s))
+                    .collect(Collectors.toSet());
 
-            Map<String, VersionedResource<?>> previousResources = previousSnapshot == null
-                ? Collections.emptyMap()
-                : previousSnapshot.versionedResources(resourceType);
-            Map<String, VersionedResource<?>> snapshotResources = snapshot.versionedResources(resourceType);
+                deltaStatus.watchesRemoveIf((id, watch) -> {
+                    String version = snapshot.version(watch.request().getResourceType(), Collections.emptyList());
 
-            Map<String, VersionedResource<?>> snapshotChangedResources = snapshotResources.entrySet()
-                .stream()
-                .filter(entry -> {
-                    VersionedResource<?> versionedResource = previousResources.get(entry.getKey());
-                    return versionedResource == null || !versionedResource
-                        .version().equals(entry.getValue().version());
-                })
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            Set<String> snapshotRemovedResources = previousResources.keySet()
-                .stream()
-                .filter(s -> !snapshotResources.containsKey(s))
-                .collect(Collectors.toSet());
-
-            status.deltaWatchesRemoveIf((id, watch) -> {
-                String version = snapshot.version(watch.request().getResourceType(), Collections.emptyList());
-
-                if (!watch.version().equals(version)) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("responding to open watch {}[{}] with new version {}",
-                            id,
-                            String.join(", ", watch.trackedResources().keySet()),
-                            version);
-                    }
+                    if (!watch.version().equals(version)) {
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.debug("responding to open watch {}[{}] with new version {}",
+                                id,
+                                String.join(", ", watch.trackedResources().keySet()),
+                                version);
+                        }
 
                     List<String> removedResources = snapshotRemovedResources.stream()
                         .filter(s -> watch.trackedResources().get(s) != null)
                         .collect(Collectors.toList());
 
-                    Map<String, VersionedResource<?>> changedResources = findChangedResources(watch, snapshotChangedResources);
+                        Map<String, VersionedResource<?>> changedResources = findChangedResources(watch, snapshotChangedResources);
 
-                    ResponseState responseState = respondDelta(watch,
-                        changedResources,
-                        removedResources,
-                        version,
-                        group);
-                    // Discard the watch if it was responded or cancelled.
-                    // A new watch will be created for future snapshots once envoy ACKs the response.
-                    return ResponseState.RESPONDED.equals(responseState) || ResponseState.CANCELLED.equals(responseState);
-                }
+                        ResponseState responseState = respondDelta(watch,
+                            changedResources,
+                            removedResources,
+                            version,
+                            group);
+                        // Discard the watch if it was responded or cancelled.
+                        // A new watch will be created for future snapshots once envoy ACKs the response.
+                        return responseState.isFinished();
+                    }
 
-                // Do not discard the watch. The request version is the same as the snapshot version, so we wait to respond.
-                return false;
-            });
+                    // Do not discard the watch. The request version is the same as the snapshot version, so we wait to respond.
+                    return false;
+                });
+            }
         }
     }
 
@@ -625,28 +576,16 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private ResponseState respondDeltaTracked(DeltaWatch watch,
-                                              Map<String, VersionedResource<?>> snapshotResources,
-                                              List<String> removedResources,
-                                              String version,
-                                              T group) {
-
-        Map<String, VersionedResource<?>> resources = snapshotResources.entrySet()
-            .stream()
-            .filter(entry -> {
-                if (watch.pendingResources().contains(entry.getKey())) {
-                    return true;
-                }
-                String resourceVersion = watch.trackedResources().get(entry.getKey());
-                if (resourceVersion == null) {
-                    // resource is not tracked, should respond it only if watch is wildcard
-                    return watch.isWildcard();
-                }
-                return !entry.getValue().version().equals(resourceVersion);
-            })
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-        return respondDelta(watch, resources, removedResources, version, group);
+    private ResponseState respondDelta(DeltaXdsRequest request, DeltaWatch watch, U snapshot, String version, T group) {
+        Map<String, VersionedResource<?>> snapshotResources = snapshot.versionedResources(request.getResourceType());
+        List<String> removedResources = findRemovedResources(watch,
+            snapshotResources);
+        Map<String, VersionedResource<?>> changedResources = findChangedResources(watch, snapshotResources);
+        return respondDelta(watch,
+            changedResources,
+            removedResources,
+            version,
+            group);
     }
 
     private ResponseState respondDelta(DeltaWatch watch,
@@ -681,6 +620,10 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
     private enum ResponseState {
         RESPONDED,
         UNRESPONDED,
-        CANCELLED
+        CANCELLED;
+
+        private boolean isFinished() {
+            return this.equals(RESPONDED) || this.equals(CANCELLED);
+        }
     }
 }
