@@ -33,6 +33,7 @@ class EnvoyDefaultFilters(
     private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
     private val defaultHeaderToMetadataFilter = { _: Group, _: GlobalSnapshot -> headerToMetadataHttpFilter }
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
+
     /**
      * Default filters should not be private, user should have an option to pick any filter.
      * Remember: order matters.
@@ -90,7 +91,8 @@ class EnvoyDefaultFilters(
      * Creates a list of http filters with provided user filters. It respects order for crucial default filters.
      * This function is a recommended way to create list of ingress filters.
      */
-    fun ingressFilters(vararg filters: (Group, GlobalSnapshot) -> HttpFilter?): List<(Group, GlobalSnapshot) -> HttpFilter?> {
+    fun ingressFilters(vararg filters: (Group, GlobalSnapshot) -> HttpFilter?):
+        List<(Group, GlobalSnapshot) -> HttpFilter?>    {
         val preFilters = listOf(
             defaultClientNameHeaderFilter,
             defaultAuthorizationHeaderFilter,
