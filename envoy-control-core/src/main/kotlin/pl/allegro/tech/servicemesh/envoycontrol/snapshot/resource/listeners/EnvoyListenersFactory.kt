@@ -105,21 +105,6 @@ class EnvoyListenersFactory(
         TLS("tls")
     }
 
-    val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource(ApiVersion.V3)
-
-    fun apiConfigSource(apiVersion: ApiVersion): ApiConfigSource {
-        return ApiConfigSource.newBuilder()
-            .setApiType(ApiConfigSource.ApiType.GRPC)
-            .setTransportApiVersion(apiVersion)
-            .addGrpcServices(
-                GrpcService.newBuilder()
-                    .setEnvoyGrpc(
-                        GrpcService.EnvoyGrpc.newBuilder()
-                            .setClusterName("envoy-control-xds")
-                    )
-            ).build()
-    }
-
     fun createListeners(group: Group, globalSnapshot: GlobalSnapshot): List<Listener> {
         if (group.listenersConfig == null) {
             return listOf()
@@ -261,42 +246,6 @@ class EnvoyListenersFactory(
             .addFilters(createIngressFilter(group, globalSnapshot, statPrefix))
     }
 
-    private fun createSecuredIngressFilterChain(
-        group: Group,
-        listenersConfig: ListenersConfig,
-        globalSnapshot: GlobalSnapshot
-    ): FilterChain.Builder {
-        val filterChain = createIngressFilterChain(group, listenersConfig, globalSnapshot, TransportProtocol.TLS)
-        filterChain.setTransportSocket(downstreamTlsTransportSocket)
-        return filterChain
-    }
-
-    private fun createEgressFilterChain(
-        group: Group,
-        listenersConfig: ListenersConfig,
-        globalSnapshot: GlobalSnapshot
-    ): FilterChain {
-        return FilterChain.newBuilder()
-            .addFilters(createEgressFilter(group, listenersConfig, globalSnapshot))
-            .build()
-    }
-
-    private fun createEgressFilter(
-        group: Group,
-        listenersConfig: ListenersConfig,
-        globalSnapshot: GlobalSnapshot
-    ): Filter {
-        val connectionManagerBuilder = HttpConnectionManager.newBuilder()
-            .setStatPrefix("egress_http")
-            .setRds(egressRds(group.communicationMode))
-            .setHttpProtocolOptions(egressHttp1ProtocolOptions())
-            .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
-            .setGenerateRequestId(boolValue(listenersConfig.generateRequestId))
-
-        if (group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()) {
-            connectionManagerBuilder.addHttpFilters(dynamicForwardProxyFilter)
-        }
-
     private fun createIngressFilter(
         group: Group,
         globalSnapshot: GlobalSnapshot,
@@ -346,22 +295,6 @@ class EnvoyListenersFactory(
                 .build()
         }
     }
-    private fun egressHttp1ProtocolOptions(): Http1ProtocolOptions? {
-        return Http1ProtocolOptions.newBuilder()
-            .setAllowAbsoluteUrl(boolValue(true))
-            .build()
-    }
-
-    private fun egressRds(communicationMode: CommunicationMode): Rds {
-        val configSource = ConfigSource.newBuilder()
-            .setInitialFetchTimeout(egressRdsInitialFetchTimeout)
-
-        configSource.resourceApiVersion = ApiVersion.V3
-
-        when (communicationMode) {
-            ADS -> configSource.ads = AggregatedConfigSource.getDefaultInstance()
-            XDS -> configSource.apiConfigSource = defaultApiConfigSourceV3
-        }
 
     private fun createHttpProxyFilterChainForDomains(
         group: Group,

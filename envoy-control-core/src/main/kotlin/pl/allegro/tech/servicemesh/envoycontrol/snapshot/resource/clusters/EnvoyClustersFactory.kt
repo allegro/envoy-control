@@ -164,7 +164,7 @@ class EnvoyClustersFactory(
 
     private fun getRateLimitClusterForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         if (group.proxySettings.incoming.rateLimitEndpoints.containsGlobalRateLimits()) {
-            val cluster = globalSnapshot.clusters.resources()[properties.rateLimit.serviceName]
+            val cluster = globalSnapshot.clusters[properties.rateLimit.serviceName]
 
             if (cluster != null) {
                 return listOf(Cluster.newBuilder(cluster).build())

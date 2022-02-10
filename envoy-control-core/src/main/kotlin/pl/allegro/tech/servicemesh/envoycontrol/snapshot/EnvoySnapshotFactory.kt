@@ -12,6 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
@@ -222,7 +223,7 @@ class EnvoySnapshotFactory(
             if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
         val allClusters = egressRouteClusters + rateLimitClusters
 
-        return allClusters.mapNotNull { name -> globalSnapshot.endpoints.resources()[name] }
+        return allClusters.mapNotNull { name -> globalSnapshot.endpoints[name] }
     }
 
     private fun newSnapshotForGroup(

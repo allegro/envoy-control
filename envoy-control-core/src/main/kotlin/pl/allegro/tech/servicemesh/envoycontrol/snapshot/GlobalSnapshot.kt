@@ -14,11 +14,11 @@ data class GlobalSnapshot(
 
 @Suppress("LongParameterList")
 internal fun globalSnapshot(
-    clusters: Iterable<Cluster>,
-    endpoints: Iterable<ClusterLoadAssignment>,
+    clusters: Iterable<Cluster> = emptyList(),
+    endpoints: Iterable<ClusterLoadAssignment> = emptyList(),
     properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties(),
-    clusterConfigurations: Map<String, ClusterConfiguration>,
-    securedClusters: List<Cluster>
+    clusterConfigurations: Map<String, ClusterConfiguration> = emptyMap(),
+    securedClusters: List<Cluster> = emptyList()
 ): GlobalSnapshot {
     val clusters = SnapshotResources.create<Cluster>(clusters, "").resources()
     val securedClusters = SnapshotResources.create<Cluster>(securedClusters, "").resources()

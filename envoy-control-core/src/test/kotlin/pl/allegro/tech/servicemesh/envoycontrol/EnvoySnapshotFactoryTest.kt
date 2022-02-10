@@ -260,10 +260,10 @@ class EnvoySnapshotFactoryTest {
     }
 
     private fun GlobalSnapshot.withEndpoint(clusterName: String): GlobalSnapshot = copy(
-        endpoints = SnapshotResources.create(listOf(ClusterLoadAssignment.newBuilder()
+        endpoints = SnapshotResources.create<ClusterLoadAssignment>(listOf(ClusterLoadAssignment.newBuilder()
             .setClusterName(clusterName)
             .build()
-        ), "v1"))
+        ), "v1").resources())
 
     private fun createServicesGroup(
         mode: CommunicationMode = CommunicationMode.XDS,
