@@ -70,7 +70,11 @@ class EnvoyDefaultFilters(
      *   logged, because the RBAC filter will stop filter chain execution and subsequent filters will not process
      *   the request
      * * defaultEnvoyRouterHttpFilter - router filter should be always the last filter.
+     *
+     *  Instead of it, use:
+     *  @see ingressFilters()
      */
+    @Deprecated("It becomes deprecated, because user has no option to add new filters.")
     val defaultIngressFilters = listOf(
         defaultClientNameHeaderFilter,
         defaultAuthorizationHeaderFilter,
@@ -81,6 +85,27 @@ class EnvoyDefaultFilters(
         defaultRateLimitFilter,
         defaultEnvoyRouterHttpFilter
     )
+
+    /**
+     * Creates a list of http filters with provided user filters. It respects order for crucial default filters.
+     * This function is a recommended way to create list of ingress filters.
+     */
+    fun ingressFilters(vararg filters: (Group, GlobalSnapshot) -> HttpFilter?): List<(Group, GlobalSnapshot) -> HttpFilter?> {
+        val preFilters = listOf(
+            defaultClientNameHeaderFilter,
+            defaultAuthorizationHeaderFilter,
+            defaultJwtHttpFilter
+        )
+        val postFilters = listOf(
+            defaultRbacLoggingFilter,
+            defaultRbacFilter,
+            defaultRateLimitLuaFilter,
+            defaultRateLimitFilter,
+            defaultEnvoyRouterHttpFilter
+        )
+        return preFilters + filters.toList() + postFilters
+    }
+
     val defaultIngressMetadata = { group: Group -> luaFilterFactory.ingressScriptsMetadata(group) }
 
     private fun headerToMetadataConfig(

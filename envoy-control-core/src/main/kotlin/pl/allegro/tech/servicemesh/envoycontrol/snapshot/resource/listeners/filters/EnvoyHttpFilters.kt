@@ -16,7 +16,7 @@ class EnvoyHttpFilters(
         fun defaultFilters(snapshotProperties: SnapshotProperties): EnvoyHttpFilters {
             val defaultFilters = EnvoyDefaultFilters(snapshotProperties)
             return EnvoyHttpFilters(
-                defaultFilters.defaultIngressFilters,
+                defaultFilters.ingressFilters(),
                 defaultFilters.defaultEgressFilters,
                 defaultFilters.defaultIngressMetadata
             )
