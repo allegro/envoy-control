@@ -81,21 +81,12 @@ class EnvoyEgressRoutesFactory(
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
             .map { routeSpecification ->
-                VirtualHost.newBuilder()
-                    .setName(routeSpecification.clusterName)
-                    .addAllDomains(routeSpecification.routeDomains)
-                    .addRoutes(
-                        Route.newBuilder()
-                            .setMatch(
-                                RouteMatch.newBuilder()
-                                    .setPrefix("/")
-                                    .build()
-                            )
-                            .setRoute(
-                                createRouteAction(routeSpecification)
-                            ).build()
-                    )
-                    .build()
+                addMultipleRoutes(
+                    VirtualHost.newBuilder()
+                        .setName(routeSpecification.clusterName)
+                        .addAllDomains(routeSpecification.routeDomains),
+                    routeSpecification
+                ).build()
             }
 
         var routeConfiguration = RouteConfiguration.newBuilder()
@@ -124,6 +115,43 @@ class EnvoyEgressRoutesFactory(
         }
 
         return routeConfiguration.build()
+    }
+
+    private fun addMultipleRoutes(
+        addAllDomains: VirtualHost.Builder,
+        routeSpecification: RouteSpecification
+    ): VirtualHost.Builder {
+
+        routeSpecification.settings.methods?.let { methods ->
+            methods.forEach {
+                addAllDomains.addRoutes(
+                    Route.newBuilder()
+                        .setMatch(
+                            RouteMatch.newBuilder()
+                                .addHeaders(HeaderMatcher.newBuilder().setName(":method").setExactMatch(it))
+                                .setPrefix("/")
+                                .build()
+                        )
+                        .setRoute(
+                            createRouteAction(routeSpecification)
+                        ).build()
+                )
+            }
+        } ?: run {
+            addAllDomains.addRoutes(
+                Route.newBuilder()
+                    .setMatch(
+                        RouteMatch.newBuilder()
+                            .setPrefix("/")
+                            .build()
+                    )
+                    .setRoute(
+                        createRouteAction(routeSpecification)
+                    ).build()
+            )
+        }
+
+        return addAllDomains
     }
 
     /**

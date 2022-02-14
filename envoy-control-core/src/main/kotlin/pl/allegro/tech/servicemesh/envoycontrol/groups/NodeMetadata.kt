@@ -180,11 +180,13 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     val timeoutPolicy = this?.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(defaultSettings.timeoutPolicy)
     val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
     val retryPolicy = this?.let { it.field("retryPolicy")?.let { retryPolicy -> mapProtoToRetryPolicy(retryPolicy) } }
+    val methods = this?.let { methods -> mapProtoToMethods(methods) }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
         rewriteHostHeader == null &&
         timeoutPolicy == null &&
-        retryPolicy == null
+        retryPolicy == null &&
+        methods == null
 
     return if (shouldAllBeDefault) {
         defaultSettings
@@ -193,10 +195,20 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
             handleInternalRedirect = handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
             timeoutPolicy = timeoutPolicy ?: defaultSettings.timeoutPolicy,
             rewriteHostHeader = rewriteHostHeader ?: defaultSettings.rewriteHostHeader,
-            retryPolicy = retryPolicy
+            retryPolicy = retryPolicy,
+            methods = methods
         )
     }
 }
+
+private fun mapProtoToMethods(methods: Value) =
+    methods.field("methods")?.let { methodsListAsField ->
+        methodsListAsField.list()?.let { methodsListAsList ->
+            methodsListAsList.map { singleMethodAsField ->
+                singleMethodAsField.stringValue
+            }.toSet()
+        }
+    }
 
 private fun mapProtoToRetryPolicy(value: Value): RetryPolicy {
     return RetryPolicy(
@@ -517,7 +529,8 @@ data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
     val timeoutPolicy: Outgoing.TimeoutPolicy = Outgoing.TimeoutPolicy(),
     val rewriteHostHeader: Boolean = false,
-    val retryPolicy: RetryPolicy? = null
+    val retryPolicy: RetryPolicy? = null,
+    val methods: Set<String>? = null
 )
 
 data class RetryPolicy(

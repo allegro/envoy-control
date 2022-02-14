@@ -184,7 +184,8 @@ class OutgoingDependenciesProtoScope {
         val connectionIdleTimeout: String? = null,
         val requestTimeout: String? = null,
         val handleInternalRedirect: Boolean? = null,
-        val retryPolicy: RetryPolicyInput? = null
+        val retryPolicy: RetryPolicyInput? = null,
+        val methods: Set<String>? = null
     )
 
     val dependencies = mutableListOf<Dependency>()
@@ -201,7 +202,8 @@ class OutgoingDependenciesProtoScope {
         connectionIdleTimeout: String? = null,
         requestTimeout: String? = null,
         handleInternalRedirect: Boolean? = null,
-        retryPolicy: RetryPolicyInput? = null
+        retryPolicy: RetryPolicyInput? = null,
+        methods: Set<String>? = null
     ) = dependencies.add(
         Dependency(
             service = serviceName,
@@ -209,7 +211,8 @@ class OutgoingDependenciesProtoScope {
             connectionIdleTimeout = connectionIdleTimeout,
             requestTimeout = requestTimeout,
             handleInternalRedirect = handleInternalRedirect,
-            retryPolicy = retryPolicy
+            retryPolicy = retryPolicy,
+            methods = methods
         )
     )
 
@@ -265,7 +268,8 @@ fun outgoingDependenciesProto(
                         connectionIdleTimeout = it.connectionIdleTimeout,
                         requestTimeout = it.requestTimeout,
                         handleInternalRedirect = it.handleInternalRedirect,
-                        retryPolicy = it.retryPolicy
+                        retryPolicy = it.retryPolicy,
+                        methods = it.methods
                     )
                 )
             }
@@ -281,13 +285,17 @@ fun outgoingDependencyProto(
     idleTimeout: String? = null,
     connectionIdleTimeout: String? = null,
     requestTimeout: String? = null,
-    retryPolicy: RetryPolicyInput? = null
+    retryPolicy: RetryPolicyInput? = null,
+    methods: Set<String>? = null
 ) = struct {
     service?.also { putFields("service", string(service)) }
     domain?.also { putFields("domain", string(domain)) }
     retryPolicy?.also { putFields("retryPolicy", retryPolicyProto(retryPolicy)) }
     domainPattern?.also { putFields("domainPattern", string(domainPattern)) }
     handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(handleInternalRedirect)) }
+    methods?.also {
+        putFields("methods", list { methods.forEach{ singleMethod -> addValues(string(singleMethod))} })
+    }
     if (idleTimeout != null || requestTimeout != null || connectionIdleTimeout != null) {
         putFields("timeoutPolicy", outgoingTimeoutPolicy(idleTimeout, connectionIdleTimeout, requestTimeout))
     }

@@ -24,6 +24,7 @@ node:
       outgoing:
         dependencies:
           - service: "echo"
+            methods: ["PUT", "GET", "POST"]
             retryPolicy:
               retryOn: "retriable-status-codes"
               numberRetries: "8"
@@ -84,7 +85,7 @@ node:
 
         // when
         consul.server.operations.registerService(service, name = "echo")
-        untilAsserted {
+        untilAsserted(wait = Duration.ofSeconds(10)) {
             // then
             val response = envoy.egressOperations.callService("echo")
             assertThat(response).isOk().isFrom(service)
