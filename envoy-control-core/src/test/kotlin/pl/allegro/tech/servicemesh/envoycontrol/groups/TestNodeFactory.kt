@@ -294,7 +294,7 @@ fun outgoingDependencyProto(
     domainPattern?.also { putFields("domainPattern", string(domainPattern)) }
     handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(handleInternalRedirect)) }
     methods?.also {
-        putFields("methods", list { methods.forEach{ singleMethod -> addValues(string(singleMethod))} })
+        putFields("methods", list { methods.forEach { singleMethod -> addValues(string(singleMethod)) } })
     }
     if (idleTimeout != null || requestTimeout != null || connectionIdleTimeout != null) {
         putFields("timeoutPolicy", outgoingTimeoutPolicy(idleTimeout, connectionIdleTimeout, requestTimeout))
