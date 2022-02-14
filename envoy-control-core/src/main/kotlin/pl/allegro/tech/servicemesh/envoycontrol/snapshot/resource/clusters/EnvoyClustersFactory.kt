@@ -370,7 +370,7 @@ class EnvoyClustersFactory(
                                 .setResourceApiVersion(ApiVersion.V3)
                                 .setApiConfigSource(
                                     ApiConfigSource.newBuilder()
-                                        .setApiType(ApiConfigSource.ApiType.GRPC)
+                                        .setApiType(if (properties.deltaXdsEnabled) ApiConfigSource.ApiType.DELTA_GRPC else ApiConfigSource.ApiType.GRPC)
                                         .setTransportApiVersion(ApiVersion.V3)
                                         .addGrpcServices(
                                             0, GrpcService.newBuilder().setEnvoyGrpc(

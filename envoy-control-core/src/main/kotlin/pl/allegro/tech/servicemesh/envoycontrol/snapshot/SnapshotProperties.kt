@@ -32,6 +32,7 @@ class SnapshotProperties {
     var jwt = JwtFilterProperties()
     var requireServiceName = false
     var rateLimit = RateLimitProperties()
+    var deltaXdsEnabled = false
 }
 
 class MetricsProperties {
