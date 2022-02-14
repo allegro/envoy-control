@@ -82,7 +82,7 @@ Property                                                                        
 **envoy-control.envoy.snapshot.max-host-ttl**                                                                | The TTL for hosts that are unused. Hosts that have not been used in the configured time interval will be purged                                                                                                       | 300s
 **envoy-control.envoy.snapshot.rate-limit.domain**                                                           | Domain name for ratelimit service.                                                                                                                                                                                    | rl
 **envoy-control.envoy.snapshot.rate-limit.service-name**                                                     | ratelimit GRPC service name                                                                                                                                                                                           | ratelimit-grpc
-**envoy-control.envoy.snapshot.delta-xds-enabled**                                                        | Enable detla xds                                                                                                                                                                                                      | false
+**envoy-control.envoy.snapshot.delta-xds-enabled**                                                           | Enable detla xds                                                                                                                                                                                                      | false
 
 
 ## Permissions
