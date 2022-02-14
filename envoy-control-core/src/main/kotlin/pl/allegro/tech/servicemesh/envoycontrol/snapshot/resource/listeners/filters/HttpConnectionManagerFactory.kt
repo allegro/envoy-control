@@ -136,7 +136,13 @@ class HttpConnectionManagerFactory(
 
     private fun apiConfigSource(): ApiConfigSource {
         return ApiConfigSource.newBuilder()
-            .setApiType(if (snapshotProperties.deltaXdsEnabled) ApiConfigSource.ApiType.DELTA_GRPC else ApiConfigSource.ApiType.GRPC)
+            .setApiType(
+                if (snapshotProperties.deltaXdsEnabled) {
+                    ApiConfigSource.ApiType.DELTA_GRPC
+                } else {
+                    ApiConfigSource.ApiType.GRPC
+                }
+            )
             .setTransportApiVersion(ApiVersion.V3)
             .addGrpcServices(
                 GrpcService.newBuilder()
