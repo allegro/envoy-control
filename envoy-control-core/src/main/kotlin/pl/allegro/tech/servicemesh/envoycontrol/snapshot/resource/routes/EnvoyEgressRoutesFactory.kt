@@ -122,20 +122,43 @@ class EnvoyEgressRoutesFactory(
         addAllDomains: VirtualHost.Builder,
         routeSpecification: RouteSpecification
     ): VirtualHost.Builder {
-        val regexAsAString = routeSpecification.settings.retryPolicy?.methods?.joinToString(separator = "|")
         routeSpecification.settings.retryPolicy?.let {
-            buildRouteForRetryPolicy(addAllDomains, routeSpecification, regexAsAString)
+            buildRouteForRetryPolicy(addAllDomains, routeSpecification)
         }
-        if (hasNoRetryPolicyOrNoMethodsSpecifiedForRetryPolicy(regexAsAString, routeSpecification)) {
-            buildDefaultRoute(addAllDomains, routeSpecification)
-        }
+        buildDefaultRoute(addAllDomains, routeSpecification)
         return addAllDomains
     }
 
-    private fun hasNoRetryPolicyOrNoMethodsSpecifiedForRetryPolicy(
-        regexAsAString: String?,
+    private fun buildRouteForRetryPolicy(
+        addAllDomains: VirtualHost.Builder,
         routeSpecification: RouteSpecification
-    ) = regexAsAString != null || routeSpecification.settings.retryPolicy == null
+    ): VirtualHost.Builder? {
+        val regexAsAString = routeSpecification.settings.retryPolicy?.methods?.joinToString(separator = "|")
+        val routeMatchBuilder = RouteMatch
+            .newBuilder()
+            .setPrefix("/")
+            .also { routeMatcher ->
+                regexAsAString?.let {
+                    routeMatcher.addHeaders(buildMethodHeaderMatcher(it))
+                }
+            }
+
+        return addAllDomains.addRoutes(
+            Route.newBuilder()
+                .setMatch(routeMatchBuilder.build())
+                .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = true))
+                .build()
+        )
+    }
+
+    private fun buildMethodHeaderMatcher(regexAsAString: String?) = HeaderMatcher.newBuilder()
+        .setName(":method")
+        .setSafeRegexMatch(
+            RegexMatcher.newBuilder()
+                .setRegex(regexAsAString)
+                .setGoogleRe2(RegexMatcher.GoogleRE2.getDefaultInstance())
+                .build()
+        )
 
     private fun buildDefaultRoute(
         addAllDomains: VirtualHost.Builder,
@@ -150,39 +173,6 @@ class EnvoyEgressRoutesFactory(
                 )
                 .setRoute(
                     createRouteAction(routeSpecification)
-                ).build()
-        )
-    }
-
-    private fun buildRouteForRetryPolicy(
-        addAllDomains: VirtualHost.Builder,
-        routeSpecification: RouteSpecification,
-        regexAsAString: String?
-    ): VirtualHost.Builder? {
-        return addAllDomains.addRoutes(
-            Route.newBuilder()
-                .setMatch(
-                    RouteMatch
-                        .newBuilder()
-                        .also {
-                            if (regexAsAString != null) {
-                                it.addHeaders(
-                                    HeaderMatcher.newBuilder()
-                                        .setName(":method")
-                                        .setSafeRegexMatch(
-                                            RegexMatcher.newBuilder()
-                                                .setRegex(regexAsAString)
-                                                .setGoogleRe2(RegexMatcher.GoogleRE2.getDefaultInstance())
-                                                .build()
-                                        )
-                                )
-                            }
-                        }
-                        .setPrefix("/")
-                        .build()
-                )
-                .setRoute(
-                    createRouteAction(routeSpecification, shouldAddRetryPolicy = true)
                 ).build()
         )
     }

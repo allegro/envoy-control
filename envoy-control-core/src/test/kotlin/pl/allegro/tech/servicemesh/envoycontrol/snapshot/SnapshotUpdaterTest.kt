@@ -163,7 +163,8 @@ class SnapshotUpdaterTest {
                 baseInterval = Durations.fromMillis(123),
                 maxInterval = Durations.fromMillis(234)
             ),
-            retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost"))
+            retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost")),
+            methods = setOf("POST")
         )
         val allServicesGroup = AllServicesGroup(
             communicationMode = XDS, proxySettings = ProxySettings(
@@ -1099,7 +1100,7 @@ class SnapshotUpdaterTest {
     private fun Snapshot.hasVirtualHostConfig(name: String, idleTimeout: String, requestTimeout: String): Snapshot {
         val routeAction = this.routes()
             .resources()["default_routes"]!!.virtualHostsList.singleOrNull { it.name == name }?.routesList?.map { it.route }
-            ?.singleOrNull()
+            ?.firstOrNull()
         assertThat(routeAction).overridingErrorMessage("Expecting virtualHost for $name").isNotNull
         assertThat(routeAction?.timeout).isEqualTo(Durations.parse(requestTimeout))
         assertThat(routeAction?.idleTimeout).isEqualTo(Durations.parse(idleTimeout))
@@ -1109,7 +1110,7 @@ class SnapshotUpdaterTest {
     private fun Snapshot.hasRetryPolicySpecified(name: String, retryPolicy: RetryPolicy?): Snapshot {
         val routeAction = this.routes()
             .resources()["default_routes"]!!.virtualHostsList.singleOrNull { it.name == name }?.routesList?.map { it.route }
-            ?.singleOrNull()
+            ?.firstOrNull()
         retryPolicy?.also {
             assertThat(routeAction?.retryPolicy).isEqualTo(retryPolicy)
         }
