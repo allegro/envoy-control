@@ -1110,7 +1110,6 @@ class SnapshotUpdaterTest {
         val routeAction = this.routes()
             .resources()["default_routes"]!!.virtualHostsList.singleOrNull { it.name == name }?.routesList?.map { it.route }
             ?.singleOrNull()
-        assertThat(routeAction).overridingErrorMessage("Expecting virtualHost for $name").isNotNull
         retryPolicy?.also {
             assertThat(routeAction?.retryPolicy).isEqualTo(retryPolicy)
         }

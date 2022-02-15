@@ -122,12 +122,20 @@ class EnvoyEgressRoutesFactory(
         addAllDomains: VirtualHost.Builder,
         routeSpecification: RouteSpecification
     ): VirtualHost.Builder {
+        val regexAsAString = routeSpecification.settings.retryPolicy?.methods?.joinToString(separator = "|")
         routeSpecification.settings.retryPolicy?.let {
-            buildRouteForRetryPolicy(addAllDomains, routeSpecification)
+            buildRouteForRetryPolicy(addAllDomains, routeSpecification, regexAsAString)
         }
-        buildDefaultRoute(addAllDomains, routeSpecification)
+        if(hasNoRetryPolicyOrNoMethodsSpecifiedForRetryPolicy(regexAsAString, routeSpecification)) {
+            buildDefaultRoute(addAllDomains, routeSpecification)
+        }
         return addAllDomains
     }
+
+    private fun hasNoRetryPolicyOrNoMethodsSpecifiedForRetryPolicy(
+        regexAsAString: String?,
+        routeSpecification: RouteSpecification
+    ) = regexAsAString != null || routeSpecification.settings.retryPolicy == null
 
     private fun buildDefaultRoute(
         addAllDomains: VirtualHost.Builder,
@@ -148,9 +156,9 @@ class EnvoyEgressRoutesFactory(
 
     private fun buildRouteForRetryPolicy(
         addAllDomains: VirtualHost.Builder,
-        routeSpecification: RouteSpecification
+        routeSpecification: RouteSpecification,
+        regexAsAString: String?
     ): VirtualHost.Builder? {
-        val regexAsAString = routeSpecification.settings.retryPolicy!!.methods?.joinToString(separator = "|")
         return addAllDomains.addRoutes(
             Route.newBuilder()
                 .setMatch(
