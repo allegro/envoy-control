@@ -126,7 +126,7 @@ class EnvoyEgressRoutesFactory(
         routeSpecification.settings.retryPolicy?.let {
             buildRouteForRetryPolicy(addAllDomains, routeSpecification, regexAsAString)
         }
-        if(hasNoRetryPolicyOrNoMethodsSpecifiedForRetryPolicy(regexAsAString, routeSpecification)) {
+        if (hasNoRetryPolicyOrNoMethodsSpecifiedForRetryPolicy(regexAsAString, routeSpecification)) {
             buildDefaultRoute(addAllDomains, routeSpecification)
         }
         return addAllDomains
