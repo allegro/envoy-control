@@ -35,7 +35,7 @@ class EnvoyDefaultFiltersTest {
     }
 
     @Test
-    fun `should create filters with new one`() {
+    fun `should create filters with custom filter in between`() {
         // given
         val customFilter = { _: Group, _: GlobalSnapshot ->
             HttpFilter.newBuilder()
