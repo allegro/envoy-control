@@ -354,7 +354,8 @@ class NodeMetadataTest {
                 baseInterval = "7s",
                 maxInterval = "8s"
             ),
-            retryHostPredicate = listOf(RetryHostPredicateInput(name = "givenHost"))
+            retryHostPredicate = listOf(RetryHostPredicateInput(name = "givenHost")),
+            methods = setOf("GET", "POST", "PUT")
         )
         val expectedRetryPolicy = RetryPolicy(
             retryOn = "givenRetryOn",
@@ -367,7 +368,8 @@ class NodeMetadataTest {
                 baseInterval = Durations.fromSeconds(7),
                 maxInterval = Durations.fromSeconds(8)
             ),
-            retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost"))
+            retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost")),
+            methods = setOf("GET", "POST", "PUT")
         )
         val proto = outgoingDependenciesProto {
             withService(
@@ -382,25 +384,6 @@ class NodeMetadataTest {
         // expects
         val serviceDependency = outgoing.getServiceDependencies().single()
         assertThat(serviceDependency.settings.retryPolicy).isEqualTo(expectedRetryPolicy)
-    }
-
-    @Test
-    fun `should return service http methods`() {
-        // given
-        val givenMethods = setOf("GET", "POST", "PUT")
-        val proto = outgoingDependenciesProto {
-            withService(
-                serviceName = "givenServiceName",
-                methods = givenMethods
-            )
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expects
-        val serviceDependency = outgoing.getServiceDependencies().single()
-        assertThat(serviceDependency.settings.methods).isEqualTo(givenMethods)
     }
 
     @Test

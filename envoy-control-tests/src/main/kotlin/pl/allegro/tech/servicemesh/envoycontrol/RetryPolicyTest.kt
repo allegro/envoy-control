@@ -24,11 +24,17 @@ node:
       outgoing:
         dependencies:
           - service: "echo"
-            methods: ["PUT", "GET", "POST"]
             retryPolicy:
               retryOn: "retriable-status-codes"
               numberRetries: "8"
               retryableStatusCodes: ["200"]
+              methods: ["PUT", "GET", "POST"]
+          - service: "macho"
+            retryPolicy:
+              retryOn: "retriable-status-codes"
+              numberRetries: "8"
+              retryableStatusCodes: ["200"]
+              methods: ["PUT", "POST"]
             """.trimIndent()
 
         @JvmField
@@ -94,6 +100,25 @@ node:
         untilAsserted(wait = Duration.ofSeconds(5)) {
             // then
             assertThat(hasRetriedRequest(numberOfRetries = 8, metricName = "cluster.echo.upstream_rq_retry")).isTrue()
+        }
+    }
+
+    @Test
+    fun `should have no retries for get method if post and put specified only`() {
+        // given
+        service.container().start()
+
+        // when
+        consul.server.operations.registerService(service, name = "macho")
+        untilAsserted(wait = Duration.ofSeconds(10)) {
+            // then
+            val response = envoy.egressOperations.callService("macho")
+            assertThat(response).isOk().isFrom(service)
+        }
+
+        untilAsserted(wait = Duration.ofSeconds(5)) {
+            // then
+            assertThat(hasRetriedRequest(numberOfRetries = 0, metricName = "cluster.macho.upstream_rq_retry")).isTrue()
         }
     }
 

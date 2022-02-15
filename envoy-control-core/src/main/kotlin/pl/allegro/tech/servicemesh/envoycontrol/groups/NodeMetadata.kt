@@ -180,13 +180,11 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     val timeoutPolicy = this?.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(defaultSettings.timeoutPolicy)
     val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
     val retryPolicy = this?.let { it.field("retryPolicy")?.let { retryPolicy -> mapProtoToRetryPolicy(retryPolicy) } }
-    val methods = this?.let { methods -> mapProtoToMethods(methods) }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
         rewriteHostHeader == null &&
         timeoutPolicy == null &&
-        retryPolicy == null &&
-        methods == null
+        retryPolicy == null
 
     return if (shouldAllBeDefault) {
         defaultSettings
@@ -195,20 +193,10 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
             handleInternalRedirect = handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
             timeoutPolicy = timeoutPolicy ?: defaultSettings.timeoutPolicy,
             rewriteHostHeader = rewriteHostHeader ?: defaultSettings.rewriteHostHeader,
-            retryPolicy = retryPolicy,
-            methods = methods
+            retryPolicy = retryPolicy
         )
     }
 }
-
-private fun mapProtoToMethods(methods: Value) =
-    methods.field("methods")?.let { methodsListAsField ->
-        methodsListAsField.list()?.let { methodsListAsList ->
-            methodsListAsList.map { singleMethodAsField ->
-                singleMethodAsField.stringValue
-            }.toSet()
-        }
-    }
 
 private fun mapProtoToRetryPolicy(value: Value): RetryPolicy {
     return RetryPolicy(
@@ -230,9 +218,19 @@ private fun mapProtoToRetryPolicy(value: Value): RetryPolicy {
         },
         retryableHeaders = value.field("retryableHeaders")?.listValue?.valuesList?.map {
             it.stringValue
-        }
+        },
+        methods = mapProtoToMethods(value)
     )
 }
+
+private fun mapProtoToMethods(methods: Value) =
+    methods.field("methods")?.let { methodsListAsField ->
+        methodsListAsField.list()?.let { methodsListAsList ->
+            methodsListAsList.map { singleMethodAsField ->
+                singleMethodAsField.stringValue
+            }.toSet()
+        }
+    }
 
 fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
@@ -529,8 +527,7 @@ data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
     val timeoutPolicy: Outgoing.TimeoutPolicy = Outgoing.TimeoutPolicy(),
     val rewriteHostHeader: Boolean = false,
-    val retryPolicy: RetryPolicy? = null,
-    val methods: Set<String>? = null
+    val retryPolicy: RetryPolicy? = null
 )
 
 data class RetryPolicy(
@@ -541,7 +538,8 @@ data class RetryPolicy(
     val perTryTimeoutMs: Long? = null,
     val retryBackOff: RetryBackOff? = null,
     val retryableStatusCodes: List<Int>? = null,
-    val retryableHeaders: List<String>? = null
+    val retryableHeaders: List<String>? = null,
+    val methods: Set<String>? = null
 )
 
 data class RetryBackOff(

@@ -15,6 +15,7 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
@@ -121,37 +122,61 @@ class EnvoyEgressRoutesFactory(
         addAllDomains: VirtualHost.Builder,
         routeSpecification: RouteSpecification
     ): VirtualHost.Builder {
-
-        routeSpecification.settings.methods?.let { methods ->
-            methods.forEach {
-                addAllDomains.addRoutes(
-                    Route.newBuilder()
-                        .setMatch(
-                            RouteMatch.newBuilder()
-                                .addHeaders(HeaderMatcher.newBuilder().setName(":method").setExactMatch(it))
-                                .setPrefix("/")
-                                .build()
-                        )
-                        .setRoute(
-                            createRouteAction(routeSpecification)
-                        ).build()
-                )
-            }
-        } ?: run {
-            addAllDomains.addRoutes(
-                Route.newBuilder()
-                    .setMatch(
-                        RouteMatch.newBuilder()
-                            .setPrefix("/")
-                            .build()
-                    )
-                    .setRoute(
-                        createRouteAction(routeSpecification)
-                    ).build()
-            )
+        routeSpecification.settings.retryPolicy?.let {
+            buildRouteForRetryPolicy(addAllDomains, routeSpecification)
         }
-
+        buildDefaultRoute(addAllDomains, routeSpecification)
         return addAllDomains
+    }
+
+    private fun buildDefaultRoute(
+        addAllDomains: VirtualHost.Builder,
+        routeSpecification: RouteSpecification
+    ) {
+        addAllDomains.addRoutes(
+            Route.newBuilder()
+                .setMatch(
+                    RouteMatch.newBuilder()
+                        .setPrefix("/")
+                        .build()
+                )
+                .setRoute(
+                    createRouteAction(routeSpecification)
+                ).build()
+        )
+    }
+
+    private fun buildRouteForRetryPolicy(
+        addAllDomains: VirtualHost.Builder,
+        routeSpecification: RouteSpecification
+    ): VirtualHost.Builder? {
+        val regexAsAString = routeSpecification.settings.retryPolicy!!.methods?.joinToString(separator = "|")
+        return addAllDomains.addRoutes(
+            Route.newBuilder()
+                .setMatch(
+                    RouteMatch
+                        .newBuilder()
+                        .also {
+                            if (regexAsAString != null) {
+                                it.addHeaders(
+                                    HeaderMatcher.newBuilder()
+                                        .setName(":method")
+                                        .setSafeRegexMatch(
+                                            RegexMatcher.newBuilder()
+                                                .setRegex(regexAsAString)
+                                                .setGoogleRe2(RegexMatcher.GoogleRE2.getDefaultInstance())
+                                                .build()
+                                        )
+                                )
+                            }
+                        }
+                        .setPrefix("/")
+                        .build()
+                )
+                .setRoute(
+                    createRouteAction(routeSpecification, shouldAddRetryPolicy = true)
+                ).build()
+        )
     }
 
     /**
@@ -191,7 +216,10 @@ class EnvoyEgressRoutesFactory(
         return routeConfiguration.build()
     }
 
-    private fun createRouteAction(routeSpecification: RouteSpecification): RouteAction.Builder {
+    private fun createRouteAction(
+        routeSpecification: RouteSpecification,
+        shouldAddRetryPolicy: Boolean = false
+    ): RouteAction.Builder {
         val routeAction = RouteAction.newBuilder()
             .setCluster(routeSpecification.clusterName)
 
@@ -200,8 +228,10 @@ class EnvoyEgressRoutesFactory(
             timeoutPolicy.requestTimeout?.let { routeAction.setTimeout(it) }
         }
 
-        routeSpecification.settings.retryPolicy?.let { policy ->
-            routeAction.setRetryPolicy(RequestPolicyMapper.mapToEnvoyRetryPolicyBuilder(policy))
+        if (shouldAddRetryPolicy) {
+            routeSpecification.settings.retryPolicy?.let { policy ->
+                routeAction.setRetryPolicy(RequestPolicyMapper.mapToEnvoyRetryPolicyBuilder(policy))
+            }
         }
 
         if (routeSpecification.settings.handleInternalRedirect) {
