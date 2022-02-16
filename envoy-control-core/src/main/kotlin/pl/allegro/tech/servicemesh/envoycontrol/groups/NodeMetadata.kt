@@ -183,7 +183,14 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     val handleInternalRedirect = this?.field("handleInternalRedirect")?.boolValue
     val timeoutPolicy = this?.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(defaultSettings.timeoutPolicy)
     val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
-    val retryPolicy = this?.let { it.field("retryPolicy")?.let { retryPolicy -> mapProtoToRetryPolicy(retryPolicy, defaultSettings.retryPolicy) } }
+    val retryPolicy = this?.let {
+        it.field("retryPolicy")?.let { retryPolicy ->
+            mapProtoToRetryPolicy(
+                retryPolicy,
+                defaultSettings.retryPolicy
+            )
+        }
+    }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
         rewriteHostHeader == null &&
@@ -205,13 +212,14 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
 private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy?): RetryPolicy {
     return RetryPolicy(
         retryOn = value.field("retryOn")?.stringValue,
-        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toLong() ?: defaultRetryPolicy!!.hostSelectionRetryMaxAttempts,
+        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toLong()
+            ?: defaultRetryPolicy!!.hostSelectionRetryMaxAttempts,
         numberRetries = value.field("numberRetries")?.stringValue?.toInt(),
         retryHostPredicate = value.field("retryHostPredicate")?.let {
-        it.listValue?.valuesList?.map {
-            RetryHostPredicate(it.field("name")!!.stringValue)
-        }?.toList()
-    } ?: defaultRetryPolicy!!.retryHostPredicate,
+            it.listValue?.valuesList?.map {
+                RetryHostPredicate(it.field("name")!!.stringValue)
+            }?.toList()
+        } ?: defaultRetryPolicy!!.retryHostPredicate,
         perTryTimeoutMs = value.field("perTryTimeoutMs")?.stringValue?.toLong(),
         retryBackOff = value.field("retryBackOff")?.structValue?.let {
             RetryBackOff(

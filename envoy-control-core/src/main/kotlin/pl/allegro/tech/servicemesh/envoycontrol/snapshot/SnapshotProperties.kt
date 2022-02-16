@@ -327,6 +327,7 @@ class DynamicForwardProxyProperties {
     var maxHostTtl = Duration.ofSeconds(300) // default Envoy's value
     var connectionTimeout = Duration.ofSeconds(1)
 }
+
 data class OAuthProvider(
     var jwksUri: URI = URI.create("http://localhost"),
     var createCluster: Boolean = false,
@@ -354,7 +355,8 @@ data class RateLimitProperties(
 
 data class RetryPolicyProperties(
     var hostSelectionRetryMaxAttempts: Long = 3,
-    var retryHostPredicate: List<RetryHostPredicate> = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts"))
+    var retryHostPredicate: List<RetryHostPredicate> =
+        listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts"))
 )
 
 typealias ProviderName = String
