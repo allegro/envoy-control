@@ -10,7 +10,7 @@ dependencies {
     }
     implementation group: 'com.squareup.okhttp3', name: 'okhttp', version: versions.okhttp
 
-    implementation "org.apache.httpcomponents:httpcore:4.4.9"
+    implementation "org.apache.httpcomponents:httpcore:4.4.15"
     implementation "org.apache.httpcomponents:httpclient:4.5.5"
 
     implementation group: 'eu.rekawek.toxiproxy', name: 'toxiproxy-java', version: versions.toxiproxy
