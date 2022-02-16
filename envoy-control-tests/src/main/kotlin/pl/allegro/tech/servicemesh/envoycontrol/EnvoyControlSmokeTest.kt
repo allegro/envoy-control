@@ -7,6 +7,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsWithNoDependencies
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsWithStaticListeners
+import pl.allegro.tech.servicemesh.envoycontrol.config.DeltaAds
 import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -117,7 +118,7 @@ class DeltaAdsEnvoyControlSmokeTest : EnvoyControlSmokeTest {
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, service, config = Ads)
+        val envoy = EnvoyExtension(envoyControl, service, config = DeltaAds)
     }
 
     override fun consul() = consul
