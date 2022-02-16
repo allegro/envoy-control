@@ -6,6 +6,7 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import java.net.URI
 import java.time.Duration
 
@@ -32,6 +33,7 @@ class SnapshotProperties {
     var jwt = JwtFilterProperties()
     var requireServiceName = false
     var rateLimit = RateLimitProperties()
+    var retryPolicy = RetryPolicyProperties()
 }
 
 class MetricsProperties {
@@ -190,15 +192,15 @@ class LocalServiceProperties {
     var idleTimeout: Duration = Duration.ofSeconds(60)
     var responseTimeout: Duration = Duration.ofSeconds(15)
     var connectionIdleTimeout: Duration = Duration.ofSeconds(120)
-    var retryPolicy: RetryPoliciesProperties = RetryPoliciesProperties()
+    var retryPolicy: LocalRetryPoliciesProperties = LocalRetryPoliciesProperties()
 }
 
-class RetryPoliciesProperties {
-    var default: RetryPolicyProperties = RetryPolicyProperties()
-    var perHttpMethod: MutableMap<String, RetryPolicyProperties> = mutableMapOf()
+class LocalRetryPoliciesProperties {
+    var default: LocalRetryPolicyProperties = LocalRetryPolicyProperties()
+    var perHttpMethod: MutableMap<String, LocalRetryPolicyProperties> = mutableMapOf()
 }
 
-class RetryPolicyProperties {
+class LocalRetryPolicyProperties {
     var enabled = false
     var retryOn: MutableSet<String> = mutableSetOf()
     var numRetries: Int = 1
@@ -348,6 +350,11 @@ class JwtFilterProperties {
 data class RateLimitProperties(
     var domain: String = "rl",
     var serviceName: String = "ratelimit-grpc"
+)
+
+data class RetryPolicyProperties(
+    var hostSelectionRetryMaxAttempts: Long = 3,
+    var retryHostPredicate: List<RetryHostPredicate> = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts"))
 )
 
 typealias ProviderName = String

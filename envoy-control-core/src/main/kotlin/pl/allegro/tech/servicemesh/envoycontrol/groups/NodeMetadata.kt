@@ -81,6 +81,10 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
             idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
             connectionIdleTimeout = Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis()),
             requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
+        ),
+        retryPolicy = RetryPolicy(
+            retryHostPredicate = properties.retryPolicy.retryHostPredicate,
+            hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts
         )
     )
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
@@ -179,7 +183,7 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     val handleInternalRedirect = this?.field("handleInternalRedirect")?.boolValue
     val timeoutPolicy = this?.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(defaultSettings.timeoutPolicy)
     val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
-    val retryPolicy = this?.let { it.field("retryPolicy")?.let { retryPolicy -> mapProtoToRetryPolicy(retryPolicy) } }
+    val retryPolicy = this?.let { it.field("retryPolicy")?.let { retryPolicy -> mapProtoToRetryPolicy(retryPolicy, defaultSettings.retryPolicy) } }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
         rewriteHostHeader == null &&
@@ -193,19 +197,21 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
             handleInternalRedirect = handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
             timeoutPolicy = timeoutPolicy ?: defaultSettings.timeoutPolicy,
             rewriteHostHeader = rewriteHostHeader ?: defaultSettings.rewriteHostHeader,
-            retryPolicy = retryPolicy
+            retryPolicy = retryPolicy ?: defaultSettings.retryPolicy
         )
     }
 }
 
-private fun mapProtoToRetryPolicy(value: Value): RetryPolicy {
+private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy?): RetryPolicy {
     return RetryPolicy(
         retryOn = value.field("retryOn")?.stringValue,
-        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toLong(),
+        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toLong() ?: defaultRetryPolicy!!.hostSelectionRetryMaxAttempts,
         numberRetries = value.field("numberRetries")?.stringValue?.toInt(),
-        retryHostPredicate = value.field("retryHostPredicate")?.listValue?.valuesList?.map {
-            RetryHostPredicate(it.field("name")?.stringValue)
-        }?.toList(),
+        retryHostPredicate = value.field("retryHostPredicate")?.let {
+        it.listValue?.valuesList?.map {
+            RetryHostPredicate(it.field("name")!!.stringValue)
+        }?.toList()
+    } ?: defaultRetryPolicy!!.retryHostPredicate,
         perTryTimeoutMs = value.field("perTryTimeoutMs")?.stringValue?.toLong(),
         retryBackOff = value.field("retryBackOff")?.structValue?.let {
             RetryBackOff(
@@ -225,11 +231,9 @@ private fun mapProtoToRetryPolicy(value: Value): RetryPolicy {
 
 private fun mapProtoToMethods(methods: Value) =
     methods.field("methods")?.let { methodsListAsField ->
-        methodsListAsField.list()?.let { methodsListAsList ->
-            methodsListAsList.map { singleMethodAsField ->
-                singleMethodAsField.stringValue
-            }.toSet()
-        }
+        methodsListAsField.list()?.map { singleMethodAsField ->
+            singleMethodAsField.stringValue
+        }?.toSet()
     }
 
 fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
@@ -527,7 +531,7 @@ data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
     val timeoutPolicy: Outgoing.TimeoutPolicy = Outgoing.TimeoutPolicy(),
     val rewriteHostHeader: Boolean = false,
-    val retryPolicy: RetryPolicy? = null
+    val retryPolicy: RetryPolicy = RetryPolicy()
 )
 
 data class RetryPolicy(
@@ -548,7 +552,7 @@ data class RetryBackOff(
 )
 
 data class RetryHostPredicate(
-    val name: String?
+    val name: String
 )
 
 data class Role(

@@ -1223,7 +1223,11 @@ fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
         ServiceDependency(
             service = it,
             settings = DependencySettings(
-                timeoutPolicy = outgoingTimeoutPolicy()
+                timeoutPolicy = outgoingTimeoutPolicy(),
+                retryPolicy = pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy(
+                    hostSelectionRetryMaxAttempts = 3,
+                    retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts"))
+                )
             )
         )
     }.toSet()

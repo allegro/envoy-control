@@ -387,6 +387,50 @@ class NodeMetadataTest {
     }
 
     @Test
+    fun `should return retry policy with defaults for host selection and retry host predictate`() {
+        // given
+        val givenRetryPolicy = RetryPolicyInput(
+            retryOn = "givenRetryOn",
+            numberRetries = 2,
+            perTryTimeoutMs = 3,
+            retryableHeaders = listOf("givenTestHeader"),
+            retryableStatusCodes = listOf(504),
+            retryBackOff = RetryBackOffInput(
+                baseInterval = "7s",
+                maxInterval = "8s"
+            ),
+            methods = setOf("GET", "POST", "PUT")
+        )
+        val expectedRetryPolicy = RetryPolicy(
+            retryOn = "givenRetryOn",
+            hostSelectionRetryMaxAttempts = 3,
+            numberRetries = 2,
+            perTryTimeoutMs = 3,
+            retryableHeaders = listOf("givenTestHeader"),
+            retryableStatusCodes = listOf(504),
+            retryBackOff = RetryBackOff(
+                baseInterval = Durations.fromSeconds(7),
+                maxInterval = Durations.fromSeconds(8)
+            ),
+            retryHostPredicate = listOf(RetryHostPredicate(name = "envoy.retry_host_predicates.previous_hosts")),
+            methods = setOf("GET", "POST", "PUT")
+        )
+        val proto = outgoingDependenciesProto {
+            withService(
+                serviceName = "givenServiceName",
+                retryPolicy = givenRetryPolicy
+            )
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val serviceDependency = outgoing.getServiceDependencies().single()
+        assertThat(serviceDependency.settings.retryPolicy).isEqualTo(expectedRetryPolicy)
+    }
+
+    @Test
     fun `should deduplicate domains dependencies based on url`() {
         // given
         val proto = outgoingDependenciesProto {
