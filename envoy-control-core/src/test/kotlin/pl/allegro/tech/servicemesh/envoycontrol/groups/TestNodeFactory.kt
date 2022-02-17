@@ -84,7 +84,9 @@ fun ProxySettings.with(
         ),
         retryPolicy = RetryPolicy(
             hostSelectionRetryMaxAttempts = 3,
-            retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts"))
+            retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
+            numberRetries = 1,
+            retryBackOff = RetryBackOff(Durations.fromMillis(25), Durations.fromMillis(250))
         )
     ),
     rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList()

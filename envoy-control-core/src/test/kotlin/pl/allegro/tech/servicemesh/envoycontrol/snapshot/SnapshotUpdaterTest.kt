@@ -1226,7 +1226,9 @@ fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
                 timeoutPolicy = outgoingTimeoutPolicy(),
                 retryPolicy = pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy(
                     hostSelectionRetryMaxAttempts = 3,
-                    retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts"))
+                    retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
+                    numberRetries = 1,
+                    retryBackOff = RetryBackOff(Durations.fromMillis(25), Durations.fromMillis(250))
                 )
             )
         )

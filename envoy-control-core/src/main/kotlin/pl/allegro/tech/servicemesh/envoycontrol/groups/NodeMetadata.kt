@@ -83,8 +83,10 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
             requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
         ),
         retryPolicy = RetryPolicy(
+            numberRetries = properties.retryPolicy.numberOfRetries,
             retryHostPredicate = properties.retryPolicy.retryHostPredicate,
-            hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts
+            hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts,
+            retryBackOff = properties.retryPolicy.retryBackOff
         )
     )
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
@@ -183,13 +185,11 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     val handleInternalRedirect = this?.field("handleInternalRedirect")?.boolValue
     val timeoutPolicy = this?.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(defaultSettings.timeoutPolicy)
     val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
-    val retryPolicy = this?.let {
-        it.field("retryPolicy")?.let { retryPolicy ->
-            mapProtoToRetryPolicy(
-                retryPolicy,
-                defaultSettings.retryPolicy
-            )
-        }
+    val retryPolicy = this?.field("retryPolicy")?.let { retryPolicy ->
+        mapProtoToRetryPolicy(
+            retryPolicy,
+            defaultSettings.retryPolicy
+        )
     }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
@@ -214,9 +214,9 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy?
         retryOn = value.field("retryOn")?.stringValue,
         hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toLong()
             ?: defaultRetryPolicy!!.hostSelectionRetryMaxAttempts,
-        numberRetries = value.field("numberRetries")?.stringValue?.toInt(),
-        retryHostPredicate = value.field("retryHostPredicate")?.let {
-            it.listValue?.valuesList?.map {
+        numberRetries = value.field("numberRetries")?.stringValue?.toInt() ?: defaultRetryPolicy!!.numberRetries,
+        retryHostPredicate = value.field("retryHostPredicate")?.let { retryHostPredicateField ->
+            retryHostPredicateField.listValue?.valuesList?.map {
                 RetryHostPredicate(it.field("name")!!.stringValue)
             }?.toList()
         } ?: defaultRetryPolicy!!.retryHostPredicate,
@@ -226,7 +226,7 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy?
                 baseInterval = it.fieldsMap["baseInterval"]?.toDuration(),
                 maxInterval = it.fieldsMap["maxInterval"]?.toDuration()
             )
-        },
+        } ?: defaultRetryPolicy!!.retryBackOff,
         retryableStatusCodes = value.field("retryableStatusCodes")?.listValue?.valuesList?.map {
             it.stringValue.toInt()
         },

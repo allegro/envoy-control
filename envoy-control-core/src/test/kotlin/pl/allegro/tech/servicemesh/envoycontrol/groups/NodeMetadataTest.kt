@@ -387,30 +387,25 @@ class NodeMetadataTest {
     }
 
     @Test
-    fun `should return retry policy with defaults for host selection and retry host predictate`() {
+    fun `should return retry policy with defaults`() {
         // given
         val givenRetryPolicy = RetryPolicyInput(
             retryOn = "givenRetryOn",
-            numberRetries = 2,
             perTryTimeoutMs = 3,
             retryableHeaders = listOf("givenTestHeader"),
             retryableStatusCodes = listOf(504),
-            retryBackOff = RetryBackOffInput(
-                baseInterval = "7s",
-                maxInterval = "8s"
-            ),
             methods = setOf("GET", "POST", "PUT")
         )
         val expectedRetryPolicy = RetryPolicy(
             retryOn = "givenRetryOn",
             hostSelectionRetryMaxAttempts = 3,
-            numberRetries = 2,
+            numberRetries = 1,
             perTryTimeoutMs = 3,
             retryableHeaders = listOf("givenTestHeader"),
             retryableStatusCodes = listOf(504),
             retryBackOff = RetryBackOff(
-                baseInterval = Durations.fromSeconds(7),
-                maxInterval = Durations.fromSeconds(8)
+                baseInterval = Durations.fromMillis(25),
+                maxInterval = Durations.fromMillis(250)
             ),
             retryHostPredicate = listOf(RetryHostPredicate(name = "envoy.retry_host_predicates.previous_hosts")),
             methods = setOf("GET", "POST", "PUT")
