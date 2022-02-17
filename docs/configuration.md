@@ -155,6 +155,8 @@ Property                                                                        
 **envoy-control.envoy.snapshot.cluster-outlier-detection.success-rate-stdev-factor**             | This factor is used to determine the ejection threshold for success rate outlier ejection.                                                                                                | 1900
 
 ## Retries
+
+### Local Service
 Property                                                                                                | Description                                                                                                                                                                               | Default value
 --------------------------------------------------------------------------------------------------------| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------
 **envoy-control.envoy.snapshot.localService.retryPolicy.\<selector>.enabled**                           | Enable retry policy for localService                                                                                                                                                      | false
@@ -167,6 +169,14 @@ Property                                                                        
 Where `<selector>` is one of the following:
 * `perHttpMethod.{GET,HEAD,POST,PUT,DELETE}` - retry policy for requests with given HTTP method
 * `default` - default retry policy, applied for every request that doesn't match more specific selector
+
+### Outgoing traffic
+Property                                                                                                | Description                                                                                                                               | Default value
+--------------------------------------------------------------------------------------------------------| -----------------------------------------------------------------------------------------------------------------------------             | ---------
+**envoy-control.envoy.snapshot.retryPolicy.numberOfRetries**                                            | Number of retries                                                                                                                         | 1
+**envoy-control.envoy.snapshot.retryPolicy.hostSelectionRetryMaxAttempts**                              | The maximum number of times host selection will be reattempted before request being routed to last selected host                          | 3
+**envoy-control.envoy.snapshot.retryPolicy.retryHostPredicate**                                         | Specifies a collection of RetryHostPredicates that will be consulted when selecting a host for retries                                    | a list with one entry "envoy.retry_host_predicates.previous_hosts"
+**envoy-control.envoy.snapshot.retryPolicy.retryBackOff**                                               | Specifies parameters that control exponential retry back off                                                                              | baseInterval 25ms, maxInterval 250ms
 
 ## Metrics
 Property                                                                                    | Description                                                                                                                                                                               | Default value
