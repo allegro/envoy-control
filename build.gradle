@@ -48,7 +48,7 @@ allprojects {
     project.ext.versions = [
 
             kotlin            : '1.3.72',
-            java_controlplane : '0.1.31-delta-xds-slonka-hash-bytes-SNAPSHOT',
+            java_controlplane : '0.1.31-delta-xds-slonka-hash-bytes-performance-SNAPSHOT',
             spring_boot       : '2.3.4.RELEASE',
             grpc              : '1.21.0',
             jaxb              : '2.3.1',
