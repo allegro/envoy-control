@@ -215,11 +215,9 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy?
         hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toLong()
             ?: defaultRetryPolicy!!.hostSelectionRetryMaxAttempts,
         numberRetries = value.field("numberRetries")?.stringValue?.toInt() ?: defaultRetryPolicy!!.numberRetries,
-        retryHostPredicate = value.field("retryHostPredicate")?.let { retryHostPredicateField ->
-            retryHostPredicateField.listValue?.valuesList?.map {
-                RetryHostPredicate(it.field("name")!!.stringValue)
-            }?.toList()
-        } ?: defaultRetryPolicy!!.retryHostPredicate,
+        retryHostPredicate = value.field("retryHostPredicate")?.listValue?.valuesList?.map {
+            RetryHostPredicate(it.field("name")!!.stringValue)
+        }?.toList() ?: defaultRetryPolicy!!.retryHostPredicate,
         perTryTimeoutMs = value.field("perTryTimeoutMs")?.stringValue?.toLong(),
         retryBackOff = value.field("retryBackOff")?.structValue?.let {
             RetryBackOff(
@@ -238,11 +236,9 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy?
 }
 
 private fun mapProtoToMethods(methods: Value) =
-    methods.field("methods")?.let { methodsListAsField ->
-        methodsListAsField.list()?.map { singleMethodAsField ->
-            singleMethodAsField.stringValue
-        }?.toSet()
-    }
+    methods.field("methods")?.list()?.map { singleMethodAsField ->
+        singleMethodAsField.stringValue
+    }?.toSet()
 
 fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
     val endpointsField = this?.field("endpoints")?.list()

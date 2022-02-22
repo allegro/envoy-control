@@ -122,7 +122,7 @@ class EnvoyEgressRoutesFactory(
         addAllDomains: VirtualHost.Builder,
         routeSpecification: RouteSpecification
     ): VirtualHost.Builder {
-        routeSpecification.settings.retryPolicy?.let {
+        routeSpecification.settings.retryPolicy.let {
             buildRouteForRetryPolicy(addAllDomains, routeSpecification)
         }
         buildDefaultRoute(addAllDomains, routeSpecification)
@@ -133,7 +133,7 @@ class EnvoyEgressRoutesFactory(
         addAllDomains: VirtualHost.Builder,
         routeSpecification: RouteSpecification
     ): VirtualHost.Builder? {
-        val regexAsAString = routeSpecification.settings.retryPolicy?.methods?.joinToString(separator = "|")
+        val regexAsAString = routeSpecification.settings.retryPolicy.methods?.joinToString(separator = "|")
         val routeMatchBuilder = RouteMatch
             .newBuilder()
             .setPrefix("/")
@@ -227,7 +227,7 @@ class EnvoyEgressRoutesFactory(
         }
 
         if (shouldAddRetryPolicy) {
-            routeSpecification.settings.retryPolicy?.let { policy ->
+            routeSpecification.settings.retryPolicy.let { policy ->
                 routeAction.setRetryPolicy(RequestPolicyMapper.mapToEnvoyRetryPolicyBuilder(policy))
             }
         }
@@ -249,7 +249,6 @@ class RequestPolicyMapper private constructor() {
         fun mapToEnvoyRetryPolicyBuilder(retryPolicy: EnvoyControlRetryPolicy?): RetryPolicy? {
             retryPolicy?.let { policy ->
                 val retryPolicyBuilder = RetryPolicy.newBuilder()
-                val retryBackOffBuilder = RetryPolicy.RetryBackOff.newBuilder()
 
                 policy.retryOn?.let { retryPolicyBuilder.setRetryOn(it) }
                 policy.hostSelectionRetryMaxAttempts?.let {
@@ -261,7 +260,7 @@ class RequestPolicyMapper private constructor() {
                 }
                 policy.perTryTimeoutMs?.let { retryPolicyBuilder.setPerTryTimeout(Durations.fromMillis(it)) }
                 policy.retryBackOff?.let {
-                    buildRetryBackOff(it, retryBackOffBuilder, retryPolicyBuilder)
+                    buildRetryBackOff(it, retryPolicyBuilder)
                 }
                 policy.retryableStatusCodes?.let {
                     buildRetryableStatusCodes(it, retryPolicyBuilder)
@@ -295,9 +294,9 @@ class RequestPolicyMapper private constructor() {
 
         private fun buildRetryBackOff(
             it: RetryBackOff,
-            retryBackOffBuilder: RetryPolicy.RetryBackOff.Builder,
             retryPolicyBuilder: RetryPolicy.Builder
         ): RetryPolicy.Builder? {
+            val retryBackOffBuilder = RetryPolicy.RetryBackOff.newBuilder()
             it.baseInterval?.let { baseInterval ->
                 retryBackOffBuilder.setBaseInterval(baseInterval)
             }
