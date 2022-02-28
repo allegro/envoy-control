@@ -177,7 +177,7 @@ Property                                                                        
 **envoy-control.envoy.snapshot.retryPolicy.hostSelectionRetryMaxAttempts**                              | The maximum number of times host selection will be reattempted before request being routed to last selected host                          | 3
 **envoy-control.envoy.snapshot.retryPolicy.retryHostPredicate**                                         | Specifies a collection of RetryHostPredicates that will be consulted when selecting a host for retries                                    | a list with one entry "envoy.retry_host_predicates.previous_hosts"
 **envoy-control.envoy.snapshot.retryPolicy.retryBackOff.baseInterval**                                  | Specifies parameters that control exponential retry back off base interval                                                                | 25ms
-**envoy-control.envoy.snapshot.retryPolicy.retryBackOff.maxInterval**                                   | Specifies parameters that control exponential retry back off max interval                                                                 | 250ms
+**envoy-control.envoy.snapshot.retryPolicy.retryBackOff.maxInterval**                                   | Specifies parameters that control exponential retry back off max interval                                                                 | 10 times base interval
 
 ## Metrics
 Property                                                                                    | Description                                                                                                                                                                               | Default value
