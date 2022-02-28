@@ -151,7 +151,7 @@ class EnvoyEgressRoutesFactory(
         )
     }
 
-    private fun buildMethodHeaderMatcher(regexAsAString: String?) = HeaderMatcher.newBuilder()
+    private fun buildMethodHeaderMatcher(regexAsAString: String) = HeaderMatcher.newBuilder()
         .setName(":method")
         .setSafeRegexMatch(
             RegexMatcher.newBuilder()
@@ -247,7 +247,7 @@ class EnvoyEgressRoutesFactory(
 class RequestPolicyMapper private constructor() {
     companion object {
         fun mapToEnvoyRetryPolicyBuilder(retryPolicy: EnvoyControlRetryPolicy?): RetryPolicy? {
-            retryPolicy?.let { policy ->
+            return retryPolicy?.let { policy ->
                 val retryPolicyBuilder = RetryPolicy.newBuilder()
 
                 policy.retryOn?.let { retryPolicyBuilder.setRetryOn(it) }
@@ -269,16 +269,15 @@ class RequestPolicyMapper private constructor() {
                     buildRetryableHeaders(it, retryPolicyBuilder)
                 }
 
-                return retryPolicyBuilder.build()
+                retryPolicyBuilder.build()
             }
-            return null
         }
 
         private fun buildRetryableHeaders(
-            it: List<String>,
+            retryAbleHeaders: List<String>,
             retryPolicyBuilder: RetryPolicy.Builder
         ) {
-            it.forEach { header ->
+            retryAbleHeaders.forEach { header ->
                 retryPolicyBuilder.addRetriableHeaders(
                     HeaderMatcher.newBuilder().setName(header)
                 )
@@ -286,34 +285,34 @@ class RequestPolicyMapper private constructor() {
         }
 
         private fun buildRetryableStatusCodes(
-            it: List<Int>,
+            statusCodes: List<Int>,
             retryPolicyBuilder: RetryPolicy.Builder
         ) {
-            it.forEach { statusCode -> retryPolicyBuilder.addRetriableStatusCodes(statusCode) }
+            retryPolicyBuilder.addAllRetriableStatusCodes(statusCodes)
         }
 
         private fun buildRetryBackOff(
-            it: RetryBackOff,
+            backOff: RetryBackOff,
             retryPolicyBuilder: RetryPolicy.Builder
         ): RetryPolicy.Builder? {
             val retryBackOffBuilder = RetryPolicy.RetryBackOff.newBuilder()
-            it.baseInterval?.let { baseInterval ->
+            backOff.baseInterval?.let { baseInterval ->
                 retryBackOffBuilder.setBaseInterval(baseInterval)
             }
-            it.maxInterval?.let { maxInterval ->
+            backOff.maxInterval?.let { maxInterval ->
                 retryBackOffBuilder.setMaxInterval(maxInterval)
             }
             return retryPolicyBuilder.setRetryBackOff(retryBackOffBuilder)
         }
 
         private fun buildRetryHostPredicate(
-            it: List<RetryHostPredicate>,
+            hostPredicates: List<RetryHostPredicate>,
             retryPolicyBuilder: RetryPolicy.Builder
         ) {
-            it.forEach { host ->
-                retryPolicyBuilder.addRetryHostPredicate(
-                    RetryPolicy.RetryHostPredicate.newBuilder().setName(host.name)
-                )
+            hostPredicates.map {
+                RetryPolicy.RetryHostPredicate.newBuilder().setName(it.name).build()
+            }.also {
+                retryPolicyBuilder.addAllRetryHostPredicate(it)
             }
         }
     }
