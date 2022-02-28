@@ -1,0 +1,38 @@
+name: Check changelog
+
+on:
+  pull_request:
+    paths-ignore:
+    - '.github/**'
+
+jobs:
+  changelog:
+    name: Check changelog
+    runs-on: [self-hosted, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - uses: jitterbit/get-changed-files@v1
+        id: files
+        continue-on-error: true
+
+      - name: Printing modified files
+        run: |
+          echo "Added+Modified:"
+          echo "${{ steps.files.outputs.added_modified }}"
+      - name: Check if changelog is updated.
+        run: |
+          for changed_file in ${{ steps.files.outputs.added_modified }}; do
+            if [ ${changed_file} == "CHANGELOG.md" ]
+            then
+              exit 0
+            fi
+          done
+          echo "::error:: Changelog not present in modified files"
+          exit 1
+
+
