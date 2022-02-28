@@ -15,6 +15,8 @@ import java.text.ParseException
 open class NodeMetadataValidationException(message: String) :
     RequestException(Status.INVALID_ARGUMENT.withDescription(message))
 
+const val BASE_INTERVAL_MULTIPLIER = 10
+
 class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
     val serviceName: String? = metadata
         .fieldsMap["service_name"]
@@ -550,13 +552,13 @@ data class RetryPolicy(
     val methods: Set<String>? = null
 )
 
-class RetryBackOff(
+data class RetryBackOff(
     val baseInterval: Duration? = null,
     val maxInterval: Duration? = null
 ) {
     constructor(baseInterval: Duration) : this(
         baseInterval = baseInterval,
-        maxInterval = Durations.fromMillis(Durations.toMillis(baseInterval).times(10))
+        maxInterval = Durations.fromMillis(Durations.toMillis(baseInterval).times(BASE_INTERVAL_MULTIPLIER))
     )
 }
 
