@@ -361,8 +361,7 @@ data class RetryPolicyProperties(
     var retryHostPredicate: List<RetryHostPredicate> =
         listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
     var retryBackOff: RetryBackOff = RetryBackOff(
-        baseInterval = Durations.fromMillis(25),
-        maxInterval = Durations.fromMillis(250)
+        baseInterval = Durations.fromMillis(25)
     )
 )
 

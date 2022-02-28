@@ -550,10 +550,15 @@ data class RetryPolicy(
     val methods: Set<String>? = null
 )
 
-data class RetryBackOff(
+class RetryBackOff(
     val baseInterval: Duration? = null,
     val maxInterval: Duration? = null
-)
+) {
+    constructor(baseInterval: Duration) : this(
+        baseInterval = baseInterval,
+        maxInterval = Durations.fromMillis(Durations.toMillis(baseInterval).times(10))
+    )
+}
 
 data class RetryHostPredicate(
     val name: String

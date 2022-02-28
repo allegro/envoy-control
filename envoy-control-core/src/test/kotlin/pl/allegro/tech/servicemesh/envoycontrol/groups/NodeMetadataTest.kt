@@ -422,7 +422,7 @@ class NodeMetadataTest {
 
         // expects
         val serviceDependency = outgoing.getServiceDependencies().single()
-        assertThat(serviceDependency.settings.retryPolicy).isEqualTo(expectedRetryPolicy)
+        assertThat(serviceDependency.settings.retryPolicy).usingRecursiveComparison().isEqualTo(expectedRetryPolicy)
     }
 
     @Test
