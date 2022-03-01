@@ -14,7 +14,7 @@ import io.envoyproxy.envoy.config.route.v3.VirtualCluster
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import org.assertj.core.api.Assertions.assertThat
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalRetryPolicyProperties
 
 fun RouteConfiguration.hasSingleVirtualHostThat(condition: VirtualHost.() -> Unit): RouteConfiguration {
     assertThat(this.virtualHostsList).hasSize(1)
@@ -177,15 +177,15 @@ fun Route.redirect(condition: (RedirectAction) -> Boolean) {
     assertThat(this.redirect).satisfies { condition(it) }
 }
 
-fun Route.matchingRetryPolicy(properties: RetryPolicyProperties) {
+fun Route.matchingRetryPolicy(properties: LocalRetryPolicyProperties) {
     matchingRetryPolicy(this.route.retryPolicy, properties)
 }
 
-fun VirtualHost.matchingRetryPolicy(properties: RetryPolicyProperties) {
+fun VirtualHost.matchingRetryPolicy(properties: LocalRetryPolicyProperties) {
     matchingRetryPolicy(this.retryPolicy, properties)
 }
 
-fun matchingRetryPolicy(retryPolicy: RetryPolicy, properties: RetryPolicyProperties) = retryPolicy.run {
+fun matchingRetryPolicy(retryPolicy: RetryPolicy, properties: LocalRetryPolicyProperties) = retryPolicy.run {
     assertThat(retryOn).isEqualTo(properties.retryOn.joinToString(separator = ","))
     assertThat(numRetries.value).isEqualTo(properties.numRetries)
     assertThat(perTryTimeout.seconds).isEqualTo(properties.perTryTimeout.seconds)

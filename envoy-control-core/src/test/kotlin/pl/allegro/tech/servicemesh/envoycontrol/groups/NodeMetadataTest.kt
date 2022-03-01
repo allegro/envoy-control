@@ -58,7 +58,8 @@ class NodeMetadataTest {
         outgoingPermissions.allServicesDependencies.identifier = allServicesDependenciesIdentifier
         egress.handleInternalRedirect = handleInternalRedirect
         egress.commonHttp.idleTimeout = Duration.ofNanos(Durations.toNanos(Durations.parse(idleTimeout)))
-        egress.commonHttp.connectionIdleTimeout = Duration.ofNanos(Durations.toNanos(Durations.parse(connectionIdleTimeout)))
+        egress.commonHttp.connectionIdleTimeout =
+            Duration.ofNanos(Durations.toNanos(Durations.parse(connectionIdleTimeout)))
         egress.commonHttp.requestTimeout = Duration.ofNanos(Durations.toNanos(Durations.parse(requestTimeout)))
     }
 
@@ -340,6 +341,91 @@ class NodeMetadataTest {
     }
 
     @Test
+    fun `should return retry policy`() {
+        // given
+        val givenRetryPolicy = RetryPolicyInput(
+            retryOn = "givenRetryOn",
+            hostSelectionRetryMaxAttempts = 1,
+            numberRetries = 2,
+            perTryTimeoutMs = 3,
+            retryableHeaders = listOf("givenTestHeader"),
+            retryableStatusCodes = listOf(504),
+            retryBackOff = RetryBackOffInput(
+                baseInterval = "7s",
+                maxInterval = "8s"
+            ),
+            retryHostPredicate = listOf(RetryHostPredicateInput(name = "givenHost")),
+            methods = setOf("GET", "POST", "PUT")
+        )
+        val expectedRetryPolicy = RetryPolicy(
+            retryOn = "givenRetryOn",
+            hostSelectionRetryMaxAttempts = 1,
+            numberRetries = 2,
+            perTryTimeoutMs = 3,
+            retryableHeaders = listOf("givenTestHeader"),
+            retryableStatusCodes = listOf(504),
+            retryBackOff = RetryBackOff(
+                baseInterval = Durations.fromSeconds(7),
+                maxInterval = Durations.fromSeconds(8)
+            ),
+            retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost")),
+            methods = setOf("GET", "POST", "PUT")
+        )
+        val proto = outgoingDependenciesProto {
+            withService(
+                serviceName = "givenServiceName",
+                retryPolicy = givenRetryPolicy
+            )
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val serviceDependency = outgoing.getServiceDependencies().single()
+        assertThat(serviceDependency.settings.retryPolicy).isEqualTo(expectedRetryPolicy)
+    }
+
+    @Test
+    fun `should return retry policy with defaults`() {
+        // given
+        val givenRetryPolicy = RetryPolicyInput(
+            retryOn = "givenRetryOn",
+            perTryTimeoutMs = 3,
+            retryableHeaders = listOf("givenTestHeader"),
+            retryableStatusCodes = listOf(504),
+            methods = setOf("GET", "POST", "PUT")
+        )
+        val expectedRetryPolicy = RetryPolicy(
+            retryOn = "givenRetryOn",
+            hostSelectionRetryMaxAttempts = 3,
+            numberRetries = 1,
+            perTryTimeoutMs = 3,
+            retryableHeaders = listOf("givenTestHeader"),
+            retryableStatusCodes = listOf(504),
+            retryBackOff = RetryBackOff(
+                baseInterval = Durations.fromMillis(25),
+                maxInterval = Durations.fromMillis(250)
+            ),
+            retryHostPredicate = listOf(RetryHostPredicate(name = "envoy.retry_host_predicates.previous_hosts")),
+            methods = setOf("GET", "POST", "PUT")
+        )
+        val proto = outgoingDependenciesProto {
+            withService(
+                serviceName = "givenServiceName",
+                retryPolicy = givenRetryPolicy
+            )
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val serviceDependency = outgoing.getServiceDependencies().single()
+        assertThat(serviceDependency.settings.retryPolicy).usingRecursiveComparison().isEqualTo(expectedRetryPolicy)
+    }
+
+    @Test
     fun `should deduplicate domains dependencies based on url`() {
         // given
         val proto = outgoingDependenciesProto {
@@ -356,7 +442,11 @@ class NodeMetadataTest {
         assertThat(dependencies).hasSize(2)
         assertThat(dependencies[0].getHost()).isEqualTo("domain")
         assertThat(dependencies[0].getPort()).isEqualTo(80)
-        assertThat(dependencies[0].settings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "5s")
+        assertThat(dependencies[0].settings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "5s"
+        )
         assertThat(dependencies[1].getHost()).isEqualTo("domain2")
         assertThat(dependencies[1].getPort()).isEqualTo(80)
     }
@@ -366,7 +456,12 @@ class NodeMetadataTest {
         // given
         val proto = outgoingDependenciesProto {
             withService(serviceName = "service-1", requestTimeout = "8s", idleTimeout = "8s")
-            withService(serviceName = "service-1", requestTimeout = "10s", idleTimeout = "10s", connectionIdleTimeout = "10s")
+            withService(
+                serviceName = "service-1",
+                requestTimeout = "10s",
+                idleTimeout = "10s",
+                connectionIdleTimeout = "10s"
+            )
             withService(serviceName = "service-2")
         }
 
@@ -377,7 +472,11 @@ class NodeMetadataTest {
         val dependencies = outgoing.getServiceDependencies()
         assertThat(dependencies).hasSize(2)
         assertThat(dependencies[0].service).isEqualTo("service-1")
-        assertThat(dependencies[0].settings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+        assertThat(dependencies[0].settings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
         assertThat(dependencies[1].service).isEqualTo("service-2")
     }
 
@@ -502,7 +601,11 @@ class NodeMetadataTest {
 
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
         assertThat(outgoing.getServiceDependencies()).isEmpty()
     }
 
@@ -519,7 +622,11 @@ class NodeMetadataTest {
 
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "10s", requestTimeout = "5s", connectionIdleTimeout = "10s")
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "5s",
+            connectionIdleTimeout = "10s"
+        )
         assertThat(outgoing.getServiceDependencies()).isEmpty()
     }
 
@@ -536,7 +643,11 @@ class NodeMetadataTest {
 
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "5s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "5s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
         assertThat(outgoing.getServiceDependencies()).isEmpty()
     }
 
@@ -553,7 +664,11 @@ class NodeMetadataTest {
 
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "5s")
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "5s"
+        )
         assertThat(outgoing.getServiceDependencies()).isEmpty()
     }
 
@@ -564,14 +679,23 @@ class NodeMetadataTest {
             withService(serviceName = "*", idleTimeout = null, requestTimeout = null)
         }
         val properties =
-            snapshotProperties(allServicesDependenciesIdentifier = "*", idleTimeout = "5s", requestTimeout = "5s", connectionIdleTimeout = "5s")
+            snapshotProperties(
+                allServicesDependenciesIdentifier = "*",
+                idleTimeout = "5s",
+                requestTimeout = "5s",
+                connectionIdleTimeout = "5s"
+            )
         // when
 
         val outgoing = proto.toOutgoing(properties)
 
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "5s", requestTimeout = "5s", connectionIdleTimeout = "5s")
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "5s",
+            requestTimeout = "5s",
+            connectionIdleTimeout = "5s"
+        )
         assertThat(outgoing.getServiceDependencies()).isEmpty()
     }
 
@@ -580,10 +704,30 @@ class NodeMetadataTest {
         // given
         val proto = outgoingDependenciesProto {
             withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
-            withService(serviceName = "service-name-1", idleTimeout = "5s", requestTimeout = null, connectionIdleTimeout = null)
-            withService(serviceName = "service-name-2", idleTimeout = null, requestTimeout = "4s", connectionIdleTimeout = null)
-            withService(serviceName = "service-name-3", idleTimeout = null, requestTimeout = null, connectionIdleTimeout = "3s")
-            withService(serviceName = "service-name-4", idleTimeout = null, requestTimeout = null, connectionIdleTimeout = null)
+            withService(
+                serviceName = "service-name-1",
+                idleTimeout = "5s",
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+            withService(
+                serviceName = "service-name-2",
+                idleTimeout = null,
+                requestTimeout = "4s",
+                connectionIdleTimeout = null
+            )
+            withService(
+                serviceName = "service-name-3",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = "3s"
+            )
+            withService(
+                serviceName = "service-name-4",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
         }
         val properties = snapshotProperties(allServicesDependenciesIdentifier = "*")
         // when
@@ -592,7 +736,11 @@ class NodeMetadataTest {
 
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
 
         outgoing.getServiceDependencies().assertServiceDependency("service-name-1")
             .hasTimeouts(idleTimeout = "5s", requestTimeout = "10s", connectionIdleTimeout = "10s")
@@ -608,10 +756,30 @@ class NodeMetadataTest {
     fun `should parse service dependencies and for missing configs use config defined in properties when allServiceDependency isn't defined`() {
         // given
         val proto = outgoingDependenciesProto {
-            withService(serviceName = "service-name-1", idleTimeout = "5s", requestTimeout = null, connectionIdleTimeout = null)
-            withService(serviceName = "service-name-2", idleTimeout = null, requestTimeout = "4s", connectionIdleTimeout = null)
-            withService(serviceName = "service-name-3", idleTimeout = null, requestTimeout = null, connectionIdleTimeout = "3s")
-            withService(serviceName = "service-name-4", idleTimeout = null, requestTimeout = null, connectionIdleTimeout = null)
+            withService(
+                serviceName = "service-name-1",
+                idleTimeout = "5s",
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+            withService(
+                serviceName = "service-name-2",
+                idleTimeout = null,
+                requestTimeout = "4s",
+                connectionIdleTimeout = null
+            )
+            withService(
+                serviceName = "service-name-3",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = "3s"
+            )
+            withService(
+                serviceName = "service-name-4",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
         }
         val properties = snapshotProperties(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
         // when
@@ -620,7 +788,11 @@ class NodeMetadataTest {
 
         // expects
         assertThat(outgoing.allServicesDependencies).isFalse()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "12s",
+            requestTimeout = "12s",
+            connectionIdleTimeout = "12s"
+        )
 
         outgoing.getServiceDependencies().assertServiceDependency("service-name-1")
             .hasTimeouts(idleTimeout = "5s", requestTimeout = "12s", connectionIdleTimeout = "12s")
@@ -637,10 +809,30 @@ class NodeMetadataTest {
         // given
         val proto = outgoingDependenciesProto {
             withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
-            withDomain(url = "http://domain-name-1", idleTimeout = "5s", requestTimeout = null, connectionIdleTimeout = null)
-            withDomain(url = "http://domain-name-2", idleTimeout = null, requestTimeout = "4s", connectionIdleTimeout = null)
-            withDomain(url = "http://domain-name-3", idleTimeout = null, requestTimeout = null, connectionIdleTimeout = "3s")
-            withDomain(url = "http://domain-name-4", idleTimeout = null, requestTimeout = null, connectionIdleTimeout = null)
+            withDomain(
+                url = "http://domain-name-1",
+                idleTimeout = "5s",
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+            withDomain(
+                url = "http://domain-name-2",
+                idleTimeout = null,
+                requestTimeout = "4s",
+                connectionIdleTimeout = null
+            )
+            withDomain(
+                url = "http://domain-name-3",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = "3s"
+            )
+            withDomain(
+                url = "http://domain-name-4",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
         }
         val properties = snapshotProperties(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
         // when
@@ -649,7 +841,11 @@ class NodeMetadataTest {
 
         // expects
         assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
 
         outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-1")
             .hasTimeouts(idleTimeout = "5s", requestTimeout = "12s", connectionIdleTimeout = "12s")
