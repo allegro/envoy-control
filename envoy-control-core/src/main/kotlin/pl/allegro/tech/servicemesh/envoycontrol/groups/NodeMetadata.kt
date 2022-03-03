@@ -214,13 +214,13 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
 private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy): RetryPolicy {
     return RetryPolicy(
         retryOn = value.field("retryOn")?.stringValue,
-        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.stringValue?.toLong()
+        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
             ?: defaultRetryPolicy.hostSelectionRetryMaxAttempts,
-        numberRetries = value.field("numberRetries")?.stringValue?.toInt() ?: defaultRetryPolicy.numberRetries,
+        numberRetries = value.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy.numberRetries,
         retryHostPredicate = value.field("retryHostPredicate")?.listValue?.valuesList?.map {
             RetryHostPredicate(it.field("name")!!.stringValue)
         }?.toList() ?: defaultRetryPolicy.retryHostPredicate,
-        perTryTimeoutMs = value.field("perTryTimeoutMs")?.stringValue?.toLong(),
+        perTryTimeoutMs = value.field("perTryTimeoutMs")?.numberValue?.toLong(),
         retryBackOff = value.field("retryBackOff")?.structValue?.let {
             RetryBackOff(
                 baseInterval = it.fieldsMap["baseInterval"]?.toDuration(),
@@ -228,7 +228,7 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy)
             )
         } ?: defaultRetryPolicy.retryBackOff,
         retryableStatusCodes = value.field("retryableStatusCodes")?.listValue?.valuesList?.map {
-            it.stringValue.toInt()
+            it.numberValue.toInt()
         },
         retryableHeaders = value.field("retryableHeaders")?.listValue?.valuesList?.map {
             it.stringValue

@@ -429,7 +429,7 @@ private fun boolean(value: Boolean): Value {
 }
 
 private fun integer(value: Int): Value {
-    return Value.newBuilder().setStringValue(value.toString()).build()
+    return Value.newBuilder().setNumberValue(value.toDouble()).build()
 }
 
 private val nullValue: Value = Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build()
