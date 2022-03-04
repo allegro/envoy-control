@@ -103,7 +103,7 @@ node:
     }
 
     @Test
-    fun `should have no retries for get method if post and put specified only`() {
+    fun `should have no retries for get method if post and put specified for retries`() {
         // given
         service.container().start()
 
