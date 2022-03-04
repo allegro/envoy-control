@@ -92,6 +92,7 @@ class ControlPlane private constructor(
         var groupSnapshotParallelExecutorSupplier: () -> Executor? = { null }
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
+        var identifier: String? = null
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
@@ -207,11 +208,12 @@ class ControlPlane private constructor(
             groupChangeWatcher: GroupChangeWatcher,
             cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
         ): V3DiscoveryServer {
-            return V3DiscoveryServer(
+            return V3DiscoveryServerWithIdentifier(
                 compositeDiscoveryServerCallbacks,
                 groupChangeWatcher,
                 executorGroup,
-                cachedProtoResourcesSerializer
+                cachedProtoResourcesSerializer,
+                identifier
             )
         }
 
