@@ -9,7 +9,6 @@ import io.envoyproxy.controlplane.server.serializer.ProtoResourcesSerializer
 import io.envoyproxy.envoy.config.core.v3.ControlPlane
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse
 
-
 class V3DiscoveryServerWithIdentifier(
     callbacks: List<DiscoveryServerCallbacks>,
     configWatcher: ConfigWatcher,
