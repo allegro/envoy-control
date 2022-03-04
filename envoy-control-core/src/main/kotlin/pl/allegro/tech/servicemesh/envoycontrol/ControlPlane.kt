@@ -308,6 +308,8 @@ class ControlPlane private constructor(
             this.metrics = metrics
             return this
         }
+        
+        fun withIdentifier() = apply { this.identifier = identifier  }
 
         fun withEnvoyHttpFilters(envoyHttpFilters: EnvoyHttpFilters): ControlPlaneBuilder {
             this.envoyHttpFilters = envoyHttpFilters
