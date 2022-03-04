@@ -213,7 +213,7 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
 
 private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy): RetryPolicy {
     return RetryPolicy(
-        retryOn = value.field("retryOn")?.stringValue,
+        retryOn = value.field("retryOn")?.listValue?.valuesList?.map { it.stringValue },
         hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
             ?: defaultRetryPolicy.hostSelectionRetryMaxAttempts,
         numberRetries = value.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy.numberRetries,
@@ -541,7 +541,7 @@ data class DependencySettings(
 )
 
 data class RetryPolicy(
-    val retryOn: String? = null,
+    val retryOn: List<String>? = null,
     val hostSelectionRetryMaxAttempts: Long? = null,
     val numberRetries: Int? = null,
     val retryHostPredicate: List<RetryHostPredicate>? = null,

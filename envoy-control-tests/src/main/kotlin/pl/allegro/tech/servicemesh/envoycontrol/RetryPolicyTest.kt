@@ -25,13 +25,12 @@ node:
         dependencies:
           - service: "echo"
             retryPolicy:
-              retryOn: "retriable-status-codes"
+              retryOn: ["retriable-status-codes"]
               numberRetries: 8
               retryableStatusCodes: [200]
-              methods: ["PUT", "GET", "POST"]
           - service: "macho"
             retryPolicy:
-              retryOn: "retriable-status-codes"
+              retryOn: ["retriable-status-codes"]
               numberRetries: 8
               retryableStatusCodes: [200]
               methods: ["PUT", "POST"]
