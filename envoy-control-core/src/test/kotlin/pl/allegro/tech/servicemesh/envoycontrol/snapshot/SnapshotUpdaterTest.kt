@@ -31,7 +31,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
-import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
@@ -60,6 +59,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 @Suppress("LargeClass")
 class SnapshotUpdaterTest {
@@ -1195,7 +1195,8 @@ class SnapshotUpdaterTest {
         cache: SnapshotCache<Group, Snapshot>,
         properties: SnapshotProperties = SnapshotProperties(),
         groups: List<Group> = emptyList(),
-        groupSnapshotScheduler: ParallelizableScheduler = DirectScheduler
+        groupSnapshotScheduler: ParallelizableScheduler = DirectScheduler,
+        snapshotChangeAuditor: SnapshotChangeAuditor? = null
     ) = SnapshotUpdater(
         cache = cache,
         properties = properties,
@@ -1204,7 +1205,8 @@ class SnapshotUpdaterTest {
         groupSnapshotScheduler = groupSnapshotScheduler,
         onGroupAdded = Flux.just(groups),
         meterRegistry = simpleMeterRegistry,
-        versions = SnapshotsVersions()
+        versions = SnapshotsVersions(),
+        snapshotChangeAuditor = snapshotChangeAuditor
     )
 }
 

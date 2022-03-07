@@ -18,6 +18,7 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 
+@Suppress("LongParameterList")
 class SnapshotUpdater(
     private val cache: SnapshotCache<Group, Snapshot>,
     private val snapshotChangeAuditor: SnapshotChangeAuditor?,

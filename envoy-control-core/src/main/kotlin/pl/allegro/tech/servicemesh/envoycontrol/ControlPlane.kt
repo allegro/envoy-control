@@ -93,7 +93,7 @@ class ControlPlane private constructor(
         var groupSnapshotParallelExecutorSupplier: () -> Executor? = { null }
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
-        var snapshotChangeAuditor: SnapshotChangeAuditor? = null;
+        var snapshotChangeAuditor: SnapshotChangeAuditor? = null
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot

@@ -60,7 +60,11 @@ class EnvoyEndpointsFactory(
             .setPriority(toEnvoyPriority(locality))
             .build()
 
-    private fun createLbEndpoint(serviceInstance: ServiceInstance, serviceName: String, locality: pl.allegro.tech.servicemesh.envoycontrol.services.Locality): LbEndpoint {
+    private fun createLbEndpoint(
+        serviceInstance: ServiceInstance,
+        serviceName: String,
+        locality: pl.allegro.tech.servicemesh.envoycontrol.services.Locality
+    ): LbEndpoint {
         return LbEndpoint.newBuilder()
             .setEndpoint(
                 buildEndpoint(serviceInstance)
@@ -91,7 +95,11 @@ class EnvoyEndpointsFactory(
             .setProtocol(SocketAddress.Protocol.TCP)
     }
 
-    private fun LbEndpoint.Builder.setMetadata(instance: ServiceInstance, serviceName: String, locality: pl.allegro.tech.servicemesh.envoycontrol.services.Locality): LbEndpoint.Builder {
+    private fun LbEndpoint.Builder.setMetadata(
+        instance: ServiceInstance,
+        serviceName: String,
+        locality: pl.allegro.tech.servicemesh.envoycontrol.services.Locality
+    ): LbEndpoint.Builder {
         val lbMetadataKeys = Struct.newBuilder()
         val socketMatchMetadataKeys = Struct.newBuilder()
 
@@ -116,7 +124,10 @@ class EnvoyEndpointsFactory(
                     Value.newBuilder().setBoolValue(true).build()
             )
         }
-        lbMetadataKeys.putFields(properties.loadBalancing.localityMetadataKey, Value.newBuilder().setStringValue(locality.name).build())
+        lbMetadataKeys.putFields(
+            properties.loadBalancing.localityMetadataKey,
+            Value.newBuilder().setStringValue(locality.name).build()
+        )
         return setMetadata(Metadata.newBuilder()
                 .putFilterMetadata("envoy.lb", lbMetadataKeys.build())
                 .putFilterMetadata("envoy.transport_socket_match", socketMatchMetadataKeys.build())
