@@ -20,6 +20,7 @@ import reactor.core.scheduler.Scheduler
 
 class SnapshotUpdater(
     private val cache: SnapshotCache<Group, Snapshot>,
+    private val snapshotChangeAuditor: SnapshotChangeAuditor?,
     private val properties: SnapshotProperties,
     private val snapshotFactory: EnvoySnapshotFactory,
     private val globalSnapshotScheduler: Scheduler,
@@ -117,12 +118,12 @@ class SnapshotUpdater(
                 if (properties.enabledCommunicationModes.ads) {
                     lastAdsSnapshot = snapshotFactory.newSnapshot(states, clusters, ADS)
                 }
-
                 val updateResult = UpdateResult(
                     action = Action.ALL_SERVICES_GROUP_ADDED,
                     adsSnapshot = lastAdsSnapshot,
                     xdsSnapshot = lastXdsSnapshot
                 )
+                snapshotChangeAuditor?.audit(updateResult)
                 globalSnapshot = updateResult
                 updateResult
             }
@@ -201,7 +202,7 @@ enum class Action {
     SERVICES_GROUP_ADDED, ALL_SERVICES_GROUP_ADDED, ERROR_PROCESSING_CHANGES
 }
 
-class UpdateResult(
+data class UpdateResult(
     val action: Action,
     val groups: List<Group> = listOf(),
     val adsSnapshot: GlobalSnapshot? = null,

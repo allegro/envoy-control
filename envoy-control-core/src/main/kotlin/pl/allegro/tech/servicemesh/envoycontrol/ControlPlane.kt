@@ -24,6 +24,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotChangeAuditor
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
@@ -92,6 +93,7 @@ class ControlPlane private constructor(
         var groupSnapshotParallelExecutorSupplier: () -> Executor? = { null }
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
+        var snapshotChangeAuditor: SnapshotChangeAuditor? = null;
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
@@ -176,6 +178,7 @@ class ControlPlane private constructor(
                 grpcServerBuilder.build(),
                 SnapshotUpdater(
                     cache,
+                    snapshotChangeAuditor,
                     properties.envoy.snapshot,
                     envoySnapshotFactory,
                     Schedulers.fromExecutor(globalSnapshotExecutor!!),
@@ -294,6 +297,11 @@ class ControlPlane private constructor(
 
         fun withGlobalSnapshotExecutor(executor: Executor): ControlPlaneBuilder {
             globalSnapshotExecutor = executor
+            return this
+        }
+
+        fun withSnapshotChangeAuditor(snapshotChangeAuditor: SnapshotChangeAuditor): ControlPlaneBuilder {
+            this.snapshotChangeAuditor = snapshotChangeAuditor
             return this
         }
 

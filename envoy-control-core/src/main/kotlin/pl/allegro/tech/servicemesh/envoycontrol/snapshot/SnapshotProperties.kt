@@ -125,6 +125,7 @@ class IpFromServiceDiscovery {
 class LoadBalancingProperties {
     var canary = CanaryProperties()
     var regularMetadataKey = "lb_regular"
+    var localityMetadataKey = "locality"
     var weights = LoadBalancingWeightsProperties()
     var policy = Cluster.LbPolicy.LEAST_REQUEST
     var useKeysSubsetFallbackPolicy = true
