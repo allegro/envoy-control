@@ -162,7 +162,7 @@ fun proxySettingsProto(
 }
 
 data class RetryPolicyInput(
-    val retryOn: String? = null,
+    val retryOn: List<String>? = null,
     val hostSelectionRetryMaxAttempts: Int? = null,
     val numberRetries: Int? = null,
     val retryHostPredicate: List<RetryHostPredicateInput>? = null,
@@ -301,7 +301,7 @@ fun outgoingDependencyProto(
 }
 
 private fun retryPolicyProto(retryPolicy: RetryPolicyInput) = struct {
-    retryPolicy.retryOn?.also { putFields("retryOn", string(it)) }
+    retryPolicy.retryOn?.also { putFields("retryOn", retryOnProto(it)) }
     retryPolicy.hostSelectionRetryMaxAttempts?.also { putFields("hostSelectionRetryMaxAttempts", integer(it)) }
     retryPolicy.numberRetries?.also { putFields("numberRetries", integer(it)) }
     retryPolicy.retryHostPredicate?.also { putFields("retryHostPredicate", retryHostPredicateListProto(it)) }
@@ -314,6 +314,9 @@ private fun retryPolicyProto(retryPolicy: RetryPolicyInput) = struct {
             "methods",
             list { it.forEach { singleMethod -> addValues(string(singleMethod)) } })
     }
+}
+private fun retryOnProto(retryOn: List<String>) = list {
+    retryOn.forEach { addValues(string(it)) }
 }
 
 private fun retryableHeadersProto(retryableHeaders: List<String>) = list {
@@ -429,7 +432,7 @@ private fun boolean(value: Boolean): Value {
 }
 
 private fun integer(value: Int): Value {
-    return Value.newBuilder().setStringValue(value.toString()).build()
+    return Value.newBuilder().setNumberValue(value.toDouble()).build()
 }
 
 private val nullValue: Value = Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build()

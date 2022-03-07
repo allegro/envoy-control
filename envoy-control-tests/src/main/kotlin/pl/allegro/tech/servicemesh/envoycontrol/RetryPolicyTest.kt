@@ -25,15 +25,14 @@ node:
         dependencies:
           - service: "echo"
             retryPolicy:
-              retryOn: "retriable-status-codes"
-              numberRetries: "8"
-              retryableStatusCodes: ["200"]
-              methods: ["PUT", "GET", "POST"]
+              retryOn: ["retriable-status-codes"]
+              numberRetries: 8
+              retryableStatusCodes: [200]
           - service: "macho"
             retryPolicy:
-              retryOn: "retriable-status-codes"
-              numberRetries: "8"
-              retryableStatusCodes: ["200"]
+              retryOn: ["retriable-status-codes"]
+              numberRetries: 8
+              retryableStatusCodes: [200]
               methods: ["PUT", "POST"]
             """.trimIndent()
 

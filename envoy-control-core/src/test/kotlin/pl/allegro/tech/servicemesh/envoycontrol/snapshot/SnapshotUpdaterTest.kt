@@ -153,7 +153,7 @@ class SnapshotUpdaterTest {
     fun `should generate allServicesGroup snapshots with timeouts from proxySettings and retry policy`() {
         val cache = MockCache()
         val givenRetryPolicy = EnvoyControlRetryPolicy(
-            retryOn = "givenRetryOn",
+            retryOn = listOf("givenRetryOn"),
             hostSelectionRetryMaxAttempts = 1,
             numberRetries = 2,
             perTryTimeoutMs = 3,

@@ -250,7 +250,7 @@ class RequestPolicyMapper private constructor() {
             return retryPolicy?.let { policy ->
                 val retryPolicyBuilder = RetryPolicy.newBuilder()
 
-                policy.retryOn?.let { retryPolicyBuilder.setRetryOn(it) }
+                policy.retryOn?.let { retryPolicyBuilder.setRetryOn(it.joinToString { joined -> joined }) }
                 policy.hostSelectionRetryMaxAttempts?.let {
                     retryPolicyBuilder.setHostSelectionRetryMaxAttempts(it)
                 }
