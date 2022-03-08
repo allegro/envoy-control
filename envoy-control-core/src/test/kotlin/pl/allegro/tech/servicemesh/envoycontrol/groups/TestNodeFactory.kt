@@ -76,11 +76,19 @@ fun ProxySettings.with(
     serviceDependencies: Set<ServiceDependency> = emptySet(),
     domainDependencies: Set<DomainDependency> = emptySet(),
     allServicesDependencies: Boolean = false,
-    defaultServiceSettings: DependencySettings = DependencySettings(timeoutPolicy = Outgoing.TimeoutPolicy(
-        Durations.fromSeconds(120),
-        Durations.fromSeconds(120),
-        Durations.fromSeconds(120)
-    )),
+    defaultServiceSettings: DependencySettings = DependencySettings(
+        timeoutPolicy = Outgoing.TimeoutPolicy(
+            Durations.fromSeconds(120),
+            Durations.fromSeconds(120),
+            Durations.fromSeconds(120)
+        ),
+        retryPolicy = RetryPolicy(
+            hostSelectionRetryMaxAttempts = 3,
+            retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
+            numberRetries = 1,
+            retryBackOff = RetryBackOff(Durations.fromMillis(25), Durations.fromMillis(250))
+        )
+    ),
     rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList()
 ): ProxySettings {
     return copy(
@@ -153,14 +161,38 @@ fun proxySettingsProto(
     }
 }
 
+data class RetryPolicyInput(
+    val retryOn: List<String>? = null,
+    val hostSelectionRetryMaxAttempts: Int? = null,
+    val numberRetries: Int? = null,
+    val retryHostPredicate: List<RetryHostPredicateInput>? = null,
+    val perTryTimeoutMs: Int? = null,
+    val retryBackOff: RetryBackOffInput? = null,
+    val retryableStatusCodes: List<Int>? = null,
+    val retryableHeaders: List<String>? = null,
+    val methods: Set<String>? = null
+)
+
+data class RetryBackOffInput(
+    val baseInterval: String? = null,
+    val maxInterval: String? = null
+)
+
+data class RetryHostPredicateInput(
+    val name: String?
+)
+
 class OutgoingDependenciesProtoScope {
-    class Dependency(val service: String? = null,
+    class Dependency(
+        val service: String? = null,
         val domain: String? = null,
         val domainPattern: String? = null,
         val idleTimeout: String? = null,
         val connectionIdleTimeout: String? = null,
         val requestTimeout: String? = null,
-        val handleInternalRedirect: Boolean? = null)
+        val handleInternalRedirect: Boolean? = null,
+        val retryPolicy: RetryPolicyInput? = null
+    )
 
     val dependencies = mutableListOf<Dependency>()
 
@@ -175,14 +207,16 @@ class OutgoingDependenciesProtoScope {
         idleTimeout: String? = null,
         connectionIdleTimeout: String? = null,
         requestTimeout: String? = null,
-        handleInternalRedirect: Boolean? = null
+        handleInternalRedirect: Boolean? = null,
+        retryPolicy: RetryPolicyInput? = null
     ) = dependencies.add(
         Dependency(
             service = serviceName,
             idleTimeout = idleTimeout,
             connectionIdleTimeout = connectionIdleTimeout,
             requestTimeout = requestTimeout,
-            handleInternalRedirect = handleInternalRedirect
+            handleInternalRedirect = handleInternalRedirect,
+            retryPolicy = retryPolicy
         )
     )
 
@@ -237,7 +271,8 @@ fun outgoingDependenciesProto(
                         idleTimeout = it.idleTimeout,
                         connectionIdleTimeout = it.connectionIdleTimeout,
                         requestTimeout = it.requestTimeout,
-                        handleInternalRedirect = it.handleInternalRedirect
+                        handleInternalRedirect = it.handleInternalRedirect,
+                        retryPolicy = it.retryPolicy
                     )
                 )
             }
@@ -252,10 +287,12 @@ fun outgoingDependencyProto(
     handleInternalRedirect: Boolean? = null,
     idleTimeout: String? = null,
     connectionIdleTimeout: String? = null,
-    requestTimeout: String? = null
+    requestTimeout: String? = null,
+    retryPolicy: RetryPolicyInput? = null
 ) = struct {
     service?.also { putFields("service", string(service)) }
     domain?.also { putFields("domain", string(domain)) }
+    retryPolicy?.also { putFields("retryPolicy", retryPolicyProto(retryPolicy)) }
     domainPattern?.also { putFields("domainPattern", string(domainPattern)) }
     handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(handleInternalRedirect)) }
     if (idleTimeout != null || requestTimeout != null || connectionIdleTimeout != null) {
@@ -263,7 +300,49 @@ fun outgoingDependencyProto(
     }
 }
 
-fun outgoingTimeoutPolicy(idleTimeout: String? = null, connectionIdleTimeout: String? = null, requestTimeout: String? = null) = struct {
+private fun retryPolicyProto(retryPolicy: RetryPolicyInput) = struct {
+    retryPolicy.retryOn?.also { putFields("retryOn", retryOnProto(it)) }
+    retryPolicy.hostSelectionRetryMaxAttempts?.also { putFields("hostSelectionRetryMaxAttempts", integer(it)) }
+    retryPolicy.numberRetries?.also { putFields("numberRetries", integer(it)) }
+    retryPolicy.retryHostPredicate?.also { putFields("retryHostPredicate", retryHostPredicateListProto(it)) }
+    retryPolicy.perTryTimeoutMs?.also { putFields("perTryTimeoutMs", integer(it)) }
+    retryPolicy.retryBackOff?.also { putFields("retryBackOff", retryBackOffProto(it)) }
+    retryPolicy.retryableStatusCodes?.also { putFields("retryableStatusCodes", retryableStatusCodesProto(it)) }
+    retryPolicy.retryableHeaders?.also { putFields("retryableHeaders", retryableHeadersProto(it)) }
+    retryPolicy.methods?.also {
+        putFields(
+            "methods",
+            list { it.forEach { singleMethod -> addValues(string(singleMethod)) } })
+    }
+}
+private fun retryOnProto(retryOn: List<String>) = list {
+    retryOn.forEach { addValues(string(it)) }
+}
+
+private fun retryableHeadersProto(retryableHeaders: List<String>) = list {
+    retryableHeaders.forEach { addValues(string(it)) }
+}
+
+private fun retryableStatusCodesProto(retryableStatusCodes: List<Int>) = list {
+    retryableStatusCodes.forEach { addValues(integer(it)) }
+}
+
+private fun retryBackOffProto(retryBackOff: RetryBackOffInput) = struct {
+    retryBackOff.baseInterval?.also { putFields("baseInterval", string(it)) }
+    retryBackOff.maxInterval?.also { putFields("maxInterval", string(it)) }
+}
+
+private fun retryHostPredicateListProto(retryHostPredicateList: List<RetryHostPredicateInput>) = list {
+    retryHostPredicateList.forEach {
+        addValues(it.name?.let { element -> struct { putFields("name", string(element)) } })
+    }
+}
+
+fun outgoingTimeoutPolicy(
+    idleTimeout: String? = null,
+    connectionIdleTimeout: String? = null,
+    requestTimeout: String? = null
+) = struct {
     idleTimeout?.also { putFields("idleTimeout", string(idleTimeout)) }
     connectionIdleTimeout?.also { putFields("connectionIdleTimeout", string(connectionIdleTimeout)) }
     requestTimeout?.also { putFields("requestTimeout", string(requestTimeout)) }
@@ -350,6 +429,10 @@ private fun string(value: String): Value {
 
 private fun boolean(value: Boolean): Value {
     return Value.newBuilder().setBoolValue(value).build()
+}
+
+private fun integer(value: Int): Value {
+    return Value.newBuilder().setNumberValue(value.toDouble()).build()
 }
 
 private val nullValue: Value = Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build()

@@ -1,19 +1,26 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.BoolValue
+import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
 import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
 import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
+import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.Route
 import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 class EnvoyEgressRoutesFactory(
     private val properties: SnapshotProperties
@@ -75,21 +82,12 @@ class EnvoyEgressRoutesFactory(
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
             .map { routeSpecification ->
-                VirtualHost.newBuilder()
-                    .setName(routeSpecification.clusterName)
-                    .addAllDomains(routeSpecification.routeDomains)
-                    .addRoutes(
-                        Route.newBuilder()
-                            .setMatch(
-                                RouteMatch.newBuilder()
-                                    .setPrefix("/")
-                                    .build()
-                            )
-                            .setRoute(
-                                createRouteAction(routeSpecification)
-                            ).build()
-                    )
-                    .build()
+                addMultipleRoutes(
+                    VirtualHost.newBuilder()
+                        .setName(routeSpecification.clusterName)
+                        .addAllDomains(routeSpecification.routeDomains),
+                    routeSpecification
+                ).build()
             }
 
         var routeConfiguration = RouteConfiguration.newBuilder()
@@ -118,6 +116,65 @@ class EnvoyEgressRoutesFactory(
         }
 
         return routeConfiguration.build()
+    }
+
+    private fun addMultipleRoutes(
+        addAllDomains: VirtualHost.Builder,
+        routeSpecification: RouteSpecification
+    ): VirtualHost.Builder {
+        routeSpecification.settings.retryPolicy.let {
+            buildRouteForRetryPolicy(addAllDomains, routeSpecification)
+        }
+        buildDefaultRoute(addAllDomains, routeSpecification)
+        return addAllDomains
+    }
+
+    private fun buildRouteForRetryPolicy(
+        addAllDomains: VirtualHost.Builder,
+        routeSpecification: RouteSpecification
+    ): VirtualHost.Builder? {
+        val regexAsAString = routeSpecification.settings.retryPolicy.methods?.joinToString(separator = "|")
+        val routeMatchBuilder = RouteMatch
+            .newBuilder()
+            .setPrefix("/")
+            .also { routeMatcher ->
+                regexAsAString?.let {
+                    routeMatcher.addHeaders(buildMethodHeaderMatcher(it))
+                }
+            }
+
+        return addAllDomains.addRoutes(
+            Route.newBuilder()
+                .setMatch(routeMatchBuilder.build())
+                .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = true))
+                .build()
+        )
+    }
+
+    private fun buildMethodHeaderMatcher(regexAsAString: String) = HeaderMatcher.newBuilder()
+        .setName(":method")
+        .setSafeRegexMatch(
+            RegexMatcher.newBuilder()
+                .setRegex(regexAsAString)
+                .setGoogleRe2(RegexMatcher.GoogleRE2.getDefaultInstance())
+                .build()
+        )
+
+    private fun buildDefaultRoute(
+        addAllDomains: VirtualHost.Builder,
+        routeSpecification: RouteSpecification
+    ) {
+        addAllDomains.addRoutes(
+            Route.newBuilder()
+                .setMatch(
+                    RouteMatch.newBuilder()
+                        .setPrefix("/")
+                        .build()
+                )
+                .setRoute(
+                    createRouteAction(routeSpecification)
+                ).build()
+        )
     }
 
     /**
@@ -157,13 +214,22 @@ class EnvoyEgressRoutesFactory(
         return routeConfiguration.build()
     }
 
-    private fun createRouteAction(routeSpecification: RouteSpecification): RouteAction.Builder {
+    private fun createRouteAction(
+        routeSpecification: RouteSpecification,
+        shouldAddRetryPolicy: Boolean = false
+    ): RouteAction.Builder {
         val routeAction = RouteAction.newBuilder()
             .setCluster(routeSpecification.clusterName)
 
         routeSpecification.settings.timeoutPolicy.let { timeoutPolicy ->
             timeoutPolicy.idleTimeout?.let { routeAction.setIdleTimeout(it) }
             timeoutPolicy.requestTimeout?.let { routeAction.setTimeout(it) }
+        }
+
+        if (shouldAddRetryPolicy) {
+            routeSpecification.settings.retryPolicy.let { policy ->
+                routeAction.setRetryPolicy(RequestPolicyMapper.mapToEnvoyRetryPolicyBuilder(policy))
+            }
         }
 
         if (routeSpecification.settings.handleInternalRedirect) {
@@ -175,5 +241,79 @@ class EnvoyEgressRoutesFactory(
         }
 
         return routeAction
+    }
+}
+
+class RequestPolicyMapper private constructor() {
+    companion object {
+        fun mapToEnvoyRetryPolicyBuilder(retryPolicy: EnvoyControlRetryPolicy?): RetryPolicy? {
+            return retryPolicy?.let { policy ->
+                val retryPolicyBuilder = RetryPolicy.newBuilder()
+
+                policy.retryOn?.let { retryPolicyBuilder.setRetryOn(it.joinToString { joined -> joined }) }
+                policy.hostSelectionRetryMaxAttempts?.let {
+                    retryPolicyBuilder.setHostSelectionRetryMaxAttempts(it)
+                }
+                policy.numberRetries?.let { retryPolicyBuilder.setNumRetries(UInt32Value.of(it)) }
+                policy.retryHostPredicate?.let {
+                    buildRetryHostPredicate(it, retryPolicyBuilder)
+                }
+                policy.perTryTimeoutMs?.let { retryPolicyBuilder.setPerTryTimeout(Durations.fromMillis(it)) }
+                policy.retryBackOff?.let {
+                    buildRetryBackOff(it, retryPolicyBuilder)
+                }
+                policy.retryableStatusCodes?.let {
+                    buildRetryableStatusCodes(it, retryPolicyBuilder)
+                }
+                policy.retryableHeaders?.let {
+                    buildRetryableHeaders(it, retryPolicyBuilder)
+                }
+
+                retryPolicyBuilder.build()
+            }
+        }
+
+        private fun buildRetryableHeaders(
+            retryAbleHeaders: List<String>,
+            retryPolicyBuilder: RetryPolicy.Builder
+        ) {
+            retryAbleHeaders.forEach { header ->
+                retryPolicyBuilder.addRetriableHeaders(
+                    HeaderMatcher.newBuilder().setName(header)
+                )
+            }
+        }
+
+        private fun buildRetryableStatusCodes(
+            statusCodes: List<Int>,
+            retryPolicyBuilder: RetryPolicy.Builder
+        ) {
+            retryPolicyBuilder.addAllRetriableStatusCodes(statusCodes)
+        }
+
+        private fun buildRetryBackOff(
+            backOff: RetryBackOff,
+            retryPolicyBuilder: RetryPolicy.Builder
+        ): RetryPolicy.Builder? {
+            val retryBackOffBuilder = RetryPolicy.RetryBackOff.newBuilder()
+            backOff.baseInterval?.let { baseInterval ->
+                retryBackOffBuilder.setBaseInterval(baseInterval)
+            }
+            backOff.maxInterval?.let { maxInterval ->
+                retryBackOffBuilder.setMaxInterval(maxInterval)
+            }
+            return retryPolicyBuilder.setRetryBackOff(retryBackOffBuilder)
+        }
+
+        private fun buildRetryHostPredicate(
+            hostPredicates: List<RetryHostPredicate>,
+            retryPolicyBuilder: RetryPolicy.Builder
+        ) {
+            hostPredicates.map {
+                RetryPolicy.RetryHostPredicate.newBuilder().setName(it.name).build()
+            }.also {
+                retryPolicyBuilder.addAllRetryHostPredicate(it)
+            }
+        }
     }
 }

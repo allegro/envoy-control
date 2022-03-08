@@ -25,7 +25,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalRetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.getRuleId
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
@@ -153,7 +153,7 @@ class EnvoyIngressRoutesFactory(
                 .build()
         }
 
-    private fun retryPolicy(retryProps: RetryPolicyProperties): RetryPolicy = RetryPolicy.newBuilder().apply {
+    private fun retryPolicy(retryProps: LocalRetryPolicyProperties): RetryPolicy = RetryPolicy.newBuilder().apply {
         retryOn = retryProps.retryOn.joinToString(separator = ",")
         numRetries = UInt32Value.of(retryProps.numRetries)
         if (!retryProps.perTryTimeout.isZero) {
