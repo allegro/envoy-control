@@ -6,6 +6,8 @@ import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CircuitBreakerProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EgressProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterParser
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterSettings
@@ -77,20 +79,7 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val allServiceDependenciesIdentifier = properties.outgoingPermissions.allServicesDependencies.identifier
     val rawDependencies = this?.field("dependencies")?.list().orEmpty().map(::toRawDependency)
     val allServicesDependencies = toAllServiceDependencies(rawDependencies, allServiceDependenciesIdentifier)
-    val defaultSettingsFromProperties = DependencySettings(
-        handleInternalRedirect = properties.egress.handleInternalRedirect,
-        timeoutPolicy = Outgoing.TimeoutPolicy(
-            idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
-            connectionIdleTimeout = Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis()),
-            requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-        ),
-        retryPolicy = RetryPolicy(
-            numberRetries = properties.retryPolicy.numberOfRetries,
-            retryHostPredicate = properties.retryPolicy.retryHostPredicate,
-            hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts,
-            retryBackOff = properties.retryPolicy.retryBackOff
-        )
-    )
+    val defaultSettingsFromProperties = createDefaultOutgoingProperties(properties.egress)
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
     val services = rawDependencies.filter { it.service != null && it.service != allServiceDependenciesIdentifier }
         .map {
@@ -111,6 +100,47 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
         domainPatternDependencies = domainPatterns,
         defaultServiceSettings = allServicesDefaultSettings,
         allServicesDependencies = allServicesDependencies != null
+    )
+}
+
+private fun createDefaultOutgoingProperties(egress: EgressProperties) : DependencySettings {
+    return DependencySettings(
+        handleInternalRedirect = egress.handleInternalRedirect,
+        timeoutPolicy = egress.commonHttp.let {
+            Outgoing.TimeoutPolicy(
+                idleTimeout = Durations.fromMillis(it.idleTimeout.toMillis()),
+                connectionIdleTimeout = Durations.fromMillis(it.connectionIdleTimeout.toMillis()),
+                requestTimeout = Durations.fromMillis(it.requestTimeout.toMillis())
+            )
+        },
+        retryPolicy = egress.retryPolicy.let { RetryPolicy(
+            numberRetries = it.numberOfRetries,
+            retryHostPredicate = it.retryHostPredicate,
+            hostSelectionRetryMaxAttempts = it.hostSelectionRetryMaxAttempts,
+            retryBackOff = it.retryBackOff
+        ) },
+        circuitBreakers = egress.commonHttp.circuitBreakers.let { properties ->
+            CircuitBreakers(defaultThreshold = properties.defaultThreshold.toCircuitBreaker(),
+                highThreshold = properties.highThreshold.toCircuitBreaker())
+        }
+    )
+}
+
+fun CircuitBreakerProperties.toCircuitBreaker(): CircuitBreaker {
+    return CircuitBreaker(
+        priority = this.priority,
+        maxRequests = this.maxRequests,
+        maxPendingRequests = this.maxPendingRequests,
+        maxConnections = this.maxConnections,
+        maxRetries = this.maxRetries,
+        maxConnectionPools = this.maxConnectionPools,
+        trackRemaining = this.trackRemaining,
+        retryBudget = this.retryBudget?.let {
+            RetryBudget(
+                budgetPercent = it.budgetPercent,
+                minRetryConcurrency = it.minRetryConcurrency
+            )
+        }
     )
 }
 
@@ -193,11 +223,13 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
             defaultSettings.retryPolicy
         )
     }
+    val circuitBreakers = this?.field("circuitBreakers")?.toCircuitBreakers(defaultSettings.circuitBreakers)
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
         rewriteHostHeader == null &&
         timeoutPolicy == null &&
-        retryPolicy == null
+        retryPolicy == null &&
+        circuitBreakers == null
 
     return if (shouldAllBeDefault) {
         defaultSettings
@@ -206,9 +238,42 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
             handleInternalRedirect = handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
             timeoutPolicy = timeoutPolicy ?: defaultSettings.timeoutPolicy,
             rewriteHostHeader = rewriteHostHeader ?: defaultSettings.rewriteHostHeader,
-            retryPolicy = retryPolicy ?: defaultSettings.retryPolicy
+            retryPolicy = retryPolicy ?: defaultSettings.retryPolicy,
+            circuitBreakers = circuitBreakers ?: defaultSettings.circuitBreakers
         )
     }
+}
+
+private fun Value?.toCircuitBreakers(defaultCircuitBreakers: CircuitBreakers): CircuitBreakers {
+    return CircuitBreakers(
+        defaultThreshold = this?.field("defaultThreshold")?.toCircuitBreaker(defaultCircuitBreakers.defaultThreshold)
+            ?: defaultCircuitBreakers.defaultThreshold,
+        highThreshold = this?.field("highThreshold")?.toCircuitBreaker(defaultCircuitBreakers.highThreshold)
+            ?: defaultCircuitBreakers.highThreshold
+    )
+}
+
+private fun Value?.toCircuitBreaker(defaultCircuitBreaker: CircuitBreaker?): CircuitBreaker {
+    return CircuitBreaker(priority = this?.field("priority")?.stringValue?.let { RoutingPriority.fromString(it) }
+        ?: defaultCircuitBreaker?.priority,
+        maxRequests = this?.field("maxRequests")?.numberValue?.toInt() ?: defaultCircuitBreaker?.maxRequests,
+        maxPendingRequests = this?.field("maxPendingRequests")?.numberValue?.toInt()
+            ?: defaultCircuitBreaker?.maxPendingRequests,
+        maxConnections = this?.field("maxConnections")?.numberValue?.toInt() ?: defaultCircuitBreaker?.maxConnections,
+        maxRetries = this?.field("maxRetries")?.numberValue?.toInt() ?: defaultCircuitBreaker?.maxRetries,
+        maxConnectionPools = this?.field("maxConnectionPools")?.numberValue?.toInt()
+            ?: defaultCircuitBreaker?.maxConnectionPools,
+        trackRemaining = this?.field("trackRemaining")?.boolValue ?: defaultCircuitBreaker?.trackRemaining,
+        retryBudget = this?.field("retryBudget")?.toRetryBudget(defaultCircuitBreaker?.retryBudget)
+            ?: defaultCircuitBreaker?.retryBudget
+    )
+}
+private fun Value?.toRetryBudget(defaultRetryBudget: RetryBudget?): RetryBudget {
+    return RetryBudget(
+        budgetPercent = this?.field("budgetPercent")?.numberValue ?: defaultRetryBudget?.budgetPercent,
+        minRetryConcurrency = this?.field("minRetryConcurrency")?.numberValue?.toInt()
+            ?: defaultRetryBudget?.minRetryConcurrency
+    )
 }
 
 private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy): RetryPolicy {
@@ -537,8 +602,41 @@ data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
     val timeoutPolicy: Outgoing.TimeoutPolicy = Outgoing.TimeoutPolicy(),
     val rewriteHostHeader: Boolean = false,
-    val retryPolicy: RetryPolicy = RetryPolicy()
+    val retryPolicy: RetryPolicy = RetryPolicy(),
+    val circuitBreakers: CircuitBreakers = CircuitBreakers()
 )
+
+data class CircuitBreakers(
+    val defaultThreshold: CircuitBreaker? = null,
+    val highThreshold: CircuitBreaker? = null
+)
+
+data class CircuitBreaker(
+    val priority: RoutingPriority? = null,
+    val maxRequests: Int? = null,
+    val maxPendingRequests: Int? = null,
+    val maxConnections: Int? = null,
+    val maxRetries: Int? = null,
+    val maxConnectionPools: Int? = null,
+    val trackRemaining: Boolean? = null,
+    val retryBudget: RetryBudget? = null
+)
+
+data class RetryBudget(val budgetPercent: Double? = null, val minRetryConcurrency: Int? = null)
+
+enum class RoutingPriority {
+    DEFAULT, HIGH, UNRECOGNIZED;
+
+    companion object {
+        fun fromString(value: String): RoutingPriority {
+            return when (value.toUpperCase()) {
+                "DEFAULT" -> DEFAULT
+                "HIGH" -> HIGH
+                else -> UNRECOGNIZED
+            }
+        }
+    }
+}
 
 data class RetryPolicy(
     val retryOn: List<String>? = null,
