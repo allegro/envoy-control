@@ -221,6 +221,7 @@ class RemoteServicesTest {
                 return service to ServiceInstances(service, instances)
             }
 
+            @Suppress("TooGenericExceptionThrown")
             fun stateError() {
                 responses.add { throw RuntimeException("Error fetching from $clusterName") }
             }
