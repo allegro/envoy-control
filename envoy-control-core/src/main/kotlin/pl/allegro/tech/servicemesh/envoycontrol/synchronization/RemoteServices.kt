@@ -16,7 +16,7 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
 class RemoteServices(
-    private val controlPlaneClient: AsyncControlPlaneClient,
+    private val controlPlaneClient: ControlPlaneClient,
     private val meterRegistry: MeterRegistry,
     private val controlPlaneInstanceFetcher: ControlPlaneInstanceFetcher,
     private val remoteClusters: List<String>
@@ -70,8 +70,9 @@ class RemoteServices(
         instances: List<URI>
     ): Mono<ClusterState> {
         val instance = chooseInstance(instances)
-        return controlPlaneClient
-            .getState(instance)
+        return Mono.fromCallable {
+            controlPlaneClient.getState(instance)
+        }
             .checkpoint("cross-dc-service-update-$cluster")
             .name("cross-dc-service-update-$cluster").metrics()
             .map { onlyServicesWithInstances(it) }

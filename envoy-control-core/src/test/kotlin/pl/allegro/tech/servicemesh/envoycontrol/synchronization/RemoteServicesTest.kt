@@ -7,7 +7,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
-import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.net.URI
 import java.time.Duration
@@ -135,16 +134,20 @@ class RemoteServicesTest {
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(successfulResult.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-a")
-        assertThat(successfulResult.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames()).containsExactly("service-c")
+        assertThat(successfulResult.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames())
+            .containsExactly("service-a")
+        assertThat(successfulResult.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames())
+            .containsExactly("service-c")
 
         val oneInstanceFailing = service
             .getChanges(1)
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-b")
-        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames()).containsExactly("service-c")
+        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames())
+            .containsExactly("service-b")
+        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames())
+            .containsExactly("service-c")
     }
 
     @Test
@@ -171,7 +174,8 @@ class RemoteServicesTest {
             .verify()
     }
 
-    class FakeControlPlaneInstanceFetcher(private val clusterWithNoInstance: List<String>) : ControlPlaneInstanceFetcher {
+    class FakeControlPlaneInstanceFetcher(private val clusterWithNoInstance: List<String>) :
+        ControlPlaneInstanceFetcher {
         override fun instances(cluster: String): List<URI> {
             val uri = URI.create("http://$cluster")
             if (clusterWithNoInstance.contains(cluster)) {
@@ -196,18 +200,16 @@ class RemoteServicesTest {
     }
 
     data class ServiceState(val service: String, val withoutInstances: Boolean = false)
-    class FakeAsyncControlPlane : AsyncControlPlaneClient {
+    class FakeAsyncControlPlane : ControlPlaneClient {
         class ClusterScope(private val clusterName: String) {
-            var responses = mutableListOf<Mono<ServicesState>>()
+            var responses = mutableListOf<WrappedServiceState>()
 
             fun state(vararg services: ServiceState) {
-                responses.add(
-                    Mono.just(
-                        ServicesState(
-                            serviceNameToInstances = services.map { toState(it.service, it.withoutInstances) }.toMap()
-                        )
-                    )
-                )
+                responses.add {
+                    ServicesState(serviceNameToInstances = services.associate {
+                        toState(it.service, it.withoutInstances)
+                    })
+                }
             }
 
             private fun toState(service: String, withoutInstances: Boolean): Pair<String, ServiceInstances> {
@@ -220,14 +222,14 @@ class RemoteServicesTest {
             }
 
             fun stateError() {
-                responses.add(Mono.error(RuntimeException("Error fetching from $clusterName")))
+                responses.add { throw RuntimeException("Error fetching from $clusterName") }
             }
         }
 
-        val map = mutableMapOf<String, () -> Mono<ServicesState>>()
+        val map = mutableMapOf<String, () -> WrappedServiceState>()
 
-        override fun getState(uri: URI): Mono<ServicesState> {
-            return map.getValue(uri.host)()
+        override fun getState(uri: URI): ServicesState {
+            return map.getValue(uri.host)()()
         }
 
         fun forCluster(name: String, function: ClusterScope.() -> Unit) {
@@ -242,3 +244,4 @@ class RemoteServicesTest {
         }
     }
 }
+private typealias WrappedServiceState = () -> ServicesState
