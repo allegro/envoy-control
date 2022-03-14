@@ -36,34 +36,34 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.pathMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.prefixPathMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPoliciesProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalRetryPoliciesProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalRetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SecuredRoute
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.time.Duration
 
 internal class EnvoyIngressRoutesFactoryTest {
 
-    private val retryPolicyProps = RetryPoliciesProperties().apply {
-        default = RetryPolicyProperties().apply {
+    private val retryPolicyProps = LocalRetryPoliciesProperties().apply {
+        default = LocalRetryPolicyProperties().apply {
             enabled = true
             retryOn = mutableSetOf("connection-failure")
             numRetries = 3
         }
         perHttpMethod = mutableMapOf(
-            "GET" to RetryPolicyProperties().apply {
+            "GET" to LocalRetryPolicyProperties().apply {
                 enabled = true
                 retryOn = mutableSetOf("reset", "connection-failure")
                 numRetries = 1
                 perTryTimeout = Duration.ofSeconds(1)
                 hostSelectionRetryMaxAttempts = 3
             },
-            "HEAD" to RetryPolicyProperties().apply {
+            "HEAD" to LocalRetryPolicyProperties().apply {
                 enabled = true
                 retryOn = mutableSetOf("connection-failure")
                 numRetries = 6
             },
-            "POST" to RetryPolicyProperties().apply {
+            "POST" to LocalRetryPolicyProperties().apply {
                 enabled = false
                 retryOn = mutableSetOf("connection-failure")
                 numRetries = 6
