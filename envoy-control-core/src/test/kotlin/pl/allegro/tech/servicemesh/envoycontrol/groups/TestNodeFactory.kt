@@ -77,6 +77,26 @@ fun ProxySettings.with(
     domainDependencies: Set<DomainDependency> = emptySet(),
     allServicesDependencies: Boolean = false,
     defaultServiceSettings: DependencySettings = DependencySettings(
+        circuitBreakers = CircuitBreakers(
+            defaultThreshold = CircuitBreaker(
+                RoutingPriority.DEFAULT, maxRequests = 1024,
+                maxPendingRequests = 1024,
+                maxConnections = 1024,
+                maxRetries = 3,
+                maxConnectionPools = null,
+                trackRemaining = false,
+                retryBudget = RetryBudget(20.0, 3)
+            ),
+            highThreshold = CircuitBreaker(
+                RoutingPriority.HIGH, maxRequests = 1024,
+                maxPendingRequests = 1024,
+                maxConnections = 1024,
+                maxRetries = 3,
+                maxConnectionPools = null,
+                trackRemaining = false,
+                retryBudget = RetryBudget(20.0, 3)
+            )
+        ),
         timeoutPolicy = Outgoing.TimeoutPolicy(
             Durations.fromSeconds(120),
             Durations.fromSeconds(120),

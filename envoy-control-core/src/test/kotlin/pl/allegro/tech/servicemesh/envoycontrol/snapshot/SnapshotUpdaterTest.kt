@@ -20,6 +20,8 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CircuitBreaker
+import pl.allegro.tech.servicemesh.envoycontrol.groups.CircuitBreakers
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
@@ -30,8 +32,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBudget
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
-import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPriority
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
@@ -60,6 +63,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 @Suppress("LargeClass")
 class SnapshotUpdaterTest {
@@ -1224,6 +1228,26 @@ fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
             service = it,
             settings = DependencySettings(
                 timeoutPolicy = outgoingTimeoutPolicy(),
+                circuitBreakers = CircuitBreakers(
+                    defaultThreshold = CircuitBreaker(
+                        RoutingPriority.DEFAULT, maxRequests = 1024,
+                        maxPendingRequests = 1024,
+                        maxConnections = 1024,
+                        maxRetries = 3,
+                        maxConnectionPools = null,
+                        trackRemaining = false,
+                        retryBudget = RetryBudget(20.0, 3)
+                    ),
+                    highThreshold = CircuitBreaker(
+                        RoutingPriority.HIGH, maxRequests = 1024,
+                        maxPendingRequests = 1024,
+                        maxConnections = 1024,
+                        maxRetries = 3,
+                        maxConnectionPools = null,
+                        trackRemaining = false,
+                        retryBudget = RetryBudget(20.0, 3)
+                    )
+                ),
                 retryPolicy = pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy(
                     hostSelectionRetryMaxAttempts = 3,
                     retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),

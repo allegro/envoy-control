@@ -169,7 +169,8 @@ class EnvoyClustersFactory(
                 return listOf(Cluster.newBuilder(cluster).build())
             }
 
-            logger.warn("ratelimit service [{}] cluster required for service [{}] has not been found.",
+            logger.warn(
+                "ratelimit service [{}] cluster required for service [{}] has not been found.",
                 properties.rateLimit.serviceName,
                 group.serviceName
             )
@@ -192,12 +193,13 @@ class EnvoyClustersFactory(
                 createClusterForGroup(it.value.settings, clusters[it.key])
             }
             is AllServicesGroup -> {
+                val defaultServiceSettings = group.proxySettings.outgoing.defaultServiceSettings
                 globalSnapshot.allServicesNames.mapNotNull {
                     val dependency = serviceDependencies[it]
                     if (dependency != null) {
-                        createClusterForGroup(dependency.settings, clusters[it])
+                        createClusterForGroup(dependency.settings, clusters[it], defaultServiceSettings)
                     } else {
-                        createClusterForGroup(group.proxySettings.outgoing.defaultServiceSettings, clusters[it])
+                        createClusterForGroup(defaultServiceSettings, clusters[it])
                     }
                 }
             }
@@ -209,10 +211,16 @@ class EnvoyClustersFactory(
         return clustersForGroup
     }
 
-    private fun createClusterForGroup(dependencySettings: DependencySettings, cluster: Cluster?): Cluster? {
+    private fun createClusterForGroup(
+        dependencySettings: DependencySettings,
+        cluster: Cluster?,
+        defaultDependencySettings: DependencySettings? = null
+    ): Cluster? {
         return cluster?.let {
             val idleTimeoutPolicy =
-                dependencySettings.timeoutPolicy.connectionIdleTimeout ?: cluster.commonHttpProtocolOptions.idleTimeout
+                dependencySettings.timeoutPolicy.connectionIdleTimeout
+                    ?: defaultDependencySettings?.timeoutPolicy?.connectionIdleTimeout
+                    ?: cluster.commonHttpProtocolOptions.idleTimeout
             Cluster.newBuilder(cluster)
                 .setCircuitBreakers(createCircuitBreakers(dependencySettings))
                 .setCommonHttpProtocolOptions(
@@ -221,10 +229,17 @@ class EnvoyClustersFactory(
         }
     }
 
-    private fun createCircuitBreakers(dependencySettings: DependencySettings): CircuitBreakers {
+    private fun createCircuitBreakers(
+        dependencySettings: DependencySettings,
+        defaultDependencySettings: DependencySettings? = null
+    ): CircuitBreakers {
+        val defaultThreshold = dependencySettings.circuitBreakers.defaultThreshold
+            ?: defaultDependencySettings?.circuitBreakers?.defaultThreshold
+        val highThreshold = dependencySettings.circuitBreakers.highThreshold
+            ?: defaultDependencySettings?.circuitBreakers?.highThreshold
         val thresholds = listOf(
-            dependencySettings.circuitBreakers.defaultThreshold?.toThreshold(RoutingPriority.DEFAULT),
-            dependencySettings.circuitBreakers.highThreshold?.toThreshold(RoutingPriority.HIGH)
+            defaultThreshold?.toThreshold(RoutingPriority.DEFAULT),
+            highThreshold?.toThreshold(RoutingPriority.HIGH)
         ).filterNotNull()
         return CircuitBreakers.newBuilder().addAllThresholds(thresholds)
             .build()
