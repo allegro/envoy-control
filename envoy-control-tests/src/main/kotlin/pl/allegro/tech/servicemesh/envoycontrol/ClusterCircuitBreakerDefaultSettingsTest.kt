@@ -104,7 +104,6 @@ node:
         assertThat(maxRetriesSetting).isEqualTo(8)
     }
 
-
     @Test
     fun `should set circuit breaker thresholds settings from metadata`() {
         // given
@@ -122,7 +121,6 @@ node:
         val maxPendingSetting = admin.circuitBreakerSetting("echo2", "max_pending_requests", "high_priority")
         val maxRetriesSetting = admin.circuitBreakerSetting("echo2", "max_retries", "high_priority")
         val maxRetriesDefaultSetting = admin.circuitBreakerSetting("echo2", "max_retries", "default_priority")
-
 
         // then
         assertThat(maxRetriesSetting).isEqualTo(10)

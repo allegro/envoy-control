@@ -950,7 +950,6 @@ class NodeMetadataTest {
         assertThat(duration!!.seconds).isEqualTo(20L)
     }
 
-
     @Test
     fun `should parse dependencies with circuit breakers`() {
         // given
@@ -975,7 +974,6 @@ class NodeMetadataTest {
         // when
         val outgoing = proto.toOutgoing(snapshotProperties())
 
-
         // then
         val expectedCircuitBreaker1 = CircuitBreaker(
             priority = RoutingPriority.DEFAULT,
@@ -999,7 +997,6 @@ class NodeMetadataTest {
         outgoing.getServiceDependencies().assertServiceDependency("service-2")
             .hasDefaultCircuitBreaker(defaultCircuitBreaker)
             .hasHighCircuitBreaker(highCircuitBreaker)
-
     }
 
     @Test

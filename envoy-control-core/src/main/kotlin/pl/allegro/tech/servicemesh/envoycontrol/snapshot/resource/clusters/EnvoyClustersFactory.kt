@@ -17,7 +17,6 @@ import io.envoyproxy.envoy.config.core.v3.DataSource
 import io.envoyproxy.envoy.config.core.v3.GrpcService
 import io.envoyproxy.envoy.config.core.v3.Http2ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
-import io.envoyproxy.envoy.config.core.v3.RoutingPriority
 import io.envoyproxy.envoy.config.core.v3.SocketAddress
 import io.envoyproxy.envoy.config.core.v3.TransportSocket
 import io.envoyproxy.envoy.config.core.v3.UpstreamHttpProtocolOptions
@@ -41,6 +40,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPriority
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.containsGlobalRateLimits
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -223,14 +223,14 @@ class EnvoyClustersFactory(
 
     private fun createCircuitBreakers(dependencySettings: DependencySettings): CircuitBreakers {
         val thresholds = listOf(
-            dependencySettings.circuitBreakers.defaultThreshold?.toThreshold(pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPriority.DEFAULT),
-            dependencySettings.circuitBreakers.highThreshold?.toThreshold(pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPriority.HIGH)
+            dependencySettings.circuitBreakers.defaultThreshold?.toThreshold(RoutingPriority.DEFAULT),
+            dependencySettings.circuitBreakers.highThreshold?.toThreshold(RoutingPriority.HIGH)
         ).filterNotNull()
         return CircuitBreakers.newBuilder().addAllThresholds(thresholds)
             .build()
     }
 
-    private fun CircuitBreaker.toThreshold(priority: pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPriority): CircuitBreakers.Thresholds {
+    private fun CircuitBreaker.toThreshold(priority: RoutingPriority): CircuitBreakers.Thresholds {
         val builder = CircuitBreakers.Thresholds.newBuilder()
         priority.convertPriority().let(builder::setPriority)
         maxRequests?.toValue()?.let(builder::setMaxRequests)
@@ -244,7 +244,6 @@ class EnvoyClustersFactory(
             it.minRetryConcurrency?.toValue()?.let(retryBudgetBuilder::setMinRetryConcurrency)
             it.budgetPercent?.let { Percent.newBuilder().setValue(it) }?.let(retryBudgetBuilder::setBudgetPercent)
             builder.setRetryBudget(retryBudgetBuilder)
-
         }
         return builder.build()
     }
@@ -499,10 +498,10 @@ class EnvoyClustersFactory(
             }
     )
 
-    private fun pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPriority.convertPriority() = when (this) {
-        pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPriority.DEFAULT-> RoutingPriority.DEFAULT
-        pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPriority.HIGH->  RoutingPriority.HIGH
-        else -> RoutingPriority.UNRECOGNIZED
+    private fun RoutingPriority.convertPriority() = when (this) {
+        RoutingPriority.DEFAULT -> io.envoyproxy.envoy.config.core.v3.RoutingPriority.DEFAULT
+        RoutingPriority.HIGH -> io.envoyproxy.envoy.config.core.v3.RoutingPriority.HIGH
+        else -> io.envoyproxy.envoy.config.core.v3.RoutingPriority.UNRECOGNIZED
     }
 
     private fun configureOutlierDetection(clusterBuilder: Cluster.Builder) {

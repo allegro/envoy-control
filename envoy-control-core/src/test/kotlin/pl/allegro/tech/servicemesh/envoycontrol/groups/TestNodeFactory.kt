@@ -368,7 +368,6 @@ private fun circuitBreakerProto(circuitBreaker: OutgoingDependenciesProtoScope.C
             putFields("minRetryConcurrency", integer(it))
         }
     })
-
 }
 private fun retryPolicyProto(retryPolicy: RetryPolicyInput) = struct {
     retryPolicy.retryOn?.also { putFields("retryOn", retryOnProto(it)) }
