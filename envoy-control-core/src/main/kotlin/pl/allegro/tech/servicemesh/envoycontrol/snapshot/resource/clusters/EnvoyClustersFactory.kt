@@ -222,7 +222,7 @@ class EnvoyClustersFactory(
                     ?: defaultDependencySettings?.timeoutPolicy?.connectionIdleTimeout
                     ?: cluster.commonHttpProtocolOptions.idleTimeout
             Cluster.newBuilder(cluster)
-                .setCircuitBreakers(createCircuitBreakers(dependencySettings))
+                .setCircuitBreakers(createCircuitBreakers(dependencySettings, defaultDependencySettings))
                 .setCommonHttpProtocolOptions(
                     HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy)
                 ).build()
@@ -237,11 +237,12 @@ class EnvoyClustersFactory(
             ?: defaultDependencySettings?.circuitBreakers?.defaultThreshold
         val highThreshold = dependencySettings.circuitBreakers.highThreshold
             ?: defaultDependencySettings?.circuitBreakers?.highThreshold
-        val thresholds = listOf(
+        val thresholds = listOfNotNull(
             defaultThreshold?.toThreshold(RoutingPriority.DEFAULT),
             highThreshold?.toThreshold(RoutingPriority.HIGH)
-        ).filterNotNull()
-        return CircuitBreakers.newBuilder().addAllThresholds(thresholds)
+        )
+        return CircuitBreakers.newBuilder()
+            .addAllThresholds(thresholds)
             .build()
     }
 
@@ -265,7 +266,7 @@ class EnvoyClustersFactory(
 
     private fun Int.toValue() = this.let { UInt32Value.of(this) }
 
-    fun shouldAddDynamicForwardProxyCluster(group: Group) =
+    private fun shouldAddDynamicForwardProxyCluster(group: Group) =
         group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()
 
     private fun enableTlsForGroup(group: Group): Boolean {
@@ -384,7 +385,8 @@ class EnvoyClustersFactory(
         domainDependency.settings.timeoutPolicy.connectionIdleTimeout?.let {
             clusterBuilder.setCommonHttpProtocolOptions(HttpProtocolOptions.newBuilder().setIdleTimeout(it))
         }
-        clusterBuilder.setCircuitBreakers(createCircuitBreakers(domainDependency.settings))
+
+        clusterBuilder.circuitBreakers = createCircuitBreakers(domainDependency.settings)
 
         return clusterBuilder.build()
     }

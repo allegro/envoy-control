@@ -955,7 +955,8 @@ class NodeMetadataTest {
         // given
         val proto = outgoingDependenciesProto {
             withService(
-                "service-1", circuitBreakers = OutgoingDependenciesProtoScope.CircuitBreakers(
+                "service-1",
+                circuitBreakers = OutgoingDependenciesProtoScope.CircuitBreakers(
                     defaultThreshold = OutgoingDependenciesProtoScope.CircuitBreaker(
                         maxRetries = 1,
                         maxPendingRequests = 2,
@@ -991,12 +992,12 @@ class NodeMetadataTest {
         val defaultCircuitBreaker = snapshotProperties().egress.commonHttp.circuitBreakers.defaultThreshold.toCircuitBreaker()
         val highCircuitBreaker = snapshotProperties().egress.commonHttp.circuitBreakers.highThreshold.toCircuitBreaker()
         outgoing.getServiceDependencies().assertServiceDependency("service-1")
-            .hasDefaultCircuitBreaker(expectedCircuitBreaker1)
-            .hasHighCircuitBreaker(highCircuitBreaker)
+            .hasDefaultThresholdCircuitBreaker(expectedCircuitBreaker1)
+            .hasHighThresholdCircuitBreaker(highCircuitBreaker)
 
         outgoing.getServiceDependencies().assertServiceDependency("service-2")
-            .hasDefaultCircuitBreaker(defaultCircuitBreaker)
-            .hasHighCircuitBreaker(highCircuitBreaker)
+            .hasDefaultThresholdCircuitBreaker(defaultCircuitBreaker)
+            .hasHighThresholdCircuitBreaker(highCircuitBreaker)
     }
 
     @Test
@@ -1069,13 +1070,14 @@ class NodeMetadataTest {
         return this
     }
 
-    fun ObjectAssert<DependencySettings>.hasDefaultCircuitBreaker(
+    fun ObjectAssert<DependencySettings>.hasDefaultThresholdCircuitBreaker(
         circuitBreaker: CircuitBreaker
     ): ObjectAssert<DependencySettings> {
         this.extracting { it.circuitBreakers.defaultThreshold }.isEqualTo(circuitBreaker)
         return this
     }
-    fun ObjectAssert<DependencySettings>.hasHighCircuitBreaker(
+
+    fun ObjectAssert<DependencySettings>.hasHighThresholdCircuitBreaker(
         circuitBreaker: CircuitBreaker
     ): ObjectAssert<DependencySettings> {
         this.extracting { it.circuitBreakers.highThreshold }.isEqualTo(circuitBreaker)

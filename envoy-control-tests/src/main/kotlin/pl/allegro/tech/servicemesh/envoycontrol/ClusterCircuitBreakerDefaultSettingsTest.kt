@@ -86,7 +86,7 @@ node:
     }
 
     @Test
-    fun `should enable set default circuit breaker threstholds setting`() {
+    fun `should set default circuit breaker thresholds setting`() {
         // given
         consul.server.operations.registerService(name = "echo", extension = service)
         untilAsserted {

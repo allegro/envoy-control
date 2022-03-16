@@ -79,7 +79,7 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val allServiceDependenciesIdentifier = properties.outgoingPermissions.allServicesDependencies.identifier
     val rawDependencies = this?.field("dependencies")?.list().orEmpty().map(::toRawDependency)
     val allServicesDependencies = toAllServiceDependencies(rawDependencies, allServiceDependenciesIdentifier)
-    val defaultSettingsFromProperties = createDefaultOutgoingProperties(properties.egress)
+    val defaultSettingsFromProperties = createDefaultDependencySettingFromEgressProperties(properties.egress)
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
     val services = rawDependencies.filter { it.service != null && it.service != allServiceDependenciesIdentifier }
         .map {
@@ -103,7 +103,7 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     )
 }
 
-private fun createDefaultOutgoingProperties(egress: EgressProperties) : DependencySettings {
+private fun createDefaultDependencySettingFromEgressProperties(egress: EgressProperties) : DependencySettings {
     return DependencySettings(
         handleInternalRedirect = egress.handleInternalRedirect,
         timeoutPolicy = egress.commonHttp.let {

@@ -79,7 +79,8 @@ fun ProxySettings.with(
     defaultServiceSettings: DependencySettings = DependencySettings(
         circuitBreakers = CircuitBreakers(
             defaultThreshold = CircuitBreaker(
-                RoutingPriority.DEFAULT, maxRequests = 1024,
+                RoutingPriority.DEFAULT,
+                maxRequests = 1024,
                 maxPendingRequests = 1024,
                 maxConnections = 1024,
                 maxRetries = 3,
@@ -88,7 +89,8 @@ fun ProxySettings.with(
                 retryBudget = RetryBudget(20.0, 3)
             ),
             highThreshold = CircuitBreaker(
-                RoutingPriority.HIGH, maxRequests = 1024,
+                RoutingPriority.HIGH,
+                maxRequests = 1024,
                 maxPendingRequests = 1024,
                 maxConnections = 1024,
                 maxRetries = 3,
