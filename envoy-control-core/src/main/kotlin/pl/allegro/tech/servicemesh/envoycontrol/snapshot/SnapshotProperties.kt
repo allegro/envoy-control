@@ -374,15 +374,5 @@ data class RetryPolicyProperties(
     )
 )
 
-// data class CircuitBreakerProperties(
-//     var priority: RoutingPriority = RoutingPriority.DEFAULT,
-//     var maxRequests: Int = 1024,
-//     var maxPendingRequest: Int = 1024,
-//     var maxConnections: Int = 1024,
-//     var maxRetries: Int = 3,
-//     var maxConnectionsPool: Int? = null,
-//     var trackRemaining: Boolean = false,
-//     var retryBudget: RetryBudget = RetryBudget(budgetPercent = 20.0, minRetryConcurrency = 3)
-// )
 typealias ProviderName = String
 typealias TokenField = String
