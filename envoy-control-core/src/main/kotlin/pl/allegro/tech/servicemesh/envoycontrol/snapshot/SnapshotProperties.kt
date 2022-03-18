@@ -36,6 +36,7 @@ class SnapshotProperties {
     var requireServiceName = false
     var rateLimit = RateLimitProperties()
     var retryPolicy = RetryPolicyProperties()
+    var shouldAuditGlobalSnapshot = false
 }
 
 class MetricsProperties {

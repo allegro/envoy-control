@@ -124,7 +124,9 @@ class SnapshotUpdater(
                     adsSnapshot = lastAdsSnapshot,
                     xdsSnapshot = lastXdsSnapshot
                 )
-                snapshotChangeAuditor?.audit(updateResult)
+                if (properties.shouldAuditGlobalSnapshot) {
+                    snapshotChangeAuditor?.audit(updateResult)
+                }
                 globalSnapshot = updateResult
                 updateResult
             }
