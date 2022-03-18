@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol
 
 import okhttp3.FormBody
 import okhttp3.Headers.Companion.headersOf
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -76,9 +77,13 @@ class JWTFilterTest {
                       - service: "oauth"
                   incoming:
                     unlistedEndpointsPolicy: blockAndLog
-                    endpoints: 
+                    endpoints:                     
                     - path: '/first-provider-protected'
                       clients: ['echo2']
+                      methods: [ "GET" ]
+                    - path: '/first-provider-protected'
+                      clients: ['echo2']
+                      methods: [ "PATCH", "POST" ]
                       unlistedClientsPolicy: blockAndLog
                       oauth:
                         provider: 'first-provider'
@@ -145,7 +150,11 @@ class JWTFilterTest {
 
         @JvmField
         @RegisterExtension
-        val oauthEnvoy = EnvoyExtension(envoyControl, oAuthServer, config = OAuthEnvoyConfig.copy(serviceName = "oauth", configOverride = oauthConfig))
+        val oauthEnvoy = EnvoyExtension(
+            envoyControl,
+            oAuthServer,
+            config = OAuthEnvoyConfig.copy(serviceName = "oauth", configOverride = oauthConfig)
+        )
 
         @JvmField
         @RegisterExtension
@@ -163,7 +172,11 @@ class JWTFilterTest {
 
         @JvmField
         @RegisterExtension
-        val echo2Envoy = EnvoyExtension(envoyControl, localService = service, config = Echo2EnvoyAuthConfig.copy(configOverride = echo2Config))
+        val echo2Envoy = EnvoyExtension(
+            envoyControl,
+            localService = service,
+            config = Echo2EnvoyAuthConfig.copy(configOverride = echo2Config)
+        )
     }
 
     @BeforeEach
@@ -199,14 +212,22 @@ class JWTFilterTest {
         registerEnvoyServiceAndWait()
 
         // when
-        val response = echo2Envoy.egressOperations.callService(
+        echo2Envoy.egressOperations.callService(
             service = "echo",
             pathAndQuery = "/first-provider-protected",
             headers = mapOf("Authorization" to "Bearer $token")
-        )
-
-        // then
-        assertThat(response).isOk().isFrom(service)
+        ).also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(
+            service = "echo",
+            method = "PATCH",
+            body = RequestBody.create("text/plain".toMediaType(), "{}"),
+            pathAndQuery = "/first-provider-protected",
+            headers = mapOf("Authorization" to "Bearer $token")
+        ).also {
+            assertThat(it).isOk()
+        }
     }
 
     @Test
@@ -240,7 +261,9 @@ class JWTFilterTest {
             service = "echo",
             pathAndQuery = "/first-provider-protected",
             headers = mapOf("Authorization" to "Bearer $token")
-        )
+        ).also {
+            assertThat(it).isForbidden()
+        }
 
         // then
         assertThat(response).isForbidden()
@@ -481,7 +504,10 @@ class JWTFilterTest {
     }
 
     private fun tokenForProvider(provider: String, clientId: String = "client1") =
-        OkHttpClient().newCall(Request.Builder().post(FormBody.Builder().add("client_id", clientId).build()).url(oAuthServer.getTokenAddress(provider)).build())
+        OkHttpClient().newCall(
+            Request.Builder().post(FormBody.Builder().add("client_id", clientId).build())
+                .url(oAuthServer.getTokenAddress(provider)).build()
+        )
             .execute().addToCloseableResponses()
             .body!!.string()
 
@@ -491,7 +517,10 @@ class JWTFilterTest {
             "clientSecret": "secret",
              "authorities":["$authority"]
         }"""
-        return OkHttpClient().newCall(Request.Builder().put(RequestBody.create(MediaType.JSON_MEDIA_TYPE, body)).url("http://localhost:${oAuthServer.container().port()}/$provider/client").build())
+        return OkHttpClient().newCall(
+            Request.Builder().put(RequestBody.create(MediaType.JSON_MEDIA_TYPE, body))
+                .url("http://localhost:${oAuthServer.container().port()}/$provider/client").build()
+        )
             .execute().close()
     }
 }
