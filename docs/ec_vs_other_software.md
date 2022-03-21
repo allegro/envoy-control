@@ -16,7 +16,7 @@ this job, because of the JRE runtime. This means higher memory footprint and lat
 Linkerd v2 was rewritten in Rust to get better performance. Unfortunately, just like Istio - it's Kubernetes only.
 
 ### Consul Connect
-[Consul Connect](https://www.consul.io/docs/connect/index.html) is a simple way to deploy Envoy to current
+[Consul Connect](https://www.consul.io/docs/connect) is a simple way to deploy Envoy to current
 Consul based infrastructure.
 The problem with Consul Connect is that versions prior to 1.6.0 had very limited traffic control capabilities.
 We want to have a fallback to instances from other DCs, canary deployment and other features specific to our
