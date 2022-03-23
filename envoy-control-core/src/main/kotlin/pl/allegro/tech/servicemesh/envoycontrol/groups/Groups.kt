@@ -35,6 +35,7 @@ data class ListenersConfig(
     val accessLogEnabled: Boolean = defaultAccessLogEnabled,
     val enableLuaScript: Boolean = defaultEnableLuaScript,
     val accessLogPath: String = defaultAccessLogPath,
+    val resourcesDir: String = defaultResourcesDir,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
     val accessLogFilterSettings: AccessLogFilterSettings,
     val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined,
@@ -49,6 +50,7 @@ data class ListenersConfig(
         const val defaultAccessLogEnabled = false
         const val defaultEnableLuaScript = false
         const val defaultAddUpstreamExternalAddressHeader = false
+        const val defaultResourcesDir = "envoy"
         const val defaultHasStaticSecretsDefined: Boolean = false
         const val defaultUseTransparentProxy: Boolean = false
     }
