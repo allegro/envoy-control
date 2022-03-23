@@ -77,13 +77,18 @@ class JWTFilterTest {
                       - service: "oauth"
                   incoming:
                     unlistedEndpointsPolicy: blockAndLog
-                    endpoints:                     
+                    endpoints:
                     - path: '/first-provider-protected'
                       clients: ['echo2']
                       methods: [ "GET" ]
+                      unlistedClientsPolicy: blockAndLog
+                      oauth:
+                        provider: 'second-provider'
+                        verification: offline
+                        policy: allowMissing                     
                     - path: '/first-provider-protected'
-                      clients: ['echo2']
-                      methods: [ "PATCH", "POST" ]
+                      clients: ['echo2']                      
+                      methods: [ "PATCH" ]
                       unlistedClientsPolicy: blockAndLog
                       oauth:
                         provider: 'first-provider'
@@ -208,14 +213,15 @@ class JWTFilterTest {
     fun `should allow request with valid jwt`() {
 
         // given
-        val token = tokenForProvider("first-provider")
+        val token1 = tokenForProvider("first-provider")
+        val token2 = tokenForProvider("second-provider")
         registerEnvoyServiceAndWait()
 
         // when
         echo2Envoy.egressOperations.callService(
             service = "echo",
             pathAndQuery = "/first-provider-protected",
-            headers = mapOf("Authorization" to "Bearer $token")
+            headers = mapOf("Authorization" to "Bearer $token2")
         ).also {
             assertThat(it).isOk()
         }
@@ -224,7 +230,7 @@ class JWTFilterTest {
             method = "PATCH",
             body = RequestBody.create("text/plain".toMediaType(), "{}"),
             pathAndQuery = "/first-provider-protected",
-            headers = mapOf("Authorization" to "Bearer $token")
+            headers = mapOf("Authorization" to "Bearer $token1")
         ).also {
             assertThat(it).isOk()
         }
