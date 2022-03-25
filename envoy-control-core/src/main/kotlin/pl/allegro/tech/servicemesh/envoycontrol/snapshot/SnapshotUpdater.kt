@@ -14,6 +14,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.noopTimer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
+import reactor.core.Disposables
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -21,20 +22,22 @@ import reactor.core.scheduler.Scheduler
 @Suppress("LongParameterList")
 class SnapshotUpdater(
     private val cache: SnapshotCache<Group, Snapshot>,
-    private val snapshotChangeAuditor: SnapshotChangeAuditor?,
+    private val snapshotChangeAuditor: SnapshotChangeAuditor,
     private val properties: SnapshotProperties,
     private val snapshotFactory: EnvoySnapshotFactory,
     private val globalSnapshotScheduler: Scheduler,
+    private val globalSnapshotAuditScheduler: Scheduler,
     private val groupSnapshotScheduler: ParallelizableScheduler,
     private val onGroupAdded: Flux<out List<Group>>,
     private val meterRegistry: MeterRegistry,
     private val versions: SnapshotsVersions
-) {
+): AutoCloseable {
     companion object {
         private val logger by logger()
     }
 
     private var globalSnapshot: UpdateResult? = null
+    private val auditDisposables = Disposables.composite()
 
     fun getGlobalSnapshot(): UpdateResult? {
         return globalSnapshot
@@ -124,11 +127,15 @@ class SnapshotUpdater(
                     adsSnapshot = lastAdsSnapshot,
                     xdsSnapshot = lastXdsSnapshot
                 )
-                if (properties.shouldAuditGlobalSnapshot) {
-                    snapshotChangeAuditor?.audit(updateResult)
-                }
                 globalSnapshot = updateResult
                 updateResult
+            }.scan { previous: UpdateResult?, actual: UpdateResult? ->
+                val emptyUpdateResult = emptyUpdateResult()
+                snapshotChangeAuditor.audit(previous ?: emptyUpdateResult, actual ?: emptyUpdateResult)
+                    .publishOn(globalSnapshotAuditScheduler)
+                    .subscribeOn(globalSnapshotAuditScheduler)
+                    .subscribe().apply { auditDisposables.add(this) }
+                actual ?: emptyUpdateResult
             }
             .onErrorResume { e ->
                 meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
@@ -137,10 +144,15 @@ class SnapshotUpdater(
             }
     }
 
+    private fun emptyUpdateResult() = UpdateResult(Action.ALL_SERVICES_GROUP_ADDED)
     private fun snapshotTimer(serviceName: String) = if (properties.metrics.cacheSetSnapshot) {
         meterRegistry.timer("snapshot-updater.set-snapshot.$serviceName.time")
     } else {
         noopTimer
+    }
+
+    override fun close() {
+        auditDisposables.dispose()
     }
 
     private fun updateSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot) {

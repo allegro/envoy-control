@@ -24,6 +24,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.LoggingDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.NoopSnapshotChangeAuditor
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotChangeAuditor
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
@@ -86,40 +87,29 @@ class ControlPlane private constructor(
         val properties: EnvoyControlProperties,
         val meterRegistry: MeterRegistry
     ) {
-        var grpcServerExecutor: Executor? = null
-        var nioEventLoopExecutor: Executor? = null
-        var executorGroup: ExecutorGroup? = null
-        var globalSnapshotExecutor: Executor? = null
+        var grpcServerExecutor: Executor = buildThreadPoolExecutor()
+        // unbounded executor - netty will only use configured number of threads
+        // (by nioEventLoopThreadCount property or default netty value: <number of CPUs> * 2)
+        var nioEventLoopExecutor: Executor = newMeteredCachedThreadPool("grpc-worker-event-loop")
+        var executorGroup: ExecutorGroup = buildExecutorGroup()
+        var globalSnapshotExecutor: Executor = newMeteredFixedThreadPool(
+            "snapshot-update",
+            properties.server.globalSnapshotUpdatePoolSize
+        )
+        var globalSnapshotAuditExecutor: Executor = newMeteredFixedThreadPool(
+            "snapshot-audit",
+            properties.server.globalSnapshotAuditPoolSize
+        )
         var groupSnapshotParallelExecutorSupplier: () -> Executor? = { null }
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
-        var snapshotChangeAuditor: SnapshotChangeAuditor? = null
+        var snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor()
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
         )
 
         fun build(changes: Flux<MultiClusterState>): ControlPlane {
-            if (grpcServerExecutor == null) {
-                grpcServerExecutor = buildThreadPoolExecutor()
-            }
-
-            if (nioEventLoopExecutor == null) {
-                // unbounded executor - netty will only use configured number of threads
-                // (by nioEventLoopThreadCount property or default netty value: <number of CPUs> * 2)
-                nioEventLoopExecutor = newMeteredCachedThreadPool("grpc-worker-event-loop")
-            }
-
-            if (executorGroup == null) {
-                executorGroup = buildExecutorGroup()
-            }
-
-            if (globalSnapshotExecutor == null) {
-                globalSnapshotExecutor = newMeteredFixedThreadPool(
-                    "snapshot-update",
-                    properties.server.globalSnapshotUpdatePoolSize
-                )
-            }
 
             val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
 
@@ -181,7 +171,8 @@ class ControlPlane private constructor(
                     snapshotChangeAuditor,
                     properties.envoy.snapshot,
                     envoySnapshotFactory,
-                    Schedulers.fromExecutor(globalSnapshotExecutor!!),
+                    Schedulers.fromExecutor(globalSnapshotExecutor),
+                    Schedulers.fromExecutor(globalSnapshotAuditExecutor),
                     groupSnapshotScheduler,
                     groupChangeWatcher.onGroupAdded(),
                     meterRegistry,
@@ -248,7 +239,7 @@ class ControlPlane private constructor(
             }
         }
 
-        private fun buildExecutorGroup(): ExecutorGroup? {
+        private fun buildExecutorGroup(): ExecutorGroup {
             return when (properties.server.executorGroup.type) {
                 ExecutorType.DIRECT -> DefaultExecutorGroup()
                 ExecutorType.PARALLEL -> {
@@ -297,6 +288,11 @@ class ControlPlane private constructor(
 
         fun withGlobalSnapshotExecutor(executor: Executor): ControlPlaneBuilder {
             globalSnapshotExecutor = executor
+            return this
+        }
+
+        fun withGlobalSnapshotAuditExecutor(executor: Executor): ControlPlaneBuilder {
+            globalSnapshotAuditExecutor = executor
             return this
         }
 

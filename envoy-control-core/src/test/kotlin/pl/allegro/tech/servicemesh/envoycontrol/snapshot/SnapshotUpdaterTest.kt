@@ -1196,7 +1196,7 @@ class SnapshotUpdaterTest {
         properties: SnapshotProperties = SnapshotProperties(),
         groups: List<Group> = emptyList(),
         groupSnapshotScheduler: ParallelizableScheduler = DirectScheduler,
-        snapshotChangeAuditor: SnapshotChangeAuditor? = null
+        snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor()
     ) = SnapshotUpdater(
         cache = cache,
         properties = properties,
@@ -1206,7 +1206,8 @@ class SnapshotUpdaterTest {
         onGroupAdded = Flux.just(groups),
         meterRegistry = simpleMeterRegistry,
         versions = SnapshotsVersions(),
-        snapshotChangeAuditor = snapshotChangeAuditor
+        snapshotChangeAuditor = snapshotChangeAuditor,
+        globalSnapshotAuditScheduler = Schedulers.newSingle("update-snapshot")
     )
 }
 
