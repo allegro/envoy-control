@@ -11,14 +11,8 @@ data class ServicesState(
     fun serviceNames(): Set<ServiceName> = serviceNameToInstances.keys
     fun allInstances(): Collection<ServiceInstances> = serviceNameToInstances.values
 
-
     fun remove(serviceName: ServiceName): Boolean {
-        return if (serviceName in serviceNameToInstances) {
-            serviceNameToInstances.remove(serviceName)
-            true
-        } else {
-            false
-        }
+        return serviceNameToInstances.remove(serviceName) != null
     }
 
     fun add(serviceName: ServiceName): Boolean {
@@ -37,5 +31,4 @@ data class ServicesState(
             true
         }
     }
-
 }

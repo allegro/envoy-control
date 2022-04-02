@@ -92,7 +92,7 @@ class RemoteServices(
     }
 
     private fun onlyServicesWithInstances(it: ServicesState): ServicesState =
-        ServicesState(it.serviceNameToInstances.filterValues { value -> value.instances.isNotEmpty() })
+        ServicesState(it.serviceNameToInstances.filterValues { value -> value.instances.isNotEmpty() }.toMutableMap())
 
     private fun chooseInstance(serviceInstances: List<URI>): URI = serviceInstances.random()
 }

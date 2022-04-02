@@ -26,6 +26,7 @@ class ConsulLocalClusterStateChanges(
                         transformer.transform(instancesSequence)
                     }
                     .associateBy { it.serviceName }
+                    .toMutableMap()
                     .let(::ServicesState)
             }
             .doOnNext { latestServiceState.set(it) }
