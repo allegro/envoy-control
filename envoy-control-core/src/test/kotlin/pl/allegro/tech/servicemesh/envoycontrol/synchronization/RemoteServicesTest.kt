@@ -195,7 +195,7 @@ class RemoteServicesTest {
     ): MultiClusterState {
         val clusterState = this.first { it.cluster == cluster }
         assertThat(clusterState).isNotNull
-        assertThat(clusterState.servicesState.serviceNameToInstances.keys).doesNotContain(serviceName)
+        assertThat(clusterState.servicesState.serviceNames()).doesNotContain(serviceName)
         return this
     }
 
