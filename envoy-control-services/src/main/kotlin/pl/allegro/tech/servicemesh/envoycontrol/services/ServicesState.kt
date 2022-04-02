@@ -3,7 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.services
 typealias ServiceName = String
 
 data class ServicesState(
-    val serviceNameToInstances: Map<ServiceName, ServiceInstances> = emptyMap()
+    val serviceNameToInstances: MutableMap<ServiceName, ServiceInstances> = mutableMapOf()
 ) {
     operator fun get(serviceName: ServiceName): ServiceInstances? = serviceNameToInstances[serviceName]
 
@@ -11,22 +11,31 @@ data class ServicesState(
     fun serviceNames(): Set<ServiceName> = serviceNameToInstances.keys
     fun allInstances(): Collection<ServiceInstances> = serviceNameToInstances.values
 
-    fun remove(serviceName: ServiceName): ServicesState {
-        // TODO: https://github.com/allegro/envoy-control/issues/11
-        return change(ServiceInstances(serviceName, instances = emptySet()))
+
+    fun remove(serviceName: ServiceName): Boolean {
+        return if (serviceName in serviceNameToInstances) {
+            serviceNameToInstances.remove(serviceName)
+            true
+        } else {
+            false
+        }
     }
 
-    fun add(serviceName: ServiceName): ServicesState =
-        if (serviceNameToInstances.containsKey(serviceName)) {
-            this
+    fun add(serviceName: ServiceName): Boolean {
+        return if (serviceNameToInstances.containsKey(serviceName)) {
+            false
         } else {
             change(ServiceInstances(serviceName, instances = emptySet()))
         }
+    }
 
-    fun change(serviceInstances: ServiceInstances): ServicesState =
-        if (serviceNameToInstances[serviceInstances.serviceName] == serviceInstances) {
-            this
+    fun change(serviceInstances: ServiceInstances): Boolean {
+        return if (serviceNameToInstances[serviceInstances.serviceName] == serviceInstances) {
+            false
         } else {
-            copy(serviceNameToInstances = serviceNameToInstances + (serviceInstances.serviceName to serviceInstances))
+            serviceNameToInstances[serviceInstances.serviceName] = serviceInstances
+            true
         }
+    }
+
 }
