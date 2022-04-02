@@ -206,9 +206,11 @@ class RemoteServicesTest {
 
             fun state(vararg services: ServiceState) {
                 responses.add {
-                    ServicesState(serviceNameToInstances = services.associate {
-                        toState(it.service, it.withoutInstances)
-                    })
+                    ServicesState(
+                        serviceNameToInstances = services.associate {
+                            toState(it.service, it.withoutInstances)
+                        }.toMutableMap()
+                    )
                 }
             }
 
