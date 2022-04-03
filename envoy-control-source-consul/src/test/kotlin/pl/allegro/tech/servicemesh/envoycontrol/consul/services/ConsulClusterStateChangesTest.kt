@@ -22,7 +22,12 @@ class ConsulClusterStateChangesTest {
 
         @JvmField
         @RegisterExtension
-        val consul = ConsulExtension(ConsulStarterBuilder.consulStarter().withHttpPort(consulHttpPort).build())
+        val consul = ConsulExtension(
+            ConsulStarterBuilder.consulStarter()
+                .withHttpPort(consulHttpPort)
+                .withConsulVersion("1.11.4")
+                .build()
+        )
     }
 
     private val watcher = ConsulRecipes
