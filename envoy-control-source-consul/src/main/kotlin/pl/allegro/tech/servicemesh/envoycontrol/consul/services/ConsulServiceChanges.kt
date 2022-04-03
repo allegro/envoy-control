@@ -40,7 +40,6 @@ class ConsulServiceChanges(
             .measureDiscardedItems("consul-service-changes-emitted", metrics.meterRegistry)
             .checkpoint("consul-service-changes-emitted")
             .name("consul-service-changes-emitted").metrics()
-            .distinctUntilChanged()
             .checkpoint("consul-service-changes-emitted-distinct")
             .name("consul-service-changes-emitted-distinct").metrics()
             .doOnCancel {
