@@ -6,7 +6,6 @@ dependencies {
     api group: 'pl.allegro.tech.discovery', name: 'consul-recipes', version: versions.consul_recipes
     api group: 'com.ecwid.consul', name: 'consul-api', version: versions.ecwid_consul
 
-    testImplementation group:
     testImplementation group: 'org.mockito', name: 'mockito-core', version: versions.mockito
     testImplementation group: 'cglib', name: 'cglib-nodep', version: versions.cglib
 
