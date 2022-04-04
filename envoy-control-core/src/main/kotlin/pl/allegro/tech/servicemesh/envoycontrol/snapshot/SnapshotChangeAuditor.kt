@@ -6,7 +6,7 @@ interface SnapshotChangeAuditor {
     fun audit(previousUpdateResult: UpdateResult, actualUpdateResult: UpdateResult): Mono<Any>
 }
 
-class NoopSnapshotChangeAuditor: SnapshotChangeAuditor {
+object NoopSnapshotChangeAuditor: SnapshotChangeAuditor {
     override fun audit(previousUpdateResult: UpdateResult, actualUpdateResult: UpdateResult): Mono<Any> {
         return Mono.empty()
     }

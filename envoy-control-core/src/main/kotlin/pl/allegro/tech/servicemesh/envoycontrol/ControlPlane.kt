@@ -87,29 +87,48 @@ class ControlPlane private constructor(
         val properties: EnvoyControlProperties,
         val meterRegistry: MeterRegistry
     ) {
-        var grpcServerExecutor: Executor = buildThreadPoolExecutor()
-        // unbounded executor - netty will only use configured number of threads
-        // (by nioEventLoopThreadCount property or default netty value: <number of CPUs> * 2)
-        var nioEventLoopExecutor: Executor = newMeteredCachedThreadPool("grpc-worker-event-loop")
-        var executorGroup: ExecutorGroup = buildExecutorGroup()
-        var globalSnapshotExecutor: Executor = newMeteredFixedThreadPool(
-            "snapshot-update",
-            properties.server.globalSnapshotUpdatePoolSize
-        )
-        var globalSnapshotAuditExecutor: Executor = newMeteredFixedThreadPool(
-            "snapshot-audit",
-            properties.server.globalSnapshotAuditPoolSize
-        )
+        var grpcServerExecutor: Executor? = null
+        var nioEventLoopExecutor: Executor? = null
+        var executorGroup: ExecutorGroup? = null
+        var globalSnapshotExecutor: Executor? = null
+        var globalSnapshotAuditExecutor: Executor? = null
         var groupSnapshotParallelExecutorSupplier: () -> Executor? = { null }
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
-        var snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor()
+        var snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
         )
 
         fun build(changes: Flux<MultiClusterState>): ControlPlane {
+            if (grpcServerExecutor == null) {
+                grpcServerExecutor = buildThreadPoolExecutor()
+            }
+
+            if (nioEventLoopExecutor == null) {
+                // unbounded executor - netty will only use configured number of threads
+                // (by nioEventLoopThreadCount property or default netty value: <number of CPUs> * 2)
+                nioEventLoopExecutor = newMeteredCachedThreadPool("grpc-worker-event-loop")
+            }
+
+            if (executorGroup == null) {
+                executorGroup = buildExecutorGroup()
+            }
+
+            if (globalSnapshotExecutor == null) {
+                globalSnapshotExecutor = newMeteredFixedThreadPool(
+                    "snapshot-update",
+                    properties.server.globalSnapshotUpdatePoolSize
+                )
+            }
+
+            if (globalSnapshotAuditExecutor == null) {
+                globalSnapshotAuditExecutor = newMeteredFixedThreadPool(
+                    "snapshot-audit",
+                    properties.server.globalSnapshotAuditPoolSize
+                )
+            }
 
             val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
 

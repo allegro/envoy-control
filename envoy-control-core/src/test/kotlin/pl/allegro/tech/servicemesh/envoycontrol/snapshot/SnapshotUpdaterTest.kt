@@ -1196,7 +1196,7 @@ class SnapshotUpdaterTest {
         properties: SnapshotProperties = SnapshotProperties(),
         groups: List<Group> = emptyList(),
         groupSnapshotScheduler: ParallelizableScheduler = DirectScheduler,
-        snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor()
+        snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor
     ) = SnapshotUpdater(
         cache = cache,
         properties = properties,
@@ -1207,7 +1207,7 @@ class SnapshotUpdaterTest {
         meterRegistry = simpleMeterRegistry,
         versions = SnapshotsVersions(),
         snapshotChangeAuditor = snapshotChangeAuditor,
-        globalSnapshotAuditScheduler = Schedulers.newSingle("update-snapshot")
+        globalSnapshotAuditScheduler = Schedulers.newSingle("audit-snapshot")
     )
 }
 

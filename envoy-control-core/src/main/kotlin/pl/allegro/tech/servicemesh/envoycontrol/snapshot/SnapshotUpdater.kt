@@ -14,7 +14,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.noopTimer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
-import reactor.core.Disposables
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -31,13 +30,12 @@ class SnapshotUpdater(
     private val onGroupAdded: Flux<out List<Group>>,
     private val meterRegistry: MeterRegistry,
     private val versions: SnapshotsVersions
-): AutoCloseable {
+) {
     companion object {
         private val logger by logger()
     }
 
     private var globalSnapshot: UpdateResult? = null
-    private val auditDisposables = Disposables.composite()
 
     fun getGlobalSnapshot(): UpdateResult? {
         return globalSnapshot
@@ -132,9 +130,8 @@ class SnapshotUpdater(
             }.scan { previous: UpdateResult?, actual: UpdateResult? ->
                 val emptyUpdateResult = emptyUpdateResult()
                 snapshotChangeAuditor.audit(previous ?: emptyUpdateResult, actual ?: emptyUpdateResult)
-                    .publishOn(globalSnapshotAuditScheduler)
                     .subscribeOn(globalSnapshotAuditScheduler)
-                    .subscribe().apply { auditDisposables.add(this) }
+                    .subscribe()
                 actual ?: emptyUpdateResult
             }
             .onErrorResume { e ->
@@ -149,10 +146,6 @@ class SnapshotUpdater(
         meterRegistry.timer("snapshot-updater.set-snapshot.$serviceName.time")
     } else {
         noopTimer
-    }
-
-    override fun close() {
-        auditDisposables.dispose()
     }
 
     private fun updateSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot) {
