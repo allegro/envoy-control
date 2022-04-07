@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import org.mockito.Mockito
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
@@ -52,7 +53,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.Service
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.any
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.concurrent.CountDownLatch
@@ -147,6 +150,33 @@ class SnapshotUpdaterTest {
             .hasOnlyClustersFor("existingService1", "existingService2")
             .hasVirtualHostConfig(name = "existingService1", idleTimeout = "10s", requestTimeout = "9s")
             .hasVirtualHostConfig(name = "existingService2", idleTimeout = "8s", requestTimeout = "7s")
+    }
+
+    @Test
+    fun `should audit snapshot changes`() {
+        val cache = MockCache()
+
+        val snapshotAuditor = Mockito.mock(SnapshotChangeAuditor::class.java)
+        Mockito.`when`(snapshotAuditor.audit(any(UpdateResult::class.java), any(UpdateResult::class.java))).thenReturn(Mono.empty())
+        val groups = listOf(groupWithProxy, groupWithServiceName, AllServicesGroup(communicationMode = ADS))
+        groups.forEach {
+            cache.setSnapshot(it, uninitializedSnapshot)
+        }
+
+        val updater = snapshotUpdater(
+            cache = cache,
+            snapshotChangeAuditor = snapshotAuditor,
+            properties = SnapshotProperties().apply {
+              stateSampleDuration = Duration.ZERO
+            },
+            groups = groups
+        )
+
+        // when
+        updater.startWithServices(arrayOf("existingService1"), arrayOf("existingService1", "existingService2"), arrayOf("existingService3"))
+
+        // then
+        Mockito.verify(snapshotAuditor, Mockito.times(3)).audit(any(UpdateResult::class.java), any(UpdateResult::class.java))
     }
 
     @Test
@@ -944,19 +974,24 @@ class SnapshotUpdaterTest {
             )
     }
 
+    private fun SnapshotUpdater.startWithServices(vararg services: Array<String>) {
+        this.start(fluxOfServices(*services)).collectList().block()
+    }
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
         this.start(fluxOfServices(*services)).blockFirst()
     }
 
-    private fun fluxOfServices(vararg services: String) = Flux.just(
-        ClusterState(
-            ServicesState(
-                serviceNameToInstances = services.map { it to ServiceInstances(it, emptySet()) }.toMap()
+    private fun fluxOfServices(vararg services: Array<String>) = Flux
+        .just(*services.map { createClusterState(*it).toMultiClusterState() }.toTypedArray())
+        .delayElements(Duration.ofMillis(500))
 
-            ),
-            Locality.LOCAL, "cluster"
-        ).toMultiClusterState()
-    )
+    private fun fluxOfServices(vararg services: String) = Flux.just(createClusterState(*services).toMultiClusterState())
+    private fun createClusterState(vararg services: String) = ClusterState(
+        ServicesState(
+            serviceNameToInstances = services.map { it to ServiceInstances(it, emptySet()) }.toMap()
+
+        ),
+        Locality.LOCAL, "cluster")
 
     class FailingMockCache : MockCache() {
         var called = 0

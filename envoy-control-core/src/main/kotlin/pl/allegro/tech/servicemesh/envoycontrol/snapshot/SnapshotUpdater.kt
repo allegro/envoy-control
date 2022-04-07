@@ -33,6 +33,7 @@ class SnapshotUpdater(
 ) {
     companion object {
         private val logger by logger()
+        private val emptyUpdateResult = UpdateResult(Action.ALL_SERVICES_GROUP_ADDED)
     }
 
     private var globalSnapshot: UpdateResult? = null
@@ -101,7 +102,6 @@ class SnapshotUpdater(
 
     internal fun services(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return states
-            .sample(properties.stateSampleDuration)
             .name("snapshot-updater-services-sampled").metrics()
             .onBackpressureLatestMeasured("snapshot-updater-services-sampled", meterRegistry)
             // prefetch = 1, instead of default 256, to avoid processing stale states in case of backpressure
@@ -127,13 +127,13 @@ class SnapshotUpdater(
                 )
                 globalSnapshot = updateResult
                 updateResult
-            }.scan { previous: UpdateResult?, actual: UpdateResult? ->
-                val emptyUpdateResult = emptyUpdateResult()
+            }.scan(emptyUpdateResult) { previous: UpdateResult?, actual: UpdateResult? ->
                 snapshotChangeAuditor.audit(previous ?: emptyUpdateResult, actual ?: emptyUpdateResult)
                     .subscribeOn(globalSnapshotAuditScheduler)
                     .subscribe()
                 actual ?: emptyUpdateResult
             }
+            .filter { it != emptyUpdateResult }
             .onErrorResume { e ->
                 meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
                 logger.error("Unable to process service changes", e)
@@ -141,7 +141,6 @@ class SnapshotUpdater(
             }
     }
 
-    private fun emptyUpdateResult() = UpdateResult(Action.ALL_SERVICES_GROUP_ADDED)
     private fun snapshotTimer(serviceName: String) = if (properties.metrics.cacheSetSnapshot) {
         meterRegistry.timer("snapshot-updater.set-snapshot.$serviceName.time")
     } else {
