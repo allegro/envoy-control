@@ -28,6 +28,7 @@ markdown_extensions:
 
 nav:
   - About: index.md
+  - Changelog: changelog_symlink.md
   - Quickstart: quickstart.md
   - Architecture: architecture.md
   - Configuration: configuration.md
