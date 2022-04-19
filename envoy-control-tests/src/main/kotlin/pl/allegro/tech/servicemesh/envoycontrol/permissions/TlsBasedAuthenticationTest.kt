@@ -5,6 +5,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isForbidden
@@ -21,9 +22,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 
 internal class TlsBasedAuthenticationTest {
 
@@ -188,6 +189,7 @@ internal class TlsBasedAuthenticationTest {
         }
     }
 
+    @Disabled("Flaky test")
     @Test
     fun `should encrypt traffic between selected services even if only one endpoint supports mtls`() {
         // given 2 endpoints
