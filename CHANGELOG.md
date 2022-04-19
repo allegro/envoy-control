@@ -7,4 +7,5 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- Changelog addedsss
+- Global snapshot auditor added
+- Changelog added
