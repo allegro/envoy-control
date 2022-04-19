@@ -344,7 +344,7 @@ class NodeMetadataTest {
     fun `should return retry policy`() {
         // given
         val givenRetryPolicy = RetryPolicyInput(
-            retryOn = "givenRetryOn",
+            retryOn = listOf("givenRetryOn"),
             hostSelectionRetryMaxAttempts = 1,
             numberRetries = 2,
             perTryTimeoutMs = 3,
@@ -358,7 +358,7 @@ class NodeMetadataTest {
             methods = setOf("GET", "POST", "PUT")
         )
         val expectedRetryPolicy = RetryPolicy(
-            retryOn = "givenRetryOn",
+            retryOn = listOf("givenRetryOn"),
             hostSelectionRetryMaxAttempts = 1,
             numberRetries = 2,
             perTryTimeoutMs = 3,
@@ -390,14 +390,14 @@ class NodeMetadataTest {
     fun `should return retry policy with defaults`() {
         // given
         val givenRetryPolicy = RetryPolicyInput(
-            retryOn = "givenRetryOn",
+            retryOn = listOf("givenRetryOn"),
             perTryTimeoutMs = 3,
             retryableHeaders = listOf("givenTestHeader"),
             retryableStatusCodes = listOf(504),
             methods = setOf("GET", "POST", "PUT")
         )
         val expectedRetryPolicy = RetryPolicy(
-            retryOn = "givenRetryOn",
+            retryOn = listOf("givenRetryOn"),
             hostSelectionRetryMaxAttempts = 3,
             numberRetries = 1,
             perTryTimeoutMs = 3,
