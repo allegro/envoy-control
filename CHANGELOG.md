@@ -7,4 +7,4 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [0.19.3]
 ### Changed
-- Noting. Empty commit for fix releaser version.
+- Nothing. Empty commit for fix released version.
