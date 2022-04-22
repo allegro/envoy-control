@@ -9,5 +9,5 @@ Full docs are hosted at https://envoy-control.readthedocs.io/en/latest/
 
 # Quick start
 
-Quick start guide is located at https://envoy-control.readthedocs.io/en/latest/quickstart/
+Quick start guide is located at https://envoy-control.readthedocs.io/en/latest/quickstart
 
