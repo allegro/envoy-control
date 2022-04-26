@@ -17,6 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.synchronization.ControlPlaneInst
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RemoteClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RemoteServices
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RestTemplateControlPlaneClient
+import java.util.concurrent.Executors
 
 @Configuration
 @ConditionalOnProperty(name = ["envoy-control.sync.enabled"], havingValue = "true", matchIfMissing = false)
@@ -33,8 +34,8 @@ class SynchronizationConfig {
     }
 
     @Bean
-    fun controlPlaneClient(restTemplate: RestTemplate, meterRegistry: MeterRegistry) =
-        RestTemplateControlPlaneClient(restTemplate, meterRegistry)
+    fun controlPlaneClient(restTemplate: RestTemplate, meterRegistry: MeterRegistry, remoteClusters: RemoteClusters) =
+        RestTemplateControlPlaneClient(restTemplate, meterRegistry, Executors.newFixedThreadPool(remoteClusters.clusters.size))
 
     @Bean
     fun remoteClusterStateChanges(
@@ -42,14 +43,17 @@ class SynchronizationConfig {
         meterRegistry: MeterRegistry,
         controlPlaneInstanceFetcher: ControlPlaneInstanceFetcher,
         consulDatacenterReader: ConsulDatacenterReader,
-        properties: EnvoyControlProperties
+        properties: EnvoyControlProperties,
+        remoteClusters: RemoteClusters
     ): RemoteClusterStateChanges {
-
-        val remoteClusters = consulDatacenterReader.knownDatacenters() - consulDatacenterReader.localDatacenter()
-        val service = RemoteServices(controlPlaneClient, meterRegistry, controlPlaneInstanceFetcher, remoteClusters)
+        val service = RemoteServices(controlPlaneClient, meterRegistry, controlPlaneInstanceFetcher, remoteClusters.clusters)
 
         return RemoteClusterStateChanges(properties, service)
     }
+
+    @Bean
+    fun remoteClusters(consulDatacenterReader: ConsulDatacenterReader) =
+        RemoteClusters(consulDatacenterReader.knownDatacenters() - consulDatacenterReader.localDatacenter())
 
     @Bean
     fun instanceFetcher(
@@ -60,3 +64,5 @@ class SynchronizationConfig {
         envoyControlProperties.sync.envoyControlAppName
     )
 }
+
+data class RemoteClusters(val clusters: List<String>)

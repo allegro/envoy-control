@@ -10,6 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.test.StepVerifier
 import java.net.URI
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 
 class RemoteServicesTest {
     @Test
@@ -231,8 +232,8 @@ class RemoteServicesTest {
 
         val map = mutableMapOf<String, () -> WrappedServiceState>()
 
-        override fun getState(uri: URI): ServicesState {
-            return map.getValue(uri.host)()()
+        override fun getState(uri: URI): CompletableFuture<ServicesState> {
+            return CompletableFuture.supplyAsync(map.getValue(uri.host)())
         }
 
         fun forCluster(name: String, function: ClusterScope.() -> Unit) {
