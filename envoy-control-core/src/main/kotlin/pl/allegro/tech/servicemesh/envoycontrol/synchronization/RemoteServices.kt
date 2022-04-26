@@ -25,7 +25,10 @@ class RemoteServices(
 
     fun getChanges(interval: Long): Flux<MultiClusterState> {
         return Flux.create({ sink ->
-            scheduler.scheduleWithFixedDelay({ getChanges(sink::next) }, 0, interval, TimeUnit.SECONDS)
+            scheduler.scheduleWithFixedDelay({
+                //TODO meter execution time for each run
+                getChanges(sink::next)
+            }, 0, interval, TimeUnit.SECONDS)
         }, FluxSink.OverflowStrategy.LATEST)
     }
 
@@ -33,7 +36,6 @@ class RemoteServices(
         remoteClusters
             .map { cluster -> clusterWithControlPlaneInstances(cluster) }
             .filter { (_, instances) -> instances.isNotEmpty() }
-            //TODO next step - add parallel 
             .mapNotNull { (cluster, instances) -> servicesStateFromCluster(cluster, instances) }
             .toMultiClusterState()
             .let { if (it.isNotEmpty()) sink(it) }
