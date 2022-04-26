@@ -195,7 +195,7 @@ class RemoteServicesTest {
     ): MultiClusterState {
         val clusterState = this.first { it.cluster == cluster }
         assertThat(clusterState).isNotNull
-        assertThat(clusterState.servicesState.serviceNameToInstances.keys).doesNotContain(serviceName)
+        assertThat(clusterState.servicesState.serviceNames()).doesNotContain(serviceName)
         return this
     }
 
@@ -206,9 +206,11 @@ class RemoteServicesTest {
 
             fun state(vararg services: ServiceState) {
                 responses.add {
-                    ServicesState(serviceNameToInstances = services.associate {
-                        toState(it.service, it.withoutInstances)
-                    })
+                    ServicesState(
+                        serviceNameToInstances = services.associate {
+                            toState(it.service, it.withoutInstances)
+                        }.toMutableMap()
+                    )
                 }
             }
 

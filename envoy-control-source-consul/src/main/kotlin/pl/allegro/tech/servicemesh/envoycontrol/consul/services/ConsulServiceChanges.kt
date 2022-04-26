@@ -40,7 +40,6 @@ class ConsulServiceChanges(
             .measureDiscardedItems("consul-service-changes-emitted", metrics.meterRegistry)
             .checkpoint("consul-service-changes-emitted")
             .name("consul-service-changes-emitted").metrics()
-            .distinctUntilChanged()
             .checkpoint("consul-service-changes-emitted-distinct")
             .name("consul-service-changes-emitted-distinct").metrics()
             .doOnCancel {
@@ -131,8 +130,8 @@ class ConsulServiceChanges(
             val oldCanceller = watchedServices.put(service, canceller)
             oldCanceller?.cancel()
 
-            val newState = state.add(service)
-            changeState(newState)
+            val stateChanged = state.add(service)
+            if (stateChanged) publishChange()
             metrics.serviceAdded()
         }
 
@@ -140,12 +139,12 @@ class ConsulServiceChanges(
             initialLoader.observed(recipesInstances.serviceName)
 
             val instances = recipesInstances.toDomainInstances()
-            val newState = state.change(instances)
-            if (state !== newState) {
+            val stateChanged = state.change(instances)
+            if (stateChanged) {
                 val addresses = instances.instances.joinToString { "[${it.id} - ${it.address}:${it.port}]" }
                 logger.info("Instances for ${instances.serviceName} changed: $addresses")
 
-                changeState(newState)
+                publishChange()
                 metrics.instanceChanged()
             }
         }
@@ -160,18 +159,17 @@ class ConsulServiceChanges(
 
         private fun handleServiceRemoval(service: String) = synchronized(stateLock) {
             logger.info("Stop watching $service")
-            val newState = state.remove(service)
-            changeState(newState)
+            val stateChanged = state.remove(service)
+            if (stateChanged) publishChange()
             watchedServices[service]?.cancel()
             watchedServices.remove(service)
             metrics.serviceRemoved()
         }
 
-        private fun changeState(newState: ServicesState) {
+        private fun publishChange() {
             if (initialLoader.ready) {
-                stateReceiver(newState)
+                stateReceiver(state)
             }
-            state = newState
         }
 
         private class InitialLoader {

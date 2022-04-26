@@ -75,7 +75,7 @@ class RemoteServices(
         }
             .checkpoint("cross-dc-service-update-$cluster")
             .name("cross-dc-service-update-$cluster").metrics()
-            .map { onlyServicesWithInstances(it) }
+            .map { ServicesState(it.getOnlyServicesWithInstances().toMutableMap()) }
             .map {
                 ClusterState(it, Locality.REMOTE, cluster)
             }
@@ -90,9 +90,6 @@ class RemoteServices(
                 Mono.justOrEmpty(clusterStateCache[cluster])
             }
     }
-
-    private fun onlyServicesWithInstances(it: ServicesState): ServicesState =
-        ServicesState(it.serviceNameToInstances.filterValues { value -> value.instances.isNotEmpty() })
 
     private fun chooseInstance(serviceInstances: List<URI>): URI = serviceInstances.random()
 }

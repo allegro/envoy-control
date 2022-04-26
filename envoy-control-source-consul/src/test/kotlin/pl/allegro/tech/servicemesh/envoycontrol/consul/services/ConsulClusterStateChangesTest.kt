@@ -22,7 +22,12 @@ class ConsulClusterStateChangesTest {
 
         @JvmField
         @RegisterExtension
-        val consul = ConsulExtension(ConsulStarterBuilder.consulStarter().withHttpPort(consulHttpPort).build())
+        val consul = ConsulExtension(
+            ConsulStarterBuilder.consulStarter()
+                .withHttpPort(consulHttpPort)
+                .withConsulVersion("1.11.4")
+                .build()
+        )
     }
 
     private val watcher = ConsulRecipes
@@ -59,7 +64,7 @@ class ConsulClusterStateChangesTest {
                 }
             }
             .then { deregisterService(id = "123") }
-            .expectNextMatches { it["abc"]!!.instances.isEmpty() }
+            .expectNextMatches { it["abc"] == null }
             .thenCancel()
             .verify()
     }

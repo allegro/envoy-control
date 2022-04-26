@@ -86,7 +86,7 @@ class SnapshotUpdaterTest {
 
     val clusterWithEnvoyInstances = ClusterState(
         ServicesState(
-            serviceNameToInstances = mapOf(
+            serviceNameToInstances = mutableMapOf(
                 "service" to ServiceInstances(
                     "service", setOf(
                         ServiceInstance(
@@ -370,7 +370,7 @@ class SnapshotUpdaterTest {
 
         val clusterWithNoInstances = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = mutableMapOf(
                     "service" to ServiceInstances("service", setOf())
                 )
             ),
@@ -413,7 +413,7 @@ class SnapshotUpdaterTest {
 
         val clusterWithOrder = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = mutableMapOf(
                     "service" to ServiceInstances("service", setOf()),
                     "service2" to ServiceInstances("service2", setOf())
                 )
@@ -422,7 +422,7 @@ class SnapshotUpdaterTest {
         ).toMultiClusterState()
         val clusterWithoutOrder = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = mutableMapOf(
                     "service2" to ServiceInstances("service2", setOf()),
                     "service" to ServiceInstances("service", setOf())
                 )
@@ -463,7 +463,7 @@ class SnapshotUpdaterTest {
 
         val clusterLocal = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = mutableMapOf(
                     "service" to ServiceInstances(
                         "service", setOf(
                             ServiceInstance(
@@ -482,7 +482,7 @@ class SnapshotUpdaterTest {
 
         val remoteClusterWithBothServices = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = mutableMapOf(
                     "service" to ServiceInstances("service", setOf()),
                     "servicePresentInJustOneRemote" to ServiceInstances("servicePresentInJustOneRemote", setOf())
                 )
@@ -492,7 +492,7 @@ class SnapshotUpdaterTest {
 
         val remoteClusterWithJustOneService = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = mutableMapOf(
                     "service" to ServiceInstances("service", setOf())
                 )
             ),
@@ -554,7 +554,7 @@ class SnapshotUpdaterTest {
         )
 
         val stateWithNoServices = ClusterState(
-            ServicesState(serviceNameToInstances = mapOf()),
+            ServicesState(serviceNameToInstances = mutableMapOf()),
             Locality.LOCAL, "cluster"
         ).toMultiClusterState()
 
@@ -951,7 +951,7 @@ class SnapshotUpdaterTest {
     private fun fluxOfServices(vararg services: String) = Flux.just(
         ClusterState(
             ServicesState(
-                serviceNameToInstances = services.map { it to ServiceInstances(it, emptySet()) }.toMap()
+                serviceNameToInstances = services.associateWith { ServiceInstances(it, emptySet()) }.toMutableMap()
 
             ),
             Locality.LOCAL, "cluster"
