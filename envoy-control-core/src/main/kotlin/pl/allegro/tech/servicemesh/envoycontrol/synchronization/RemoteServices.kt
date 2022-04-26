@@ -6,10 +6,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
-import reactor.core.publisher.Mono
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -23,29 +21,22 @@ class RemoteServices(
 ) {
     private val logger by logger()
     private val clusterStateCache = ConcurrentHashMap<String, ClusterState>()
-
     private val scheduler = Executors.newScheduledThreadPool(remoteClusters.size)
 
     fun getChanges(interval: Long): Flux<MultiClusterState> {
         return Flux.create({ sink ->
-            scheduler.scheduleWithFixedDelay({
-                remoteClusters
-                    .map { cluster -> clusterWithControlPlaneInstances(cluster) }
-                    .filter { (_, instances) -> instances.isNotEmpty() }
-                    .mapNotNull { (cluster, instances) -> servicesStateFromCluster(cluster, instances) }
-                    .toMultiClusterState()
-                    .apply { sink.next(this) }
-            }, 0, interval, TimeUnit.SECONDS)
+            scheduler.scheduleWithFixedDelay({ getChanges(sink::next) }, 0, interval, TimeUnit.SECONDS)
         }, FluxSink.OverflowStrategy.LATEST)
+    }
 
-        //scheduler - $interval
-        //parallel requests
-        //group
-        //sink
-
-        //1 thread for scheduler
-        //n thread per dc
-
+    private fun getChanges(sink: (MultiClusterState) -> Unit) {
+        remoteClusters
+            .map { cluster -> clusterWithControlPlaneInstances(cluster) }
+            .filter { (_, instances) -> instances.isNotEmpty() }
+            //TODO next step - add parallel 
+            .mapNotNull { (cluster, instances) -> servicesStateFromCluster(cluster, instances) }
+            .toMultiClusterState()
+            .let { if (it.isNotEmpty()) sink(it) }
     }
 
     private fun clusterWithControlPlaneInstances(cluster: String): Pair<String, List<URI>> {
@@ -66,9 +57,8 @@ class RemoteServices(
         val instance = chooseInstance(instances)
 
         return try {
-            //TODO measure usage
-            // .name("cross-dc-service-update-$cluster").metrics()
-            val clusterState =  ClusterState(
+            meterRegistry.counter("cross-dc-service-update-$cluster").increment()
+            val clusterState = ClusterState(
                 controlPlaneClient.getState(instance).removeServicesWithoutInstances(),
                 Locality.REMOTE,
                 cluster
