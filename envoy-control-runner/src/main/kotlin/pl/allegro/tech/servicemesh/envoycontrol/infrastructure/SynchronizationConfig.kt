@@ -35,19 +35,26 @@ class SynchronizationConfig {
 
     @Bean
     fun controlPlaneClient(restTemplate: RestTemplate, meterRegistry: MeterRegistry, remoteClusters: RemoteClusters) =
-        RestTemplateControlPlaneClient(restTemplate, meterRegistry, Executors.newFixedThreadPool(remoteClusters.clusters.size))
+        RestTemplateControlPlaneClient(
+            restTemplate = restTemplate,
+            meterRegistry = meterRegistry,
+            executors = Executors.newFixedThreadPool(remoteClusters.clusters.size)
+        )
 
     @Bean
     fun remoteClusterStateChanges(
         controlPlaneClient: ControlPlaneClient,
         meterRegistry: MeterRegistry,
         controlPlaneInstanceFetcher: ControlPlaneInstanceFetcher,
-        consulDatacenterReader: ConsulDatacenterReader,
         properties: EnvoyControlProperties,
         remoteClusters: RemoteClusters
     ): RemoteClusterStateChanges {
-        val service = RemoteServices(controlPlaneClient, meterRegistry, controlPlaneInstanceFetcher, remoteClusters.clusters)
-
+        val service = RemoteServices(
+            controlPlaneClient = controlPlaneClient,
+            meterRegistry = meterRegistry,
+            controlPlaneInstanceFetcher = controlPlaneInstanceFetcher,
+            remoteClusters = remoteClusters.clusters
+        )
         return RemoteClusterStateChanges(properties, service)
     }
 
