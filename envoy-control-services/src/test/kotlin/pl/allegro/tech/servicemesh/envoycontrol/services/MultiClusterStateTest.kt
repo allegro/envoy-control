@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.services
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import java.util.concurrent.ConcurrentHashMap
 
 internal class MultiClusterStateTest {
 
@@ -18,7 +19,9 @@ internal class MultiClusterStateTest {
     private fun createMultiClusterState(): MultiClusterState {
         val serviceInstance = ServiceInstance("1", address = "0.0.0.0", port = 1, tags = setOf("a"))
         val serviceInstances = ServiceInstances("a", setOf(serviceInstance))
-        val state = listOf(ClusterState(ServicesState(mutableMapOf("a" to serviceInstances)), Locality.REMOTE, "dc1"))
+        val services = ConcurrentHashMap<ServiceName, ServiceInstances>()
+        services["a"] = serviceInstances
+        val state = listOf(ClusterState(ServicesState(services), Locality.REMOTE, "dc1"))
         return MultiClusterState(state)
     }
 }

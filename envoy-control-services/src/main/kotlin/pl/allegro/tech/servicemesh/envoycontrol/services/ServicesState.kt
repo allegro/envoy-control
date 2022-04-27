@@ -1,11 +1,13 @@
 package pl.allegro.tech.servicemesh.envoycontrol.services
 
+import java.util.concurrent.ConcurrentHashMap
+
 typealias ServiceName = String
 
 data class ServicesState(
     // TODO this field should be private but right now jackson ignores it and it cannot be instantiate.
     //  Will fix this i next pr
-    val serviceNameToInstances: MutableMap<ServiceName, ServiceInstances> = mutableMapOf()
+    val serviceNameToInstances: ConcurrentHashMap<ServiceName, ServiceInstances> = ConcurrentHashMap()
 ) {
     operator fun get(serviceName: ServiceName): ServiceInstances? = serviceNameToInstances[serviceName]
 

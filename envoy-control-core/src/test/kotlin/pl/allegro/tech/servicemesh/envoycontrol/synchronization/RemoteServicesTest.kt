@@ -10,6 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.test.StepVerifier
 import java.net.URI
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CompletableFuture
 
 class RemoteServicesTest {
@@ -208,9 +209,11 @@ class RemoteServicesTest {
             fun state(vararg services: ServiceState) {
                 responses.add {
                     ServicesState(
-                        serviceNameToInstances = services.associate {
-                            toState(it.service, it.withoutInstances)
-                        }.toMutableMap()
+                        serviceNameToInstances = ConcurrentHashMap(
+                            services.associate {
+                                toState(it.service, it.withoutInstances)
+                            }
+                        )
                     )
                 }
             }
