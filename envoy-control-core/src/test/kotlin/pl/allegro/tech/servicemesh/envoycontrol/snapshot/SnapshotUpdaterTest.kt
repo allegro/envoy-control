@@ -41,6 +41,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceName
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
@@ -56,6 +57,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -86,7 +88,7 @@ class SnapshotUpdaterTest {
 
     val clusterWithEnvoyInstances = ClusterState(
         ServicesState(
-            serviceNameToInstances = mutableMapOf(
+            serviceNameToInstances = concurrentMapOf(
                 "service" to ServiceInstances(
                     "service", setOf(
                         ServiceInstance(
@@ -370,7 +372,7 @@ class SnapshotUpdaterTest {
 
         val clusterWithNoInstances = ClusterState(
             ServicesState(
-                serviceNameToInstances = mutableMapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances("service", setOf())
                 )
             ),
@@ -413,7 +415,7 @@ class SnapshotUpdaterTest {
 
         val clusterWithOrder = ClusterState(
             ServicesState(
-                serviceNameToInstances = mutableMapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances("service", setOf()),
                     "service2" to ServiceInstances("service2", setOf())
                 )
@@ -422,7 +424,7 @@ class SnapshotUpdaterTest {
         ).toMultiClusterState()
         val clusterWithoutOrder = ClusterState(
             ServicesState(
-                serviceNameToInstances = mutableMapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service2" to ServiceInstances("service2", setOf()),
                     "service" to ServiceInstances("service", setOf())
                 )
@@ -463,7 +465,7 @@ class SnapshotUpdaterTest {
 
         val clusterLocal = ClusterState(
             ServicesState(
-                serviceNameToInstances = mutableMapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances(
                         "service", setOf(
                             ServiceInstance(
@@ -482,7 +484,7 @@ class SnapshotUpdaterTest {
 
         val remoteClusterWithBothServices = ClusterState(
             ServicesState(
-                serviceNameToInstances = mutableMapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances("service", setOf()),
                     "servicePresentInJustOneRemote" to ServiceInstances("servicePresentInJustOneRemote", setOf())
                 )
@@ -492,7 +494,7 @@ class SnapshotUpdaterTest {
 
         val remoteClusterWithJustOneService = ClusterState(
             ServicesState(
-                serviceNameToInstances = mutableMapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances("service", setOf())
                 )
             ),
@@ -554,7 +556,7 @@ class SnapshotUpdaterTest {
         )
 
         val stateWithNoServices = ClusterState(
-            ServicesState(serviceNameToInstances = mutableMapOf()),
+            ServicesState(serviceNameToInstances = concurrentMapOf()),
             Locality.LOCAL, "cluster"
         ).toMultiClusterState()
 
@@ -951,7 +953,7 @@ class SnapshotUpdaterTest {
     private fun fluxOfServices(vararg services: String) = Flux.just(
         ClusterState(
             ServicesState(
-                serviceNameToInstances = services.associateWith { ServiceInstances(it, emptySet()) }.toMutableMap()
+                serviceNameToInstances = ConcurrentHashMap(services.associateWith { ServiceInstances(it, emptySet()) })
 
             ),
             Locality.LOCAL, "cluster"
@@ -1206,6 +1208,12 @@ class SnapshotUpdaterTest {
         meterRegistry = simpleMeterRegistry,
         versions = SnapshotsVersions()
     )
+
+    private fun concurrentMapOf(vararg elements: Pair<ServiceName, ServiceInstances>): ConcurrentHashMap<ServiceName, ServiceInstances> {
+        val state = ConcurrentHashMap<ServiceName, ServiceInstances>()
+        elements.forEach { (name, instance) -> state[name] = instance }
+        return state
+    }
 }
 
 fun serviceDependencies(vararg dependencies: Pair<String, Outgoing.TimeoutPolicy?>): Set<ServiceDependency> =
