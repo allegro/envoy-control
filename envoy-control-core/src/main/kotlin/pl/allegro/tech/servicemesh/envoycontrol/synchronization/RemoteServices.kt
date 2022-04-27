@@ -26,23 +26,27 @@ class RemoteServices(
     private val scheduler = Executors.newScheduledThreadPool(remoteClusters.size)
 
     fun getChanges(interval: Long): Flux<MultiClusterState> {
-        return Flux.create({ sink ->
+        val aclFlux: Flux<MultiClusterState> = Flux.create({ sink ->
             scheduler.scheduleWithFixedDelay({
                 meterRegistry.timer("sync-dc.get-multi-cluster-states.time").record {
                     getChanges(sink::next, interval)
                 }
             }, 0, interval, TimeUnit.SECONDS)
         }, FluxSink.OverflowStrategy.LATEST)
+        return aclFlux.doOnCancel {
+            meterRegistry.counter("cross-dc-synchronization.cancelled").increment()
+            logger.warn("Cancelling cross dc sync")
+        }
     }
 
-    private fun getChanges(sink: (MultiClusterState) -> Unit, interval: Long) {
+    private fun getChanges(stateConsumer: (MultiClusterState) -> Unit, interval: Long) {
         remoteClusters
             .map { cluster -> clusterWithControlPlaneInstances(cluster) }
             .filter { (_, instances) -> instances.isNotEmpty() }
             .map { (cluster, instances) -> getClusterState(instances, cluster) }
             .mapNotNull { it.get(interval, TimeUnit.SECONDS) }
             .toMultiClusterState()
-            .let { if (it.isNotEmpty()) sink(it) }
+            .let { if (it.isNotEmpty()) stateConsumer(it) }
     }
 
     private fun getClusterState(
