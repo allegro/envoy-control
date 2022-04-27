@@ -75,7 +75,7 @@ class RemoteServices(
         }
             .checkpoint("cross-dc-service-update-$cluster")
             .name("cross-dc-service-update-$cluster").metrics()
-            .map { ServicesState(it.getOnlyServicesWithInstances().toMutableMap()) }
+            .map { ServicesState(ConcurrentHashMap(it.getOnlyServicesWithInstances())) }
             .map {
                 ClusterState(it, Locality.REMOTE, cluster)
             }
