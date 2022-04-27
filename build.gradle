@@ -92,7 +92,7 @@ subprojects {
     apply plugin: 'io.gitlab.arturbosch.detekt'
     apply plugin: 'signing'
 
-    sourceCompatibility = 1.8
+    sourceCompatibility = JavaVersion.VERSION_11
     [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 
     ktlint {
@@ -170,13 +170,13 @@ subprojects {
 
     compileKotlin {
         kotlinOptions {
-            jvmTarget = '1.8'
+            jvmTarget = '11'
         }
     }
 
     compileTestKotlin {
         kotlinOptions {
-            jvmTarget = '1.8'
+            jvmTarget = '11'
         }
     }
 
