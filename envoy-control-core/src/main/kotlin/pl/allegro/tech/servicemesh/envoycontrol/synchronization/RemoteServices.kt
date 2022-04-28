@@ -44,7 +44,8 @@ class RemoteServices(
             .map { cluster -> clusterWithControlPlaneInstances(cluster) }
             .filter { (_, instances) -> instances.isNotEmpty() }
             .map { (cluster, instances) -> getClusterState(instances, cluster) }
-            .mapNotNull { it.get(interval, TimeUnit.SECONDS) }
+            .map { it.orTimeout(interval,TimeUnit.SECONDS) }
+            .mapNotNull { it.get() }
             .toMultiClusterState()
             .let { if (it.isNotEmpty()) stateConsumer(it) }
     }
@@ -60,6 +61,7 @@ class RemoteServices(
                 logger.warn("Error synchronizing instances ${it.message}", it)
                 clusterStateCache[cluster]
             }
+            
     }
 
     private fun clusterWithControlPlaneInstances(cluster: String): Pair<String, List<URI>> {
