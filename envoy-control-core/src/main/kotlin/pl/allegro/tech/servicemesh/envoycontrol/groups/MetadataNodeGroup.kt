@@ -106,8 +106,6 @@ class MetadataNodeGroup(
             ?: ListenersConfig.defaultEnableLuaScript
         val accessLogPath = metadata.fieldsMap["access_log_path"]?.stringValue
             ?: ListenersConfig.defaultAccessLogPath
-        val resourcesDir = metadata.fieldsMap["resources_dir"]?.stringValue
-            ?: ListenersConfig.defaultResourcesDir
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
@@ -126,7 +124,6 @@ class MetadataNodeGroup(
             accessLogEnabled,
             enableLuaScript,
             accessLogPath,
-            resourcesDir,
             addUpstreamExternalAddressHeader,
             accessLogFilterSettings,
             hasStaticSecretsDefined,

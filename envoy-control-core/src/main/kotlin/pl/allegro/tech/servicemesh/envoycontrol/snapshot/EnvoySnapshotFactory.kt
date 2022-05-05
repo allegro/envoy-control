@@ -75,7 +75,7 @@ class EnvoySnapshotFactory(
     ): SortedMap<String, ClusterConfiguration> {
         val currentClusters = if (properties.egress.http2.enabled) {
             servicesStates.flatMap {
-                it.servicesState.serviceNameToInstances.values
+                it.servicesState.allInstances()
             }.groupBy {
                 it.serviceName
             }.mapValues { (serviceName, instances) ->

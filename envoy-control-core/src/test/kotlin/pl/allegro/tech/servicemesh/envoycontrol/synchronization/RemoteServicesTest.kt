@@ -10,6 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.test.StepVerifier
 import java.net.URI
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 
 class RemoteServicesTest {
     @Test
@@ -195,7 +196,7 @@ class RemoteServicesTest {
     ): MultiClusterState {
         val clusterState = this.first { it.cluster == cluster }
         assertThat(clusterState).isNotNull
-        assertThat(clusterState.servicesState.serviceNameToInstances.keys).doesNotContain(serviceName)
+        assertThat(clusterState.servicesState.serviceNames()).doesNotContain(serviceName)
         return this
     }
 
@@ -206,9 +207,13 @@ class RemoteServicesTest {
 
             fun state(vararg services: ServiceState) {
                 responses.add {
-                    ServicesState(serviceNameToInstances = services.associate {
-                        toState(it.service, it.withoutInstances)
-                    })
+                    ServicesState(
+                        serviceNameToInstances = ConcurrentHashMap(
+                            services.associate {
+                                toState(it.service, it.withoutInstances)
+                            }
+                        )
+                    )
                 }
             }
 

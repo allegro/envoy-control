@@ -6,7 +6,7 @@ import com.pszymczyk.consul.ConsulStarterBuilder
 import com.pszymczyk.consul.infrastructure.Ports
 import com.pszymczyk.consul.junit.ConsulExtension
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes
@@ -22,7 +22,12 @@ class ConsulClusterStateChangesTest {
 
         @JvmField
         @RegisterExtension
-        val consul = ConsulExtension(ConsulStarterBuilder.consulStarter().withHttpPort(consulHttpPort).build())
+        val consul = ConsulExtension(
+            ConsulStarterBuilder.consulStarter()
+                .withHttpPort(consulHttpPort)
+                .withConsulVersion("1.11.4")
+                .build()
+        )
     }
 
     private val watcher = ConsulRecipes
@@ -34,7 +39,7 @@ class ConsulClusterStateChangesTest {
     private val changes = ConsulServiceChanges(watcher)
     private val client = AgentConsulClient("localhost", consul.httpPort)
 
-    @AfterEach
+    @BeforeEach
     fun reset() {
         watcher.close()
         consul.reset()
@@ -59,7 +64,7 @@ class ConsulClusterStateChangesTest {
                 }
             }
             .then { deregisterService(id = "123") }
-            .expectNextMatches { it["abc"]!!.instances.isEmpty() }
+            .expectNextMatches { it["abc"] == null }
             .thenCancel()
             .verify()
     }
