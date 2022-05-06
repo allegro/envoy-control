@@ -77,6 +77,28 @@ fun ProxySettings.with(
     domainDependencies: Set<DomainDependency> = emptySet(),
     allServicesDependencies: Boolean = false,
     defaultServiceSettings: DependencySettings = DependencySettings(
+        circuitBreakers = CircuitBreakers(
+            defaultThreshold = CircuitBreaker(
+                RoutingPriority.DEFAULT,
+                maxRequests = 1024,
+                maxPendingRequests = 1024,
+                maxConnections = 1024,
+                maxRetries = 3,
+                maxConnectionPools = null,
+                trackRemaining = false,
+                retryBudget = RetryBudget(20.0, 3)
+            ),
+            highThreshold = CircuitBreaker(
+                RoutingPriority.HIGH,
+                maxRequests = 1024,
+                maxPendingRequests = 1024,
+                maxConnections = 1024,
+                maxRetries = 3,
+                maxConnectionPools = null,
+                trackRemaining = false,
+                retryBudget = RetryBudget(20.0, 3)
+            )
+        ),
         timeoutPolicy = Outgoing.TimeoutPolicy(
             Durations.fromSeconds(120),
             Durations.fromSeconds(120),
@@ -191,7 +213,23 @@ class OutgoingDependenciesProtoScope {
         val connectionIdleTimeout: String? = null,
         val requestTimeout: String? = null,
         val handleInternalRedirect: Boolean? = null,
-        val retryPolicy: RetryPolicyInput? = null
+        val retryPolicy: RetryPolicyInput? = null,
+        val circuitBreakers: CircuitBreakers? = null
+    )
+
+    data class CircuitBreakers(
+        val defaultThreshold: CircuitBreaker? = null,
+        val highThreshold: CircuitBreaker? = null
+    )
+    data class CircuitBreaker(
+        val maxRequests: Int? = null,
+        val maxPendingRequests: Int? = null,
+        val maxConnections: Int? = null,
+        val maxRetries: Int? = null,
+        val maxConnectionPools: Int? = null,
+        val trackRemaining: Boolean? = null,
+        val budgetPercent: Double? = null,
+        val minRetryConcurrency: Int? = null
     )
 
     val dependencies = mutableListOf<Dependency>()
@@ -199,8 +237,9 @@ class OutgoingDependenciesProtoScope {
     fun withServices(
         serviceDependencies: List<String> = emptyList(),
         idleTimeout: String? = null,
-        responseTimeout: String? = null
-    ) = serviceDependencies.forEach { withService(it, idleTimeout, responseTimeout) }
+        responseTimeout: String? = null,
+        circuitBreakers: CircuitBreakers? = null
+    ) = serviceDependencies.forEach { withService(it, idleTimeout, responseTimeout, circuitBreakers = circuitBreakers) }
 
     fun withService(
         serviceName: String,
@@ -208,7 +247,8 @@ class OutgoingDependenciesProtoScope {
         connectionIdleTimeout: String? = null,
         requestTimeout: String? = null,
         handleInternalRedirect: Boolean? = null,
-        retryPolicy: RetryPolicyInput? = null
+        retryPolicy: RetryPolicyInput? = null,
+        circuitBreakers: CircuitBreakers? = null
     ) = dependencies.add(
         Dependency(
             service = serviceName,
@@ -216,7 +256,8 @@ class OutgoingDependenciesProtoScope {
             connectionIdleTimeout = connectionIdleTimeout,
             requestTimeout = requestTimeout,
             handleInternalRedirect = handleInternalRedirect,
-            retryPolicy = retryPolicy
+            retryPolicy = retryPolicy,
+            circuitBreakers = circuitBreakers
         )
     )
 
@@ -224,13 +265,15 @@ class OutgoingDependenciesProtoScope {
         url: String,
         idleTimeout: String? = null,
         connectionIdleTimeout: String? = null,
-        requestTimeout: String? = null
+        requestTimeout: String? = null,
+        circuitBreakers: CircuitBreakers? = null
     ) = dependencies.add(
         Dependency(
             domain = url,
             idleTimeout = idleTimeout,
             connectionIdleTimeout = connectionIdleTimeout,
-            requestTimeout = requestTimeout
+            requestTimeout = requestTimeout,
+            circuitBreakers = circuitBreakers
         )
     )
 
@@ -238,13 +281,15 @@ class OutgoingDependenciesProtoScope {
         pattern: String,
         idleTimeout: String? = null,
         connectionIdleTimeout: String? = null,
-        requestTimeout: String? = null
+        requestTimeout: String? = null,
+        circuitBreakers: CircuitBreakers? = null
     ) = dependencies.add(
         Dependency(
             domainPattern = pattern,
             idleTimeout = idleTimeout,
             connectionIdleTimeout = connectionIdleTimeout,
-            requestTimeout = requestTimeout
+            requestTimeout = requestTimeout,
+            circuitBreakers = circuitBreakers
         )
     )
 
@@ -272,7 +317,8 @@ fun outgoingDependenciesProto(
                         connectionIdleTimeout = it.connectionIdleTimeout,
                         requestTimeout = it.requestTimeout,
                         handleInternalRedirect = it.handleInternalRedirect,
-                        retryPolicy = it.retryPolicy
+                        retryPolicy = it.retryPolicy,
+                        circuitBreakers = it.circuitBreakers
                     )
                 )
             }
@@ -288,18 +334,63 @@ fun outgoingDependencyProto(
     idleTimeout: String? = null,
     connectionIdleTimeout: String? = null,
     requestTimeout: String? = null,
-    retryPolicy: RetryPolicyInput? = null
+    retryPolicy: RetryPolicyInput? = null,
+    circuitBreakers: OutgoingDependenciesProtoScope.CircuitBreakers? = null
 ) = struct {
     service?.also { putFields("service", string(service)) }
     domain?.also { putFields("domain", string(domain)) }
     retryPolicy?.also { putFields("retryPolicy", retryPolicyProto(retryPolicy)) }
     domainPattern?.also { putFields("domainPattern", string(domainPattern)) }
     handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(handleInternalRedirect)) }
+    circuitBreakers?.also { putFields("circuitBreakers", circuitBreakersProto(it)) }
+
     if (idleTimeout != null || requestTimeout != null || connectionIdleTimeout != null) {
         putFields("timeoutPolicy", outgoingTimeoutPolicy(idleTimeout, connectionIdleTimeout, requestTimeout))
     }
 }
 
+fun circuitBreakersProto(circuitBreakers: OutgoingDependenciesProtoScope.CircuitBreakers) = struct {
+    circuitBreakers.defaultThreshold?.let {
+        putFields("defaultThreshold", circuitBreakerProto(it, RoutingPriority.DEFAULT))
+    }
+
+    circuitBreakers.highThreshold?.let {
+        putFields("highThreshold", circuitBreakerProto(it, RoutingPriority.HIGH))
+    }
+}
+
+private fun circuitBreakerProto(circuitBreaker: OutgoingDependenciesProtoScope.CircuitBreaker, priority: RoutingPriority) = struct {
+    putFields("priority", string(priority.name))
+
+    circuitBreaker.maxConnectionPools?.also {
+        putFields("maxConnectionPools", integer(it))
+    }
+
+    circuitBreaker.maxPendingRequests?.also {
+        putFields("maxPendingRequests", integer(it))
+    }
+    circuitBreaker.maxRetries?.also {
+        putFields("maxRetries", integer(it))
+    }
+    circuitBreaker.maxConnections?.also {
+        putFields("maxConnections", integer(it))
+    }
+    circuitBreaker.maxRequests?.also {
+        putFields("maxRequests", integer(it))
+    }
+
+    circuitBreaker.trackRemaining?.also {
+        putFields("trackRemaining", boolean(it))
+    }
+    putFields("retryBudget", struct {
+        circuitBreaker.budgetPercent?.also {
+            putFields("budgetPercent", integer(it))
+        }
+        circuitBreaker.minRetryConcurrency?.also {
+            putFields("minRetryConcurrency", integer(it))
+        }
+    })
+}
 private fun retryPolicyProto(retryPolicy: RetryPolicyInput) = struct {
     retryPolicy.retryOn?.also { putFields("retryOn", retryOnProto(it)) }
     retryPolicy.hostSelectionRetryMaxAttempts?.also { putFields("hostSelectionRetryMaxAttempts", integer(it)) }
@@ -431,7 +522,7 @@ private fun boolean(value: Boolean): Value {
     return Value.newBuilder().setBoolValue(value).build()
 }
 
-private fun integer(value: Int): Value {
+private fun integer(value: Number): Value {
     return Value.newBuilder().setNumberValue(value.toDouble()).build()
 }
 

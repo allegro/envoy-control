@@ -9,6 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPriority
 import java.net.URI
 import java.time.Duration
 
@@ -35,7 +36,6 @@ class SnapshotProperties {
     var jwt = JwtFilterProperties()
     var requireServiceName = false
     var rateLimit = RateLimitProperties()
-    var retryPolicy = RetryPolicyProperties()
 }
 
 class MetricsProperties {
@@ -251,6 +251,7 @@ class EgressProperties {
     var hostHeaderRewriting = HostHeaderRewritingProperties()
     var headersToRemove = mutableListOf<String>()
     var domains = mutableListOf<String>()
+    var retryPolicy = RetryPolicyProperties()
 }
 
 class IngressProperties {
@@ -265,19 +266,27 @@ class CommonHttpProperties {
     var idleTimeout: Duration = Duration.ofSeconds(120)
     var connectionIdleTimeout: Duration = Duration.ofSeconds(120)
     var requestTimeout: Duration = Duration.ofSeconds(120)
-    var circuitBreakers: CircuitBreakers = CircuitBreakers()
+    var circuitBreakers: CircuitBreakersProperties = CircuitBreakersProperties()
 }
 
-class CircuitBreakers {
-    var highThreshold = Threshold("HIGH")
-    var defaultThreshold = Threshold("DEFAULT")
+class CircuitBreakersProperties {
+    var highThreshold = CircuitBreakerProperties(RoutingPriority.HIGH)
+    var defaultThreshold = CircuitBreakerProperties(RoutingPriority.DEFAULT)
 }
 
-class Threshold(var priority: String) {
-    var maxConnections = 1024
-    var maxPendingRequests = 1024
-    var maxRequests = 1024
-    var maxRetries = 3
+class CircuitBreakerProperties(var priority: RoutingPriority = RoutingPriority.DEFAULT) {
+    var maxRequests: Int = 1024
+    var maxPendingRequests: Int = 1024
+    var maxConnections: Int = 1024
+    var maxRetries: Int = 3
+    var maxConnectionPools: Int? = null
+    var trackRemaining: Boolean = false
+    var retryBudget: RetryBudgetProperties? = RetryBudgetProperties()
+}
+
+class RetryBudgetProperties {
+    var budgetPercent: Double = 20.0
+    var minRetryConcurrency: Int = 3
 }
 
 class Http2Properties {

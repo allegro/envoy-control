@@ -951,6 +951,56 @@ class NodeMetadataTest {
     }
 
     @Test
+    fun `should parse dependencies with circuit breakers`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(
+                "service-1",
+                circuitBreakers = OutgoingDependenciesProtoScope.CircuitBreakers(
+                    defaultThreshold = OutgoingDependenciesProtoScope.CircuitBreaker(
+                        maxRetries = 1,
+                        maxPendingRequests = 2,
+                        maxRequests = 3,
+                        maxConnections = 4,
+                        maxConnectionPools = 6,
+                        trackRemaining = false,
+                        budgetPercent = 10.0,
+                        minRetryConcurrency = 7
+                    )
+                )
+            )
+            withService("service-2")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // then
+        val expectedCircuitBreaker1 = CircuitBreaker(
+            priority = RoutingPriority.DEFAULT,
+            maxRetries = 1,
+            maxPendingRequests = 2,
+            maxRequests = 3,
+            maxConnections = 4,
+            maxConnectionPools = 6,
+            trackRemaining = false,
+            retryBudget = RetryBudget(
+                budgetPercent = 10.0,
+                minRetryConcurrency = 7
+            )
+        )
+        val defaultCircuitBreaker = snapshotProperties().egress.commonHttp.circuitBreakers.defaultThreshold.toCircuitBreaker()
+        val highCircuitBreaker = snapshotProperties().egress.commonHttp.circuitBreakers.highThreshold.toCircuitBreaker()
+        outgoing.getServiceDependencies().assertServiceDependency("service-1")
+            .hasDefaultThresholdCircuitBreaker(expectedCircuitBreaker1)
+            .hasHighThresholdCircuitBreaker(highCircuitBreaker)
+
+        outgoing.getServiceDependencies().assertServiceDependency("service-2")
+            .hasDefaultThresholdCircuitBreaker(defaultCircuitBreaker)
+            .hasHighThresholdCircuitBreaker(highCircuitBreaker)
+    }
+
+    @Test
     fun `should return null when empty value provided`() {
         // given
         val proto = Value.newBuilder().build()
@@ -1017,6 +1067,20 @@ class NodeMetadataTest {
                 requestTimeout = Durations.parse(requestTimeout)
             )
         )
+        return this
+    }
+
+    fun ObjectAssert<DependencySettings>.hasDefaultThresholdCircuitBreaker(
+        circuitBreaker: CircuitBreaker
+    ): ObjectAssert<DependencySettings> {
+        this.extracting { it.circuitBreakers.defaultThreshold }.isEqualTo(circuitBreaker)
+        return this
+    }
+
+    fun ObjectAssert<DependencySettings>.hasHighThresholdCircuitBreaker(
+        circuitBreaker: CircuitBreaker
+    ): ObjectAssert<DependencySettings> {
+        this.extracting { it.circuitBreakers.highThreshold }.isEqualTo(circuitBreaker)
         return this
     }
 
