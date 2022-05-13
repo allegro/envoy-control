@@ -43,8 +43,7 @@ class RemoteServices(
         remoteClusters
             .map { cluster -> clusterWithControlPlaneInstances(cluster) }
             .filter { (_, instances) -> instances.isNotEmpty() }
-            .map { (cluster, instances) -> getClusterState(instances, cluster) }
-            .map { it.orTimeout(interval,TimeUnit.SECONDS) }
+            .map { (cluster, instances) -> getClusterState(instances, cluster, interval) }
             .mapNotNull { it.get() }
             .toMultiClusterState()
             .let { if (it.isNotEmpty()) stateConsumer(it) }
@@ -52,16 +51,17 @@ class RemoteServices(
 
     private fun getClusterState(
         instances: List<URI>,
-        cluster: String
+        cluster: String,
+        interval: Long
     ): CompletableFuture<ClusterState?> {
         return controlPlaneClient.getState(chooseInstance(instances))
             .thenApply { servicesStateFromCluster(cluster, it) }
+            .orTimeout(interval, TimeUnit.SECONDS)
             .exceptionally {
                 meterRegistry.counter("cross-dc-synchronization.$cluster.state-fetcher.errors").increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
                 clusterStateCache[cluster]
             }
-            
     }
 
     private fun clusterWithControlPlaneInstances(cluster: String): Pair<String, List<URI>> {
