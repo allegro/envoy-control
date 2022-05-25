@@ -18,11 +18,14 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 
+@Suppress("LongParameterList")
 class SnapshotUpdater(
     private val cache: SnapshotCache<Group, Snapshot>,
+    private val snapshotChangeAuditor: SnapshotChangeAuditor,
     private val properties: SnapshotProperties,
     private val snapshotFactory: EnvoySnapshotFactory,
     private val globalSnapshotScheduler: Scheduler,
+    private val globalSnapshotAuditScheduler: Scheduler,
     private val groupSnapshotScheduler: ParallelizableScheduler,
     private val onGroupAdded: Flux<out List<Group>>,
     private val meterRegistry: MeterRegistry,
@@ -30,6 +33,7 @@ class SnapshotUpdater(
 ) {
     companion object {
         private val logger by logger()
+        private val emptyUpdateResult = UpdateResult(Action.ALL_SERVICES_GROUP_ADDED)
     }
 
     private var globalSnapshot: UpdateResult? = null
@@ -98,7 +102,6 @@ class SnapshotUpdater(
 
     internal fun services(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return states
-            .sample(properties.stateSampleDuration)
             .name("snapshot-updater-services-sampled").metrics()
             .onBackpressureLatestMeasured("snapshot-updater-services-sampled", meterRegistry)
             // prefetch = 1, instead of default 256, to avoid processing stale states in case of backpressure
@@ -117,7 +120,6 @@ class SnapshotUpdater(
                 if (properties.enabledCommunicationModes.ads) {
                     lastAdsSnapshot = snapshotFactory.newSnapshot(states, clusters, ADS)
                 }
-
                 val updateResult = UpdateResult(
                     action = Action.ALL_SERVICES_GROUP_ADDED,
                     adsSnapshot = lastAdsSnapshot,
@@ -125,7 +127,13 @@ class SnapshotUpdater(
                 )
                 globalSnapshot = updateResult
                 updateResult
+            }.scan(emptyUpdateResult) { previous: UpdateResult?, actual: UpdateResult? ->
+                snapshotChangeAuditor.audit(previous ?: emptyUpdateResult, actual ?: emptyUpdateResult)
+                    .subscribeOn(globalSnapshotAuditScheduler)
+                    .subscribe()
+                actual ?: emptyUpdateResult
             }
+            .filter { it != emptyUpdateResult }
             .onErrorResume { e ->
                 meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
                 logger.error("Unable to process service changes", e)
@@ -201,7 +209,7 @@ enum class Action {
     SERVICES_GROUP_ADDED, ALL_SERVICES_GROUP_ADDED, ERROR_PROCESSING_CHANGES
 }
 
-class UpdateResult(
+data class UpdateResult(
     val action: Action,
     val groups: List<Group> = listOf(),
     val adsSnapshot: GlobalSnapshot? = null,

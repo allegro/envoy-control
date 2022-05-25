@@ -19,6 +19,7 @@ Property                                                                        
 **envoy-control.server.group-snapshot-update-scheduler.parallel-pool-size**                 | Parallelism level for PARALLEL mode. Should match executor pool size if custom executor is used                                                                                           | 1
 **envoy-control.server.snapshot-cleanup.collect-after-millis**                              | How long a snapshot must be referenced before being collected                                                                                                                             | 10s
 **envoy-control.server.snapshot-cleanup.collection-interval-millis**                        | How often the collection background action should run                                                                                                                                     | 10s
+**envoy-control.server.global-snapshot-audit-pool-size**                                    | Pool size used for default global snapshot audit executor group                                                                                                                                     | 10s
 
 ## Snapshot properties
 Property                                                                                                     | Description                                                                                                                                                                                                           | Default value
@@ -82,6 +83,7 @@ Property                                                                        
 **envoy-control.envoy.snapshot.max-host-ttl**                                                                | The TTL for hosts that are unused. Hosts that have not been used in the configured time interval will be purged                                                                                                       | 300s
 **envoy-control.envoy.snapshot.rate-limit.domain**                                                           | Domain name for ratelimit service.                                                                                                                                                                                    | rl
 **envoy-control.envoy.snapshot.rate-limit.service-name**                                                     | ratelimit GRPC service name                                                                                                                                                                                           | ratelimit-grpc
+**envoy-control.envoy.snapshot.should-audit-global-snapshot**                                                | Enable global snapshot audits                                                                                                                                                                                         | false
 
 
 ## Permissions
