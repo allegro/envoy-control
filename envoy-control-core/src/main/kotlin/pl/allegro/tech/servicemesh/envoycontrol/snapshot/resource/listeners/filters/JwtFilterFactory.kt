@@ -4,6 +4,7 @@ import com.google.protobuf.Any
 import com.google.protobuf.Empty
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.core.v3.HttpUri
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtProvider
@@ -95,7 +96,7 @@ class JwtFilterFactory(
             .mapNotNull { clientToOAuthProviderName[it.name] })
 
         return if (providers.isNotEmpty()) {
-            requirementRuleWithPathMatching(endpoint.path, endpoint.pathMatchingType, providers)
+            requirementRuleWithPathMatching(endpoint.path, endpoint.pathMatchingType, endpoint.methods, providers)
         } else {
             null
         }
@@ -104,6 +105,7 @@ class JwtFilterFactory(
     private fun requirementRuleWithPathMatching(
         path: String,
         pathMatchingType: PathMatchingType,
+        methods: Set<String>,
         providers: MutableSet<String>
     ): RequirementRule {
         val pathMatching = when (pathMatchingType) {
@@ -116,9 +118,12 @@ class JwtFilterFactory(
                     ).build()
                 )
         }
+        val methodMatchers = methods.map { HeaderMatcher.newBuilder().setName(":method").setExactMatch(it).build() }
+        pathMatching.addAllHeaders(methodMatchers)
         return RequirementRule.newBuilder()
             .setMatch(pathMatching)
-            .setRequires(createJwtRequirement(providers)).build()
+            .setRequires(createJwtRequirement(providers))
+            .build()
     }
 
     private val requirementsForProviders: Map<ProviderName, JwtRequirement> =
