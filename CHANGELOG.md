@@ -3,7 +3,13 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+
 ## [Unreleased]
+
+### Changed
+- Match configured method during oauth authorization.
+
+## [0.19.6]
 
 ### Changed
 - Global snapshot auditor added
