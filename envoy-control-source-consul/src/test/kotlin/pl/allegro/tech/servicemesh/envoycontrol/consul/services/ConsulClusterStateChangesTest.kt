@@ -64,7 +64,7 @@ class ConsulClusterStateChangesTest {
                 }
             }
             .then { deregisterService(id = "123") }
-            .expectNextMatches { it["abc"] == null }
+            .expectNextMatches { it["abc"] == null || it["abc"]!!.instances.isEmpty() }
             .thenCancel()
             .verify()
     }
