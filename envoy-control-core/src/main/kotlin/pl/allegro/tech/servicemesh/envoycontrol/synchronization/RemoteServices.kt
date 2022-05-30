@@ -9,6 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Compa
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
+import java.lang.Integer.max
 import java.net.URI
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -23,7 +24,7 @@ class RemoteServices(
 ) {
     private val logger by logger()
     private val clusterStateCache = ConcurrentHashMap<String, ClusterState>()
-    private val scheduler = Executors.newScheduledThreadPool(remoteClusters.size)
+    private val scheduler = Executors.newScheduledThreadPool(max(remoteClusters.size, 1))
 
     fun getChanges(interval: Long): Flux<MultiClusterState> {
         val aclFlux: Flux<MultiClusterState> = Flux.create({ sink ->

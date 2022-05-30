@@ -17,6 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.synchronization.ControlPlaneInst
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RemoteClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RemoteServices
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.RestTemplateControlPlaneClient
+import java.lang.Integer.max
 import java.util.concurrent.Executors
 
 @Configuration
@@ -38,7 +39,7 @@ class SynchronizationConfig {
         RestTemplateControlPlaneClient(
             restTemplate = restTemplate,
             meterRegistry = meterRegistry,
-            executors = Executors.newFixedThreadPool(remoteClusters.clusters.size)
+            executors = Executors.newFixedThreadPool(max(remoteClusters.clusters.size, 1))
         )
 
     @Bean
