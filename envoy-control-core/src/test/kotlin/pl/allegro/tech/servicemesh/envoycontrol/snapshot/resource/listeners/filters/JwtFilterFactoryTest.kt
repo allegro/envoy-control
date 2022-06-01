@@ -110,7 +110,7 @@ internal class JwtFilterFactoryTest {
         val group = createGroup(
             listOf(
                 IncomingEndpoint(path = "/provider1-protected", methods = setOf("POST"), oauth = OAuth("provider1")),
-                IncomingEndpoint(path = "/provider2-protected", methods = setOf("GET"), oauth = OAuth("provider2"))
+                IncomingEndpoint(path = "/provider2-protected", methods = setOf("GET", "PUT"), oauth = OAuth("provider2"))
 
         )
         )
@@ -299,7 +299,11 @@ internal class JwtFilterFactoryTest {
       "path": "/provider1-protected",
        "headers": [{
                 "name": ":method",
-                "exact_match": "POST"
+                "safe_regex_match": {
+                  "google_re2": {
+                  },
+                  "regex": "POST"
+                }
       }]
     },
     "requires": {
@@ -312,7 +316,11 @@ internal class JwtFilterFactoryTest {
       "path": "/provider2-protected",
       "headers": [{
                 "name": ":method",
-                "exact_match": "GET"
+                "safe_regex_match": {
+                   "google_re2": {
+                    },
+                  "regex": "GET|PUT"
+                }
       }]
     },
     "requires": {

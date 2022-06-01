@@ -118,8 +118,17 @@ class JwtFilterFactory(
                     ).build()
                 )
         }
-        val methodMatchers = methods.map { HeaderMatcher.newBuilder().setName(":method").setExactMatch(it).build() }
-        pathMatching.addAllHeaders(methodMatchers)
+        if (methods.isNotEmpty()) {
+            val methodsRegexp = methods.joinToString("|")
+            val headerMatcher = HeaderMatcher.newBuilder()
+                .setName(":method")
+                .setSafeRegexMatch(
+                    RegexMatcher.newBuilder().setRegex(methodsRegexp).setGoogleRe2(
+                        RegexMatcher.GoogleRE2.getDefaultInstance()
+                    ).build()
+                )
+            pathMatching.addHeaders(headerMatcher)
+        }
         return RequirementRule.newBuilder()
             .setMatch(pathMatching)
             .setRequires(createJwtRequirement(providers))
