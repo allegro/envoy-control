@@ -64,9 +64,8 @@ class ConsulClusterStateChangesTest {
                 }
             }
             .then { deregisterService(id = "123") }
-            // two separated events are generated and consumed in random order. 
-            // one with empty instances list and other with no service. 
-            .expectNextMatches { it["abc"]?.instances.isNullOrEmpty() }
+            // two separated events are generated and consumed in random order.
+            // one with empty instances list and other with no service.
             .expectNextMatches { it["abc"]?.instances.isNullOrEmpty() }
             .thenCancel()
             .verify()
