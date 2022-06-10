@@ -105,6 +105,26 @@ internal class JwtFilterFactoryTest {
     }
 
     @Test
+    fun `should create JWT filter with methods`() {
+        // given
+        val group = createGroup(
+            listOf(
+                IncomingEndpoint(path = "/provider1-protected", methods = setOf("POST"), oauth = OAuth("provider1")),
+                IncomingEndpoint(path = "/provider2-protected", methods = setOf("GET", "PUT"), oauth = OAuth("provider2"))
+
+        )
+        )
+        val expectedJwtFilter = getJwtFilter(multiProviderWithMethodsJson)
+
+        // when
+        val generatedFilter = multiProviderJwtFilterFactory.createJwtFilter(group)
+
+        // then
+        assertThat(generatedFilter).isNotNull
+        assertThat(generatedFilter).isEqualTo(expectedJwtFilter)
+    }
+
+    @Test
     fun `should create JWT filter for group with ClientWithSelector and without oauth section in Incoming`() {
         // given
         val group = createGroupWithClientWithSelector(mapOf("/" to "provider"))
@@ -149,6 +169,12 @@ internal class JwtFilterFactoryTest {
                     )
                 }
             )
+        )
+    )
+
+    private fun createGroup(incomingEndpoints: List<IncomingEndpoint>) = ServicesGroup(
+        CommunicationMode.ADS, proxySettings = ProxySettings(
+            Incoming(incomingEndpoints)
         )
     )
     private fun createGroupWithClientWithSelector(pathToProvider: Map<String, String>) = ServicesGroup(
@@ -230,6 +256,72 @@ internal class JwtFilterFactoryTest {
   }, {
     "match": {
       "path": "/provider2-protected"
+    },
+    "requires": {
+                "requiresAny": {
+                    "requirements": [{"providerName": "provider2"}, {"allowMissingOrFailed": {} }]
+                 }
+            }
+  }]
+}"""
+
+    private val multiProviderWithMethodsJson = """{
+  "providers": {
+    "provider1": {
+      "remoteJwks": {
+        "httpUri": {
+          "uri": "http://provider1/jwks",
+          "cluster": "provider1-cluster",
+          "timeout": "1s"
+        },
+        "cacheDuration": "300s"
+      },
+      "forward": true,
+      "forwardPayloadHeader": "x-oauth-token-validated",
+      "payloadInMetadata": "jwt"
+    },
+    "provider2": {
+      "remoteJwks": {
+        "httpUri": {
+          "uri": "http://provider2/jwks",
+          "cluster": "provider2-cluster",
+          "timeout": "1s"
+        },
+        "cacheDuration": "300s"
+      },
+      "forward": true,
+      "forwardPayloadHeader": "x-oauth-token-validated",
+      "payloadInMetadata": "jwt"
+    }
+  },
+  "rules": [{
+    "match": {
+      "path": "/provider1-protected",
+       "headers": [{
+                "name": ":method",
+                "safe_regex_match": {
+                  "google_re2": {
+                  },
+                  "regex": "POST"
+                }
+      }]
+    },
+    "requires": {
+                "requiresAny": {
+                    "requirements": [{"providerName": "provider1"}, {"allowMissingOrFailed": {} }]
+                 }
+            }
+  }, {
+    "match": {
+      "path": "/provider2-protected",
+      "headers": [{
+                "name": ":method",
+                "safe_regex_match": {
+                   "google_re2": {
+                    },
+                  "regex": "GET|PUT"
+                }
+      }]
     },
     "requires": {
                 "requiresAny": {
