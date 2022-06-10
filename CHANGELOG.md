@@ -5,8 +5,16 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
-
 ## [Unreleased]
+
+### Changed
+
+## [0.19.8]
+
+### Changed
+- Remove reactor in computing cluster state changes
+
+## [0.19.7]
 
 ### Changed
 - Fix flaky ConsulClusterStateChangesTest
