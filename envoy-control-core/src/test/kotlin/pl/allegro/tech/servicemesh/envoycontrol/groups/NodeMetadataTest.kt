@@ -15,7 +15,6 @@ import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
 import java.net.URI
 import java.time.Duration
 
@@ -1108,9 +1107,10 @@ class NodeMetadataTest {
         val availableFlagsAndInvalid = listOf(
             "UH", "UF", "UO", "NR", "URX", "NC", "DT", "DC", "LH", "UT", "LR", "UR",
             "UC", "DI", "FI", "RL", "UAEX", "RLSE", "IH", "SI", "DPE", "UPE", "UMSDR",
-            "OM", "DF","invalid"
+            "OM", "DF", "invalid"
         )
-        val proto = accessLogFilterProto(value = availableFlagsAndInvalid.joinToString(","), fieldName = "response_flag_filter")
+        val proto =
+            accessLogFilterProto(value = availableFlagsAndInvalid.joinToString(","), fieldName = "response_flag_filter")
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> {
