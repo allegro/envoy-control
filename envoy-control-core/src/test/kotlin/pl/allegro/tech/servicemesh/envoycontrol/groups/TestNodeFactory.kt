@@ -104,10 +104,17 @@ fun ProxySettings.with(
     )
 }
 
-fun accessLogFilterProto(statusCodeFilter: String? = null): Value = struct {
+fun accessLogFilterProto(value: String? = null, fieldName: String): Value = struct {
     when {
-        statusCodeFilter != null -> putFields("status_code_filter", string(statusCodeFilter))
-        else -> putFields("status_code_filter", nullValue)
+        value != null -> putFields(fieldName, string(value))
+        else -> putFields(fieldName, nullValue)
+    }
+}
+
+fun accessLogBooleanFilterProto(value: Boolean? = null, fieldName: String): Value = struct {
+    when {
+        value != null -> putFields(fieldName, boolean(value))
+        else -> putFields(fieldName, nullValue)
     }
 }
 
