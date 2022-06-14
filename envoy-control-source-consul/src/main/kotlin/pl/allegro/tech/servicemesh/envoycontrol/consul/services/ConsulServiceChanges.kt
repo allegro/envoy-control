@@ -131,7 +131,7 @@ class ConsulServiceChanges(
             oldCanceller?.cancel()
 
             val stateChanged = state.add(service)
-            if (stateChanged) publishChange()
+            if (stateChanged) publishState()
             metrics.serviceAdded()
         }
 
@@ -144,7 +144,7 @@ class ConsulServiceChanges(
                 val addresses = instances.instances.joinToString { "[${it.id} - ${it.address}:${it.port}]" }
                 logger.info("Instances for ${instances.serviceName} changed: $addresses")
 
-                publishChange()
+                publishState()
                 metrics.instanceChanged()
             }
         }
@@ -160,13 +160,13 @@ class ConsulServiceChanges(
         private fun handleServiceRemoval(service: String) = synchronized(stateLock) {
             logger.info("Stop watching $service")
             val stateChanged = state.remove(service)
-            if (stateChanged) publishChange()
+            if (stateChanged) publishState()
             watchedServices[service]?.cancel()
             watchedServices.remove(service)
             metrics.serviceRemoved()
         }
 
-        private fun publishChange() {
+        private fun publishState() {
             if (initialLoader.ready) {
                 stateReceiver(state)
             }
