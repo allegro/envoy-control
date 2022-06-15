@@ -79,85 +79,67 @@ class AccessLogFilter(
     }
 
     private fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings) {
+        val accessLogFilterBuilder = AccessLogFilter.newBuilder()
         settings.statusCodeFilterSettings?.let {
-            this.setFilter(
-                createStatusCodeFilter(it)
-            )
+                createStatusCodeFilter(it, accessLogFilterBuilder)
         }
         settings.durationFilterSettings?.let {
-            this.setFilter(
-                createDurationFilter(it)
-            )
+                createDurationFilter(it, accessLogFilterBuilder)
         }
         settings.notHealthCheckFilter?.let {
             if (it) {
-                this.setFilter(
-                    AccessLogFilter.newBuilder().setNotHealthCheckFilter(
-                        NotHealthCheckFilter.newBuilder()
-                    )
+                    accessLogFilterBuilder.setNotHealthCheckFilter(
+                        NotHealthCheckFilter.newBuilder(),
                 )
             }
         }
         settings.traceableFilter?.let {
             if (it) {
-                this.setFilter(
-                    AccessLogFilter.newBuilder().setTraceableFilter(
+                    accessLogFilterBuilder.setTraceableFilter(
                         TraceableFilter.newBuilder()
-                    )
                 )
             }
         }
         settings.responseFlagFilter?.let {
-            this.setFilter(
-                createResponseFlagFilter(it)
-            )
+                createResponseFlagFilter(it, accessLogFilterBuilder)
         }
         settings.headerFilter?.let {
-            this.setFilter(
-                createHeaderFilter(it)
-            )
+                createHeaderFilter(it, accessLogFilterBuilder)
         }
+        this.setFilter(accessLogFilterBuilder)
     }
 
-    private fun createResponseFlagFilter(flags: Iterable<String>): AccessLogFilter.Builder {
-        return AccessLogFilter.newBuilder().setResponseFlagFilter(
-            ResponseFlagFilter.newBuilder()
-                .addAllFlags(flags)
-                .build()
-        )
+    private fun createResponseFlagFilter(flags: Iterable<String>, accessLogFilterBuilder: AccessLogFilter.Builder) {
+        accessLogFilterBuilder.responseFlagFilter = ResponseFlagFilter.newBuilder()
+            .addAllFlags(flags)
+            .build()
     }
 
-    private fun createDurationFilter(settings: ComparisonFilterSettings): AccessLogFilter.Builder {
-        return AccessLogFilter.newBuilder().setDurationFilter(
-            DurationFilter.newBuilder()
-                .setComparison(
-                    createComparison(settings)
-                )
-                .build()
-        )
+    private fun createDurationFilter(settings: ComparisonFilterSettings, accessLogFilterBuilder: AccessLogFilter.Builder) {
+        accessLogFilterBuilder.durationFilter = DurationFilter.newBuilder()
+            .setComparison(
+                createComparison(settings)
+            )
+            .build()
     }
 
-    private fun createStatusCodeFilter(settings: ComparisonFilterSettings): AccessLogFilter.Builder {
-        return AccessLogFilter.newBuilder().setStatusCodeFilter(
-            StatusCodeFilter.newBuilder()
-                .setComparison(
-                    createComparison(settings)
-                )
-                .build()
-        )
+    private fun createStatusCodeFilter(settings: ComparisonFilterSettings, accessLogFilterBuilder: AccessLogFilter.Builder) {
+        accessLogFilterBuilder.statusCodeFilter = StatusCodeFilter.newBuilder()
+            .setComparison(
+                createComparison(settings)
+            )
+            .build()
     }
 
-    private fun createHeaderFilter(settings: HeaderFilterSettings): AccessLogFilter.Builder {
-        return AccessLogFilter.newBuilder().setHeaderFilter(
-            HeaderFilter.newBuilder()
-                .setHeader(
+    private fun createHeaderFilter(settings: HeaderFilterSettings, accessLogFilterBuilder: AccessLogFilter.Builder) {
+        accessLogFilterBuilder.headerFilter = HeaderFilter.newBuilder()
+            .setHeader(
                 HeaderMatcher.newBuilder()
                     .setName(settings.headerName)
                     .setSafeRegexMatch(settings.regex)
                     .build()
-                )
-                .build()
-        )
+            )
+            .build()
     }
 
     private fun createComparison(settings: ComparisonFilterSettings): ComparisonFilter {
