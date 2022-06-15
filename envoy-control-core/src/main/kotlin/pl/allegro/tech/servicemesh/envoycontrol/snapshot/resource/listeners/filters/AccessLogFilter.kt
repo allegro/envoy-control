@@ -115,7 +115,10 @@ class AccessLogFilter(
             .build()
     }
 
-    private fun createDurationFilter(settings: ComparisonFilterSettings, accessLogFilterBuilder: AccessLogFilter.Builder) {
+    private fun createDurationFilter(
+        settings: ComparisonFilterSettings,
+        accessLogFilterBuilder: AccessLogFilter.Builder
+    ) {
         accessLogFilterBuilder.durationFilter = DurationFilter.newBuilder()
             .setComparison(
                 createComparison(settings)
@@ -123,7 +126,10 @@ class AccessLogFilter(
             .build()
     }
 
-    private fun createStatusCodeFilter(settings: ComparisonFilterSettings, accessLogFilterBuilder: AccessLogFilter.Builder) {
+    private fun createStatusCodeFilter(
+        settings: ComparisonFilterSettings,
+        accessLogFilterBuilder: AccessLogFilter.Builder
+    ) {
         accessLogFilterBuilder.statusCodeFilter = StatusCodeFilter.newBuilder()
             .setComparison(
                 createComparison(settings)
