@@ -121,7 +121,7 @@ class AccessLogFilter(
     ) {
         accessLogFilterBuilder.durationFilter = DurationFilter.newBuilder()
             .setComparison(
-                createComparison(settings)
+                createComparison(settings, "access_log_filter_duration")
             )
             .build()
     }
@@ -132,23 +132,23 @@ class AccessLogFilter(
     ) {
         accessLogFilterBuilder.statusCodeFilter = StatusCodeFilter.newBuilder()
             .setComparison(
-                createComparison(settings)
+                createComparison(settings, "access_log_filter_http_code")
             )
             .build()
     }
 
     private fun createHeaderFilter(settings: HeaderFilterSettings, accessLogFilterBuilder: AccessLogFilter.Builder) {
-        accessLogFilterBuilder.headerFilter = HeaderFilter.newBuilder()
+        accessLogFilterBuilder.setHeaderFilter(HeaderFilter.newBuilder()
             .setHeader(
                 HeaderMatcher.newBuilder()
                     .setName(settings.headerName)
                     .setSafeRegexMatch(settings.regex)
                     .build()
             )
-            .build()
+            .build())
     }
 
-    private fun createComparison(settings: ComparisonFilterSettings): ComparisonFilter {
+    private fun createComparison(settings: ComparisonFilterSettings, runtimeKey: String): ComparisonFilter {
         return ComparisonFilter.newBuilder()
             .setOp(settings.comparisonOperator)
             .setValue(
