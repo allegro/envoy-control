@@ -89,7 +89,7 @@ class AccessLogFilter(
         settings.notHealthCheckFilter?.let {
             if (it) {
                     accessLogFilterBuilder.setNotHealthCheckFilter(
-                        NotHealthCheckFilter.newBuilder(),
+                        NotHealthCheckFilter.newBuilder()
                 )
             }
         }
