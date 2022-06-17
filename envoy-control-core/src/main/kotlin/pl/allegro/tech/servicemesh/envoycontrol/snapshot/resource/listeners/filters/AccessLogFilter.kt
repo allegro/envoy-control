@@ -122,11 +122,12 @@ class AccessLogFilter(
 
     private fun createResponseFlagFilter(flags: Iterable<String>): AccessLogFilter {
         return AccessLogFilter.newBuilder()
-            .setResponseFlagFilter( ResponseFlagFilter.newBuilder()
-                .addAllFlags(flags)
-                .build())
+            .setResponseFlagFilter(
+                ResponseFlagFilter.newBuilder()
+                    .addAllFlags(flags)
+                    .build()
+            )
             .build()
-
     }
 
     private fun createDurationFilter(
