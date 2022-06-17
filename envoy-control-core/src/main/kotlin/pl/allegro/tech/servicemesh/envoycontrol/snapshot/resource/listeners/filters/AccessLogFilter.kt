@@ -5,6 +5,7 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLog
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLogFilter
+import io.envoyproxy.envoy.config.accesslog.v3.AndFilter
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
 import io.envoyproxy.envoy.config.accesslog.v3.DurationFilter
 import io.envoyproxy.envoy.config.accesslog.v3.HeaderFilter
@@ -79,73 +80,91 @@ class AccessLogFilter(
     }
 
     private fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings) {
-        val accessLogFilterBuilder = AccessLogFilter.newBuilder()
-        settings.statusCodeFilterSettings?.let {
-                createStatusCodeFilter(it, accessLogFilterBuilder)
+        val accessLogFilters = mutableListOf<AccessLogFilter?>()
+        accessLogFilters += settings.statusCodeFilterSettings?.let {
+            createStatusCodeFilter(it)
         }
-        settings.durationFilterSettings?.let {
-                createDurationFilter(it, accessLogFilterBuilder)
+        accessLogFilters += settings.durationFilterSettings?.let {
+            createDurationFilter(it)
         }
-        settings.notHealthCheckFilter?.let {
+        accessLogFilters += settings.notHealthCheckFilter?.let {
             if (it) {
-                    accessLogFilterBuilder.setNotHealthCheckFilter(
-                        NotHealthCheckFilter.newBuilder()
-                )
+                AccessLogFilter.newBuilder().setNotHealthCheckFilter(NotHealthCheckFilter.newBuilder()).build()
+            } else {
+                null
             }
         }
-        settings.traceableFilter?.let {
+
+        accessLogFilters += settings.traceableFilter?.let {
             if (it) {
-                    accessLogFilterBuilder.setTraceableFilter(
-                        TraceableFilter.newBuilder()
-                )
+                AccessLogFilter.newBuilder().setTraceableFilter(TraceableFilter.newBuilder()).build()
+            } else {
+                null
             }
         }
-        settings.responseFlagFilter?.let {
-                createResponseFlagFilter(it, accessLogFilterBuilder)
+        accessLogFilters += settings.responseFlagFilter?.let {
+            createResponseFlagFilter(it)
         }
-        settings.headerFilter?.let {
-                createHeaderFilter(it, accessLogFilterBuilder)
+        accessLogFilters += settings.headerFilter?.let {
+            createHeaderFilter(it)
         }
-        this.setFilter(accessLogFilterBuilder)
+
+        val andFilter = AndFilter.newBuilder()
+            .addAllFilters(accessLogFilters.filterNotNull())
+            .build()
+
+        val mergedFilters = AccessLogFilter.newBuilder()
+            .mergeAndFilter(andFilter)
+            .build()
+
+        this.setFilter(mergedFilters)
     }
 
-    private fun createResponseFlagFilter(flags: Iterable<String>, accessLogFilterBuilder: AccessLogFilter.Builder) {
-        accessLogFilterBuilder.responseFlagFilter = ResponseFlagFilter.newBuilder()
-            .addAllFlags(flags)
+    private fun createResponseFlagFilter(flags: Iterable<String>): AccessLogFilter {
+        return AccessLogFilter.newBuilder()
+            .setResponseFlagFilter( ResponseFlagFilter.newBuilder()
+                .addAllFlags(flags)
+                .build())
             .build()
+
     }
 
     private fun createDurationFilter(
-        settings: ComparisonFilterSettings,
-        accessLogFilterBuilder: AccessLogFilter.Builder
-    ) {
-        accessLogFilterBuilder.durationFilter = DurationFilter.newBuilder()
-            .setComparison(
-                createComparison(settings, "access_log_filter_duration")
-            )
+        settings: ComparisonFilterSettings
+    ): AccessLogFilter {
+        return AccessLogFilter.newBuilder().setDurationFilter(
+            DurationFilter.newBuilder()
+                .setComparison(
+                    createComparison(settings, "access_log_filter_duration")
+                )
+                .build()
+        )
             .build()
     }
 
     private fun createStatusCodeFilter(
-        settings: ComparisonFilterSettings,
-        accessLogFilterBuilder: AccessLogFilter.Builder
-    ) {
-        accessLogFilterBuilder.statusCodeFilter = StatusCodeFilter.newBuilder()
-            .setComparison(
-                createComparison(settings, "access_log_filter_http_code")
-            )
-            .build()
+        settings: ComparisonFilterSettings
+    ): AccessLogFilter {
+        return AccessLogFilter.newBuilder().setStatusCodeFilter(
+            StatusCodeFilter.newBuilder()
+                .setComparison(
+                    createComparison(settings, "access_log_filter_http_code")
+                )
+                .build()
+        ).build()
     }
 
-    private fun createHeaderFilter(settings: HeaderFilterSettings, accessLogFilterBuilder: AccessLogFilter.Builder) {
-        accessLogFilterBuilder.setHeaderFilter(HeaderFilter.newBuilder()
-            .setHeader(
-                HeaderMatcher.newBuilder()
-                    .setName(settings.headerName)
-                    .setSafeRegexMatch(settings.regex)
-                    .build()
-            )
-            .build())
+    private fun createHeaderFilter(settings: HeaderFilterSettings): AccessLogFilter {
+        return AccessLogFilter.newBuilder().setHeaderFilter(
+            HeaderFilter.newBuilder()
+                .setHeader(
+                    HeaderMatcher.newBuilder()
+                        .setName(settings.headerName)
+                        .setSafeRegexMatch(settings.regex)
+                        .build()
+                )
+                .build()
+        ).build()
     }
 
     private fun createComparison(settings: ComparisonFilterSettings, runtimeKey: String): ComparisonFilter {
@@ -154,7 +173,7 @@ class AccessLogFilter(
             .setValue(
                 RuntimeUInt32.newBuilder()
                     .setDefaultValue(settings.comparisonCode)
-                    .setRuntimeKey("access_log_filter_http_code")
+                    .setRuntimeKey(runtimeKey)
                     .build()
             )
             .build()
