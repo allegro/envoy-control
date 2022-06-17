@@ -114,7 +114,7 @@ class AccessLogFilter(
             .build()
 
         val mergedFilters = AccessLogFilter.newBuilder()
-            .mergeAndFilter(andFilter)
+            .setAndFilter(andFilter)
             .build()
 
         this.setFilter(mergedFilters)

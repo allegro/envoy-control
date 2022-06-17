@@ -37,7 +37,7 @@ data class AccessLogFilterSettings(val proto: Value?) {
         .toComparisonFilter()
     val durationFilterSettings: ComparisonFilterSettings? = proto?.field("duration_filter")
         .toComparisonFilter()
-    val notHealthCheckFilter: Boolean? = proto?.field("not_healt_check_filter")?.boolValue
+    val notHealthCheckFilter: Boolean? = proto?.field("not_health_check_filter")?.boolValue
     val traceableFilter: Boolean? = proto?.field("traceable_filter")?.boolValue
     val responseFlagFilter: Iterable<String>? = proto?.field("response_flag_filter")
         .toResponseFlagFilter()
