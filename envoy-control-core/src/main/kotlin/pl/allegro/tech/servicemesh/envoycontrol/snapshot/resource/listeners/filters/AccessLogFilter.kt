@@ -115,17 +115,18 @@ class AccessLogFilter(
 
     private fun createFilterForAccessLog(accessLogFilters: List<AccessLogFilter?>): AccessLogFilter? {
         val filters = accessLogFilters.filterNotNull()
-        if (filters.size == 1) {
-            return filters[0]
-        } else if (filters.size > 1) {
-            val andFilter = AndFilter.newBuilder()
-                .addAllFilters(filters)
-                .build()
-            return AccessLogFilter.newBuilder()
-                .setAndFilter(andFilter)
-                .build()
+        return when {
+            filters.isEmpty() -> null
+            filters.size == 1 -> filters[0]
+            else -> {
+                val andFilter = AndFilter.newBuilder()
+                    .addAllFilters(filters)
+                    .build()
+                AccessLogFilter.newBuilder()
+                    .setAndFilter(andFilter)
+                    .build()
+            }
         }
-        return null
     }
 
     private fun createResponseFlagFilter(flags: Iterable<String>): AccessLogFilter {
