@@ -1060,14 +1060,13 @@ class NodeMetadataTest {
     fun `should set header filter for accessLogFilter`() {
         // given
         val proto = accessLogFilterProto(value = "test:^((.+):(.+))$", fieldName = "header_filter")
-        val resultMatcher = RegexMatcher.newBuilder().setRegex("^((.+):(.+))$").build()
 
         // when
         val headerFilterSettings = proto.structValue?.fieldsMap?.get("header_filter").toHeaderFilter()
 
         // expects
         assertThat(headerFilterSettings?.headerName).isEqualTo("test")
-        assertThat(headerFilterSettings?.regex).isEqualTo(resultMatcher)
+        assertThat(headerFilterSettings?.regex).isEqualTo("^((.+):(.+))\$")
     }
 
     @Test
