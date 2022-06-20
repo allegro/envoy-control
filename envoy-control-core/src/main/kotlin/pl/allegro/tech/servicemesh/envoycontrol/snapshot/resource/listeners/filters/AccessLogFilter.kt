@@ -16,6 +16,7 @@ import io.envoyproxy.envoy.config.accesslog.v3.TraceableFilter
 import io.envoyproxy.envoy.config.core.v3.RuntimeUInt32
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
+import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ComparisonFilterSettings
@@ -170,7 +171,11 @@ class AccessLogFilter(
                 .setHeader(
                     HeaderMatcher.newBuilder()
                         .setName(settings.headerName)
-                        .setSafeRegexMatch(settings.regex)
+                        .setSafeRegexMatch(
+                            RegexMatcher.newBuilder()
+                                .setGoogleRe2(RegexMatcher.GoogleRE2.getDefaultInstance())
+                                .setRegex(settings.regex)
+                        )
                         .build()
                 )
                 .build()

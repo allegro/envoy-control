@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.utils
 import com.google.re2j.Pattern
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
+import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.NodeMetadataValidationException
 
 object AccessLogFilterParser {
@@ -58,7 +59,7 @@ object AccessLogFilterParser {
         val split = value.split(DELIMITER, limit = 2)
         return HeaderFilterSettings(
             headerName = split[0],
-            regex = RegexMatcher.newBuilder().setRegex(split[1]).build()
+            regex = split[1]
         )
     }
 }
@@ -70,5 +71,5 @@ data class ComparisonFilterSettings(
 
 data class HeaderFilterSettings(
     val headerName: String,
-    val regex: RegexMatcher
+    val regex: String
 )
