@@ -109,15 +109,23 @@ class AccessLogFilter(
             createHeaderFilter(it)
         }
 
-        val andFilter = AndFilter.newBuilder()
-            .addAllFilters(accessLogFilters.filterNotNull())
-            .build()
+        val filter = createFilterForAccessLog(accessLogFilters)
+        filter?.let { this.setFilter(it) }
+    }
 
-        val mergedFilters = AccessLogFilter.newBuilder()
-            .setAndFilter(andFilter)
-            .build()
-
-        this.setFilter(mergedFilters)
+    private fun createFilterForAccessLog(accessLogFilters: List<AccessLogFilter?>): AccessLogFilter? {
+        val filters = accessLogFilters.filterNotNull()
+        if (filters.size == 1) {
+            return filters[0]
+        } else if (filters.size > 1) {
+            val andFilter = AndFilter.newBuilder()
+                .addAllFilters(filters)
+                .build()
+            return AccessLogFilter.newBuilder()
+                .setAndFilter(andFilter)
+                .build()
+        }
+        return null
     }
 
     private fun createResponseFlagFilter(flags: Iterable<String>): AccessLogFilter {
