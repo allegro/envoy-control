@@ -2,8 +2,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.utils
 
 import com.google.re2j.Pattern
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
-import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
-import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.NodeMetadataValidationException
 
 object AccessLogFilterParser {
