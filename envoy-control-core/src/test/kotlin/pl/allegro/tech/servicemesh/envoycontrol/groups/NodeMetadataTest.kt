@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
-import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
