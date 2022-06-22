@@ -1132,18 +1132,6 @@ class NodeMetadataTest {
     }
 
     @Test
-    fun `should set traceable filter for accessLogFilter`() {
-        // given
-        val proto = accessLogBooleanFilterProto(value = true, fieldName = "traceable_filter")
-
-        // when
-        val value = proto.structValue?.fieldsMap?.get("traceable_filter")?.boolValue
-
-        // expects
-        assertThat(value).isEqualTo(true)
-    }
-
-    @Test
     fun `should throw exception for null value response flag filter data`() {
         // given
         val proto = accessLogFilterProto(value = null, fieldName = "response_flag_filter")

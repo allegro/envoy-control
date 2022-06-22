@@ -12,7 +12,6 @@ import io.envoyproxy.envoy.config.accesslog.v3.HeaderFilter
 import io.envoyproxy.envoy.config.accesslog.v3.NotHealthCheckFilter
 import io.envoyproxy.envoy.config.accesslog.v3.ResponseFlagFilter
 import io.envoyproxy.envoy.config.accesslog.v3.StatusCodeFilter
-import io.envoyproxy.envoy.config.accesslog.v3.TraceableFilter
 import io.envoyproxy.envoy.config.core.v3.RuntimeUInt32
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
@@ -91,14 +90,6 @@ class AccessLogFilter(
         accessLogFilters += settings.notHealthCheckFilter?.let {
             if (it) {
                 AccessLogFilter.newBuilder().setNotHealthCheckFilter(NotHealthCheckFilter.newBuilder()).build()
-            } else {
-                null
-            }
-        }
-
-        accessLogFilters += settings.traceableFilter?.let {
-            if (it) {
-                AccessLogFilter.newBuilder().setTraceableFilter(TraceableFilter.newBuilder()).build()
             } else {
                 null
             }
