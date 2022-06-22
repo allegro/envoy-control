@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- add possibility to configure default retryOn property in retry policies 
 
 ## [0.19.8]
 
