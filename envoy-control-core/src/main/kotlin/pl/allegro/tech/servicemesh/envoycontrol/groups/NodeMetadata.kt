@@ -67,7 +67,7 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
 
 fun Value?.toStatusCodeFilter(): StatusCodeFilterSettings? {
     return this?.stringValue?.let {
-        StatusCodeFilterParser.parseStatusCodeFilter(it.toUpperCase())
+        StatusCodeFilterParser.parseStatusCodeFilter(it.uppercase())
     }
 }
 
@@ -542,9 +542,9 @@ data class DependencySettings(
 )
 
 data class RetryPolicy(
-    val retryOn: List<String>? = listOf("gateway-error", "reset", "connect-failure"),
+    val retryOn: List<String>? = null,
     val hostSelectionRetryMaxAttempts: Long? = null,
-    val numberRetries: Int? = 1,
+    val numberRetries: Int? = null,
     val retryHostPredicate: List<RetryHostPredicate>? = null,
     val perTryTimeoutMs: Long? = null,
     val retryBackOff: RetryBackOff? = null,
