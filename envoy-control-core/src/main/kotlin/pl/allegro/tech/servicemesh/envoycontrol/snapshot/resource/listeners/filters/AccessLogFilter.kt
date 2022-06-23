@@ -61,6 +61,7 @@ class AccessLogFilter(
                             .putFields("request_path", stringValue("%REQ(:PATH)%"))
                             .putFields("response_code", stringValue("%RESPONSE_CODE%"))
                             .putFields("response_flags", stringValue("%RESPONSE_CODE%"))
+                            .putFields("response_flags_three", stringValue("%RESPONSE_FlAGS%"))
                             .putFields("response_flags_two", stringValue("asd"))
                             .putFields("bytes_received", stringValue("%BYTES_RECEIVED%"))
                             .putFields("bytes_sent", stringValue("%BYTES_SENT%"))
