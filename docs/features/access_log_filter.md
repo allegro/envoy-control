@@ -63,5 +63,5 @@ header value.
 ```yaml
     metadata:
       access_log_filter:
-          response_flag_filter: "UPE,UP"
+          response_flag_filter: "UPE,DT"
  ```
