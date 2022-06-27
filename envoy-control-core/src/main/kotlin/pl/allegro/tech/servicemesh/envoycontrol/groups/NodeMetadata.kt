@@ -542,7 +542,7 @@ data class DependencySettings(
 )
 
 data class RetryPolicy(
-    val retryOn: List<String>? = emptyList(),
+    val retryOn: List<String> = emptyList(),
     val hostSelectionRetryMaxAttempts: Long? = null,
     val numberRetries: Int? = null,
     val retryHostPredicate: List<RetryHostPredicate>? = null,
