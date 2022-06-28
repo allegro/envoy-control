@@ -2,12 +2,10 @@
 
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
-import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import java.net.URI
 import java.time.Duration
@@ -363,9 +361,13 @@ data class RetryPolicyProperties(
     var hostSelectionRetryMaxAttempts: Long = 3,
     var retryHostPredicate: List<RetryHostPredicate> =
         listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
-    var retryBackOff: RetryBackOff = RetryBackOff(
-        baseInterval = Durations.fromMillis(25)
+    var retryBackOff: RetryBackOffProperties = RetryBackOffProperties(
+        baseInterval = Duration.ofMillis(25)
     )
+)
+
+data class RetryBackOffProperties(
+    var baseInterval: Duration
 )
 
 typealias ProviderName = String
