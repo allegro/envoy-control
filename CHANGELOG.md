@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.19.10]
+
+### Changed
+- fixed types in retry policy properties
+
+## [0.19.9]
+
 ### Changed
 - add possibility to configure default retryOn property in retry policies 
 - moved release action to step in publishing action

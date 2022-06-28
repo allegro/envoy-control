@@ -89,7 +89,9 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
             numberRetries = properties.retryPolicy.numberOfRetries,
             retryHostPredicate = properties.retryPolicy.retryHostPredicate,
             hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts,
-            retryBackOff = properties.retryPolicy.retryBackOff
+            retryBackOff = RetryBackOff(
+                Durations.fromMillis(properties.retryPolicy.retryBackOff.baseInterval.toMillis())
+            ),
         )
     )
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
