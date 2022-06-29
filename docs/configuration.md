@@ -19,6 +19,7 @@ Property                                                                        
 **envoy-control.server.group-snapshot-update-scheduler.parallel-pool-size**                 | Parallelism level for PARALLEL mode. Should match executor pool size if custom executor is used                                                                                           | 1
 **envoy-control.server.snapshot-cleanup.collect-after-millis**                              | How long a snapshot must be referenced before being collected                                                                                                                             | 10s
 **envoy-control.server.snapshot-cleanup.collection-interval-millis**                        | How often the collection background action should run                                                                                                                                     | 10s
+**envoy-control.server.global-snapshot-audit-pool-size**                                    | Pool size used for default global snapshot audit executor group                                                                                                                                     | 10s
 
 ## Snapshot properties
 Property                                                                                                     | Description                                                                                                                                                                                                           | Default value
@@ -82,6 +83,7 @@ Property                                                                        
 **envoy-control.envoy.snapshot.max-host-ttl**                                                                | The TTL for hosts that are unused. Hosts that have not been used in the configured time interval will be purged                                                                                                       | 300s
 **envoy-control.envoy.snapshot.rate-limit.domain**                                                           | Domain name for ratelimit service.                                                                                                                                                                                    | rl
 **envoy-control.envoy.snapshot.rate-limit.service-name**                                                     | ratelimit GRPC service name                                                                                                                                                                                           | ratelimit-grpc
+**envoy-control.envoy.snapshot.should-audit-global-snapshot**                                                | Enable global snapshot audits                                                                                                                                                                                         | false
 
 
 ## Permissions
@@ -124,7 +126,7 @@ Property                                                                        
 **envoy-control.envoy.snapshot.load-balancing.canary.enabled**                              | if set to true, routing to canary instances based on *canary header* will be enabled (corresponding Envoy static config is required, see [docs](features/load_balancing.md))              | false
 **envoy-control.envoy.snapshot.load-balancing.canary.metadata-key**                         | metadata that will be set for canary EDS endpoints - key (must match Envoy static `header_to_metadata` filter config, see [docs](features/load_balancing.md))                             | canary
 **envoy-control.envoy.snapshot.load-balancing.canary.header-value**                         | only when *canary header* is set to this value request will be routed to canary instances (*canary header* name is set in Envoy static config, see [docs](features/load_balancing.md))    | 1
-**envoy-control.envoy.snapshot.load-balancing.policy**                                      | load balancing policy used for clusters. [Accepted values](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/cds.proto.html#enum-cluster-lbpolicy)                                | LEAST_REQUEST
+**envoy-control.envoy.snapshot.load-balancing.policy**                                      | load balancing policy used for clusters. [Accepted values](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#enum-config-cluster-v3-cluster-lbpolicy)                                | LEAST_REQUEST
 **envoy-control.envoy.snapshot.load-balancing.use-keys-subset-fallback-policy**             | KEYS_SUBSET fallback policy is used by default when canary and service-tags are enabled. It is not supported in Envoy <= 1.12.x. Set to false for compatibility with Envoy 1.12.x         | true
 
 ## Routing

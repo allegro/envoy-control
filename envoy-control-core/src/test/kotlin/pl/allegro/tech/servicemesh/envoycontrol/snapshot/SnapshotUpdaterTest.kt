@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import org.mockito.Mockito
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
@@ -31,7 +32,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
-import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
@@ -41,6 +41,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceName
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
@@ -53,13 +54,17 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.Service
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.any
 import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 @Suppress("LargeClass")
 class SnapshotUpdaterTest {
@@ -86,7 +91,7 @@ class SnapshotUpdaterTest {
 
     val clusterWithEnvoyInstances = ClusterState(
         ServicesState(
-            serviceNameToInstances = mapOf(
+            serviceNameToInstances = concurrentMapOf(
                 "service" to ServiceInstances(
                     "service", setOf(
                         ServiceInstance(
@@ -147,6 +152,33 @@ class SnapshotUpdaterTest {
             .hasOnlyClustersFor("existingService1", "existingService2")
             .hasVirtualHostConfig(name = "existingService1", idleTimeout = "10s", requestTimeout = "9s")
             .hasVirtualHostConfig(name = "existingService2", idleTimeout = "8s", requestTimeout = "7s")
+    }
+
+    @Test
+    fun `should audit snapshot changes`() {
+        val cache = MockCache()
+
+        val snapshotAuditor = Mockito.mock(SnapshotChangeAuditor::class.java)
+        Mockito.`when`(snapshotAuditor.audit(any(UpdateResult::class.java), any(UpdateResult::class.java))).thenReturn(Mono.empty())
+        val groups = listOf(groupWithProxy, groupWithServiceName, AllServicesGroup(communicationMode = ADS))
+        groups.forEach {
+            cache.setSnapshot(it, uninitializedSnapshot)
+        }
+
+        val updater = snapshotUpdater(
+            cache = cache,
+            snapshotChangeAuditor = snapshotAuditor,
+            properties = SnapshotProperties().apply {
+              stateSampleDuration = Duration.ZERO
+            },
+            groups = groups
+        )
+
+        // when
+        updater.startWithServices(arrayOf("existingService1"), arrayOf("existingService1", "existingService2"), arrayOf("existingService3"))
+
+        // then
+        Mockito.verify(snapshotAuditor, Mockito.times(3)).audit(any(UpdateResult::class.java), any(UpdateResult::class.java))
     }
 
     @Test
@@ -370,7 +402,7 @@ class SnapshotUpdaterTest {
 
         val clusterWithNoInstances = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances("service", setOf())
                 )
             ),
@@ -413,7 +445,7 @@ class SnapshotUpdaterTest {
 
         val clusterWithOrder = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances("service", setOf()),
                     "service2" to ServiceInstances("service2", setOf())
                 )
@@ -422,7 +454,7 @@ class SnapshotUpdaterTest {
         ).toMultiClusterState()
         val clusterWithoutOrder = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service2" to ServiceInstances("service2", setOf()),
                     "service" to ServiceInstances("service", setOf())
                 )
@@ -463,7 +495,7 @@ class SnapshotUpdaterTest {
 
         val clusterLocal = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances(
                         "service", setOf(
                             ServiceInstance(
@@ -482,7 +514,7 @@ class SnapshotUpdaterTest {
 
         val remoteClusterWithBothServices = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances("service", setOf()),
                     "servicePresentInJustOneRemote" to ServiceInstances("servicePresentInJustOneRemote", setOf())
                 )
@@ -492,7 +524,7 @@ class SnapshotUpdaterTest {
 
         val remoteClusterWithJustOneService = ClusterState(
             ServicesState(
-                serviceNameToInstances = mapOf(
+                serviceNameToInstances = concurrentMapOf(
                     "service" to ServiceInstances("service", setOf())
                 )
             ),
@@ -554,7 +586,7 @@ class SnapshotUpdaterTest {
         )
 
         val stateWithNoServices = ClusterState(
-            ServicesState(serviceNameToInstances = mapOf()),
+            ServicesState(serviceNameToInstances = concurrentMapOf()),
             Locality.LOCAL, "cluster"
         ).toMultiClusterState()
 
@@ -944,19 +976,24 @@ class SnapshotUpdaterTest {
             )
     }
 
+    private fun SnapshotUpdater.startWithServices(vararg services: Array<String>) {
+        this.start(fluxOfServices(*services)).collectList().block()
+    }
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
         this.start(fluxOfServices(*services)).blockFirst()
     }
 
-    private fun fluxOfServices(vararg services: String) = Flux.just(
-        ClusterState(
-            ServicesState(
-                serviceNameToInstances = services.map { it to ServiceInstances(it, emptySet()) }.toMap()
+    private fun fluxOfServices(vararg services: Array<String>) = Flux
+        .just(*services.map { createClusterState(*it).toMultiClusterState() }.toTypedArray())
+        .delayElements(Duration.ofMillis(500))
 
-            ),
-            Locality.LOCAL, "cluster"
-        ).toMultiClusterState()
-    )
+    private fun fluxOfServices(vararg services: String) = Flux.just(createClusterState(*services).toMultiClusterState())
+    private fun createClusterState(vararg services: String) = ClusterState(
+        ServicesState(
+            serviceNameToInstances = ConcurrentHashMap(services.associateWith { ServiceInstances(it, emptySet()) })
+
+        ),
+        Locality.LOCAL, "cluster")
 
     class FailingMockCache : MockCache() {
         var called = 0
@@ -1195,7 +1232,8 @@ class SnapshotUpdaterTest {
         cache: SnapshotCache<Group, Snapshot>,
         properties: SnapshotProperties = SnapshotProperties(),
         groups: List<Group> = emptyList(),
-        groupSnapshotScheduler: ParallelizableScheduler = DirectScheduler
+        groupSnapshotScheduler: ParallelizableScheduler = DirectScheduler,
+        snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor
     ) = SnapshotUpdater(
         cache = cache,
         properties = properties,
@@ -1204,8 +1242,16 @@ class SnapshotUpdaterTest {
         groupSnapshotScheduler = groupSnapshotScheduler,
         onGroupAdded = Flux.just(groups),
         meterRegistry = simpleMeterRegistry,
-        versions = SnapshotsVersions()
+        versions = SnapshotsVersions(),
+        snapshotChangeAuditor = snapshotChangeAuditor,
+        globalSnapshotAuditScheduler = Schedulers.newSingle("audit-snapshot")
     )
+
+    private fun concurrentMapOf(vararg elements: Pair<ServiceName, ServiceInstances>): ConcurrentHashMap<ServiceName, ServiceInstances> {
+        val state = ConcurrentHashMap<ServiceName, ServiceInstances>()
+        elements.forEach { (name, instance) -> state[name] = instance }
+        return state
+    }
 }
 
 fun serviceDependencies(vararg dependencies: Pair<String, Outgoing.TimeoutPolicy?>): Set<ServiceDependency> =

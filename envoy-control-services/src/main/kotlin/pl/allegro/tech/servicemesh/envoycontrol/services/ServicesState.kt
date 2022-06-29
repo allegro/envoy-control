@@ -1,9 +1,13 @@
 package pl.allegro.tech.servicemesh.envoycontrol.services
 
+import java.util.concurrent.ConcurrentHashMap
+
 typealias ServiceName = String
 
 data class ServicesState(
-    val serviceNameToInstances: Map<ServiceName, ServiceInstances> = emptyMap()
+    // TODO this field should be private but right now jackson ignores it and it cannot be instantiate.
+    //  Will fix this i next pr
+    val serviceNameToInstances: ConcurrentHashMap<ServiceName, ServiceInstances> = ConcurrentHashMap()
 ) {
     operator fun get(serviceName: ServiceName): ServiceInstances? = serviceNameToInstances[serviceName]
 
@@ -11,22 +15,29 @@ data class ServicesState(
     fun serviceNames(): Set<ServiceName> = serviceNameToInstances.keys
     fun allInstances(): Collection<ServiceInstances> = serviceNameToInstances.values
 
-    fun remove(serviceName: ServiceName): ServicesState {
-        // TODO: https://github.com/allegro/envoy-control/issues/11
-        return change(ServiceInstances(serviceName, instances = emptySet()))
+    fun removeServicesWithoutInstances(): ServicesState {
+        serviceNameToInstances.entries.retainAll { (_, value) -> value.instances.isNotEmpty() }
+        return this
     }
 
-    fun add(serviceName: ServiceName): ServicesState =
-        if (serviceNameToInstances.containsKey(serviceName)) {
-            this
+    fun remove(serviceName: ServiceName): Boolean {
+        return serviceNameToInstances.remove(serviceName) != null
+    }
+
+    fun add(serviceName: ServiceName): Boolean {
+        return if (serviceNameToInstances.containsKey(serviceName)) {
+            false
         } else {
             change(ServiceInstances(serviceName, instances = emptySet()))
         }
+    }
 
-    fun change(serviceInstances: ServiceInstances): ServicesState =
-        if (serviceNameToInstances[serviceInstances.serviceName] == serviceInstances) {
-            this
+    fun change(serviceInstances: ServiceInstances): Boolean {
+        return if (serviceNameToInstances[serviceInstances.serviceName] == serviceInstances) {
+            false
         } else {
-            copy(serviceNameToInstances = serviceNameToInstances + (serviceInstances.serviceName to serviceInstances))
+            serviceNameToInstances[serviceInstances.serviceName] = serviceInstances
+            true
         }
+    }
 }

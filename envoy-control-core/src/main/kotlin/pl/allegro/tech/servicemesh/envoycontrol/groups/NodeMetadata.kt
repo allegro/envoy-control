@@ -67,7 +67,7 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
 
 fun Value?.toStatusCodeFilter(): StatusCodeFilterSettings? {
     return this?.stringValue?.let {
-        StatusCodeFilterParser.parseStatusCodeFilter(it.toUpperCase())
+        StatusCodeFilterParser.parseStatusCodeFilter(it.uppercase())
     }
 }
 
@@ -85,10 +85,13 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
             requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
         ),
         retryPolicy = RetryPolicy(
+            retryOn = properties.retryPolicy.retryOn,
             numberRetries = properties.retryPolicy.numberOfRetries,
             retryHostPredicate = properties.retryPolicy.retryHostPredicate,
             hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts,
-            retryBackOff = properties.retryPolicy.retryBackOff
+            retryBackOff = RetryBackOff(
+                Durations.fromMillis(properties.retryPolicy.retryBackOff.baseInterval.toMillis())
+            ),
         )
     )
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
@@ -195,9 +198,9 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
-        rewriteHostHeader == null &&
-        timeoutPolicy == null &&
-        retryPolicy == null
+            rewriteHostHeader == null &&
+            timeoutPolicy == null &&
+            retryPolicy == null
 
     return if (shouldAllBeDefault) {
         defaultSettings
@@ -213,7 +216,7 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
 
 private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy): RetryPolicy {
     return RetryPolicy(
-        retryOn = value.field("retryOn")?.listValue?.valuesList?.map { it.stringValue },
+        retryOn = value.field("retryOn")?.listValue?.valuesList?.map { it.stringValue } ?: defaultRetryPolicy.retryOn,
         hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
             ?: defaultRetryPolicy.hostSelectionRetryMaxAttempts,
         numberRetries = value.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy.numberRetries,
@@ -411,7 +414,7 @@ fun Value.toDuration(): Duration? {
     return when (this.kindCase) {
         Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException(
             "Timeout definition has number format" +
-                " but should be in string format and ends with 's'"
+                    " but should be in string format and ends with 's'"
         )
         Value.KindCase.STRING_VALUE -> {
             try {
@@ -541,7 +544,7 @@ data class DependencySettings(
 )
 
 data class RetryPolicy(
-    val retryOn: List<String>? = null,
+    val retryOn: List<String> = emptyList(),
     val hostSelectionRetryMaxAttempts: Long? = null,
     val numberRetries: Int? = null,
     val retryHostPredicate: List<RetryHostPredicate>? = null,
