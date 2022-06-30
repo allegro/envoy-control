@@ -43,6 +43,7 @@ import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import java.time.Clock
+import java.util.*
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
@@ -96,7 +97,6 @@ class ControlPlane private constructor(
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
         var snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor
-        var identifier: String? = null
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
@@ -221,12 +221,13 @@ class ControlPlane private constructor(
             groupChangeWatcher: GroupChangeWatcher,
             cachedProtoResourcesSerializer: CachedProtoResourcesSerializer
         ): V3DiscoveryServer {
-            return V3DiscoveryServerWithIdentifier(
+            return V3DiscoveryServer(
                 compositeDiscoveryServerCallbacks,
                 groupChangeWatcher,
                 executorGroup,
                 cachedProtoResourcesSerializer,
-                identifier
+                System.getProperty(properties.envoy.controlPlaneIdentifierEnv) ?: UUID.randomUUID().toString()
+
             )
         }
 
@@ -331,7 +332,6 @@ class ControlPlane private constructor(
             this.metrics = metrics
             return this
         }
-        fun withIdentifier() = apply { this.identifier = identifier }
 
         fun withEnvoyHttpFilters(envoyHttpFilters: EnvoyHttpFilters): ControlPlaneBuilder {
             this.envoyHttpFilters = envoyHttpFilters

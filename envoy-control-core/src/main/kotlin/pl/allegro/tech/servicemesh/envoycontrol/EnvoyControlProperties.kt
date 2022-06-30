@@ -15,6 +15,7 @@ class EnvoyControlProperties {
 
 class EnvoyProperties {
     var snapshot = SnapshotProperties()
+    var controlPlaneIdentifierEnv = "HOST"
 }
 
 class ServiceFilters {
