@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 interface EnvoyControlMetrics {
     fun serviceRemoved()
@@ -21,6 +22,7 @@ data class DefaultEnvoyControlMetrics(
     val snapshotChanges: AtomicInteger = AtomicInteger(),
     val cacheGroupsCount: AtomicInteger = AtomicInteger(),
     val errorWatchingServices: AtomicInteger = AtomicInteger(),
+    val serviceReadyDuration: AtomicLong = AtomicLong(),
     override val meterRegistry: MeterRegistry = SimpleMeterRegistry()
 ) : EnvoyControlMetrics {
 
