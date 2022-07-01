@@ -5,6 +5,7 @@ package pl.allegro.tech.servicemesh.envoycontrol
 import pl.allegro.tech.servicemesh.envoycontrol.server.ServerProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.SyncProperties
+import java.util.UUID
 
 class EnvoyControlProperties {
     var server = ServerProperties()
@@ -15,6 +16,7 @@ class EnvoyControlProperties {
 
 class EnvoyProperties {
     var snapshot = SnapshotProperties()
+    var controlPlaneIdentifier = UUID.randomUUID().toString()
 }
 
 class ServiceFilters {

@@ -224,7 +224,8 @@ class ControlPlane private constructor(
                 compositeDiscoveryServerCallbacks,
                 groupChangeWatcher,
                 executorGroup,
-                cachedProtoResourcesSerializer
+                cachedProtoResourcesSerializer,
+                properties.envoy.controlPlaneIdentifier
             )
         }
 
