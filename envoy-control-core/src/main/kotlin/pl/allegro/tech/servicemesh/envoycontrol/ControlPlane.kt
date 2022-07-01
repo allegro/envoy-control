@@ -43,7 +43,6 @@ import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import java.time.Clock
-import java.util.UUID
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
@@ -226,8 +225,7 @@ class ControlPlane private constructor(
                 groupChangeWatcher,
                 executorGroup,
                 cachedProtoResourcesSerializer,
-                System.getProperty(properties.envoy.controlPlaneIdentifierEnv) ?: UUID.randomUUID().toString()
-
+                properties.envoy.controlPlaneIdentifier
             )
         }
 
