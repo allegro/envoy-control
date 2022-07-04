@@ -34,7 +34,8 @@ class ConsulServiceChanges(
     private val logger by logger()
 
     fun watchState(): Flux<ServicesState> {
-        val watcher = StateWatcher(watcher, serviceMapper, objectMapper, metrics, subscriptionDelay, readinessStateHandler)
+        val watcher =
+            StateWatcher(watcher, serviceMapper, objectMapper, metrics, subscriptionDelay, readinessStateHandler)
         return Flux.create<ServicesState>(
             { sink ->
                 watcher.start { state: ServicesState -> sink.next(state) }
@@ -177,16 +178,21 @@ class ConsulServiceChanges(
             }
         }
 
-        private class InitialLoader(private val readinessStateHandler: ReadinessStateHandler,
-            private val metrics: EnvoyControlMetrics) {
+        private class InitialLoader(
+            private val readinessStateHandler: ReadinessStateHandler,
+            private val metrics: EnvoyControlMetrics
+        ) {
             private val remaining = ConcurrentHashMap.newKeySet<String>()
             private var startTimer: Long = 0
+
             init {
                 startTimer = System.currentTimeMillis()
                 readinessStateHandler.unready()
             }
+
             @Volatile
             private var initialized = false
+
             @Volatile
             var ready = false
                 private set
@@ -211,7 +217,6 @@ class ConsulServiceChanges(
                             )
                     }
                 }
-
             }
         }
     }

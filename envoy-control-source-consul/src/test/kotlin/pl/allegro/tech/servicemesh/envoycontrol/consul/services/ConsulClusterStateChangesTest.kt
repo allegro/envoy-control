@@ -11,9 +11,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.mockito.Mockito
 import org.mockito.Mockito.verify
-import org.mockito.Spy
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes
-import pl.allegro.tech.servicemesh.envoycontrol.server.NoopReadinessStateHandler
 import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import reactor.test.StepVerifier
 import java.net.URI

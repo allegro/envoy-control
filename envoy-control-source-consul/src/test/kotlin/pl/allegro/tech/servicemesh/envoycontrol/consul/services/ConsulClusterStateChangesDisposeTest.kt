@@ -8,9 +8,7 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import pl.allegro.tech.discovery.consul.recipes.watch.Canceller
 import pl.allegro.tech.discovery.consul.recipes.watch.ConsulWatcher
-import pl.allegro.tech.servicemesh.envoycontrol.server.NoopReadinessStateHandler
 import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
-import reactor.test.StepVerifier
 
 class ConsulClusterStateChangesDisposeTest {
 
@@ -19,7 +17,9 @@ class ConsulClusterStateChangesDisposeTest {
         val watcher = Mockito.mock(ConsulWatcher::class.java)
         val callbackCanceller = Canceller()
         val readinessStateHandler = Mockito.spy(ReadinessStateHandler::class.java)
-        `when`(watcher.watchEndpoint(Mockito.eq("/v1/catalog/services"), Mockito.any(), Mockito.any())).thenReturn(callbackCanceller)
+        `when`(watcher.watchEndpoint(Mockito.eq("/v1/catalog/services"), Mockito.any(), Mockito.any())).thenReturn(
+            callbackCanceller
+        )
 
         val recipes = ConsulServiceChanges(watcher = watcher, readinessStateHandler = readinessStateHandler)
         recipes.watchState().subscribe().dispose()
