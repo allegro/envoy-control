@@ -77,6 +77,7 @@ class ControlPlaneConfig {
     )
 
     @Bean
+    @Suppress("LongParameterList")
     fun consulServiceChanges(
         watcher: ConsulWatcher,
         serviceMapper: ConsulServiceMapper,
