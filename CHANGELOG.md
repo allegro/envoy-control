@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.19.11]
+
+### Changed
+- added possibility to configure RateLimitedRetryBackOff in retry policy
+
 ## [0.19.10]
 
 ### Changed
