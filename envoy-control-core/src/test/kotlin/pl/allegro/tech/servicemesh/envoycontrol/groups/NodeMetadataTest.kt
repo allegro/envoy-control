@@ -369,7 +369,10 @@ class NodeMetadataTest {
                 maxInterval = Durations.fromSeconds(8)
             ),
             retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost")),
-            methods = setOf("GET", "POST", "PUT")
+            methods = setOf("GET", "POST", "PUT"),
+            rateLimitedRetryBackOff = RateLimitedRetryBackOff(
+                listOf(ResetHeader("Retry-After", "SECONDS"))
+            )
         )
         val proto = outgoingDependenciesProto {
             withService(
@@ -408,7 +411,10 @@ class NodeMetadataTest {
                 maxInterval = Durations.fromMillis(250)
             ),
             retryHostPredicate = listOf(RetryHostPredicate(name = "envoy.retry_host_predicates.previous_hosts")),
-            methods = setOf("GET", "POST", "PUT")
+            methods = setOf("GET", "POST", "PUT"),
+            rateLimitedRetryBackOff = RateLimitedRetryBackOff(
+                listOf(ResetHeader("Retry-After", "SECONDS"))
+            )
         )
         val proto = outgoingDependenciesProto {
             withService(
@@ -916,7 +922,7 @@ class NodeMetadataTest {
         // then
         assertThat(exception.status.description).isEqualTo(
             "Timeout definition has number format" +
-                " but should be in string format and ends with 's'"
+                    " but should be in string format and ends with 's'"
         )
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -932,7 +938,7 @@ class NodeMetadataTest {
         // then
         assertThat(exception.status.description).isEqualTo(
             "Timeout definition has incorrect format: " +
-                "Invalid duration string: 20"
+                    "Invalid duration string: 20"
         )
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -1039,10 +1045,10 @@ class NodeMetadataTest {
         val jwtFilterProperties = JwtFilterProperties()
         val oauthProviders = mapOf(
             "oauth2-mock" to
-                OAuthProvider(
-                    jwksUri = URI.create("http://localhost:8080/jwks-address/"),
-                    clusterName = "oauth"
-                )
+                    OAuthProvider(
+                        jwksUri = URI.create("http://localhost:8080/jwks-address/"),
+                        clusterName = "oauth"
+                    )
         )
         jwtFilterProperties.providers = oauthProviders
         snapshotProperties.jwt = jwtFilterProperties
