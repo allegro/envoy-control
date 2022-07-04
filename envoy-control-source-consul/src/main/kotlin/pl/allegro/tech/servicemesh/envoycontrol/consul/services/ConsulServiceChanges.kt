@@ -22,6 +22,7 @@ import pl.allegro.tech.discovery.consul.recipes.watch.catalog.Services as Recipe
 import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import java.util.function.Supplier
 
+@Suppress("LongParameterList")
 class ConsulServiceChanges(
     private val watcher: ConsulWatcher,
     private val serviceMapper: ConsulServiceMapper = ConsulServiceMapper(),

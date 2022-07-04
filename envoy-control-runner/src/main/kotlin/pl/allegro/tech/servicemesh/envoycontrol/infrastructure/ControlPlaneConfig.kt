@@ -84,7 +84,14 @@ class ControlPlaneConfig {
         objectMapper: ObjectMapper,
         consulProperties: ConsulProperties,
         readinessStateHandler: ReadinessStateHandler
-    ) = ConsulServiceChanges(watcher, serviceMapper, metrics, objectMapper, consulProperties.subscriptionDelay, readinessStateHandler)
+    ) = ConsulServiceChanges(
+        watcher,
+        serviceMapper,
+        metrics,
+        objectMapper,
+        consulProperties.subscriptionDelay,
+        readinessStateHandler
+    )
 
     @Bean
     fun localClusterStateChanges(
