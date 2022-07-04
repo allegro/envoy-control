@@ -2,12 +2,10 @@
 
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
-import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import java.net.URI
 import java.time.Duration
@@ -56,8 +54,8 @@ class HttpFiltersProperties {
 
 class AccessLogProperties {
     var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
-    var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)%" +
-        "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
+    var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
+            "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
     var level = "TRACE"
     var logger = "envoy.AccessLog"
     var customFields = mapOf<String, String>()
@@ -358,13 +356,18 @@ data class RateLimitProperties(
 )
 
 data class RetryPolicyProperties(
+    var retryOn: List<String> = emptyList(),
     var numberOfRetries: Int = 1,
     var hostSelectionRetryMaxAttempts: Long = 3,
     var retryHostPredicate: List<RetryHostPredicate> =
         listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
-    var retryBackOff: RetryBackOff = RetryBackOff(
-        baseInterval = Durations.fromMillis(25)
+    var retryBackOff: RetryBackOffProperties = RetryBackOffProperties(
+        baseInterval = Duration.ofMillis(25)
     )
+)
+
+data class RetryBackOffProperties(
+    var baseInterval: Duration
 )
 
 typealias ProviderName = String
