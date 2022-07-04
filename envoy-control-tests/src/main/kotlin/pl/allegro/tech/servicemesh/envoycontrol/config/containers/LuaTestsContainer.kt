@@ -11,7 +11,7 @@ open class LuaTestsContainer : BaseGenericContainer<LuaTestsContainer>("vpanov/l
     companion object {
         const val hash = "sha256:21676428f30907d4081b5c02cae12e952b6de5bef544643c9eeaf2b416eccb70"
         private val mapper = ObjectMapper()
-            .registerModule(KotlinModule())
+            .registerModule(KotlinModule.Builder().build())
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 

@@ -27,7 +27,7 @@ class ConsulServiceChanges(
     private val watcher: ConsulWatcher,
     private val serviceMapper: ConsulServiceMapper = ConsulServiceMapper(),
     private val metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(),
-    private val objectMapper: ObjectMapper = ObjectMapper().registerModule(KotlinModule()),
+    private val objectMapper: ObjectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build()),
     private val subscriptionDelay: Duration = Duration.ZERO,
     private val readinessStateHandler: ReadinessStateHandler
 ) {
