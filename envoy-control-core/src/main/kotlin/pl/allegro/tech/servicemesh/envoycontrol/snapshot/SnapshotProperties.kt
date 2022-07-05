@@ -363,12 +363,21 @@ data class RetryPolicyProperties(
         listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
     var retryBackOff: RetryBackOffProperties = RetryBackOffProperties(
         baseInterval = Duration.ofMillis(25)
+    ),
+    var rateLimitedRetryBackOff: RateLimitedRetryBackOff = RateLimitedRetryBackOff(
+        listOf(ResetHeader("Retry-After", "SECONDS"))
     )
 )
 
 data class RetryBackOffProperties(
     var baseInterval: Duration
 )
+
+data class RateLimitedRetryBackOff(
+    var resetHeaders: List<ResetHeader>
+)
+
+data class ResetHeader(val name: String, val format: String)
 
 typealias ProviderName = String
 typealias TokenField = String

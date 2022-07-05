@@ -89,6 +89,9 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
             numberRetries = properties.retryPolicy.numberOfRetries,
             retryHostPredicate = properties.retryPolicy.retryHostPredicate,
             hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts,
+            rateLimitedRetryBackOff = RateLimitedRetryBackOff(
+                properties.retryPolicy.rateLimitedRetryBackOff.resetHeaders.map { ResetHeader(it.name, it.format) }
+            ),
             retryBackOff = RetryBackOff(
                 Durations.fromMillis(properties.retryPolicy.retryBackOff.baseInterval.toMillis())
             ),
@@ -230,6 +233,11 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy)
                 maxInterval = it.fieldsMap["maxInterval"]?.toDuration()
             )
         } ?: defaultRetryPolicy.retryBackOff,
+        rateLimitedRetryBackOff = value.field("rateLimitedRetryBackOff")?.structValue?.let {
+            RateLimitedRetryBackOff(
+                it.fieldsMap["resetHeaders"]?.listValue?.valuesList?.mapNotNull(::mapProtoToResetHeader)
+            )
+        } ?: defaultRetryPolicy.rateLimitedRetryBackOff,
         retryableStatusCodes = value.field("retryableStatusCodes")?.listValue?.valuesList?.map {
             it.numberValue.toInt()
         },
@@ -238,6 +246,18 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy)
         },
         methods = mapProtoToMethods(value)
     )
+}
+
+private fun mapProtoToResetHeader(resetHeaders: Value): ResetHeader? {
+    return resetHeaders.structValue?.let { header ->
+        val name = header.fieldsMap["name"]?.stringValue
+        val format = header.fieldsMap["format"]?.stringValue
+        if (name == null || format == null) {
+            null
+        } else {
+            ResetHeader(name, format)
+        }
+    }
 }
 
 private fun mapProtoToMethods(methods: Value) =
@@ -550,6 +570,7 @@ data class RetryPolicy(
     val retryHostPredicate: List<RetryHostPredicate>? = null,
     val perTryTimeoutMs: Long? = null,
     val retryBackOff: RetryBackOff? = null,
+    val rateLimitedRetryBackOff: RateLimitedRetryBackOff? = null,
     val retryableStatusCodes: List<Int>? = null,
     val retryableHeaders: List<String>? = null,
     val methods: Set<String>? = null
@@ -564,6 +585,12 @@ data class RetryBackOff(
         maxInterval = Durations.fromMillis(Durations.toMillis(baseInterval).times(BASE_INTERVAL_MULTIPLIER))
     )
 }
+
+data class RateLimitedRetryBackOff(
+    val resetHeaders: List<ResetHeader>? = null
+)
+
+data class ResetHeader(val name: String, val format: String)
 
 data class RetryHostPredicate(
     val name: String
