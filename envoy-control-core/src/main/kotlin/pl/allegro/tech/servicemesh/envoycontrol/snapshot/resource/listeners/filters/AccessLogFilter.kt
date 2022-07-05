@@ -107,11 +107,11 @@ class AccessLogFilter(
 
     private fun createFilterForAccessLog(accessLogFilters: List<AccessLogFilter?>): AccessLogFilter? {
         return when {
-            filters.isEmpty() -> null
-            filters.size == 1 -> filters[0]
+            accessLogFilters.isEmpty() -> null
+            accessLogFilters.size == 1 -> accessLogFilters[0]
             else -> {
                 val andFilter = AndFilter.newBuilder()
-                    .addAllFilters(filters)
+                    .addAllFilters(accessLogFilters)
                     .build()
                 AccessLogFilter.newBuilder()
                     .setAndFilter(andFilter)
