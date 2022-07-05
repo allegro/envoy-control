@@ -259,7 +259,7 @@ class MetadataNodeGroupTest {
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
 
-        metadata!!.putFields("access_log_filter", accessLogFilterProto("EQ:400"))
+        metadata!!.putFields("access_log_filter", accessLogFilterProto(value = "EQ:400", fieldName = "status_code_filter"))
 
         // when
         val group = nodeGroup.hash(NodeV3.newBuilder().setMetadata(metadata.build()).build())
@@ -281,14 +281,14 @@ class MetadataNodeGroupTest {
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
 
-        metadata!!.putFields("access_log_filter", accessLogFilterProto(config))
+        metadata!!.putFields("access_log_filter", accessLogFilterProto(value = config, fieldName = "status_code_filter"))
 
         // expect
         val exception = assertThrows<NodeMetadataValidationException> {
             nodeGroup.hash(NodeV3.newBuilder().setMetadata(metadata.build()).build())
         }
         assertThat(exception.status.description)
-            .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
+            .isEqualTo("Invalid access log comparison filter. Expected OPERATOR:VALUE")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 

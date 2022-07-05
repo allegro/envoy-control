@@ -7,8 +7,9 @@ import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterParser
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterSettings
+import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ComparisonFilterSettings
+import pl.allegro.tech.servicemesh.envoycontrol.utils.HeaderFilterSettings
 import java.net.URL
 import java.text.ParseException
 
@@ -32,8 +33,15 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
 }
 
 data class AccessLogFilterSettings(val proto: Value?) {
-    val statusCodeFilterSettings: StatusCodeFilterSettings? = proto?.field("status_code_filter")
-        .toStatusCodeFilter()
+    val statusCodeFilterSettings: ComparisonFilterSettings? = proto?.field("status_code_filter")
+        .toComparisonFilter()
+    val durationFilterSettings: ComparisonFilterSettings? = proto?.field("duration_filter")
+        .toComparisonFilter()
+    val notHealthCheckFilter: Boolean? = proto?.field("not_health_check_filter")?.boolValue
+    val responseFlagFilter: Iterable<String>? = proto?.field("response_flag_filter")
+        .toResponseFlagFilter()
+    val headerFilter: HeaderFilterSettings? = proto?.field("header_filter")
+        .toHeaderFilter()
 }
 
 data class ProxySettings(
@@ -65,12 +73,23 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
     }
 }
 
-fun Value?.toStatusCodeFilter(): StatusCodeFilterSettings? {
+fun Value?.toComparisonFilter(): ComparisonFilterSettings? {
     return this?.stringValue?.let {
-        StatusCodeFilterParser.parseStatusCodeFilter(it.uppercase())
+        AccessLogFilterParser.parseComparisonFilter(it.uppercase())
     }
 }
 
+fun Value?.toResponseFlagFilter(): Iterable<String>? {
+    return this?.stringValue?.let {
+        AccessLogFilterParser.parseResponseFlagFilter(it.uppercase())
+    }
+}
+
+fun Value?.toHeaderFilter(): HeaderFilterSettings? {
+    return this?.stringValue?.let {
+        AccessLogFilterParser.parseHeaderFilter(it)
+    }
+}
 private class RawDependency(val service: String?, val domain: String?, val domainPattern: String?, val value: Value)
 
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
