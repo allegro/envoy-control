@@ -81,24 +81,24 @@ class AccessLogFilter(
 
     private fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings) {
         val accessLogFilters = mutableListOf<AccessLogFilter?>()
-        accessLogFilters += settings.statusCodeFilterSettings?.let {
-            createStatusCodeFilter(it)
+        settings.statusCodeFilterSettings?.let {
+            accessLogFilters.add(createStatusCodeFilter(it))
         }
-        accessLogFilters += settings.durationFilterSettings?.let {
-            createDurationFilter(it)
+        settings.durationFilterSettings?.let {
+            accessLogFilters.add(createDurationFilter(it))
         }
-        accessLogFilters += settings.notHealthCheckFilter?.let {
+        settings.notHealthCheckFilter?.let {
             if (it) {
-                AccessLogFilter.newBuilder().setNotHealthCheckFilter(NotHealthCheckFilter.newBuilder()).build()
-            } else {
-                null
+                accessLogFilters.add(
+                    AccessLogFilter.newBuilder().setNotHealthCheckFilter(NotHealthCheckFilter.newBuilder()).build()
+                )
             }
         }
-        accessLogFilters += settings.responseFlagFilter?.let {
-            createResponseFlagFilter(it)
+        settings.responseFlagFilter?.let {
+            accessLogFilters.add(createResponseFlagFilter(it))
         }
-        accessLogFilters += settings.headerFilter?.let {
-            createHeaderFilter(it)
+        settings.headerFilter?.let {
+            accessLogFilters.add(createHeaderFilter(it))
         }
 
         val filter = createFilterForAccessLog(accessLogFilters)
@@ -106,7 +106,6 @@ class AccessLogFilter(
     }
 
     private fun createFilterForAccessLog(accessLogFilters: List<AccessLogFilter?>): AccessLogFilter? {
-        val filters = accessLogFilters.filterNotNull()
         return when {
             filters.isEmpty() -> null
             filters.size == 1 -> filters[0]
