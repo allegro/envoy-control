@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
 import pl.allegro.tech.discovery.consul.recipes.watch.catalog.ServiceInstances as RecipesServiceInstances
 import pl.allegro.tech.discovery.consul.recipes.watch.catalog.Services as RecipesServices
 import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
+import java.util.concurrent.TimeUnit
 import java.util.function.Supplier
 
 @Suppress("LongParameterList")
@@ -213,7 +214,8 @@ class ConsulServiceChanges(
                         readinessStateHandler.ready()
                         metrics.meterRegistry.timer("envoy-control.warmup.time")
                             .record(
-                                Supplier { stopTimer - startTimer }
+                                stopTimer - startTimer,
+                                TimeUnit.MILLISECONDS
                             )
                     }
                 }
