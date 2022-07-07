@@ -7,7 +7,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
 - Added readiness warmup time metric
+
+## [0.19.11]
+
+### Changed
+- added possibility to configure RateLimitedRetryBackOff in retry policy
 
 ## [0.19.10]
 
@@ -34,6 +40,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [0.19.6]
 
 ### Changed
+- Access log filters config handled
 - Global snapshot auditor added
 - updated project java version 11
 

@@ -10,12 +10,14 @@ import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
+import io.envoyproxy.envoy.config.route.v3.RetryPolicy.ResetHeaderFormat
 import io.envoyproxy.envoy.config.route.v3.Route
 import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RateLimitedRetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
@@ -262,6 +264,9 @@ class RequestPolicyMapper private constructor() {
                 policy.retryBackOff?.let {
                     buildRetryBackOff(it, retryPolicyBuilder)
                 }
+                policy.rateLimitedRetryBackOff?.let {
+                    buildRateLimitedRetryBackOff(it, retryPolicyBuilder)
+                }
                 policy.retryableStatusCodes?.let {
                     buildRetryableStatusCodes(it, retryPolicyBuilder)
                 }
@@ -270,6 +275,20 @@ class RequestPolicyMapper private constructor() {
                 }
 
                 retryPolicyBuilder.build()
+            }
+        }
+
+        private fun buildRateLimitedRetryBackOff(
+            rateLimitedRetryBackOff: RateLimitedRetryBackOff,
+            retryPolicyBuilder: RetryPolicy.Builder
+        ) {
+            rateLimitedRetryBackOff.resetHeaders?.forEach {
+                retryPolicyBuilder.rateLimitedRetryBackOffBuilder
+                    .addResetHeaders(
+                        RetryPolicy.ResetHeader.newBuilder()
+                            .setName(it.name)
+                            .setFormat(parseResetHeaderFormat(it.format))
+                    )
             }
         }
 
@@ -313,6 +332,14 @@ class RequestPolicyMapper private constructor() {
                 RetryPolicy.RetryHostPredicate.newBuilder().setName(it.name).build()
             }.also {
                 retryPolicyBuilder.addAllRetryHostPredicate(it)
+            }
+        }
+
+        private fun parseResetHeaderFormat(format: String): ResetHeaderFormat {
+            return when (format) {
+                "SECONDS" -> ResetHeaderFormat.SECONDS
+                "UNIX_TIMESTAMP" -> ResetHeaderFormat.UNIX_TIMESTAMP
+                else -> ResetHeaderFormat.UNRECOGNIZED
             }
         }
     }

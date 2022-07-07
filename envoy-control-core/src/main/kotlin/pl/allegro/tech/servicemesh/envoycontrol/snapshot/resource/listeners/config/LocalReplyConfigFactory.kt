@@ -19,7 +19,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HeaderMatcher as Header
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalReplyMapperProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.MatcherAndMapper
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ResponseFormat
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterParser
+import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
 
 class LocalReplyConfigFactory(
     localReplyMapperProperties: LocalReplyMapperProperties,
@@ -108,7 +108,7 @@ class LocalReplyConfigFactory(
     }
 
     private fun createStatusCodeFilter(statusCode: String): StatusCodeFilter.Builder {
-        val parsedStatusCodeMatcher = StatusCodeFilterParser.parseStatusCodeFilter(statusCode)
+        val parsedStatusCodeMatcher = AccessLogFilterParser.parseComparisonFilter(statusCode)
         return StatusCodeFilter.newBuilder().setComparison(
             ComparisonFilter.newBuilder()
                 .setOp(parsedStatusCodeMatcher.comparisonOperator)

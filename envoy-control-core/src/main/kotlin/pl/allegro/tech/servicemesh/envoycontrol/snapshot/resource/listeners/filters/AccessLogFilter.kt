@@ -5,13 +5,21 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLog
 import io.envoyproxy.envoy.config.accesslog.v3.AccessLogFilter
+import io.envoyproxy.envoy.config.accesslog.v3.AndFilter
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
+import io.envoyproxy.envoy.config.accesslog.v3.DurationFilter
+import io.envoyproxy.envoy.config.accesslog.v3.HeaderFilter
+import io.envoyproxy.envoy.config.accesslog.v3.NotHealthCheckFilter
+import io.envoyproxy.envoy.config.accesslog.v3.ResponseFlagFilter
 import io.envoyproxy.envoy.config.accesslog.v3.StatusCodeFilter
 import io.envoyproxy.envoy.config.core.v3.RuntimeUInt32
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
+import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterSettings
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ComparisonFilterSettings
+import pl.allegro.tech.servicemesh.envoycontrol.utils.HeaderFilterSettings
 
 class AccessLogFilter(
     snapshotProperties: SnapshotProperties
@@ -30,9 +38,7 @@ class AccessLogFilter(
         val builder = AccessLog.newBuilder().setName("envoy.file_access_log")
 
         accessLogFilterSettings?.let { settings ->
-            settings.statusCodeFilterSettings?.let {
-                builder.buildFromSettings(it)
-            }
+            builder.buildFromSettings(settings)
         }
 
         return builder.setTypedConfig(
@@ -73,24 +79,109 @@ class AccessLogFilter(
             .build()
     }
 
-    private fun AccessLog.Builder.buildFromSettings(settings: StatusCodeFilterSettings) {
-        this.setFilter(
-            AccessLogFilter.newBuilder().setStatusCodeFilter(
-                StatusCodeFilter.newBuilder()
-                    .setComparison(
-                        ComparisonFilter.newBuilder()
-                            .setOp(settings.comparisonOperator)
-                            .setValue(
-                                RuntimeUInt32.newBuilder()
-                                    .setDefaultValue(settings.comparisonCode)
-                                    .setRuntimeKey("access_log_filter_http_code")
-                                    .build()
-                            )
-                            .build()
-                    )
+    private fun AccessLog.Builder.buildFromSettings(settings: AccessLogFilterSettings) {
+        val accessLogFilters = mutableListOf<AccessLogFilter?>()
+        settings.statusCodeFilterSettings?.let {
+            accessLogFilters.add(createStatusCodeFilter(it))
+        }
+        settings.durationFilterSettings?.let {
+            accessLogFilters.add(createDurationFilter(it))
+        }
+        settings.notHealthCheckFilter?.let {
+            if (it) {
+                accessLogFilters.add(
+                    AccessLogFilter.newBuilder().setNotHealthCheckFilter(NotHealthCheckFilter.newBuilder()).build()
+                )
+            }
+        }
+        settings.responseFlagFilter?.let {
+            accessLogFilters.add(createResponseFlagFilter(it))
+        }
+        settings.headerFilter?.let {
+            accessLogFilters.add(createHeaderFilter(it))
+        }
+
+        val filter = createFilterForAccessLog(accessLogFilters)
+        filter?.let { this.setFilter(it) }
+    }
+
+    private fun createFilterForAccessLog(accessLogFilters: List<AccessLogFilter?>): AccessLogFilter? {
+        return when {
+            accessLogFilters.isEmpty() -> null
+            accessLogFilters.size == 1 -> accessLogFilters[0]
+            else -> {
+                val andFilter = AndFilter.newBuilder()
+                    .addAllFilters(accessLogFilters)
+                    .build()
+                AccessLogFilter.newBuilder()
+                    .setAndFilter(andFilter)
+                    .build()
+            }
+        }
+    }
+
+    private fun createResponseFlagFilter(flags: Iterable<String>): AccessLogFilter {
+        return AccessLogFilter.newBuilder()
+            .setResponseFlagFilter(
+                ResponseFlagFilter.newBuilder()
+                    .addAllFlags(flags)
                     .build()
             )
+            .build()
+    }
+
+    private fun createDurationFilter(
+        settings: ComparisonFilterSettings
+    ): AccessLogFilter {
+        return AccessLogFilter.newBuilder().setDurationFilter(
+            DurationFilter.newBuilder()
+                .setComparison(
+                    createComparison(settings, "access_log_filter_duration")
+                )
+                .build()
         )
+            .build()
+    }
+
+    private fun createStatusCodeFilter(
+        settings: ComparisonFilterSettings
+    ): AccessLogFilter {
+        return AccessLogFilter.newBuilder().setStatusCodeFilter(
+            StatusCodeFilter.newBuilder()
+                .setComparison(
+                    createComparison(settings, "access_log_filter_http_code")
+                )
+                .build()
+        ).build()
+    }
+
+    private fun createHeaderFilter(settings: HeaderFilterSettings): AccessLogFilter {
+        return AccessLogFilter.newBuilder().setHeaderFilter(
+            HeaderFilter.newBuilder()
+                .setHeader(
+                    HeaderMatcher.newBuilder()
+                        .setName(settings.headerName)
+                        .setSafeRegexMatch(
+                            RegexMatcher.newBuilder()
+                                .setGoogleRe2(RegexMatcher.GoogleRE2.getDefaultInstance())
+                                .setRegex(settings.regex)
+                        )
+                        .build()
+                )
+                .build()
+        ).build()
+    }
+
+    private fun createComparison(settings: ComparisonFilterSettings, runtimeKey: String): ComparisonFilter {
+        return ComparisonFilter.newBuilder()
+            .setOp(settings.comparisonOperator)
+            .setValue(
+                RuntimeUInt32.newBuilder()
+                    .setDefaultValue(settings.comparisonCode)
+                    .setRuntimeKey(runtimeKey)
+                    .build()
+            )
+            .build()
     }
 
     private fun stringValue(value: String) = Value.newBuilder().setStringValue(value).build()
