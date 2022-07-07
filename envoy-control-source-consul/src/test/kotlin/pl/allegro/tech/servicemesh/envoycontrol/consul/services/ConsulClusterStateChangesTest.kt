@@ -9,7 +9,10 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import org.mockito.Mockito
+import org.mockito.Mockito.verify
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes
+import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import reactor.test.StepVerifier
 import java.net.URI
 import java.util.UUID
@@ -36,7 +39,8 @@ class ConsulClusterStateChangesTest {
         .consulWatcher(Executors.newFixedThreadPool(10))
         .withAgentUri(URI("http://localhost:${consul.httpPort}"))
         .build()
-    private val changes = ConsulServiceChanges(watcher)
+    private val readinessStateHandler = Mockito.spy(ReadinessStateHandler::class.java)
+    private val changes = ConsulServiceChanges(watcher = watcher, readinessStateHandler = readinessStateHandler)
     private val client = AgentConsulClient("localhost", consul.httpPort)
 
     @BeforeEach
@@ -49,6 +53,7 @@ class ConsulClusterStateChangesTest {
     fun `should watch changes of consul state`() {
         StepVerifier.create(changes.watchState())
             .expectNextCount(1) // events: add(consul) + change(consul) happened during graceful startup
+            .then { verify(readinessStateHandler).ready() }
             .then { registerService(id = "123", name = "abc") }
             .expectNextMatches { it.hasService("abc") }
             .assertNext {
@@ -78,6 +83,7 @@ class ConsulClusterStateChangesTest {
 
         StepVerifier.create(changes.watchState())
             .expectNextMatches { it.serviceNames() == setOf("consul", "service1", "service2") }
+            .then { verify(readinessStateHandler).ready() }
             .then { registerService(id = "service3", name = "service3") }
             .thenRequest(1) // events: add(service3)
             .expectNextMatches { it.serviceNames() == setOf("consul", "service1", "service2", "service3") }

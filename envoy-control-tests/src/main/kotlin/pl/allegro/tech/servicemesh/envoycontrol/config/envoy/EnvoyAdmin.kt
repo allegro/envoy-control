@@ -17,7 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 class EnvoyAdmin(
     private val address: String,
     private val objectMapper: ObjectMapper = ObjectMapper()
-        .registerModule(KotlinModule())
+        .registerModule(KotlinModule.Builder().build())
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 ) {
 
