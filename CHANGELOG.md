@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+- Added readiness warmup time metric
+
 ## [0.19.10]
 
 ### Changed
