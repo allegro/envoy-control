@@ -41,7 +41,7 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
     private val sanUriWildcardRegexForLua = SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
         .sanUriWildcardRegexForLua
 
-    fun ingressScriptsMetadata(group: Group): Metadata {
+    fun ingressScriptsMetadata(group: Group, flags: Map<String, Boolean> = mapOf()): Metadata {
         return Metadata.newBuilder()
             .putFilterMetadata("envoy.filters.http.lua",
                 Struct.newBuilder()
@@ -96,6 +96,18 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
                         Value.newBuilder()
                             .setStringValue(group.discoveryServiceName ?: "")
                             .build()
+                    ).putFields("flags", Value.newBuilder()
+                        .setStructValue(Struct.newBuilder()
+                            .apply {
+                                flags.forEach {
+                                    putFields(
+                                        it.key,
+                                        Value.newBuilder().setBoolValue(it.value).build()
+                                    )
+                                }
+                            }
+                            .build()
+                        ).build()
                     )
                     .build()
             ).build()
