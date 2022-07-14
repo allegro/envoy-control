@@ -17,11 +17,6 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
         companion object {
             fun fromTypeUrl(typeUrl: String) = when (typeUrl) {
                 // TODO_deprecate_v2: do we need this mapping still?
-                Resources.V2.CLUSTER_TYPE_URL -> CDS
-                Resources.V2.ENDPOINT_TYPE_URL -> EDS
-                Resources.V2.LISTENER_TYPE_URL -> LDS
-                Resources.V2.ROUTE_TYPE_URL -> RDS
-                Resources.V2.SECRET_TYPE_URL -> SDS
                 Resources.V3.CLUSTER_TYPE_URL -> CDS
                 Resources.V3.ENDPOINT_TYPE_URL -> EDS
                 Resources.V3.LISTENER_TYPE_URL -> LDS
