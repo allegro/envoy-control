@@ -7,13 +7,14 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
-import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
-import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
-import reactor.core.publisher.Mono
+import reactor.core.publisher.FluxSink
+import java.lang.Integer.max
 import java.net.URI
-import java.time.Duration
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class RemoteServices(
     private val controlPlaneClient: ControlPlaneClient,
@@ -23,34 +24,44 @@ class RemoteServices(
 ) {
     private val logger by logger()
     private val clusterStateCache = ConcurrentHashMap<String, ClusterState>()
+    private val scheduler = Executors.newScheduledThreadPool(max(remoteClusters.size, 1))
 
     fun getChanges(interval: Long): Flux<MultiClusterState> {
-        return Flux
-            .interval(Duration.ofSeconds(0), Duration.ofSeconds(interval))
-            .checkpoint("cross-dc-services-ticks")
-            .name("cross-dc-services-ticks").metrics()
-            // Cross cluster sync is not a backpressure compatible stream.
-            // If running cross cluster sync is slower than interval we have to drop interval events
-            // and run another cross cluster on another interval tick.
-            .onBackpressureDrop()
-            .measureDiscardedItems("cross-dc-services-ticks", meterRegistry)
-            .checkpoint("cross-dc-services-update-requested")
-            .name("cross-dc-services-update-requested").metrics()
-            .flatMap {
-                Flux.fromIterable(remoteClusters)
-                    .map { cluster -> clusterWithControlPlaneInstances(cluster) }
-                    .filter { (_, instances) -> instances.isNotEmpty() }
-                    .flatMap { (cluster, instances) -> servicesStateFromCluster(cluster, instances) }
-                    .collectList()
-                    .map { it.toMultiClusterState() }
-            }
-            .measureBuffer("cross-dc-services-flat-map", meterRegistry)
-            .filter {
-                it.isNotEmpty()
-            }
-            .doOnCancel {
-                meterRegistry.counter("cross-dc-synchronization.cancelled").increment()
-                logger.warn("Cancelling cross dc sync")
+        val aclFlux: Flux<MultiClusterState> = Flux.create({ sink ->
+            scheduler.scheduleWithFixedDelay({
+                meterRegistry.timer("sync-dc.get-multi-cluster-states.time").record {
+                    getChanges(sink::next, interval)
+                }
+            }, 0, interval, TimeUnit.SECONDS)
+        }, FluxSink.OverflowStrategy.LATEST)
+        return aclFlux.doOnCancel {
+            meterRegistry.counter("cross-dc-synchronization.cancelled").increment()
+            logger.warn("Cancelling cross dc sync")
+        }
+    }
+
+    private fun getChanges(stateConsumer: (MultiClusterState) -> Unit, interval: Long) {
+        remoteClusters
+            .map { cluster -> clusterWithControlPlaneInstances(cluster) }
+            .filter { (_, instances) -> instances.isNotEmpty() }
+            .map { (cluster, instances) -> getClusterState(instances, cluster, interval) }
+            .mapNotNull { it.get() }
+            .toMultiClusterState()
+            .let { if (it.isNotEmpty()) stateConsumer(it) }
+    }
+
+    private fun getClusterState(
+        instances: List<URI>,
+        cluster: String,
+        interval: Long
+    ): CompletableFuture<ClusterState?> {
+        return controlPlaneClient.getState(chooseInstance(instances))
+            .thenApply { servicesStateFromCluster(cluster, it) }
+            .orTimeout(interval, TimeUnit.SECONDS)
+            .exceptionally {
+                meterRegistry.counter("cross-dc-synchronization.$cluster.state-fetcher.errors").increment()
+                logger.warn("Error synchronizing instances ${it.message}", it)
+                clusterStateCache[cluster]
             }
     }
 
@@ -67,28 +78,16 @@ class RemoteServices(
 
     private fun servicesStateFromCluster(
         cluster: String,
-        instances: List<URI>
-    ): Mono<ClusterState> {
-        val instance = chooseInstance(instances)
-        return Mono.fromCallable {
-            controlPlaneClient.getState(instance)
-        }
-            .checkpoint("cross-dc-service-update-$cluster")
-            .name("cross-dc-service-update-$cluster").metrics()
-            .map { ServicesState(ConcurrentHashMap(it.getOnlyServicesWithInstances())) }
-            .map {
-                ClusterState(it, Locality.REMOTE, cluster)
-            }
-            .doOnSuccess {
-                clusterStateCache += cluster to it
-            }
-            .onErrorResume { exception ->
-                // TODO(dj): #110 cross-dc- naming stays for now to avoid breaking existing monitoring,
-                //  but at a bigger release we could tackle it
-                meterRegistry.counter("cross-dc-synchronization.$cluster.state-fetcher.errors").increment()
-                logger.warn("Error synchronizing instances ${exception.message}", exception)
-                Mono.justOrEmpty(clusterStateCache[cluster])
-            }
+        state: ServicesState
+    ): ClusterState {
+        meterRegistry.counter("cross-dc-service-update-$cluster").increment()
+        val clusterState = ClusterState(
+            state.removeServicesWithoutInstances(),
+            Locality.REMOTE,
+            cluster
+        )
+        clusterStateCache += cluster to clusterState
+        return clusterState
     }
 
     private fun chooseInstance(serviceInstances: List<URI>): URI = serviceInstances.random()

@@ -28,7 +28,7 @@ private val sampleNetworkDelayId = UUID.randomUUID().toString()
 internal class ChaosControllerTest {
 
     private val objectMapper: ObjectMapper = ObjectMapper()
-        .registerModule(KotlinModule())
+        .registerModule(KotlinModule.Builder().build())
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     companion object {

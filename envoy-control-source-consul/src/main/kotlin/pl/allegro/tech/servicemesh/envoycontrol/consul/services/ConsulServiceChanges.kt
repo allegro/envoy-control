@@ -19,18 +19,23 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import pl.allegro.tech.discovery.consul.recipes.watch.catalog.ServiceInstances as RecipesServiceInstances
 import pl.allegro.tech.discovery.consul.recipes.watch.catalog.Services as RecipesServices
+import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
+import java.util.concurrent.TimeUnit
 
+@Suppress("LongParameterList")
 class ConsulServiceChanges(
     private val watcher: ConsulWatcher,
     private val serviceMapper: ConsulServiceMapper = ConsulServiceMapper(),
     private val metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(),
-    private val objectMapper: ObjectMapper = ObjectMapper().registerModule(KotlinModule()),
-    private val subscriptionDelay: Duration = Duration.ZERO
+    private val objectMapper: ObjectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build()),
+    private val subscriptionDelay: Duration = Duration.ZERO,
+    private val readinessStateHandler: ReadinessStateHandler
 ) {
     private val logger by logger()
 
     fun watchState(): Flux<ServicesState> {
-        val watcher = StateWatcher(watcher, serviceMapper, objectMapper, metrics, subscriptionDelay)
+        val watcher =
+            StateWatcher(watcher, serviceMapper, objectMapper, metrics, subscriptionDelay, readinessStateHandler)
         return Flux.create<ServicesState>(
             { sink ->
                 watcher.start { state: ServicesState -> sink.next(state) }
@@ -53,7 +58,8 @@ class ConsulServiceChanges(
         private val serviceMapper: ConsulServiceMapper,
         private val objectMapper: ObjectMapper,
         private val metrics: EnvoyControlMetrics,
-        private val subscriptionDelay: Duration
+        private val subscriptionDelay: Duration,
+        private val readinessStateHandler: ReadinessStateHandler
     ) : AutoCloseable {
         lateinit var stateReceiver: (ServicesState) -> (Unit)
 
@@ -71,7 +77,7 @@ class ConsulServiceChanges(
         private var lastServices = setOf<String>()
         private val servicesLock = Any()
 
-        private val initialLoader = InitialLoader()
+        private val initialLoader = InitialLoader(readinessStateHandler, metrics)
 
         fun start(stateReceiver: (ServicesState) -> Unit) {
             if (canceller == null) {
@@ -96,6 +102,7 @@ class ConsulServiceChanges(
 
         override fun close() {
             synchronized(stateLock) {
+                readinessStateHandler.unready()
                 watchedServices.values.forEach { canceller -> canceller.cancel() }
                 watchedServices.clear()
                 canceller?.cancel()
@@ -131,20 +138,19 @@ class ConsulServiceChanges(
             oldCanceller?.cancel()
 
             val stateChanged = state.add(service)
-            if (stateChanged) publishChange()
+            if (stateChanged) publishState()
             metrics.serviceAdded()
         }
 
         private fun handleServiceInstancesChange(recipesInstances: RecipesServiceInstances) = synchronized(stateLock) {
             initialLoader.observed(recipesInstances.serviceName)
-
             val instances = recipesInstances.toDomainInstances()
             val stateChanged = state.change(instances)
             if (stateChanged) {
                 val addresses = instances.instances.joinToString { "[${it.id} - ${it.address}:${it.port}]" }
                 logger.info("Instances for ${instances.serviceName} changed: $addresses")
 
-                publishChange()
+                publishState()
                 metrics.instanceChanged()
             }
         }
@@ -160,22 +166,33 @@ class ConsulServiceChanges(
         private fun handleServiceRemoval(service: String) = synchronized(stateLock) {
             logger.info("Stop watching $service")
             val stateChanged = state.remove(service)
-            if (stateChanged) publishChange()
+            if (stateChanged) publishState()
             watchedServices[service]?.cancel()
             watchedServices.remove(service)
             metrics.serviceRemoved()
         }
 
-        private fun publishChange() {
+        private fun publishState() {
             if (initialLoader.ready) {
                 stateReceiver(state)
             }
         }
 
-        private class InitialLoader {
+        private class InitialLoader(
+            private val readinessStateHandler: ReadinessStateHandler,
+            private val metrics: EnvoyControlMetrics
+        ) {
             private val remaining = ConcurrentHashMap.newKeySet<String>()
+            private var startTimer: Long = 0
+
+            init {
+                startTimer = System.currentTimeMillis()
+                readinessStateHandler.unready()
+            }
+
             @Volatile
             private var initialized = false
+
             @Volatile
             var ready = false
                 private set
@@ -191,6 +208,15 @@ class ConsulServiceChanges(
                 if (!ready) {
                     remaining.remove(service)
                     ready = remaining.isEmpty()
+                    if (ready) {
+                        val stopTimer = System.currentTimeMillis()
+                        readinessStateHandler.ready()
+                        metrics.meterRegistry.timer("envoy-control.warmup.time")
+                            .record(
+                                stopTimer - startTimer,
+                                TimeUnit.MILLISECONDS
+                            )
+                    }
                 }
             }
         }

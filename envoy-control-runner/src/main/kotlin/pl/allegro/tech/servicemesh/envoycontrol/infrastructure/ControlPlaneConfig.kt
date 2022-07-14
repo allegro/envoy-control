@@ -25,6 +25,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.consul.ConsulProperties
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceMapper
+import pl.allegro.tech.servicemesh.envoycontrol.server.NoopReadinessStateHandler
+import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
@@ -75,13 +77,22 @@ class ControlPlaneConfig {
     )
 
     @Bean
+    @Suppress("LongParameterList")
     fun consulServiceChanges(
         watcher: ConsulWatcher,
         serviceMapper: ConsulServiceMapper,
         metrics: EnvoyControlMetrics,
         objectMapper: ObjectMapper,
-        consulProperties: ConsulProperties
-    ) = ConsulServiceChanges(watcher, serviceMapper, metrics, objectMapper, consulProperties.subscriptionDelay)
+        consulProperties: ConsulProperties,
+        readinessStateHandler: ReadinessStateHandler
+    ) = ConsulServiceChanges(
+        watcher,
+        serviceMapper,
+        metrics,
+        objectMapper,
+        consulProperties.subscriptionDelay,
+        readinessStateHandler
+    )
 
     @Bean
     fun localClusterStateChanges(
@@ -116,6 +127,10 @@ class ControlPlaneConfig {
 
     @Bean
     fun ipAddressFilter() = IpAddressFilter()
+
+    @Bean
+    @ConditionalOnMissingBean(ReadinessStateHandler::class)
+    fun readinessStateHandler() = NoopReadinessStateHandler
 
     @Bean
     @ConditionalOnProperty("envoy-control.service-filters.excluded-names-patterns")

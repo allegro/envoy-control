@@ -64,6 +64,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RateLimitedRetryBackOff as EnvoyControlRateLimitedRetryBackOff
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ResetHeader as EnvoyControlResetHeader
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 @Suppress("LargeClass")
@@ -159,7 +161,8 @@ class SnapshotUpdaterTest {
         val cache = MockCache()
 
         val snapshotAuditor = Mockito.mock(SnapshotChangeAuditor::class.java)
-        Mockito.`when`(snapshotAuditor.audit(any(UpdateResult::class.java), any(UpdateResult::class.java))).thenReturn(Mono.empty())
+        Mockito.`when`(snapshotAuditor.audit(any(UpdateResult::class.java), any(UpdateResult::class.java)))
+            .thenReturn(Mono.empty())
         val groups = listOf(groupWithProxy, groupWithServiceName, AllServicesGroup(communicationMode = ADS))
         groups.forEach {
             cache.setSnapshot(it, uninitializedSnapshot)
@@ -169,16 +172,21 @@ class SnapshotUpdaterTest {
             cache = cache,
             snapshotChangeAuditor = snapshotAuditor,
             properties = SnapshotProperties().apply {
-              stateSampleDuration = Duration.ZERO
+                stateSampleDuration = Duration.ZERO
             },
             groups = groups
         )
 
         // when
-        updater.startWithServices(arrayOf("existingService1"), arrayOf("existingService1", "existingService2"), arrayOf("existingService3"))
+        updater.startWithServices(
+            arrayOf("existingService1"),
+            arrayOf("existingService1", "existingService2"),
+            arrayOf("existingService3")
+        )
 
         // then
-        Mockito.verify(snapshotAuditor, Mockito.times(3)).audit(any(UpdateResult::class.java), any(UpdateResult::class.java))
+        Mockito.verify(snapshotAuditor, Mockito.times(3))
+            .audit(any(UpdateResult::class.java), any(UpdateResult::class.java))
     }
 
     @Test
@@ -240,7 +248,10 @@ class SnapshotUpdaterTest {
             .hasOnlyClustersFor("retryPolicyService1", "retryPolicyService2")
             .hasVirtualHostConfig(name = "retryPolicyService1", idleTimeout = "10s", requestTimeout = "9s")
             .hasVirtualHostConfig(name = "retryPolicyService2", idleTimeout = "8s", requestTimeout = "7s")
-            .hasRetryPolicySpecified(name = "retryPolicyService1", retryPolicy = RequestPolicyMapper.mapToEnvoyRetryPolicyBuilder(givenRetryPolicy))
+            .hasRetryPolicySpecified(
+                name = "retryPolicyService1",
+                retryPolicy = RequestPolicyMapper.mapToEnvoyRetryPolicyBuilder(givenRetryPolicy)
+            )
             .hasRetryPolicySpecified(name = "retryPolicyService2", retryPolicy = null)
     }
 
@@ -979,6 +990,7 @@ class SnapshotUpdaterTest {
     private fun SnapshotUpdater.startWithServices(vararg services: Array<String>) {
         this.start(fluxOfServices(*services)).collectList().block()
     }
+
     private fun SnapshotUpdater.startWithServices(vararg services: String) {
         this.start(fluxOfServices(*services)).blockFirst()
     }
@@ -993,7 +1005,8 @@ class SnapshotUpdaterTest {
             serviceNameToInstances = ConcurrentHashMap(services.associateWith { ServiceInstances(it, emptySet()) })
 
         ),
-        Locality.LOCAL, "cluster")
+        Locality.LOCAL, "cluster"
+    )
 
     class FailingMockCache : MockCache() {
         var called = 0
@@ -1274,11 +1287,17 @@ fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
                     hostSelectionRetryMaxAttempts = 3,
                     retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
                     numberRetries = 1,
-                    retryBackOff = RetryBackOff(Durations.fromMillis(25), Durations.fromMillis(250))
+                    retryBackOff = RetryBackOff(Durations.fromMillis(25), Durations.fromMillis(250)),
+                    rateLimitedRetryBackOff = EnvoyControlRateLimitedRetryBackOff(
+                        listOf(
+                            EnvoyControlResetHeader("Retry-After", "SECONDS")
+                        )
+                    )
                 )
             )
         )
     }.toSet()
+
 fun outgoingTimeoutPolicy(
     idleTimeout: Long = 120L,
     connectionIdleTimeout: Long = 120L,

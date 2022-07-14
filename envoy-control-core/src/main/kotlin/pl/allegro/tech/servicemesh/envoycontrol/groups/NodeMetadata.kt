@@ -7,8 +7,9 @@ import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterParser
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.util.StatusCodeFilterSettings
+import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ComparisonFilterSettings
+import pl.allegro.tech.servicemesh.envoycontrol.utils.HeaderFilterSettings
 import java.net.URL
 import java.text.ParseException
 
@@ -32,8 +33,15 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
 }
 
 data class AccessLogFilterSettings(val proto: Value?) {
-    val statusCodeFilterSettings: StatusCodeFilterSettings? = proto?.field("status_code_filter")
-        .toStatusCodeFilter()
+    val statusCodeFilterSettings: ComparisonFilterSettings? = proto?.field("status_code_filter")
+        .toComparisonFilter()
+    val durationFilterSettings: ComparisonFilterSettings? = proto?.field("duration_filter")
+        .toComparisonFilter()
+    val notHealthCheckFilter: Boolean? = proto?.field("not_health_check_filter")?.boolValue
+    val responseFlagFilter: Iterable<String>? = proto?.field("response_flag_filter")
+        .toResponseFlagFilter()
+    val headerFilter: HeaderFilterSettings? = proto?.field("header_filter")
+        .toHeaderFilter()
 }
 
 data class ProxySettings(
@@ -65,12 +73,23 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
     }
 }
 
-fun Value?.toStatusCodeFilter(): StatusCodeFilterSettings? {
+fun Value?.toComparisonFilter(): ComparisonFilterSettings? {
     return this?.stringValue?.let {
-        StatusCodeFilterParser.parseStatusCodeFilter(it.toUpperCase())
+        AccessLogFilterParser.parseComparisonFilter(it.uppercase())
     }
 }
 
+fun Value?.toResponseFlagFilter(): Iterable<String>? {
+    return this?.stringValue?.let {
+        AccessLogFilterParser.parseResponseFlagFilter(it.uppercase())
+    }
+}
+
+fun Value?.toHeaderFilter(): HeaderFilterSettings? {
+    return this?.stringValue?.let {
+        AccessLogFilterParser.parseHeaderFilter(it)
+    }
+}
 private class RawDependency(val service: String?, val domain: String?, val domainPattern: String?, val value: Value)
 
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
@@ -85,10 +104,16 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
             requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
         ),
         retryPolicy = RetryPolicy(
+            retryOn = properties.retryPolicy.retryOn,
             numberRetries = properties.retryPolicy.numberOfRetries,
             retryHostPredicate = properties.retryPolicy.retryHostPredicate,
             hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts,
-            retryBackOff = properties.retryPolicy.retryBackOff
+            rateLimitedRetryBackOff = RateLimitedRetryBackOff(
+                properties.retryPolicy.rateLimitedRetryBackOff.resetHeaders.map { ResetHeader(it.name, it.format) }
+            ),
+            retryBackOff = RetryBackOff(
+                Durations.fromMillis(properties.retryPolicy.retryBackOff.baseInterval.toMillis())
+            ),
         )
     )
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
@@ -195,9 +220,9 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
-        rewriteHostHeader == null &&
-        timeoutPolicy == null &&
-        retryPolicy == null
+            rewriteHostHeader == null &&
+            timeoutPolicy == null &&
+            retryPolicy == null
 
     return if (shouldAllBeDefault) {
         defaultSettings
@@ -213,7 +238,7 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
 
 private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy): RetryPolicy {
     return RetryPolicy(
-        retryOn = value.field("retryOn")?.listValue?.valuesList?.map { it.stringValue },
+        retryOn = value.field("retryOn")?.listValue?.valuesList?.map { it.stringValue } ?: defaultRetryPolicy.retryOn,
         hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
             ?: defaultRetryPolicy.hostSelectionRetryMaxAttempts,
         numberRetries = value.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy.numberRetries,
@@ -227,6 +252,11 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy)
                 maxInterval = it.fieldsMap["maxInterval"]?.toDuration()
             )
         } ?: defaultRetryPolicy.retryBackOff,
+        rateLimitedRetryBackOff = value.field("rateLimitedRetryBackOff")?.structValue?.let {
+            RateLimitedRetryBackOff(
+                it.fieldsMap["resetHeaders"]?.listValue?.valuesList?.mapNotNull(::mapProtoToResetHeader)
+            )
+        } ?: defaultRetryPolicy.rateLimitedRetryBackOff,
         retryableStatusCodes = value.field("retryableStatusCodes")?.listValue?.valuesList?.map {
             it.numberValue.toInt()
         },
@@ -235,6 +265,18 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy)
         },
         methods = mapProtoToMethods(value)
     )
+}
+
+private fun mapProtoToResetHeader(resetHeaders: Value): ResetHeader? {
+    return resetHeaders.structValue?.let { header ->
+        val name = header.fieldsMap["name"]?.stringValue
+        val format = header.fieldsMap["format"]?.stringValue
+        if (name == null || format == null) {
+            null
+        } else {
+            ResetHeader(name, format)
+        }
+    }
 }
 
 private fun mapProtoToMethods(methods: Value) =
@@ -411,7 +453,7 @@ fun Value.toDuration(): Duration? {
     return when (this.kindCase) {
         Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException(
             "Timeout definition has number format" +
-                " but should be in string format and ends with 's'"
+                    " but should be in string format and ends with 's'"
         )
         Value.KindCase.STRING_VALUE -> {
             try {
@@ -541,12 +583,13 @@ data class DependencySettings(
 )
 
 data class RetryPolicy(
-    val retryOn: List<String>? = null,
+    val retryOn: List<String> = emptyList(),
     val hostSelectionRetryMaxAttempts: Long? = null,
     val numberRetries: Int? = null,
     val retryHostPredicate: List<RetryHostPredicate>? = null,
     val perTryTimeoutMs: Long? = null,
     val retryBackOff: RetryBackOff? = null,
+    val rateLimitedRetryBackOff: RateLimitedRetryBackOff? = null,
     val retryableStatusCodes: List<Int>? = null,
     val retryableHeaders: List<String>? = null,
     val methods: Set<String>? = null
@@ -561,6 +604,12 @@ data class RetryBackOff(
         maxInterval = Durations.fromMillis(Durations.toMillis(baseInterval).times(BASE_INTERVAL_MULTIPLIER))
     )
 }
+
+data class RateLimitedRetryBackOff(
+    val resetHeaders: List<ResetHeader>? = null
+)
+
+data class ResetHeader(val name: String, val format: String)
 
 data class RetryHostPredicate(
     val name: String

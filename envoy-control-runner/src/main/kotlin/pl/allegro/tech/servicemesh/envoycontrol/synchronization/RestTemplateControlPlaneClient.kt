@@ -4,15 +4,20 @@ import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.web.client.RestTemplate
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.net.URI
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
 
 class RestTemplateControlPlaneClient(
     private val restTemplate: RestTemplate,
-    private val meterRegistry: MeterRegistry
+    private val meterRegistry: MeterRegistry,
+    private val executors: Executor
 ) : ControlPlaneClient {
-    override fun getState(uri: URI): ServicesState {
-        return metered {
-            restTemplate.getForEntity("$uri/state", ServicesState::class.java).body!!
-        }
+    override fun getState(uri: URI): CompletableFuture<ServicesState> {
+        return CompletableFuture.supplyAsync({
+            metered {
+                restTemplate.getForEntity("$uri/state", ServicesState::class.java).body!!
+            }
+        }, executors)
     }
 
     private fun <T> metered(function: () -> T): T {

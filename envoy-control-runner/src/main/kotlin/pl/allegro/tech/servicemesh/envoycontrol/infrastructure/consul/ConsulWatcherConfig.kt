@@ -108,5 +108,5 @@ open class ConsulWatcherConfig {
     }
 
     @Bean
-    fun kotlinModule() = KotlinModule()
+    fun kotlinModule() = KotlinModule.Builder().build()
 }

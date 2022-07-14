@@ -14,8 +14,11 @@ data class ServicesState(
     fun hasService(serviceName: String): Boolean = serviceNameToInstances.containsKey(serviceName)
     fun serviceNames(): Set<ServiceName> = serviceNameToInstances.keys
     fun allInstances(): Collection<ServiceInstances> = serviceNameToInstances.values
-    fun getOnlyServicesWithInstances(): Map<ServiceName, ServiceInstances> =
-        serviceNameToInstances.filterValues { value -> value.instances.isNotEmpty() }
+
+    fun removeServicesWithoutInstances(): ServicesState {
+        serviceNameToInstances.entries.retainAll { (_, value) -> value.instances.isNotEmpty() }
+        return this
+    }
 
     fun remove(serviceName: ServiceName): Boolean {
         return serviceNameToInstances.remove(serviceName) != null

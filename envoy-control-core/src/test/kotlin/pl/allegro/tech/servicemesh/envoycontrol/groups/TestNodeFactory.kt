@@ -86,7 +86,8 @@ fun ProxySettings.with(
             hostSelectionRetryMaxAttempts = 3,
             retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
             numberRetries = 1,
-            retryBackOff = RetryBackOff(Durations.fromMillis(25), Durations.fromMillis(250))
+            retryBackOff = RetryBackOff(Durations.fromMillis(25), Durations.fromMillis(250)),
+            rateLimitedRetryBackOff = RateLimitedRetryBackOff(listOf(ResetHeader("Retry-After", "SECONDS")))
         )
     ),
     rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList()
@@ -104,10 +105,17 @@ fun ProxySettings.with(
     )
 }
 
-fun accessLogFilterProto(statusCodeFilter: String? = null): Value = struct {
+fun accessLogFilterProto(value: String? = null, fieldName: String): Value = struct {
     when {
-        statusCodeFilter != null -> putFields("status_code_filter", string(statusCodeFilter))
-        else -> putFields("status_code_filter", nullValue)
+        value != null -> putFields(fieldName, string(value))
+        else -> putFields(fieldName, nullValue)
+    }
+}
+
+fun accessLogBooleanFilterProto(value: Boolean? = null, fieldName: String): Value = struct {
+    when {
+        value != null -> putFields(fieldName, boolean(value))
+        else -> putFields(fieldName, nullValue)
     }
 }
 
@@ -169,6 +177,7 @@ data class RetryPolicyInput(
     val perTryTimeoutMs: Int? = null,
     val retryBackOff: RetryBackOffInput? = null,
     val retryableStatusCodes: List<Int>? = null,
+    val rateLimitedRetryBackOff: RateLimitedRetryBackOff? = null,
     val retryableHeaders: List<String>? = null,
     val methods: Set<String>? = null
 )
@@ -177,6 +186,12 @@ data class RetryBackOffInput(
     val baseInterval: String? = null,
     val maxInterval: String? = null
 )
+
+data class RateLimitedRetryBackOff(
+    val resetHeaders: List<ResetHeader>? = null
+)
+
+data class ResetHeader(val name: String, val format: String)
 
 data class RetryHostPredicateInput(
     val name: String?
@@ -315,6 +330,7 @@ private fun retryPolicyProto(retryPolicy: RetryPolicyInput) = struct {
             list { it.forEach { singleMethod -> addValues(string(singleMethod)) } })
     }
 }
+
 private fun retryOnProto(retryOn: List<String>) = list {
     retryOn.forEach { addValues(string(it)) }
 }
