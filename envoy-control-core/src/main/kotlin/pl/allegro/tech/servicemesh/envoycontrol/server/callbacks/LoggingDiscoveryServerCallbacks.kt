@@ -2,8 +2,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import org.slf4j.LoggerFactory
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest as v2DiscoveryRequest
-import io.envoyproxy.envoy.api.v2.DiscoveryResponse as v2DiscoveryResponse
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse as v3DiscoveryResponse
 
@@ -29,23 +27,6 @@ class LoggingDiscoveryServerCallbacks(
         logger.debug("onStreamOpen streamId: {}, typeUrl: {}", streamId, typeUrl)
     }
 
-    override fun onV2StreamRequest(streamId: Long, request: v2DiscoveryRequest?) {
-        logger.debug("onV2StreamRequest streamId: {} request: {}", streamId, requestData(request))
-    }
-
-    override fun onStreamResponse(
-        streamId: Long,
-        request: v2DiscoveryRequest?,
-        response: v2DiscoveryResponse?
-    ) {
-        logger.debug(
-            "onStreamResponseV2 streamId: {}, request: {}, response: {}",
-            streamId,
-            requestData(request),
-            responseData(response)
-        )
-    }
-
     override fun onV3StreamResponse(
         streamId: Long,
         request: v3DiscoveryRequest?,
@@ -57,23 +38,6 @@ class LoggingDiscoveryServerCallbacks(
             requestData(request),
             responseData(response)
         )
-    }
-
-    private fun requestData(request: v2DiscoveryRequest?): String {
-        return if (logFullRequest) {
-            "$request"
-        } else {
-            "version: ${request?.versionInfo}, id: ${request?.node?.id}, cluster: ${request?.node?.cluster}, " +
-                "type: ${request?.typeUrl}, responseNonce: ${request?.responseNonce}"
-        }
-    }
-
-    private fun responseData(response: v2DiscoveryResponse?): String {
-        return if (logFullResponse) {
-            "$response"
-        } else {
-            "version: ${response?.versionInfo}, " + "type: ${response?.typeUrl}, responseNonce: ${response?.nonce}"
-        }
     }
 
     private fun requestData(request: v3DiscoveryRequest?): String {
