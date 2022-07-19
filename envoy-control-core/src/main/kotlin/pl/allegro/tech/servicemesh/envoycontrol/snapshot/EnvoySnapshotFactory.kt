@@ -217,13 +217,13 @@ class EnvoySnapshotFactory(
         rateLimitEndpoints: List<IncomingRateLimitEndpoint>,
         globalSnapshot: GlobalSnapshot,
         egressRouteSpecifications: Collection<RouteSpecification>
-    ): List<ClusterLoadAssignment> {
+    ): Set<ClusterLoadAssignment> {
         val egressRouteClusters = egressRouteSpecifications.map(RouteSpecification::clusterName)
         val rateLimitClusters =
             if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
         val allClusters = egressRouteClusters + rateLimitClusters
 
-        return allClusters.mapNotNull { name -> globalSnapshot.endpoints.resources()[name] }
+        return allClusters.mapNotNull { name -> globalSnapshot.endpoints.resources()[name] }.toSet()
     }
 
     private fun newSnapshotForGroup(
@@ -276,7 +276,7 @@ class EnvoySnapshotFactory(
         return createSnapshot(
             clusters = clusters,
             clustersVersion = version.clusters,
-            endpoints = endpoints,
+            endpoints = endpoints.toList(), // TODO(ks)
             endpointsVersions = version.endpoints,
             listeners = listeners,
             // TODO: java-control-plane: https://github.com/envoyproxy/java-control-plane/issues/134

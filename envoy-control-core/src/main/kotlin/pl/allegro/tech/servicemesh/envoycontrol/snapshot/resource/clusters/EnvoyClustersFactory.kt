@@ -282,7 +282,7 @@ class EnvoyClustersFactory(
             configureOutlierDetection(clusterBuilder)
         }
 
-        clusterBuilder = clusterBuilder.setName(domainDependency.getClusterName())
+        clusterBuilder.setName(domainDependency.getClusterName())
             .setType(Cluster.DiscoveryType.STRICT_DNS)
             .setConnectTimeout(Durations.fromMillis(properties.staticClusterConnectionTimeout.toMillis()))
             /*

@@ -25,7 +25,7 @@ internal class SnapshotsVersionsTest {
 
     private val group = AllServicesGroup(communicationMode = XDS)
     private val clusters = listOf(cluster(name = "service1"))
-    private val endpoints = listOf(endpoints(clusterName = "service1", instances = 1))
+    private val endpoints = setOf(endpoints(clusterName = "service1", instances = 1))
 
     @Test
     fun `should generate a new version for a new group`() {
@@ -43,7 +43,7 @@ internal class SnapshotsVersionsTest {
         val versions = snapshotsVersions.version(group, clusters, endpoints)
 
         // when
-        val newEndpoints = listOf(endpoints(clusterName = "service1", instances = 2))
+        val newEndpoints = setOf(endpoints(clusterName = "service1", instances = 2))
         val newVersions = snapshotsVersions.version(group, clusters, newEndpoints)
 
         // then

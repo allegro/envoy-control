@@ -30,7 +30,7 @@ class SnapshotsVersions {
     fun version(
         group: Group,
         clusters: List<Cluster>,
-        endpoints: List<ClusterLoadAssignment>,
+        endpoints: Set<ClusterLoadAssignment>,
         listeners: List<Listener> = listOf()
     ): Version {
         val versionsWithData = versions.compute(group) { _, previous ->
@@ -74,7 +74,7 @@ class SnapshotsVersions {
      */
     private fun selectEndpoints(
         previous: VersionsWithData,
-        endpoints: List<ClusterLoadAssignment>,
+        endpoints: Set<ClusterLoadAssignment>,
         clusterChanged: Boolean
     ) = if (!clusterChanged && previous.endpoints == endpoints) {
         previous.version.endpoints
@@ -100,7 +100,7 @@ class SnapshotsVersions {
     private data class VersionsWithData(
         val version: Version,
         val clusters: List<Cluster>,
-        val endpoints: List<ClusterLoadAssignment>,
+        val endpoints: Set<ClusterLoadAssignment>,
         val listeners: List<Listener>
     )
 
