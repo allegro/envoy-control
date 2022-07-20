@@ -9,7 +9,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProp
 
 internal class LuaFilterFactoryTest {
 
-
     @Test
     fun `should create metadata with service name and discovery service name`() {
         // given
