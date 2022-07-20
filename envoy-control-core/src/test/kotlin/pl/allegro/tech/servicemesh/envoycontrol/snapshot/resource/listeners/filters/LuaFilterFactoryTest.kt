@@ -53,8 +53,9 @@ internal class LuaFilterFactoryTest {
         val factory = LuaFilterFactory(IncomingPermissionsProperties())
 
         // when
-        val metadata = factory.ingressScriptsMetadata(group, flags)
-        val luaMetadata = metadata.getFilterMetadataOrThrow("envoy.filters.http.lua")
+        val luaMetadata = factory.ingressScriptsMetadata(group, flags)
+            .getFilterMetadataOrThrow("envoy.filters.http.lua")
+
         // then
         flags.forEach { (k, v) ->
             assertThat(luaMetadata.getFieldsOrThrow("flags").structValue.getFieldsOrThrow(k).boolValue).isEqualTo(v)
@@ -62,7 +63,8 @@ internal class LuaFilterFactoryTest {
     }
 
     @Test
-    fun `should leave flags empty`() {
+    fun `should setup flags empty if not specified`() {
+        // given
         val expectedServiceName = "service-1"
         val expectedDiscoveryServiceName = "consul-service-1"
         val group: Group = ServicesGroup(
@@ -71,9 +73,12 @@ internal class LuaFilterFactoryTest {
             discoveryServiceName = expectedDiscoveryServiceName
         )
         val factory = LuaFilterFactory(IncomingPermissionsProperties())
+
         // when
-        val metadata = factory.ingressScriptsMetadata(group)
-        val luaMetadata = metadata.getFilterMetadataOrThrow("envoy.filters.http.lua")
+        val luaMetadata = factory.ingressScriptsMetadata(group)
+            .getFilterMetadataOrThrow("envoy.filters.http.lua")
+
+        // then
         assertThat(luaMetadata.getFieldsOrThrow("flags").structValue.allFields).isEmpty()
     }
 }
