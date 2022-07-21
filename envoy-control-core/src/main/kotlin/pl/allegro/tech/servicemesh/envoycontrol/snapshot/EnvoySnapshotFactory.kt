@@ -218,12 +218,13 @@ class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot,
         egressRouteSpecifications: Collection<RouteSpecification>
     ): Set<ClusterLoadAssignment> {
-        val egressRouteClusters = egressRouteSpecifications.map(RouteSpecification::clusterName)
-        val rateLimitClusters =
-            if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
-        val allClusters = egressRouteClusters + rateLimitClusters
-
-        return allClusters.mapNotNull { name -> globalSnapshot.endpoints.resources()[name] }.toSet()
+        val egressRouteClusters = egressRouteSpecifications
+            .map(RouteSpecification::clusterName)
+            .mapNotNull { name -> globalSnapshot.endpoints.resources()[name] }.toHashSet()
+        if (rateLimitEndpoints.isNotEmpty()) {
+            globalSnapshot.endpoints.resources()[properties.rateLimit.serviceName]?.let { egressRouteClusters.add(it) }
+        }
+        return egressRouteClusters
     }
 
     private fun newSnapshotForGroup(
