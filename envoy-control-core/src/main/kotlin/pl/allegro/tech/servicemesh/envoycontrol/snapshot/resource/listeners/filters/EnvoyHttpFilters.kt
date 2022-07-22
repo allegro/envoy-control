@@ -13,8 +13,11 @@ class EnvoyHttpFilters(
     companion object {
         val emptyFilters = EnvoyHttpFilters(listOf(), listOf()) { Metadata.getDefaultInstance() }
 
-        fun defaultFilters(snapshotProperties: SnapshotProperties): EnvoyHttpFilters {
-            val defaultFilters = EnvoyDefaultFilters(snapshotProperties)
+        fun defaultFilters(
+            snapshotProperties: SnapshotProperties,
+            flags: Map<String, Boolean> = mapOf()
+        ): EnvoyHttpFilters {
+            val defaultFilters = EnvoyDefaultFilters(snapshotProperties, flags)
             return EnvoyHttpFilters(
                 defaultFilters.ingressFilters(),
                 defaultFilters.defaultEgressFilters,

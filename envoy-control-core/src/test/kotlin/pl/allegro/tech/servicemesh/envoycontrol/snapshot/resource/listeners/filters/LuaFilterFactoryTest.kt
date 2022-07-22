@@ -37,4 +37,47 @@ internal class LuaFilterFactoryTest {
         assertThat(givenServiceName).isEqualTo(expectedServiceName)
         assertThat(givenDiscoveryServiceName).isEqualTo(expectedDiscoveryServiceName)
     }
+
+    @Test
+    fun `should create metadata with given flags`() {
+        // given
+        val flags = mapOf("flag1" to true, "flag2" to false)
+        val expectedServiceName = "service-1"
+        val expectedDiscoveryServiceName = "consul-service-1"
+        val group: Group = ServicesGroup(
+            communicationMode = CommunicationMode.XDS,
+            serviceName = expectedServiceName,
+            discoveryServiceName = expectedDiscoveryServiceName
+        )
+        val factory = LuaFilterFactory(IncomingPermissionsProperties())
+
+        // when
+        val luaMetadata = factory.ingressScriptsMetadata(group, flags)
+            .getFilterMetadataOrThrow("envoy.filters.http.lua")
+
+        // then
+        flags.forEach { (k, v) ->
+            assertThat(luaMetadata.getFieldsOrThrow("flags").structValue.getFieldsOrThrow(k).boolValue).isEqualTo(v)
+        }
+    }
+
+    @Test
+    fun `should setup flags empty if not specified`() {
+        // given
+        val expectedServiceName = "service-1"
+        val expectedDiscoveryServiceName = "consul-service-1"
+        val group: Group = ServicesGroup(
+            communicationMode = CommunicationMode.XDS,
+            serviceName = expectedServiceName,
+            discoveryServiceName = expectedDiscoveryServiceName
+        )
+        val factory = LuaFilterFactory(IncomingPermissionsProperties())
+
+        // when
+        val luaMetadata = factory.ingressScriptsMetadata(group)
+            .getFilterMetadataOrThrow("envoy.filters.http.lua")
+
+        // then
+        assertThat(luaMetadata.getFieldsOrThrow("flags").structValue.allFields).isEmpty()
+    }
 }
