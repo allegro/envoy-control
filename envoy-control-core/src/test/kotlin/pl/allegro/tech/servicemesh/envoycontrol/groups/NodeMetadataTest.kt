@@ -22,7 +22,7 @@ class NodeMetadataTest {
 
     companion object {
         @JvmStatic
-        fun validStatusCodeFilterData() = listOf(
+        fun validComparisonFilterData() = listOf(
             arguments("Le:123", ComparisonFilter.Op.LE, 123),
             arguments("EQ:400", ComparisonFilter.Op.EQ, 400),
             arguments("gE:324", ComparisonFilter.Op.GE, 324),
@@ -30,7 +30,13 @@ class NodeMetadataTest {
         )
 
         @JvmStatic
-        fun invalidStatusCodeFilterData() = listOf(
+        fun errorMessages() = listOf(
+            arguments("status_code_filter", "Invalid access log comparison filter. Expected OPERATOR:VALUE"),
+            arguments("duration_code", "Invalid access log comparison filter. Expected OPERATOR:VALUE")
+        )
+
+        @JvmStatic
+        fun invalidComparisonFilterData() = listOf(
             arguments("LT:123"),
             arguments("equal:400"),
             arguments("eq:24"),
@@ -369,7 +375,10 @@ class NodeMetadataTest {
                 maxInterval = Durations.fromSeconds(8)
             ),
             retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost")),
-            methods = setOf("GET", "POST", "PUT")
+            methods = setOf("GET", "POST", "PUT"),
+            rateLimitedRetryBackOff = RateLimitedRetryBackOff(
+                listOf(ResetHeader("Retry-After", "SECONDS"))
+            )
         )
         val proto = outgoingDependenciesProto {
             withService(
@@ -408,7 +417,10 @@ class NodeMetadataTest {
                 maxInterval = Durations.fromMillis(250)
             ),
             retryHostPredicate = listOf(RetryHostPredicate(name = "envoy.retry_host_predicates.previous_hosts")),
-            methods = setOf("GET", "POST", "PUT")
+            methods = setOf("GET", "POST", "PUT"),
+            rateLimitedRetryBackOff = RateLimitedRetryBackOff(
+                listOf(ResetHeader("Retry-After", "SECONDS"))
+            )
         )
         val proto = outgoingDependenciesProto {
             withService(
@@ -916,7 +928,7 @@ class NodeMetadataTest {
         // then
         assertThat(exception.status.description).isEqualTo(
             "Timeout definition has number format" +
-                " but should be in string format and ends with 's'"
+                    " but should be in string format and ends with 's'"
         )
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -932,7 +944,7 @@ class NodeMetadataTest {
         // then
         assertThat(exception.status.description).isEqualTo(
             "Timeout definition has incorrect format: " +
-                "Invalid duration string: 20"
+                    "Invalid duration string: 20"
         )
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -963,13 +975,13 @@ class NodeMetadataTest {
     }
 
     @ParameterizedTest
-    @MethodSource("validStatusCodeFilterData")
+    @MethodSource("validComparisonFilterData")
     fun `should set statusCodeFilter for accessLogFilter`(input: String, op: ComparisonFilter.Op, code: Int) {
         // given
-        val proto = accessLogFilterProto(statusCodeFilter = input)
+        val proto = accessLogFilterProto(value = input, fieldName = "status_code_filter")
 
         // when
-        val statusCodeFilterSettings = proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter()
+        val statusCodeFilterSettings = proto.structValue?.fieldsMap?.get("status_code_filter").toComparisonFilter()
 
         // expects
         assertThat(statusCodeFilterSettings?.comparisonCode).isEqualTo(code)
@@ -977,31 +989,165 @@ class NodeMetadataTest {
     }
 
     @ParameterizedTest
-    @MethodSource("invalidStatusCodeFilterData")
+    @MethodSource("invalidComparisonFilterData")
     fun `should throw exception for invalid status code filter data`(input: String) {
         // given
-        val proto = accessLogFilterProto(statusCodeFilter = input)
+        val proto = accessLogFilterProto(value = input, fieldName = "status_code_filter")
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> {
-            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter()
+            proto.structValue?.fieldsMap?.get("status_code_filter").toComparisonFilter()
         }
         assertThat(exception.status.description)
-            .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
+            .isEqualTo("Invalid access log comparison filter. Expected OPERATOR:VALUE")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @ParameterizedTest
+    @MethodSource("errorMessages")
+    fun `should throw exception for null value comparison filter data`(filter: String, errorMessage: String) {
+        // given
+        val proto = accessLogFilterProto(value = null, fieldName = filter)
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.structValue?.fieldsMap?.get(filter).toComparisonFilter()
+        }
+        assertThat(exception.status.description)
+            .isEqualTo(errorMessage)
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @ParameterizedTest
+    @MethodSource("validComparisonFilterData")
+    fun `should set duration filter for accessLogFilter`(input: String, op: ComparisonFilter.Op, code: Int) {
+        // given
+        val proto = accessLogFilterProto(value = input, fieldName = "duration_filter")
+
+        // when
+        val durationFilterSettings = proto.structValue?.fieldsMap?.get("duration_filter").toComparisonFilter()
+
+        // expects
+        assertThat(durationFilterSettings?.comparisonCode).isEqualTo(code)
+        assertThat(durationFilterSettings?.comparisonOperator).isEqualTo(op)
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidComparisonFilterData")
+    fun `should throw exception for invalid duration filter data`(input: String) {
+        // given
+        val proto = accessLogFilterProto(value = input, fieldName = "duration_filter")
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.structValue?.fieldsMap?.get("duration_filter").toComparisonFilter()
+        }
+        assertThat(exception.status.description)
+            .isEqualTo("Invalid access log comparison filter. Expected OPERATOR:VALUE")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test
-    fun `should throw exception for null value status code filter data`() {
+    fun `should throw exception for null value header filter data`() {
         // given
-        val proto = accessLogFilterProto(statusCodeFilter = null)
+        val proto = accessLogFilterProto(value = null, fieldName = "header_filter")
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> {
-            proto.structValue?.fieldsMap?.get("status_code_filter").toStatusCodeFilter()
+            proto.structValue?.fieldsMap?.get("header_filter").toHeaderFilter()
         }
         assertThat(exception.status.description)
-            .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
+            .isEqualTo("Invalid access log header filter. Expected HEADER_NAME:REGEX")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should set header filter for accessLogFilter`() {
+        // given
+        val proto = accessLogFilterProto(value = "test:^((.+):(.+))$", fieldName = "header_filter")
+
+        // when
+        val headerFilterSettings = proto.structValue?.fieldsMap?.get("header_filter").toHeaderFilter()
+
+        // expects
+        assertThat(headerFilterSettings?.headerName).isEqualTo("test")
+        assertThat(headerFilterSettings?.regex).isEqualTo("^((.+):(.+))\$")
+    }
+
+    @Test
+    fun `should throw exception for invalid header filter data`() {
+        // given
+        val proto = accessLogFilterProto(value = "test;test", fieldName = "header_filter")
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.structValue?.fieldsMap?.get("header_filter").toHeaderFilter()
+        }
+        assertThat(exception.status.description)
+            .isEqualTo("Invalid access log header filter. Expected HEADER_NAME:REGEX")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should set response flag filter for accessLogFilter`() {
+        // given
+        val availableFlags = listOf(
+            "UH", "UF", "UO", "NR", "URX", "NC", "DT", "DC", "LH", "UT", "LR", "UR",
+            "UC", "DI", "FI", "RL", "UAEX", "RLSE", "IH", "SI", "DPE", "UPE", "UMSDR",
+            "OM", "DF"
+        )
+        val proto = accessLogFilterProto(value = availableFlags.joinToString(","), fieldName = "response_flag_filter")
+
+        // when
+        val responseFlags = proto.structValue?.fieldsMap?.get("response_flag_filter").toResponseFlagFilter()
+
+        // expects
+        assertThat(responseFlags).isEqualTo(availableFlags)
+    }
+
+    @Test
+    fun `should throw exception for invalid response flag filter data`() {
+        // given
+        val availableFlagsAndInvalid = listOf(
+            "UH", "UF", "UO", "NR", "URX", "NC", "DT", "DC", "LH", "UT", "LR", "UR",
+            "UC", "DI", "FI", "RL", "UAEX", "RLSE", "IH", "SI", "DPE", "UPE", "UMSDR",
+            "OM", "DF", "invalid"
+        )
+        val proto =
+            accessLogFilterProto(value = availableFlagsAndInvalid.joinToString(","), fieldName = "response_flag_filter")
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.structValue?.fieldsMap?.get("response_flag_filter").toResponseFlagFilter()
+        }
+        assertThat(exception.status.description)
+            .isEqualTo("Invalid access log response flag filter. Expected valid values separated by comma")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should set not health check filter for accessLogFilter`() {
+        // given
+        val proto = accessLogBooleanFilterProto(value = true, fieldName = "not_health_check_filter")
+
+        // when
+        val value = proto.structValue?.fieldsMap?.get("not_health_check_filter")?.boolValue
+
+        // expects
+        assertThat(value).isEqualTo(true)
+    }
+
+    @Test
+    fun `should throw exception for null value response flag filter data`() {
+        // given
+        val proto = accessLogFilterProto(value = null, fieldName = "response_flag_filter")
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.structValue?.fieldsMap?.get("response_flag_filter").toResponseFlagFilter()
+        }
+        assertThat(exception.status.description)
+            .isEqualTo("Invalid access log response flag filter. Expected valid values separated by comma")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -1039,10 +1185,10 @@ class NodeMetadataTest {
         val jwtFilterProperties = JwtFilterProperties()
         val oauthProviders = mapOf(
             "oauth2-mock" to
-                OAuthProvider(
-                    jwksUri = URI.create("http://localhost:8080/jwks-address/"),
-                    clusterName = "oauth"
-                )
+                    OAuthProvider(
+                        jwksUri = URI.create("http://localhost:8080/jwks-address/"),
+                        clusterName = "oauth"
+                    )
         )
         jwtFilterProperties.providers = oauthProviders
         snapshotProperties.jwt = jwtFilterProperties

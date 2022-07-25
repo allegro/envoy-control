@@ -5,9 +5,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
 import reactor.core.publisher.Flux
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 class ConsulLocalClusterStateChanges(
@@ -26,6 +28,7 @@ class ConsulLocalClusterStateChanges(
                         transformer.transform(instancesSequence)
                     }
                     .associateBy { it.serviceName }
+                    .toConcurrentHashMap()
                     .let(::ServicesState)
             }
             .doOnNext { latestServiceState.set(it) }
@@ -34,4 +37,6 @@ class ConsulLocalClusterStateChanges(
             }
 
     override fun isInitialStateLoaded(): Boolean = latestServiceState.get() != ServicesState()
+
+    private fun Map<String, ServiceInstances>.toConcurrentHashMap() = ConcurrentHashMap(this)
 }

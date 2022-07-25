@@ -13,7 +13,7 @@ data class GlobalSnapshot(
 )
 
 @Suppress("LongParameterList")
-internal fun globalSnapshot(
+fun globalSnapshot(
     clusters: Iterable<Cluster> = emptyList(),
     endpoints: Iterable<ClusterLoadAssignment> = emptyList(),
     properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties(),

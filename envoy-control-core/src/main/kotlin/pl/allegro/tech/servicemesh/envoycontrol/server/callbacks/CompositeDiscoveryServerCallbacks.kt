@@ -2,14 +2,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.controlplane.server.exception.RequestException
-import io.envoyproxy.envoy.api.v2.DeltaDiscoveryRequest
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.logger
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
-import io.envoyproxy.envoy.api.v2.DiscoveryResponse as DiscoveryResponseV2
-import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as DeltaDiscoveryRequestV3
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse as DiscoveryResponseV3
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as v3DeltaDiscoveryRequest
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse as v3DiscoveryResponse
 
 class CompositeException(exceptions: List<java.lang.Exception>) :
     RuntimeException("Composite exception: " + exceptions.map { it.message }.joinToString(",", "[", "]"))
@@ -38,47 +35,25 @@ class CompositeDiscoveryServerCallbacks(
         }
     }
 
-    override fun onV2StreamRequest(streamId: Long, request: DiscoveryRequestV2?) {
-        runCallbacks {
-            it.onV2StreamRequest(streamId, request)
-        }
-    }
-
-    override fun onV3StreamRequest(streamId: Long, request: DiscoveryRequestV3?) {
+    override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
         runCallbacks {
             it.onV3StreamRequest(streamId, request)
         }
     }
 
-    override fun onV2StreamDeltaRequest(streamId: Long, request: DeltaDiscoveryRequest?) {
-        runCallbacks {
-            it.onV2StreamDeltaRequest(streamId, request)
-        }
-    }
-
     override fun onV3StreamDeltaRequest(
         streamId: Long,
-        request: DeltaDiscoveryRequestV3?
+        request: v3DeltaDiscoveryRequest?
     ) {
         runCallbacks {
             it.onV3StreamDeltaRequest(streamId, request)
         }
     }
 
-    override fun onStreamResponse(
-        streamId: Long,
-        request: DiscoveryRequestV2?,
-        response: DiscoveryResponseV2?
-    ) {
-        runCallbacks {
-            it.onStreamResponse(streamId, request, response)
-        }
-    }
-
     override fun onV3StreamResponse(
         streamId: Long,
-        request: DiscoveryRequestV3?,
-        response: DiscoveryResponseV3?
+        request: v3DiscoveryRequest?,
+        response: v3DiscoveryResponse?
     ) {
         runCallbacks {
             it.onV3StreamResponse(streamId, request, response)

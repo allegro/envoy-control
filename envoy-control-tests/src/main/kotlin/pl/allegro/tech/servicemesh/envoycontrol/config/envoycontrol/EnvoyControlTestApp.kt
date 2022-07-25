@@ -59,7 +59,7 @@ class EnvoyControlRunnerTestApp(
     val propertiesProvider: () -> Map<String, Any> = { mapOf() },
     val consulPort: Int,
     val objectMapper: ObjectMapper = ObjectMapper()
-        .registerModule(KotlinModule())
+        .registerModule(KotlinModule.Builder().build())
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false),
     override val grpcPort: Int = Ports.nextAvailable(),
     override val appPort: Int = Ports.nextAvailable()

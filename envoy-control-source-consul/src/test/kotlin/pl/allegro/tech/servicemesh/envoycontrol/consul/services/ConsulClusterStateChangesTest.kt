@@ -6,10 +6,13 @@ import com.pszymczyk.consul.ConsulStarterBuilder
 import com.pszymczyk.consul.infrastructure.Ports
 import com.pszymczyk.consul.junit.ConsulExtension
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import org.mockito.Mockito
+import org.mockito.Mockito.verify
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes
+import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import reactor.test.StepVerifier
 import java.net.URI
 import java.util.UUID
@@ -22,7 +25,12 @@ class ConsulClusterStateChangesTest {
 
         @JvmField
         @RegisterExtension
-        val consul = ConsulExtension(ConsulStarterBuilder.consulStarter().withHttpPort(consulHttpPort).build())
+        val consul = ConsulExtension(
+            ConsulStarterBuilder.consulStarter()
+                .withHttpPort(consulHttpPort)
+                .withConsulVersion("1.11.4")
+                .build()
+        )
     }
 
     private val watcher = ConsulRecipes
@@ -31,10 +39,11 @@ class ConsulClusterStateChangesTest {
         .consulWatcher(Executors.newFixedThreadPool(10))
         .withAgentUri(URI("http://localhost:${consul.httpPort}"))
         .build()
-    private val changes = ConsulServiceChanges(watcher)
+    private val readinessStateHandler = Mockito.spy(ReadinessStateHandler::class.java)
+    private val changes = ConsulServiceChanges(watcher = watcher, readinessStateHandler = readinessStateHandler)
     private val client = AgentConsulClient("localhost", consul.httpPort)
 
-    @AfterEach
+    @BeforeEach
     fun reset() {
         watcher.close()
         consul.reset()
@@ -44,6 +53,7 @@ class ConsulClusterStateChangesTest {
     fun `should watch changes of consul state`() {
         StepVerifier.create(changes.watchState())
             .expectNextCount(1) // events: add(consul) + change(consul) happened during graceful startup
+            .then { verify(readinessStateHandler).ready() }
             .then { registerService(id = "123", name = "abc") }
             .expectNextMatches { it.hasService("abc") }
             .assertNext {
@@ -59,7 +69,9 @@ class ConsulClusterStateChangesTest {
                 }
             }
             .then { deregisterService(id = "123") }
-            .expectNextMatches { it["abc"]!!.instances.isEmpty() }
+            // two separated events are generated and consumed in random order.
+            // one with empty instances list and other with no service.
+            .expectNextMatches { it["abc"]?.instances.isNullOrEmpty() }
             .thenCancel()
             .verify()
     }
@@ -71,6 +83,7 @@ class ConsulClusterStateChangesTest {
 
         StepVerifier.create(changes.watchState())
             .expectNextMatches { it.serviceNames() == setOf("consul", "service1", "service2") }
+            .then { verify(readinessStateHandler).ready() }
             .then { registerService(id = "service3", name = "service3") }
             .thenRequest(1) // events: add(service3)
             .expectNextMatches { it.serviceNames() == setOf("consul", "service1", "service2", "service3") }

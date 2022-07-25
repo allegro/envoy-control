@@ -47,7 +47,7 @@ The state is available in `LocalClusterStateChanges#latestServiceState`.
 
 Then build a `RemoteServices` class providing:
 
-* [AsyncControlPlaneClient](https://github.com/allegro/envoy-control/blob/master/envoy-control-runner/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/synchronization/AsyncRestTemplateControlPlaneClient.kt) - an HTTP client
+* [AsyncControlPlaneClient](https://github.com/allegro/envoy-control/blob/master/envoy-control-runner/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/synchronization/RestTemplateControlPlaneClient.kt) - an HTTP client
 * [ControlPlaneInstanceFetcher](https://github.com/allegro/envoy-control/blob/master/envoy-control-source-consul/src/main/kotlin/pl/allegro/tech/servicemesh/envoycontrol/consul/synchronization/SimpleConsulInstanceFetcher.kt) - the strategy of retrieving other Envoy Control from given cluster
 * `remoteClusters` - list of remote clusters
 

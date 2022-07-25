@@ -15,6 +15,7 @@ class ServerProperties {
      * Minimum size = 2, to work correctly with reactor operators merge and combineLatest
      */
     var globalSnapshotUpdatePoolSize = 5
+    var globalSnapshotAuditPoolSize = 2
     var groupSnapshotUpdateScheduler = ExecutorProperties().apply {
         type = ExecutorType.DIRECT
         parallelPoolSize = 1

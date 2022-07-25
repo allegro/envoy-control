@@ -2,12 +2,10 @@
 
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
-import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
-import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import java.net.URI
 import java.time.Duration
@@ -37,6 +35,7 @@ class SnapshotProperties {
     var rateLimit = RateLimitProperties()
     var deltaXdsEnabled = false
     var retryPolicy = RetryPolicyProperties()
+    var shouldAuditGlobalSnapshot = false
 }
 
 class MetricsProperties {
@@ -57,7 +56,7 @@ class HttpFiltersProperties {
 class AccessLogProperties {
     var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
     var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
-        "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
+            "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
     var level = "TRACE"
     var logger = "envoy.AccessLog"
     var customFields = mapOf<String, String>()
@@ -126,6 +125,7 @@ class IpFromServiceDiscovery {
 class LoadBalancingProperties {
     var canary = CanaryProperties()
     var regularMetadataKey = "lb_regular"
+    var localityMetadataKey = "locality"
     var weights = LoadBalancingWeightsProperties()
     var policy = Cluster.LbPolicy.LEAST_REQUEST
     var useKeysSubsetFallbackPolicy = true
@@ -357,14 +357,28 @@ data class RateLimitProperties(
 )
 
 data class RetryPolicyProperties(
+    var retryOn: List<String> = emptyList(),
     var numberOfRetries: Int = 1,
     var hostSelectionRetryMaxAttempts: Long = 3,
     var retryHostPredicate: List<RetryHostPredicate> =
         listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
-    var retryBackOff: RetryBackOff = RetryBackOff(
-        baseInterval = Durations.fromMillis(25)
+    var retryBackOff: RetryBackOffProperties = RetryBackOffProperties(
+        baseInterval = Duration.ofMillis(25)
+    ),
+    var rateLimitedRetryBackOff: RateLimitedRetryBackOff = RateLimitedRetryBackOff(
+        listOf(ResetHeader("Retry-After", "SECONDS"))
     )
 )
+
+data class RetryBackOffProperties(
+    var baseInterval: Duration
+)
+
+data class RateLimitedRetryBackOff(
+    var resetHeaders: List<ResetHeader>
+)
+
+data class ResetHeader(val name: String, val format: String)
 
 typealias ProviderName = String
 typealias TokenField = String

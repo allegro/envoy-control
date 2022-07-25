@@ -6,7 +6,6 @@ import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -15,7 +14,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
-import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 class MetadataNodeGroupTest {
@@ -259,7 +257,7 @@ class MetadataNodeGroupTest {
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
 
-        metadata!!.putFields("access_log_filter", accessLogFilterProto("EQ:400"))
+        metadata!!.putFields("access_log_filter", accessLogFilterProto(value = "EQ:400", fieldName = "status_code_filter"))
 
         // when
         val group = nodeGroup.hash(NodeV3.newBuilder().setMetadata(metadata.build()).build())
@@ -281,14 +279,14 @@ class MetadataNodeGroupTest {
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
 
-        metadata!!.putFields("access_log_filter", accessLogFilterProto(config))
+        metadata!!.putFields("access_log_filter", accessLogFilterProto(value = config, fieldName = "status_code_filter"))
 
         // expect
         val exception = assertThrows<NodeMetadataValidationException> {
             nodeGroup.hash(NodeV3.newBuilder().setMetadata(metadata.build()).build())
         }
         assertThat(exception.status.description)
-            .isEqualTo("Invalid access log status code filter. Expected OPERATOR:STATUS_CODE")
+            .isEqualTo("Invalid access log comparison filter. Expected OPERATOR:VALUE")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -303,23 +301,6 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group.listenersConfig!!.accessLogFilterSettings.statusCodeFilterSettings).isNull()
-    }
-
-    @Test
-    fun `should throw exception when V2 node request configuration is send`() {
-        // given
-        val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
-        val metadata = createMetadataBuilderWithDefaults()
-
-        // expects
-        assertThatExceptionOfType(V2NotSupportedException::class.java)
-            .isThrownBy { nodeGroup.hash(NodeV2.newBuilder().setMetadata(metadata?.build()).build()) }
-            .satisfies {
-                assertThat(it.status.description).isEqualTo(
-                    "Blocked service from receiving updates. V2 resources are not supported by server."
-                )
-                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-            }
     }
 
     private fun createMetadataBuilderWithDefaults(): Struct.Builder? {

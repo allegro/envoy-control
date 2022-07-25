@@ -1,7 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
-import com.google.protobuf.Value
-import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
@@ -14,7 +12,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnabledCommunicationMod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OutgoingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import io.envoyproxy.envoy.api.v2.DiscoveryRequest as DiscoveryRequestV2
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as DiscoveryRequestV3
 
 class NodeMetadataValidatorTest {
@@ -207,25 +204,6 @@ class NodeMetadataValidatorTest {
 
         // then
         assertDoesNotThrow { configurationModeValidator.onV3StreamRequest(123, request = request) }
-    }
-
-    @Test
-    fun `should fail on V2 node`() {
-        // given
-        val metadata = NodeV2.newBuilder()
-            .metadataBuilder.putFields("service_name", Value.newBuilder().setStringValue("my-service").build())
-        val node = NodeV2.newBuilder().setId("id").setMetadata(metadata).build()
-        val request = DiscoveryRequestV2.newBuilder().setNode(node).build()
-
-        // expects
-        assertThatExceptionOfType(V2NotSupportedException::class.java)
-            .isThrownBy { validator.onV2StreamRequest(streamId = 123, request = request) }
-            .satisfies {
-                assertThat(it.status.description).isEqualTo(
-                    "Blocked service from receiving updates. V2 resources are not supported by server."
-                )
-                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-            }
     }
 
     @Test

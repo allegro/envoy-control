@@ -1,16 +1,18 @@
 package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
-import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import java.net.URI
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 
 class RemoteServicesTest {
     @Test
@@ -32,6 +34,40 @@ class RemoteServicesTest {
         assertThat(result).hasSize(2)
         assertThat(result.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-1")
         assertThat(result.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames()).containsExactly("service-1")
+    }
+
+    @Test
+    fun `should timeout long running http call and try again`() {
+        val controlPlaneClient = FakeAsyncControlPlane()
+        controlPlaneClient.forClusterWithChangableState("dc1") {
+            delayedState(Duration.ofMillis(6000), ServiceState(service = "service-1"))
+            state(ServiceState(service = "service-2"))
+        }
+        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1"))
+
+        val result = service
+            .getChanges(1)
+            .blockFirst(Duration.ofMillis(3000))
+            ?: MultiClusterState.empty()
+
+        assertThat(result).hasSize(1)
+        assertThat(result.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-2")
+    }
+
+    @Test
+    fun `should not emit events when communication problem persists`() {
+        val controlPlaneClient = FakeAsyncControlPlane()
+        controlPlaneClient.forCluster("dc1") {
+            delayedState(Duration.ofMillis(1100), ServiceState(service = "service-1"))
+        }
+        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1"))
+
+        val thrown = Assertions.catchThrowable {
+            service.getChanges(1).blockFirst(Duration.ofMillis(1300))
+        }
+        assertThat(thrown)
+            .isInstanceOf(java.lang.IllegalStateException::class.java)
+            .hasMessageContaining("Timeout on blocking read for")
     }
 
     @Test
@@ -135,16 +171,20 @@ class RemoteServicesTest {
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(successfulResult.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-a")
-        assertThat(successfulResult.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames()).containsExactly("service-c")
+        assertThat(successfulResult.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames())
+            .containsExactly("service-a")
+        assertThat(successfulResult.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames())
+            .containsExactly("service-c")
 
         val oneInstanceFailing = service
             .getChanges(1)
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-b")
-        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames()).containsExactly("service-c")
+        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames())
+            .containsExactly("service-b")
+        assertThat(oneInstanceFailing.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames())
+            .containsExactly("service-c")
     }
 
     @Test
@@ -171,7 +211,8 @@ class RemoteServicesTest {
             .verify()
     }
 
-    class FakeControlPlaneInstanceFetcher(private val clusterWithNoInstance: List<String>) : ControlPlaneInstanceFetcher {
+    class FakeControlPlaneInstanceFetcher(private val clusterWithNoInstance: List<String>) :
+        ControlPlaneInstanceFetcher {
         override fun instances(cluster: String): List<URI> {
             val uri = URI.create("http://$cluster")
             if (clusterWithNoInstance.contains(cluster)) {
@@ -191,23 +232,25 @@ class RemoteServicesTest {
     ): MultiClusterState {
         val clusterState = this.first { it.cluster == cluster }
         assertThat(clusterState).isNotNull
-        assertThat(clusterState.servicesState.serviceNameToInstances.keys).doesNotContain(serviceName)
+        assertThat(clusterState.servicesState.serviceNames()).doesNotContain(serviceName)
         return this
     }
 
     data class ServiceState(val service: String, val withoutInstances: Boolean = false)
-    class FakeAsyncControlPlane : AsyncControlPlaneClient {
+    class FakeAsyncControlPlane : ControlPlaneClient {
         class ClusterScope(private val clusterName: String) {
-            var responses = mutableListOf<Mono<ServicesState>>()
+            var responses = mutableListOf<WrappedServiceState>()
 
             fun state(vararg services: ServiceState) {
-                responses.add(
-                    Mono.just(
-                        ServicesState(
-                            serviceNameToInstances = services.map { toState(it.service, it.withoutInstances) }.toMap()
+                responses.add {
+                    ServicesState(
+                        serviceNameToInstances = ConcurrentHashMap(
+                            services.associate {
+                                toState(it.service, it.withoutInstances)
+                            }
                         )
                     )
-                )
+                }
             }
 
             private fun toState(service: String, withoutInstances: Boolean): Pair<String, ServiceInstances> {
@@ -219,15 +262,30 @@ class RemoteServicesTest {
                 return service to ServiceInstances(service, instances)
             }
 
+            @Suppress("TooGenericExceptionThrown")
             fun stateError() {
-                responses.add(Mono.error(RuntimeException("Error fetching from $clusterName")))
+                responses.add { throw RuntimeException("Error fetching from $clusterName") }
+            }
+
+            @Suppress("TooGenericExceptionThrown")
+            fun delayedState(delay: Duration, vararg services: ServiceState) {
+                responses.add {
+                    Thread.sleep(delay.toMillis())
+                    ServicesState(
+                        serviceNameToInstances = ConcurrentHashMap(
+                            services.associate {
+                                toState(it.service, it.withoutInstances)
+                            }
+                        )
+                    )
+                }
             }
         }
 
-        val map = mutableMapOf<String, () -> Mono<ServicesState>>()
+        val map = mutableMapOf<String, () -> WrappedServiceState>()
 
-        override fun getState(uri: URI): Mono<ServicesState> {
-            return map.getValue(uri.host)()
+        override fun getState(uri: URI): CompletableFuture<ServicesState> {
+            return CompletableFuture.supplyAsync(map.getValue(uri.host)())
         }
 
         fun forCluster(name: String, function: ClusterScope.() -> Unit) {
@@ -242,3 +300,4 @@ class RemoteServicesTest {
         }
     }
 }
+private typealias WrappedServiceState = () -> ServicesState

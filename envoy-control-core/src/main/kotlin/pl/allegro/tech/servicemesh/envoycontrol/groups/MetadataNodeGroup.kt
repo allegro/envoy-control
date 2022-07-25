@@ -5,17 +5,12 @@ import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import io.envoyproxy.envoy.api.v2.core.Node as NodeV2
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 class MetadataNodeGroup(
     val properties: SnapshotProperties
 ) : NodeGroup<Group> {
     private val logger by logger()
-
-    override fun hash(node: NodeV2): Group {
-        throw V2NotSupportedException()
-    }
 
     override fun hash(node: NodeV3): Group {
         return createV3Group(node)
@@ -106,8 +101,6 @@ class MetadataNodeGroup(
             ?: ListenersConfig.defaultEnableLuaScript
         val accessLogPath = metadata.fieldsMap["access_log_path"]?.stringValue
             ?: ListenersConfig.defaultAccessLogPath
-        val resourcesDir = metadata.fieldsMap["resources_dir"]?.stringValue
-            ?: ListenersConfig.defaultResourcesDir
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
@@ -126,7 +119,6 @@ class MetadataNodeGroup(
             accessLogEnabled,
             enableLuaScript,
             accessLogPath,
-            resourcesDir,
             addUpstreamExternalAddressHeader,
             accessLogFilterSettings,
             hasStaticSecretsDefined,
