@@ -50,7 +50,7 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
         connectionsByType(typeUrl).decrementAndGet()
     }
 
-    override fun onV3StreamRequest(streamId: Long, request: DiscoveryRequestV3) {
+    override fun onV3StreamRequest(streamId: Long, request: V3DiscoveryRequest) {
         meterRegistry.counter("grpc.requests.${StreamType.fromTypeUrl(request.typeUrl).name.toLowerCase()}")
             .increment()
     }
