@@ -18,6 +18,7 @@ import io.envoyproxy.envoy.config.rbac.v3.RBAC
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+import io.envoyproxy.envoy.extensions.transport_sockets.tap.v3.Tap
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
@@ -103,6 +104,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             .add(Any.getDescriptor())
             .add(PathMatcher.getDescriptor())
             .add(StringMatcher.getDescriptor())
+            .add(Tap.getDescriptor())
             .add(UpstreamTlsContext.getDescriptor())
             .add(Lua.getDescriptor())
             .build()
