@@ -186,13 +186,6 @@ data class RetryBackOffInput(
     val baseInterval: String? = null,
     val maxInterval: String? = null
 )
-
-data class RateLimitedRetryBackOff(
-    val resetHeaders: List<ResetHeader>? = null
-)
-
-data class ResetHeader(val name: String, val format: String)
-
 data class RetryHostPredicateInput(
     val name: String?
 )
