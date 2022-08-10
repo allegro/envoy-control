@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- update envoy to 1.21.4
 - Added flags for lua filters
 
 ## [0.19.12]
