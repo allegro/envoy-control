@@ -12,9 +12,12 @@ import io.envoyproxy.envoy.config.listener.v3.FilterChain
 import io.envoyproxy.envoy.config.listener.v3.FilterChainMatch
 import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.listener.v3.ListenerFilter
+import io.envoyproxy.envoy.extensions.common.tap.v3.AdminConfig
+import io.envoyproxy.envoy.extensions.common.tap.v3.CommonExtensionConfig
 import io.envoyproxy.envoy.extensions.filters.listener.http_inspector.v3.HttpInspector
 import io.envoyproxy.envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import io.envoyproxy.envoy.extensions.transport_sockets.tap.v3.Tap
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
@@ -35,7 +38,7 @@ typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFil
 
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
-    snapshotProperties: SnapshotProperties,
+    private val snapshotProperties: SnapshotProperties,
     envoyHttpFilters: EnvoyHttpFilters
 ) {
 
@@ -79,6 +82,18 @@ class EnvoyListenersFactory(
         .setName("envoy.transport_sockets.tls")
         .setTypedConfig(ProtobufAny.pack(downstreamTlsContext.build()))
         .build()
+
+    private val downstreamTransportSocketWithTap = TransportSocket.newBuilder()
+        .setName("envoy.transport_sockets.tap")
+        .setTypedConfig(
+            ProtobufAny.pack(
+                Tap.newBuilder().setCommonConfig(
+                    CommonExtensionConfig.newBuilder().setAdminConfig(
+                        AdminConfig.newBuilder().setConfigId("downstream_tap")
+                    )
+                ).setTransportSocket(downstreamTlsTransportSocket).build()
+            )
+        ).build()
 
     private val tlsInspectorFilter = ListenerFilter
         .newBuilder()
@@ -228,7 +243,12 @@ class EnvoyListenersFactory(
         globalSnapshot: GlobalSnapshot
     ): FilterChain.Builder {
         val filterChain = createIngressFilterChain(group, globalSnapshot, TransportProtocol.TLS)
-        filterChain.setTransportSocket(downstreamTlsTransportSocket)
+        val transportSocket = if (snapshotProperties.tcpDumpsEnabled) {
+            downstreamTransportSocketWithTap
+        } else {
+            downstreamTlsTransportSocket
+        }
+        filterChain.transportSocket = transportSocket
         return filterChain
     }
 

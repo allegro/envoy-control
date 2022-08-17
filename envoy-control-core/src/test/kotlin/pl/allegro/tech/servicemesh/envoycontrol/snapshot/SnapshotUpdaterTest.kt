@@ -8,6 +8,7 @@ import io.envoyproxy.controlplane.cache.StatusInfo
 import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.controlplane.cache.XdsRequest
 import io.envoyproxy.controlplane.cache.v3.Snapshot
+import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
@@ -76,6 +77,12 @@ class SnapshotUpdaterTest {
         fun configurationModeNotSupported() = listOf(
             Arguments.of(false, false, ADS, "ADS not supported by server"),
             Arguments.of(false, false, XDS, "XDS not supported by server")
+        )
+
+        @JvmStatic
+        fun tapConfiguration() = listOf(
+            Arguments.of(false, Snapshot::allClustersHasNotConfiguredTap),
+            Arguments.of(true, Snapshot::allClustersHasConfiguredTap)
         )
 
         private val uninitializedSnapshot = null
@@ -314,6 +321,68 @@ class SnapshotUpdaterTest {
 
         hasSnapshot(cache, groupOf(services = serviceDependencies("nonExistingService3")))
             .withoutClusters()
+    }
+
+    @ParameterizedTest
+    @MethodSource("tapConfiguration")
+    fun `should properly generate tap configuration for all clusters`(
+        createTapConfiguration: Boolean,
+        tapConfigurationVerifier: Snapshot.() -> Unit
+    ) {
+        val cache = MockCache()
+
+        // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
+        val groups = listOf(
+            AllServicesGroup(communicationMode = XDS), groupWithProxy, groupWithServiceName,
+            groupOf(services = serviceDependencies("existingService1")),
+            groupOf(services = serviceDependencies("existingService2"))
+        )
+        groups.forEach {
+            cache.setSnapshot(it, uninitializedSnapshot)
+        }
+
+        cache.setSnapshot(
+            groupOf(
+                services = serviceDependencies("existingService1", "existingService2"),
+                domains = domainDependencies("http://domain")
+            ), uninitializedSnapshot
+        )
+
+        cache.setSnapshot(groupOf(services = serviceDependencies("nonExistingService3")), uninitializedSnapshot)
+
+        val updater = snapshotUpdater(
+            cache = cache,
+            properties = SnapshotProperties().apply {
+                tcpDumpsEnabled = createTapConfiguration
+            },
+            groups = groups
+        )
+
+        // when
+        updater.startWithServices("existingService1", "existingService2")
+
+        // then
+        hasSnapshot(cache, AllServicesGroup(communicationMode = XDS))
+            .tapConfigurationVerifier()
+
+        hasSnapshot(cache, groupWithProxy)
+            .tapConfigurationVerifier()
+
+        hasSnapshot(cache, groupOf(services = serviceDependencies("existingService1")))
+            .tapConfigurationVerifier()
+
+        hasSnapshot(cache, groupOf(services = serviceDependencies("existingService2")))
+            .tapConfigurationVerifier()
+
+        hasSnapshot(cache, groupWithServiceName)
+            .tapConfigurationVerifier()
+
+        hasSnapshot(
+            cache, groupOf(
+                services = serviceDependencies("existingService1", "existingService2"),
+                domains = domainDependencies("http://domain")
+            )
+        ).tapConfigurationVerifier()
     }
 
     @ParameterizedTest
@@ -1265,6 +1334,18 @@ class SnapshotUpdaterTest {
         elements.forEach { (name, instance) -> state[name] = instance }
         return state
     }
+}
+
+private fun Snapshot.allClustersHasConfiguredTap() {
+    assertThat(this.resources(Resources.ResourceType.CLUSTER).values.map { it as Cluster }
+        .map { it.transportSocket.name }
+        .all { it == "envoy.transport_sockets.tap" })
+}
+
+private fun Snapshot.allClustersHasNotConfiguredTap() {
+    assertThat(!this.resources(Resources.ResourceType.CLUSTER).values.map { it as Cluster }
+        .map { it.transportSocket.name }
+        .all { it == "envoy.transport_sockets.tap" })
 }
 
 fun serviceDependencies(vararg dependencies: Pair<String, Outgoing.TimeoutPolicy?>): Set<ServiceDependency> =
