@@ -27,6 +27,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
@@ -90,6 +92,45 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         }
     }
 
+    @GetMapping("/snapshot-global/{service}")
+    fun serviceSnapshot(
+        @PathVariable service: String,
+        @RequestParam dc: String?,
+        @RequestParam(defaultValue = "false") xds: Boolean
+    ): ResponseEntity<GlobalSnapshotInfo> {
+        val updateResult = snapshotUpdater.getGlobalSnapshot()
+
+        val globalSnapshot = if (xds) {
+            updateResult?.xdsSnapshot
+        } else {
+            updateResult?.adsSnapshot
+        }
+
+        if (globalSnapshot == null) {
+            logger.warn("Global snapshot is missing")
+            return ResponseEntity(HttpStatus.NOT_FOUND)
+        }
+
+        val cluster = globalSnapshot.clusters
+            .resources()[service]
+        if (cluster == null) {
+            logger.warn("Can not find $service in global snapshot")
+            return ResponseEntity(HttpStatus.NOT_FOUND)
+        }
+        val clusterInfos = cluster.loadAssignment
+            .endpointsList
+            .filter { dc == null || it.locality.zone.endsWith(dc, true) }
+            .map {
+                val endpoints = it.lbEndpointsList.map {
+                    val socketAddress = it.endpoint.address.socketAddress
+                    EndpointInfo(socketAddress.address, socketAddress.portValue)
+                }
+                ClusterInfo(it.locality.zone, endpoints)
+            }
+
+        return ResponseEntity(GlobalSnapshotInfo(clusterInfos), HttpStatus.OK)
+    }
+
     @JsonComponent
     class ProtoSerializer : JsonSerializer<Message>() {
         final val typeRegistry: TypeRegistry = TypeRegistry.newBuilder()
@@ -130,4 +171,8 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
     fun handleGlobalSnapshotMissing(exception: GlobalSnapshotNotFoundException): ResponseEntity<String> = ResponseEntity
         .status(HttpStatus.NOT_FOUND)
         .body(exception.message)
+
+    private companion object {
+        val logger by logger()
+    }
 }
