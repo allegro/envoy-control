@@ -117,7 +117,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         val clusterInfos = cluster.loadAssignment
             .endpointsList
             .filter { dc == null || it.locality.zone.endsWith(dc, true) }
-            .flatMap {locality ->
+            .flatMap { locality ->
                 locality.lbEndpointsList.map {
                     val socketAddress = it.endpoint.address.socketAddress
                     EndpointInfo(locality.locality.zone, socketAddress.address, socketAddress.portValue)
