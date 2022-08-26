@@ -14,7 +14,7 @@ import com.google.protobuf.util.JsonFormat.TypeRegistry
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.v3.Snapshot
-import io.envoyproxy.envoy.config.cluster.v3.Cluster
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.rbac.v3.RBAC
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
@@ -108,14 +108,13 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             updateResult?.adsSnapshot
         }
 
-        val cluster = extractCluster(globalSnapshot, service)
+        val endpoints = extractEndpoints(globalSnapshot, service)
 
-        if (cluster == null) {
+        if (endpoints == null) {
             return ResponseEntity(HttpStatus.NOT_FOUND)
         }
 
-        val clusterInfos = cluster.loadAssignment
-            .endpointsList
+        val clusterInfos = endpoints.endpointsList
             .filter { dc == null || it.locality.zone.endsWith(dc, true) }
             .flatMap { locality ->
                 locality.lbEndpointsList.map {
@@ -126,17 +125,17 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         return ResponseEntity(GlobalSnapshotInfo(clusterInfos), HttpStatus.OK)
     }
 
-    private fun extractCluster(globalSnapshot: GlobalSnapshot?, service: String): Cluster? {
+    private fun extractEndpoints(globalSnapshot: GlobalSnapshot?, service: String): ClusterLoadAssignment? {
         if (globalSnapshot == null) {
             logger.warn("Global snapshot is missing")
             return null
         }
-        val cluster = globalSnapshot.clusters
+        val endpoints = globalSnapshot.endpoints
             .resources()[service]
-        if (cluster == null) {
+        if (endpoints == null) {
             logger.warn("Can not find $service in global snapshot")
         }
-        return cluster
+        return endpoints
     }
 
     @JsonComponent
