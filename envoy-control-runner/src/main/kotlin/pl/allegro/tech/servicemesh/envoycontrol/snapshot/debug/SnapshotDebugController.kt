@@ -99,7 +99,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         @PathVariable service: String,
         @RequestParam dc: String?,
         @RequestParam(defaultValue = "false") xds: Boolean
-    ): ResponseEntity<GlobalSnapshotInfo> {
+    ): ResponseEntity<EndpointInfoList> {
         val updateResult = snapshotUpdater.getGlobalSnapshot()
 
         val globalSnapshot = if (xds) {
@@ -122,7 +122,7 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
                     EndpointInfo(locality.locality.zone, socketAddress.address, socketAddress.portValue)
                 }
             }
-        return ResponseEntity(GlobalSnapshotInfo(clusterInfos), HttpStatus.OK)
+        return ResponseEntity(EndpointInfoList(clusterInfos), HttpStatus.OK)
     }
 
     private fun extractEndpoints(globalSnapshot: GlobalSnapshot?, service: String): ClusterLoadAssignment? {
