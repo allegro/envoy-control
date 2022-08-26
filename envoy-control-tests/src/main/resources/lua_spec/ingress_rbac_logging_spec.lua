@@ -2,12 +2,14 @@ require("ingress_rbac_logging")
 
 local _ = match._
 local contains = function(substring) return match.matches(substring, nil, true) end
-local function formatLog(method, path, source_ip, client_name, protocol, request_id, status_code, trusted_client, allowed_client, rbac_action)
+local function formatLog(method, path, source_ip, client_name, protocol, request_id, status_code, trusted_client, allowed_client, rbac_action, authority, lua_authority)
     return "\nINCOMING_PERMISSIONS { \"method\": \""..method..
         "\", \"path\": \""..path..
         "\", \"clientIp\": \""..source_ip..
         "\", \"clientName\": \""..escape(client_name)..
         "\", \"trustedClient\": "..tostring(trusted_client)..
+        "\", \"authority\": \""..escape(authority)..
+        "\", \"lua_destination_authority\": \""..escape(lua_authority)..
         ", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..
         ", \"protocol\": \""..protocol..
         "\", \"requestId\": \""..escape(request_id)..
@@ -79,7 +81,9 @@ describe("envoy_on_request:", function()
             [':path'] = '/path',
             [':method'] = 'GET',
             ['x-service-name'] = 'lorem-service',
-            ['x-forwarded-for'] = "127.0.4.3"
+            ['x-forwarded-for'] = "127.0.4.3",
+            [':authority'] = "authority",
+            ['x-lua-destination-authority'] = "lua_authority"
         }
         local filter_metadata = {
             ['client_identity_headers'] = { 'x-service-name' }
@@ -96,6 +100,8 @@ describe("envoy_on_request:", function()
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.method", "GET")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.client_name", "lorem-service")
         assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.xff_header", "127.0.4.3")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.authority", "authority")
+        assert.spy(metadata.set).was_called_with(_, "envoy.filters.http.lua", "request.info.lua_destination_authority", "lua_authority")
     end)
 
     it("should set dynamic metadata for request id", function()
@@ -341,11 +347,13 @@ describe("envoy_on_response:", function()
                 ['shadow_engine_result'] = 'denied'
             },
             ['envoy.filters.http.lua'] = {
+                ['service_name'] = "service",
                 ['request.info.client_name'] = 'service-first',
                 ['request.info.path'] = '/path?query=val',
                 ['request.info.method'] = 'POST',
                 ['request.info.xff_header'] = '127.1.1.3',
-
+                ['request.info.authority'] = 'authority',
+                ['request.info.lua_destination_authority'] = 'lua_authority'
             }
         }
         ssl = true
@@ -371,7 +379,9 @@ describe("envoy_on_response:", function()
                 "403",
                 false,
                 false,
-                "denied"
+                "denied",
+                "authority",
+                "lua_authority"
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)
@@ -395,7 +405,9 @@ describe("envoy_on_response:", function()
                 "403",
                 false,
                 false,
-                "denied"
+                "denied",
+                "authority",
+                "lua_authority"
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)
@@ -419,8 +431,41 @@ describe("envoy_on_response:", function()
                 "503",
                 false,
                 false,
-                "shadow_denied"
+                "shadow_denied",
+                "authority",
+                "lua_authority"
             ))
+            assert.spy(handle.logInfo).was_called(1)
+        end)
+
+        it("as logged when status code is 405 and proper headers should be set", function ()
+            -- given
+            headers[':status'] = 405
+            local filterMetadata = { ["service_name"] = "service" }
+            local handle = handlerMock(headers, metadata, ssl, filterMetadata)
+
+            -- when
+            envoy_on_response(handle)
+
+            -- then
+            assert.spy(handle.logInfo).was_called_with(_, formatLog(
+                "POST",
+                "/path?query=val",
+                "127.1.1.3",
+                "service-first",
+                "https",
+                "",
+                "405",
+                false,
+                false,
+                "shadow_denied",
+                "authority",
+                "lua_authority"
+            ))
+            assert.are.equal(headers["x-envoy-wrong-destination-reached"], "service")
+            assert.are.equal(headers["x-envoy-wrong-destination-target"], "authority")
+            assert.are.equal(headers["x-envoy-wrong-lua-destination-target"], "lua_authority")
+
             assert.spy(handle.logInfo).was_called(1)
         end)
 
@@ -444,7 +489,9 @@ describe("envoy_on_response:", function()
                 "200",
                 false,
                 false,
-                "shadow_denied"
+                "shadow_denied",
+                "authority",
+                "lua_authority"
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)
@@ -469,7 +516,9 @@ describe("envoy_on_response:", function()
                 "0",
                 false,
                 false,
-                "shadow_denied"
+                "shadow_denied",
+                "",
+                ""
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)
@@ -494,7 +543,9 @@ describe("envoy_on_response:", function()
                 "0",
                 false,
                 false,
-                "shadow_denied"
+                "shadow_denied",
+                "",
+                ""
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)
@@ -518,7 +569,9 @@ describe("envoy_on_response:", function()
                 "403",
                 false,
                 false,
-                "denied"
+                "denied",
+                "authority",
+                "lua_authority"
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)
@@ -547,7 +600,9 @@ describe("envoy_on_response:", function()
                 "403",
                 false,
                 true,
-                "shadow_denied"
+                "shadow_denied",
+                "authority",
+                "lua_authority"
             ))
             assert.spy(handle.logInfo).was_called(1)
         end)
