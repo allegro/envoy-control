@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+
+## [0.19.7]
+
+### Changed
+- Added debug endpoint
+
+## [0.19.16]
+
+### Changed
 - Added tcp dumps for downstream
 - Added flags for lua filters
 
