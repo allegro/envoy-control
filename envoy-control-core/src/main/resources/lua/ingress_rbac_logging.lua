@@ -101,9 +101,9 @@ function log_request(lua_metadata, handle, rbac_action)
         "\", \"clientIp\": \""..source_ip..
         "\", \"clientName\": \""..escape(client_name)..
         "\", \"trustedClient\": "..tostring(trusted_client)..
-        "\", \"authority\": \""..escape(authority)..
-        "\", \"lua_destination_authority\": \""..escape(lua_destination_authority)..
-        ", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..
+        ", \"authority\": \""..escape(authority)..
+        "\", \"luaDestinationAuthority\": \""..escape(lua_destination_authority)..
+        "\", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..
         ", \"protocol\": \""..protocol..
         "\", \"requestId\": \""..escape(request_id)..
         "\", \"statusCode\": "..status_code..

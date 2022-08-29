@@ -9,7 +9,7 @@ local function formatLog(method, path, source_ip, client_name, protocol, request
         "\", \"clientName\": \""..escape(client_name)..
         "\", \"trustedClient\": "..tostring(trusted_client)..
         "\", \"authority\": \""..escape(authority)..
-        "\", \"lua_destination_authority\": \""..escape(lua_authority)..
+        "\", \"luaDestinationAuthority\": \""..escape(lua_authority)..
         ", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..
         ", \"protocol\": \""..protocol..
         "\", \"requestId\": \""..escape(request_id)..
@@ -440,9 +440,13 @@ describe("envoy_on_response:", function()
 
         it("as logged when status code is 405 and proper headers should be set", function ()
             -- given
-            headers[':status'] = 405
-            local filterMetadata = { ["service_name"] = "service" }
-            local handle = handlerMock(headers, metadata, ssl, filterMetadata)
+            headers[':status'] = "405"
+
+            local filter_metadata = {
+                ['service_name'] = "service",
+            }
+
+            local handle = handlerMock(headers, metadata, ssl, filter_metadata)
 
             -- when
             envoy_on_response(handle)

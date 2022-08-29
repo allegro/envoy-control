@@ -12,6 +12,8 @@ private class RbacLog(
     val method: String? = null,
     val clientName: String? = null,
     val trustedClient: Boolean? = null,
+    val authority: String? = null,
+    val luaDestinationAuthority: String? = null,
     val clientAllowedToAllEndpoints: Boolean? = null,
     val clientIp: String? = null,
     val statusCode: String? = null,
@@ -41,6 +43,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
     method: String,
     clientName: String,
     trustedClient: Boolean,
+    authority: String,
     clientIp: String,
     clientAllowedToAllEndpoints: Boolean = false
 ): ObjectAssert<EnvoyContainer> = hasOneAccessDenial(
@@ -52,6 +55,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
         method = method,
         clientName = clientName,
         trustedClient = trustedClient,
+        authority = authority,
         clientIp = clientIp,
         clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
         statusCode = "403",
@@ -65,6 +69,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessAllowedWithActionLog(
     method: String? = null,
     clientName: String? = null,
     trustedClient: Boolean? = null,
+    authority: String? = null,
     clientAllowedToAllEndpoints: Boolean? = null,
     clientIp: String? = null,
     requestId: String? = null
@@ -80,6 +85,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessAllowedWithActionLog(
         statusCode = "200",
         clientName = clientName,
         trustedClient = trustedClient,
+        authority = authority,
         clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
         requestId = requestId
     )
@@ -91,6 +97,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     method: String? = null,
     clientName: String? = null,
     trustedClient: Boolean? = null,
+    authority: String? = null,
     clientAllowedToAllEndpoints: Boolean? = null,
     clientIp: String? = null,
     requestId: String? = null
@@ -105,6 +112,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
         clientIp = clientIp,
         statusCode = "200",
         clientName = clientName,
+        authority = authority,
         trustedClient = trustedClient,
         clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
         requestId = requestId
@@ -117,6 +125,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     method: String? = null,
     clientName: String? = null,
     trustedClient: Boolean? = null,
+    authority: String? = null,
     clientAllowedToAllEndpoints: Boolean? = null,
     clientIp: String? = null,
     requestId: String? = null,
@@ -132,6 +141,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
         clientIp = clientIp,
         statusCode = statusCode,
         clientName = clientName,
+        authority = authority,
         trustedClient = trustedClient,
         clientAllowedToAllEndpoints = clientAllowedToAllEndpoints,
         requestId = requestId,
@@ -167,35 +177,23 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLo
     val parsed = mapper.readValue<RbacLog>(it.removePrefix(RBAC_LOG_PREFIX))
     // protocol is required because we check metrics
     assertThat(parsed.protocol).isEqualTo(logPredicate.protocol)
+    assertEqualProperty(parsed, logPredicate, RbacLog::protocol)
+    assertEqualProperty(parsed, logPredicate, RbacLog::method)
+    assertEqualProperty(parsed, logPredicate, RbacLog::path)
+    assertEqualProperty(parsed, logPredicate, RbacLog::clientIp)
+    assertEqualProperty(parsed, logPredicate, RbacLog::clientName)
+    assertEqualProperty(parsed, logPredicate, RbacLog::trustedClient)
+    assertEqualProperty(parsed, logPredicate, RbacLog::authority)
+    assertEqualProperty(parsed, logPredicate, RbacLog::luaDestinationAuthority)
+    assertEqualProperty(parsed, logPredicate, RbacLog::clientAllowedToAllEndpoints)
+    assertEqualProperty(parsed, logPredicate, RbacLog::statusCode)
+    assertEqualProperty(parsed, logPredicate, RbacLog::requestId)
+    assertEqualProperty(parsed, logPredicate, RbacLog::rbacAction)
+    assertEqualProperty(parsed, logPredicate, RbacLog::statusCode)
+}
 
-    logPredicate.method?.let {
-        assertThat(parsed.method).isEqualTo(logPredicate.method)
-    }
-    logPredicate.path?.let {
-        assertThat(parsed.path).isEqualTo(logPredicate.path)
-    }
-    logPredicate.clientIp?.let {
-        assertThat(parsed.clientIp).isEqualTo(logPredicate.clientIp)
-    }
-    logPredicate.clientName?.let {
-        assertThat(parsed.clientName).isEqualTo(logPredicate.clientName)
-    }
-    logPredicate.trustedClient?.let {
-        assertThat(parsed.trustedClient).isEqualTo(logPredicate.trustedClient)
-    }
-    logPredicate.clientAllowedToAllEndpoints?.let {
-        assertThat(parsed.clientAllowedToAllEndpoints).isEqualTo(logPredicate.clientAllowedToAllEndpoints)
-    }
-    logPredicate.statusCode?.let {
-        assertThat(parsed.statusCode).isEqualTo(logPredicate.statusCode)
-    }
-    logPredicate.requestId?.let {
-        assertThat(parsed.requestId).isEqualTo(logPredicate.requestId)
-    }
-    logPredicate.rbacAction?.let {
-        assertThat(parsed.rbacAction).isEqualTo(logPredicate.rbacAction)
-    }
-    logPredicate.statusCode?.let {
-        assertThat(parsed.statusCode).isEqualTo(logPredicate.statusCode)
+private fun <T> assertEqualProperty(actual: RbacLog, expected: RbacLog, supplier: RbacLog.() -> T) {
+    expected.supplier()?.let {
+        assertThat(actual.supplier()).isEqualTo(expected.supplier())
     }
 }

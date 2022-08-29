@@ -141,6 +141,7 @@ class IncomingPermissionsOriginalDestinationTest {
             path = "/blocked-echo",
             method = "GET",
             clientName = "echo",
+            authority = "envoy-original-destination",
             trustedClient = false,
             clientIp = echoEnvoy.container.ipAddress().replaceAfterLast(".", "1")
         )
