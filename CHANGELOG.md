@@ -5,11 +5,30 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.19.17]
+
+### Changed
+- Log authority and lua authority in lua filters
+
+## [0.19.16]
 
 ### Changed
 - Added tcp dumps for downstream
+
+## [0.19.15]
+
+### Changed
 - Added flags for lua filters
+
+## [0.19.14]
+
+### Changed
+- Update java-control-plane - remove api v2
+
+## [0.19.13]
+
+### Changed
+- readiness metric
 
 ## [0.19.12]
 

@@ -129,5 +129,4 @@ class EnvoyContainer(
     fun admin() = EnvoyAdmin(adminUrl())
 
     fun ingressHost(): String = ingressListenerUrl().removePrefix("http://")
-
 }

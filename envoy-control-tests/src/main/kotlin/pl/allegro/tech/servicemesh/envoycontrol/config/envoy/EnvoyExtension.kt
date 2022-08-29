@@ -89,5 +89,4 @@ class EnvoyExtension(
     fun stopRecordingRBAC() {
         container.logRecorder.stopRecording()
     }
-
 }

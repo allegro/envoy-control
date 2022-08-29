@@ -8,9 +8,9 @@ local function formatLog(method, path, source_ip, client_name, protocol, request
         "\", \"clientIp\": \""..source_ip..
         "\", \"clientName\": \""..escape(client_name)..
         "\", \"trustedClient\": "..tostring(trusted_client)..
-        "\", \"authority\": \""..escape(authority)..
+        ", \"authority\": \""..escape(authority)..
         "\", \"luaDestinationAuthority\": \""..escape(lua_authority)..
-        ", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..
+        "\", \"clientAllowedToAllEndpoints\": "..tostring(allowed_client)..
         ", \"protocol\": \""..protocol..
         "\", \"requestId\": \""..escape(request_id)..
         "\", \"statusCode\": "..status_code..
