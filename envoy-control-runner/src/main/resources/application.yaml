@@ -4,6 +4,10 @@ application:
   name: envoy-control
 
 envoy-control:
+  tracing:
+    services:
+      - http-echo1
+      - http-echo2
   source:
     consul:
       host: localhost

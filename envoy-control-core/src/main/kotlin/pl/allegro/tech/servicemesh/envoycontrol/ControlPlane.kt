@@ -166,7 +166,8 @@ class ControlPlane private constructor(
                 ),
                 listenersFactory = EnvoyListenersFactory(
                     snapshotProperties,
-                    envoyHttpFilters
+                    envoyHttpFilters,
+                    properties.tracing
                 ),
                 // Remember when LDS change we have to send RDS again
                 snapshotsVersions = snapshotsVersions,

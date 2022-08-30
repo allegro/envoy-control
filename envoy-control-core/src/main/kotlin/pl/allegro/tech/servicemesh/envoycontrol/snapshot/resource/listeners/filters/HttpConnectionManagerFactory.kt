@@ -10,8 +10,11 @@ import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.GrpcService
 import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
+import io.envoyproxy.envoy.config.trace.v3.Tracing
+import io.envoyproxy.envoy.config.trace.v3.ZipkinConfig
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
+import pl.allegro.tech.servicemesh.envoycontrol.TracingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
@@ -20,7 +23,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.Http
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config.LocalReplyConfigFactory
 
 class HttpConnectionManagerFactory(
-    val snapshotProperties: SnapshotProperties
+    val snapshotProperties: SnapshotProperties,
+    val tracing: TracingProperties
 ) {
 
     enum class Direction {
@@ -50,12 +54,17 @@ class HttpConnectionManagerFactory(
         direction: Direction
     ): HttpConnectionManager? {
         val listenersConfig = group.listenersConfig!!
+        val tracingEnabled = tracing.services.contains(group.serviceName)
 
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix(statPrefix)
             .setRds(setupRds(group.communicationMode, initialFetchTimeout, routeConfigName))
             .setGenerateRequestId(BoolValue.newBuilder().setValue(listenersConfig.generateRequestId).build())
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
+
+        if (tracingEnabled) {
+            connectionManagerBuilder.setTracing(prepareTracing())
+        }
 
         when (direction) {
             Direction.INGRESS -> {
@@ -159,5 +168,23 @@ class HttpConnectionManagerFactory(
                 connectionManagerBuilder.addHttpFilters(filter)
             }
         }
+    }
+
+    private fun prepareTracing(): HttpConnectionManager.Tracing.Builder {
+        val jaegerConfig = ZipkinConfig.newBuilder()
+            .setCollectorCluster("jaeger")
+            .setCollectorEndpoint("/api/v2/spans")
+            .setSharedSpanContext(
+                BoolValue.of(false)
+            )
+            .setCollectorEndpointVersion(
+                ZipkinConfig.CollectorEndpointVersion.HTTP_JSON
+            ).build()
+
+        val provider = Tracing.Http.newBuilder()
+            .setName("envoy.tracers.zipkin")
+            .setTypedConfig(jaegerConfig as com.google.protobuf.Any)
+
+        return HttpConnectionManager.Tracing.newBuilder().setProvider(provider)
     }
 }

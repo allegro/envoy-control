@@ -35,6 +35,7 @@ class SnapshotProperties {
     var rateLimit = RateLimitProperties()
     var retryPolicy = RetryPolicyProperties()
     var shouldAuditGlobalSnapshot = false
+    var tracing = false
 }
 
 class MetricsProperties {

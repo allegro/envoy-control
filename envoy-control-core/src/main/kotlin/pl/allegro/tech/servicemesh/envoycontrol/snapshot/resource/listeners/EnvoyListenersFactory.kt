@@ -19,6 +19,7 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
+import pl.allegro.tech.servicemesh.envoycontrol.TracingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Dependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -36,7 +37,8 @@ typealias HttpFilterFactory = (node: Group, snapshot: GlobalSnapshot) -> HttpFil
 @Suppress("MagicNumber")
 class EnvoyListenersFactory(
     snapshotProperties: SnapshotProperties,
-    envoyHttpFilters: EnvoyHttpFilters
+    envoyHttpFilters: EnvoyHttpFilters,
+    tracing: TracingProperties,
 ) {
 
     companion object {
@@ -48,7 +50,7 @@ class EnvoyListenersFactory(
     private val egressRdsInitialFetchTimeout: Duration = Duration.newBuilder().setSeconds(20).build()
     private val ingressRdsInitialFetchTimeout: Duration = Duration.newBuilder().setSeconds(30).build()
     private val tcpProxyFilterFactory: TcpProxyFilterFactory = TcpProxyFilterFactory()
-    private val httpConnectionManagerFactory = HttpConnectionManagerFactory(snapshotProperties)
+    private val httpConnectionManagerFactory = HttpConnectionManagerFactory(snapshotProperties, tracing)
     private val tlsProperties = snapshotProperties.incomingPermissions.tlsAuthentication
     private val requireClientCertificate = BoolValue.of(tlsProperties.requireClientCertificate)
 

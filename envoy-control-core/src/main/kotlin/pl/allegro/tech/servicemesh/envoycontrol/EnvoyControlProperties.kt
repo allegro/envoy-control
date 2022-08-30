@@ -11,6 +11,11 @@ class EnvoyControlProperties {
     var envoy = EnvoyProperties()
     var sync = SyncProperties()
     var serviceFilters = ServiceFilters()
+    var tracing = TracingProperties()
+}
+
+class TracingProperties {
+    var services: List<String> = emptyList()
 }
 
 class EnvoyProperties {
