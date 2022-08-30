@@ -110,5 +110,4 @@ class SnapshotDebugController(val debugService: SnapshotDebugService) {
     fun handleGlobalSnapshotMissing(exception: GlobalSnapshotNotFoundException): ResponseEntity<String> = ResponseEntity
         .status(HttpStatus.NOT_FOUND)
         .body(exception.message)
-
 }

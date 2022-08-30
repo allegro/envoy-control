@@ -87,7 +87,6 @@ class SnapshotDebugService(
     private companion object {
         val logger by logger()
     }
-
 }
 
 class SnapshotNotFoundException : RuntimeException("snapshot missing")
