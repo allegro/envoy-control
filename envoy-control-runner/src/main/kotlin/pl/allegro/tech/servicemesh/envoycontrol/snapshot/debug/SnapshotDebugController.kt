@@ -11,10 +11,6 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.JsonFormat
 import com.google.protobuf.util.JsonFormat.TypeRegistry
-import io.envoyproxy.controlplane.cache.NodeGroup
-import io.envoyproxy.controlplane.cache.SnapshotCache
-import io.envoyproxy.controlplane.cache.v3.Snapshot
-import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.rbac.v3.RBAC
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
@@ -34,19 +30,11 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.bind.annotation.RestController
-import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
-import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.logger
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 
 @RestController
-class SnapshotDebugController(controlPlane: ControlPlane) {
-    val cache: SnapshotCache<Group, Snapshot> = controlPlane.cache
-    val nodeGroup: NodeGroup<Group> = controlPlane.nodeGroup
-    val snapshotUpdater: SnapshotUpdater = controlPlane.snapshotUpdater
+class SnapshotDebugController(val debugService: SnapshotDebugService) {
 
     /**
      * Returns a textual representation of the snapshot for debugging purposes.
@@ -59,83 +47,30 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         produces = ["application/v3+json", "application/json"]
     )
     fun snapshot(@RequestBody node: NodeV3): ResponseEntity<SnapshotDebugInfo> {
-        val nodeHash = nodeGroup.hash(node)
-        val snapshot = cache.getSnapshot(nodeHash)
-        return if (snapshot == null) {
-            throw SnapshotNotFoundException()
-        } else {
-            ResponseEntity(
-                SnapshotDebugInfo(snapshot),
-                HttpStatus.OK
-            )
-        }
+        return ResponseEntity(
+            debugService.snapshot(node),
+            HttpStatus.OK
+        )
     }
 
     @GetMapping("/snapshot-global")
-    fun globalSnapshot(@RequestParam xds: Boolean?): ResponseEntity<SnapshotDebugInfo> {
-        val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
-        if (xds == true) {
-            return if (globalSnapshot?.xdsSnapshot == null) {
-                throw GlobalSnapshotNotFoundException("Xds global snapshot missing")
-            } else {
-                ResponseEntity(
-                    SnapshotDebugInfo(globalSnapshot.xdsSnapshot!!),
-                    HttpStatus.OK
-                )
-            }
-        }
-        return if (globalSnapshot?.adsSnapshot == null) {
-            throw GlobalSnapshotNotFoundException("Ads global snapshot missing")
-        } else {
-            ResponseEntity(
-                SnapshotDebugInfo(globalSnapshot.adsSnapshot!!),
-                HttpStatus.OK
-            )
-        }
+    fun globalSnapshot(@RequestParam(defaultValue = "false") xds: Boolean): ResponseEntity<SnapshotDebugInfo> {
+        return ResponseEntity(
+            debugService.globalSnapshot(xds),
+            HttpStatus.OK
+        )
     }
 
     @GetMapping("/snapshot-global/{service}")
-    fun serviceSnapshot(
+    fun globalSnapshot(
         @PathVariable service: String,
         @RequestParam dc: String?,
         @RequestParam(defaultValue = "false") xds: Boolean
     ): ResponseEntity<EndpointInfoList> {
-        val updateResult = snapshotUpdater.getGlobalSnapshot()
-
-        val globalSnapshot = if (xds) {
-            updateResult?.xdsSnapshot
-        } else {
-            updateResult?.adsSnapshot
-        }
-
-        val endpoints = extractEndpoints(globalSnapshot, service)
-
-        if (endpoints == null) {
-            return ResponseEntity(HttpStatus.NOT_FOUND)
-        }
-
-        val clusterInfos = endpoints.endpointsList
-            .filter { dc == null || it.locality.zone.endsWith(dc, true) }
-            .flatMap { locality ->
-                locality.lbEndpointsList.map {
-                    val socketAddress = it.endpoint.address.socketAddress
-                    EndpointInfo(locality.locality.zone, socketAddress.address, socketAddress.portValue)
-                }
-            }
-        return ResponseEntity(EndpointInfoList(clusterInfos), HttpStatus.OK)
-    }
-
-    private fun extractEndpoints(globalSnapshot: GlobalSnapshot?, service: String): ClusterLoadAssignment? {
-        if (globalSnapshot == null) {
-            logger.warn("Global snapshot is missing")
-            return null
-        }
-        val endpoints = globalSnapshot.endpoints
-            .resources()[service]
-        if (endpoints == null) {
-            logger.warn("Can not find $service in global snapshot")
-        }
-        return endpoints
+        return ResponseEntity(
+            debugService.globalSnapshot(service, dc, xds),
+            HttpStatus.OK
+        )
     }
 
     @JsonComponent
@@ -164,9 +99,6 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         }
     }
 
-    class SnapshotNotFoundException : RuntimeException("snapshot missing")
-    class GlobalSnapshotNotFoundException(message: String) : RuntimeException(message)
-
     @ExceptionHandler
     @ResponseBody
     fun handleSnapshotMissing(exception: SnapshotNotFoundException): ResponseEntity<String> = ResponseEntity
@@ -179,7 +111,4 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         .status(HttpStatus.NOT_FOUND)
         .body(exception.message)
 
-    private companion object {
-        val logger by logger()
-    }
 }
