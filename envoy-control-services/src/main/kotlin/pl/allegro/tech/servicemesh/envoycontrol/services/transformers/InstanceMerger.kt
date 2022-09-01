@@ -31,7 +31,7 @@ class InstanceMerger : ServiceInstancesTransformer {
                     port = target.second,
                     regular = instances.any { it.regular },
                     canary = instances.any { it.canary },
-                    weight = instances.sumBy { it.weight }
+                    weight = instances.sumOf { it.weight }
                 )
             }
         }
