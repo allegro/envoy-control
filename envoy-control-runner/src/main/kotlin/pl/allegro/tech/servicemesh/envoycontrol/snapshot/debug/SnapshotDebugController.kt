@@ -11,9 +11,6 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.JsonFormat
 import com.google.protobuf.util.JsonFormat.TypeRegistry
-import io.envoyproxy.controlplane.cache.NodeGroup
-import io.envoyproxy.controlplane.cache.SnapshotCache
-import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.envoyproxy.envoy.config.rbac.v3.RBAC
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
@@ -27,22 +24,17 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.bind.annotation.RestController
-import pl.allegro.tech.servicemesh.envoycontrol.ControlPlane
-import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 
 @RestController
-class SnapshotDebugController(controlPlane: ControlPlane) {
-    val cache: SnapshotCache<Group, Snapshot> = controlPlane.cache
-    val nodeGroup: NodeGroup<Group> = controlPlane.nodeGroup
-    val snapshotUpdater: SnapshotUpdater = controlPlane.snapshotUpdater
+class SnapshotDebugController(val debugService: SnapshotDebugService) {
 
     /**
      * Returns a textual representation of the snapshot for debugging purposes.
@@ -55,39 +47,30 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
         produces = ["application/v3+json", "application/json"]
     )
     fun snapshot(@RequestBody node: NodeV3): ResponseEntity<SnapshotDebugInfo> {
-        val nodeHash = nodeGroup.hash(node)
-        val snapshot = cache.getSnapshot(nodeHash)
-        return if (snapshot == null) {
-            throw SnapshotNotFoundException()
-        } else {
-            ResponseEntity(
-                SnapshotDebugInfo(snapshot),
-                HttpStatus.OK
-            )
-        }
+        return ResponseEntity(
+            debugService.snapshot(node),
+            HttpStatus.OK
+        )
     }
 
     @GetMapping("/snapshot-global")
-    fun globalSnapshot(@RequestParam xds: Boolean?): ResponseEntity<SnapshotDebugInfo> {
-        val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
-        if (xds == true) {
-            return if (globalSnapshot?.xdsSnapshot == null) {
-                throw GlobalSnapshotNotFoundException("Xds global snapshot missing")
-            } else {
-                ResponseEntity(
-                    SnapshotDebugInfo(globalSnapshot.xdsSnapshot!!),
-                    HttpStatus.OK
-                )
-            }
-        }
-        return if (globalSnapshot?.adsSnapshot == null) {
-            throw GlobalSnapshotNotFoundException("Ads global snapshot missing")
-        } else {
-            ResponseEntity(
-                SnapshotDebugInfo(globalSnapshot.adsSnapshot!!),
-                HttpStatus.OK
-            )
-        }
+    fun globalSnapshot(@RequestParam(defaultValue = "false") xds: Boolean): ResponseEntity<SnapshotDebugInfo> {
+        return ResponseEntity(
+            debugService.globalSnapshot(xds),
+            HttpStatus.OK
+        )
+    }
+
+    @GetMapping("/snapshot-global/{service}")
+    fun globalSnapshot(
+        @PathVariable service: String,
+        @RequestParam dc: String?,
+        @RequestParam(defaultValue = "false") xds: Boolean
+    ): ResponseEntity<EndpointInfoList> {
+        return ResponseEntity(
+            debugService.globalSnapshot(service, dc, xds),
+            HttpStatus.OK
+        )
     }
 
     @JsonComponent
@@ -115,9 +98,6 @@ class SnapshotDebugController(controlPlane: ControlPlane) {
             gen.writeRawValue(printer.print(message))
         }
     }
-
-    class SnapshotNotFoundException : RuntimeException("snapshot missing")
-    class GlobalSnapshotNotFoundException(message: String) : RuntimeException(message)
 
     @ExceptionHandler
     @ResponseBody
