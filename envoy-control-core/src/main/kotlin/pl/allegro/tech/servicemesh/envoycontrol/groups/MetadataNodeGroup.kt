@@ -74,7 +74,8 @@ class MetadataNodeGroup(
         val egressHostValue = metadata.fieldsMap["egress_host"]
         val egressPortValue = metadata.fieldsMap["egress_port"]
         val accessLogFilterSettings = AccessLogFilterSettings(
-            metadata.fieldsMap["access_log_filter"]
+            metadata.fieldsMap["access_log_filter"],
+            properties.dynamicListeners.httpFilters.accessLog.filters
         )
 
         val listenersHostPort = metadataToListenersHostPort(
