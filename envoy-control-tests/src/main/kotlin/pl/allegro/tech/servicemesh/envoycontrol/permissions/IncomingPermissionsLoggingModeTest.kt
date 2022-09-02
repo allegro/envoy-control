@@ -269,6 +269,7 @@ class IncomingPermissionsLoggingModeTest {
             method = "GET",
             clientName = "echo2",
             trustedClient = true,
+            authority = "echo",
             clientIp = echo2Envoy.container.ipAddress()
         )
     }
@@ -286,6 +287,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo",
+            authority = "echo2",
             trustedClient = true,
             clientIp = echoEnvoy.container.ipAddress()
         )
@@ -326,6 +328,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
+            authority = echoEnvoy.container.ingressHost(),
             trustedClient = false,
             clientIp = echoEnvoy.container.gatewayIp()
         )
@@ -344,6 +347,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "",
+            authority = echo2Envoy.container.ingressHost(),
             trustedClient = false,
             clientIp = echo2Envoy.container.gatewayIp()
         )
@@ -385,6 +389,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "echo2",
+            authority = "echo",
             trustedClient = true,
             clientIp = echo2Envoy.container.ipAddress()
         )
@@ -503,6 +508,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "echo2",
+            authority = "echo",
             trustedClient = true,
             clientIp = echo2Envoy.container.ipAddress()
         )
@@ -521,6 +527,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
+            authority = echo2Envoy.container.ingressHost(),
             trustedClient = false,
             clientIp = echo2Envoy.container.gatewayIp()
         )
@@ -539,6 +546,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo3",
+            authority = "echo",
             trustedClient = true,
             clientIp = echo3Envoy.container.ipAddress()
         )
@@ -557,6 +565,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo3",
+            authority = "echo2",
             trustedClient = true,
             clientIp = echo3Envoy.container.ipAddress()
         )
@@ -575,6 +584,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo2",
+            authority = "echo",
             trustedClient = true,
             clientIp = echo2Envoy.container.ipAddress()
         )
@@ -594,6 +604,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo",
+            authority = "echo2",
             trustedClient = true,
             clientIp = echoEnvoy.container.ipAddress()
         )
@@ -612,6 +623,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
+            authority = sourceIpClientToEchoProxy.address.removePrefix("http://"),
             trustedClient = false,
             clientIp = sourceIpClient.container.ipAddress()
         )
@@ -648,6 +660,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
+            authority = echoEnvoy.container.ingressHost(),
             trustedClient = false,
             clientIp = echoEnvoy.container.gatewayIp()
         )
@@ -689,6 +702,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/log-unlisted-clients",
             method = "POST",
             clientName = "echo3",
+            authority = "echo",
             trustedClient = true,
             clientIp = echo3Envoy.container.ipAddress()
         )
@@ -735,6 +749,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "service-name-from-header (not trusted)",
+            authority = echo2Envoy.container.ingressHost(),
             trustedClient = false,
             clientIp = echo2Envoy.container.gatewayIp()
         )
@@ -754,6 +769,7 @@ class IncomingPermissionsLoggingModeTest {
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "echo",
+            authority = "echo2",
             trustedClient = true,
             clientIp = echoEnvoy.container.ipAddress()
         )
