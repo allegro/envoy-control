@@ -212,6 +212,7 @@ internal class IncomingPermissionsAllowedClientTest {
             method = "GET",
             clientName = "echo3",
             trustedClient = false,
+            authority = echoEnvoy.container.ingressHost(),
             clientAllowedToAllEndpoints = true,
             clientIp = echoEnvoy.container.gatewayIp()
         )
@@ -258,6 +259,7 @@ internal class IncomingPermissionsAllowedClientTest {
             method = "GET",
             clientName = "echo3 (not trusted)",
             trustedClient = false,
+            authority = echoEnvoy.container.ingressHost(),
             clientAllowedToAllEndpoints = true,
             clientIp = echoEnvoy.container.gatewayIp()
         )

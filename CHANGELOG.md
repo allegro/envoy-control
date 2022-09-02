@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+## [0.19.18]
+
+### Changed
+- Log authority and lua authority in lua filters
+
 ## [0.19.17]
 
 ### Changed
@@ -22,7 +27,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [0.19.15]
 
 ### Changed
-- Added flags for lua filters
 - Added flags for lua filters
 
 ## [0.19.14]
