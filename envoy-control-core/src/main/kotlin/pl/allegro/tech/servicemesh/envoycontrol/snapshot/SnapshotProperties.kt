@@ -53,6 +53,7 @@ class HttpFiltersProperties {
 }
 
 class AccessLogProperties {
+    var enabled = false
     var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
     var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
             "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"

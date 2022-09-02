@@ -73,9 +73,10 @@ class MetadataNodeGroup(
         val ingressPortValue = metadata.fieldsMap["ingress_port"]
         val egressHostValue = metadata.fieldsMap["egress_host"]
         val egressPortValue = metadata.fieldsMap["egress_port"]
+        val accessLogProperties = properties.dynamicListeners.httpFilters.accessLog
         val accessLogFilterSettings = AccessLogFilterSettings(
             metadata.fieldsMap["access_log_filter"],
-            properties.dynamicListeners.httpFilters.accessLog.filters
+            accessLogProperties.filters
         )
 
         val listenersHostPort = metadataToListenersHostPort(
@@ -97,7 +98,7 @@ class MetadataNodeGroup(
         val preserveExternalRequestId = metadata.fieldsMap["preserve_external_request_id"]?.boolValue
             ?: ListenersConfig.defaultPreserveExternalRequestId
         val accessLogEnabled = metadata.fieldsMap["access_log_enabled"]?.boolValue
-            ?: ListenersConfig.defaultAccessLogEnabled
+            ?: accessLogProperties.enabled
         val enableLuaScript = metadata.fieldsMap["enable_lua_script"]?.boolValue
             ?: ListenersConfig.defaultEnableLuaScript
         val accessLogPath = metadata.fieldsMap["access_log_path"]?.stringValue
