@@ -25,6 +25,8 @@ TRACE_HEADERS_TO_PROPAGATE = [
     "sw8"
 ]
 
+s = int(os.environ['SERVICE_NAME'])
+
 
 @app.route('/service/<service_number>')
 def hello(service_number):
@@ -40,15 +42,16 @@ def health_check():
     return ('', 200)
 
 
-@app.route('/trace/<service_number>')
-def trace(service_number):
+@app.route('/trace')
+def trace():
     headers = {}
-    # call service 2 from service 1
-    if int(os.environ['SERVICE_NAME']) == 1:
+
+    if s == 1 or s == 2:
         for header in TRACE_HEADERS_TO_PROPAGATE:
             if header in request.headers:
                 headers[header] = request.headers[header]
-        requests.get("http://service2:8070/trace/2", headers=headers)
+        requests.get("http://localhost:9000/trace", headers=headers)
+
     return (
         'Hello from behind Envoy (service {})! hostname: {} resolved'
         'hostname: {}\n'.format(

@@ -92,6 +92,7 @@ services:
       - "9999:9999"
       - "31000:31000"
       - "31001:31001"
+      - "8000:8000"
 
   envoy-control:
     container_name: envoy-control

@@ -22,4 +22,4 @@ EXPOSE 80 443 9999
 
 RUN mkdir envoy
 
-CMD ["envoy", "-c", "/etc/envoy/envoy.yaml", "--service-cluster", "${ENVOY_NODE_CLUSTER}", "--service-node", "${ENVOY_NODE_ID}"]
+CMD envoy -c /etc/envoy/envoy.yaml --service-cluster $ENVOY_NODE_CLUSTER --service-node $ENVOY_NODE_ID

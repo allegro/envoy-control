@@ -32,6 +32,6 @@ body='
 
 curl -X PUT --fail --data "${body}" -s consul:8500/v1/agent/service/register
 
-python3 /code/service.py #&
+python3 /code/service.py &
 # jak nazwać node'a?
-# envoy -c /etc/service-envoy.yaml --service-cluster "${service_name}" --service-node "${instance_id}"
+envoy -c /etc/service-envoy.yaml --service-cluster "${service_name}" --service-node "${instance_id}"
