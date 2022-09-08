@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Lua custom metadata
 
+## [0.19.19]
+
+### Changed
+- Add default access log filter configuration
+
 ## [0.19.18]
 
 ### Changed

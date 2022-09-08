@@ -802,7 +802,7 @@ class SnapshotUpdaterTest {
                 egressPort = 1234,
                 ingressHost = "0.0.0.0",
                 ingressPort = 1235,
-                accessLogFilterSettings = AccessLogFilterSettings(null),
+                accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties()),
                 useTransparentProxy = true
             )
         )
@@ -910,7 +910,7 @@ class SnapshotUpdaterTest {
                 egressPort = 1234,
                 ingressHost = "0.0.0.0",
                 ingressPort = 1235,
-                accessLogFilterSettings = AccessLogFilterSettings(null),
+                accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties()),
                 useTransparentProxy = true
             )
         )
@@ -1002,7 +1002,7 @@ class SnapshotUpdaterTest {
                 egressPort = 1234,
                 ingressHost = "0.0.0.0",
                 ingressPort = 1235,
-                accessLogFilterSettings = AccessLogFilterSettings(null),
+                accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties()),
                 useTransparentProxy = false
             )
         )

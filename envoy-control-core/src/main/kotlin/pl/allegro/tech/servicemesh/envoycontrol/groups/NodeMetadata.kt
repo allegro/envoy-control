@@ -6,6 +6,7 @@ import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFiltersProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ComparisonFilterSettings
@@ -32,16 +33,16 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
 }
 
-data class AccessLogFilterSettings(val proto: Value?) {
+data class AccessLogFilterSettings(val proto: Value?, val properties: AccessLogFiltersProperties) {
     val statusCodeFilterSettings: ComparisonFilterSettings? = proto?.field("status_code_filter")
-        .toComparisonFilter()
+        .toComparisonFilter(properties.statusCode)
     val durationFilterSettings: ComparisonFilterSettings? = proto?.field("duration_filter")
-        .toComparisonFilter()
-    val notHealthCheckFilter: Boolean? = proto?.field("not_health_check_filter")?.boolValue
+        .toComparisonFilter(properties.duration)
+    val notHealthCheckFilter: Boolean? = proto?.field("not_health_check_filter")?.boolValue ?: properties.notHealthCheck
     val responseFlagFilter: Iterable<String>? = proto?.field("response_flag_filter")
-        .toResponseFlagFilter()
+        .toResponseFlagFilter(properties.responseFlag)
     val headerFilter: HeaderFilterSettings? = proto?.field("header_filter")
-        .toHeaderFilter()
+        .toHeaderFilter(properties.header)
 }
 
 data class ProxySettings(
@@ -73,20 +74,20 @@ private fun getCommunicationMode(proto: Value?): CommunicationMode {
     }
 }
 
-fun Value?.toComparisonFilter(): ComparisonFilterSettings? {
-    return this?.stringValue?.let {
+fun Value?.toComparisonFilter(default: String? = null): ComparisonFilterSettings? {
+    return (this?.stringValue ?: default)?.let {
         AccessLogFilterParser.parseComparisonFilter(it.uppercase())
     }
 }
 
-fun Value?.toResponseFlagFilter(): Iterable<String>? {
-    return this?.stringValue?.let {
+fun Value?.toResponseFlagFilter(default: String? = null): Iterable<String>? {
+    return (this?.stringValue ?: default)?.let {
         AccessLogFilterParser.parseResponseFlagFilter(it.uppercase())
     }
 }
 
-fun Value?.toHeaderFilter(): HeaderFilterSettings? {
-    return this?.stringValue?.let {
+fun Value?.toHeaderFilter(default: String? = null): HeaderFilterSettings? {
+    return (this?.stringValue ?: default)?.let {
         AccessLogFilterParser.parseHeaderFilter(it)
     }
 }
