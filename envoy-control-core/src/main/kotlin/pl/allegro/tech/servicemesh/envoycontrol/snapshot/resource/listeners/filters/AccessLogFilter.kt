@@ -69,6 +69,7 @@ class AccessLogFilter(
                                 stringValue("%DOWNSTREAM_REMOTE_ADDRESS%")
                             )
                             .putFields("upstream_host", stringValue("%UPSTREAM_HOST%"))
+                            .putFields("upstream_cluster", stringValue("%UPSTREAM_CLUSTER%"))
                             .putFields("user_agent", stringValue("%REQ(USER-AGENT)%"))
                             .putAllFields(accessLog.customFields.mapValues { stringValue(it.value) })
                             .build()
