@@ -11,7 +11,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class EnvoyDefaultFiltersTest {
 
-    private val defaultFilters = EnvoyDefaultFilters(SnapshotProperties(), emptyMap())
+    private val defaultFilters = EnvoyDefaultFilters(SnapshotProperties(), LuaMetadataProperty.StructPropertyLua())
 
     @Test
     fun `should create default filters`() {

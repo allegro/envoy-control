@@ -15,9 +15,9 @@ class EnvoyHttpFilters(
 
         fun defaultFilters(
             snapshotProperties: SnapshotProperties,
-            flags: Map<String, Boolean> = mapOf()
+            customLuaMetadata: LuaMetadataProperty.StructPropertyLua = LuaMetadataProperty.StructPropertyLua()
         ): EnvoyHttpFilters {
-            val defaultFilters = EnvoyDefaultFilters(snapshotProperties, flags)
+            val defaultFilters = EnvoyDefaultFilters(snapshotProperties, customLuaMetadata)
             return EnvoyHttpFilters(
                 defaultFilters.ingressFilters(),
                 defaultFilters.defaultEgressFilters,
