@@ -48,8 +48,8 @@ internal class LuaFilterFactoryTest {
         // given
         val customMetadata = StructPropertyLua(
             "flags" to StructPropertyLua(
-                "x-enabled" to BooleanPropertyLua.trueValue(),
-                "y-enabled" to BooleanPropertyLua.falseValue()
+                "x-enabled" to BooleanPropertyLua.TRUE,
+                "y-enabled" to BooleanPropertyLua.FALSE
             ),
             "list-value" to ListPropertyLua(StringPropertyLua("value1"), StringPropertyLua("value2")),
             "count" to NumberPropertyLua(1.0)

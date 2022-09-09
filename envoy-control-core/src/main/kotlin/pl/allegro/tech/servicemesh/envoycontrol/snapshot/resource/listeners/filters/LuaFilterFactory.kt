@@ -78,10 +78,15 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
 sealed class LuaMetadataProperty<T>(open val value: T) {
     abstract fun toValue(): Value
 
-    data class BooleanPropertyLua(override val value: Boolean) : LuaMetadataProperty<Boolean>(value) {
+    data class BooleanPropertyLua private constructor(override val value: Boolean) :
+        LuaMetadataProperty<Boolean>(value) {
         companion object {
-            fun trueValue() = BooleanPropertyLua(true)
-            fun falseValue() = BooleanPropertyLua(false)
+            val TRUE = BooleanPropertyLua(true)
+            val FALSE = BooleanPropertyLua(false)
+
+            fun of(value: Boolean): BooleanPropertyLua {
+                return if (value) TRUE else FALSE
+            }
         }
 
         override fun toValue(): Value {
