@@ -75,8 +75,7 @@ class SnapshotDebugService(
             logger.warn("Global snapshot is missing")
             throw GlobalSnapshotNotFoundException("Global snapshot is missing")
         }
-        val endpoints = globalSnapshot.endpoints
-            .resources()[service]
+        val endpoints = globalSnapshot.endpoints[service]
         if (endpoints == null) {
             logger.warn("Can not find $service in global snapshot")
             throw GlobalSnapshotNotFoundException("Service $service not found in global snapshot")

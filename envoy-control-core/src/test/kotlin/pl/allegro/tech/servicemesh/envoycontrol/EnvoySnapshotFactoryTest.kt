@@ -29,7 +29,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.globalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.outgoingTimeoutPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
@@ -274,14 +273,10 @@ class EnvoySnapshotFactoryTest {
     }
 
     private fun GlobalSnapshot.withEndpoint(clusterName: String): GlobalSnapshot = copy(
-        endpoints = SnapshotResources.create(
-            listOf(
-                ClusterLoadAssignment.newBuilder()
+        endpoints = SnapshotResources.create<ClusterLoadAssignment>(listOf(ClusterLoadAssignment.newBuilder()
                     .setClusterName(clusterName)
                     .build()
-            ), "v1"
-        )
-    )
+        ), "v1").resources())
 
     private fun createServicesGroup(
         mode: CommunicationMode = CommunicationMode.XDS,
@@ -375,11 +370,11 @@ class EnvoySnapshotFactoryTest {
 
     private fun createGlobalSnapshot(vararg clusters: Cluster): GlobalSnapshot {
         return GlobalSnapshot(
-            SnapshotResources.create(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
+            SnapshotResources.create<Cluster>(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(),
             clusters.map { it.name }.toSet(),
-            SnapshotResources.create(emptyList(), "v1"),
+            SnapshotResources.create<ClusterLoadAssignment>(emptyList<ClusterLoadAssignment>(), "v1").resources(),
             emptyMap(),
-            SnapshotResources.create(clusters.toList(), "v3")
+            SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources()
         )
     }
 
