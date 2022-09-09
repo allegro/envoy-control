@@ -7,6 +7,7 @@ import java.time.Duration
 class ServerProperties {
     var port = 50000
     var nioEventLoopThreadCount = 0 // if set to 0, default Netty value will be used: <number of CPUs> * 2
+    var nioBossEventLoopThreadCount = 0 // if set to 0, default Netty value will be used: <number of CPUs> * 2
     var serverPoolSize = 16
     var serverPoolKeepAlive: Duration = Duration.ofMinutes(10)
     var executorGroup = ExecutorProperties()
