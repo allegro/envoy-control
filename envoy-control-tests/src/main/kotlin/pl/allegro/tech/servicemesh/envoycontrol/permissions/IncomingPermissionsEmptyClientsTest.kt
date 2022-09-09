@@ -91,6 +91,7 @@ internal class IncomingPermissionsEmptyClientsTest {
             method = "GET",
             clientName = "",
             trustedClient = false,
+            authority = envoy1.container.ingressHost(),
             clientIp = envoy1.container.gatewayIp()
         )
     }
@@ -140,6 +141,7 @@ internal class IncomingPermissionsEmptyClientsTest {
             method = "GET",
             clientName = "",
             trustedClient = false,
+            authority = envoy2.container.ingressHost(),
             clientIp = envoy2.container.gatewayIp()
         )
     }

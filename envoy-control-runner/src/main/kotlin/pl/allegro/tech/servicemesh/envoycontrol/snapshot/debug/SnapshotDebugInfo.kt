@@ -61,3 +61,7 @@ data class SnapshotDebugInfo(
         versions = Versions()
     )
 }
+
+data class EndpointInfoList(val clusters: List<EndpointInfo> = emptyList())
+
+data class EndpointInfo(val datacenter: String, val ip: String, val port: Int)

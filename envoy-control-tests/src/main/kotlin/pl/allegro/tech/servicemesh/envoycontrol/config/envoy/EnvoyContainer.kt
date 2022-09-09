@@ -127,4 +127,6 @@ class EnvoyContainer(
     fun adminUrl() = "http://$containerIpAddress:${getMappedPort(ADMIN_PORT)}"
 
     fun admin() = EnvoyAdmin(adminUrl())
+
+    fun ingressHost(): String = ingressListenerUrl().removePrefix("http://")
 }

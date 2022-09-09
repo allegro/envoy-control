@@ -27,6 +27,9 @@ import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
 import io.envoyproxy.envoy.extensions.clusters.dynamic_forward_proxy.v3.ClusterConfig
 import io.envoyproxy.envoy.extensions.common.dynamic_forward_proxy.v3.DnsCacheConfig
+import io.envoyproxy.envoy.extensions.common.tap.v3.AdminConfig
+import io.envoyproxy.envoy.extensions.common.tap.v3.CommonExtensionConfig
+import io.envoyproxy.envoy.extensions.transport_sockets.tap.v3.Tap
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CertificateValidationContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
@@ -61,12 +64,6 @@ class EnvoyClustersFactory(
     private val allThresholds = CircuitBreakers.newBuilder().addAllThresholds(thresholds).build()
     private val tlsProperties = properties.incomingPermissions.tlsAuthentication
     private val sanUriMatcher = SanUriMatcherFactory(tlsProperties)
-    private val matchPlaintextContext = Cluster.TransportSocketMatch.newBuilder()
-        .setName("plaintext_match")
-        .setTransportSocket(
-            TransportSocket.newBuilder().setName("envoy.transport_sockets.raw_buffer").build()
-        )
-        .build()
 
     private val tlsContextMatch = Struct.newBuilder()
         .putFields(tlsProperties.tlsContextMetadataMatchKey, Value.newBuilder().setBoolValue(true).build())
@@ -94,14 +91,20 @@ class EnvoyClustersFactory(
             val matchTlsContext = Cluster.TransportSocketMatch.newBuilder()
                 .setName("mtls_match")
                 .setMatch(tlsContextMatch)
-                .setTransportSocket(
+                .setTransportSocket(wrapTransportSocket(cluster.name) {
                     TransportSocket.newBuilder()
                         .setName("envoy.transport_sockets.tls")
                         .setTypedConfig(Any.pack(upstreamTlsContext))
-                )
+                        .build()
+                })
                 .build()
 
-            secureCluster.addAllTransportSocketMatches(listOf(matchTlsContext, matchPlaintextContext))
+            secureCluster.addAllTransportSocketMatches(
+                listOf(
+                    matchTlsContext,
+                    createMatchPlainText("plaintext_${cluster.name}")
+                )
+            )
                 .build()
         }
     }
@@ -135,7 +138,7 @@ class EnvoyClustersFactory(
                 )
 
             if (provider.jwksUri.scheme == "https") {
-                cluster.setTransportSocket(
+                cluster.transportSocket = wrapTransportSocket(cluster.name) {
                     TransportSocket.newBuilder()
                         .setName("envoy.transport_sockets.tls")
                         .setTypedConfig(
@@ -151,8 +154,8 @@ class EnvoyClustersFactory(
                                             )
                                     ).build()
                             )
-                        )
-                )
+                        ).build()
+                }
             } else {
                 logger.warn("Jwks url [${provider.jwksUri}] is not using HTTPS scheme.")
             }
@@ -170,7 +173,8 @@ class EnvoyClustersFactory(
                 return listOf(Cluster.newBuilder(cluster).build())
             }
 
-            logger.warn("ratelimit service [{}] cluster required for service [{}] has not been found.",
+            logger.warn(
+                "ratelimit service [{}] cluster required for service [{}] has not been found.",
                 properties.rateLimit.serviceName,
                 group.serviceName
             )
@@ -320,13 +324,15 @@ class EnvoyClustersFactory(
                 ).build()
 
             val upstreamTlsContext = UpstreamTlsContext.newBuilder().setCommonTlsContext(commonTlsContext).build()
-            val transportSocket = TransportSocket.newBuilder()
-                .setTypedConfig(
-                    Any.pack(
-                        upstreamTlsContext
+            val transportSocket = wrapTransportSocket(domainDependency.getClusterName()) {
+                TransportSocket.newBuilder()
+                    .setTypedConfig(
+                        Any.pack(
+                            upstreamTlsContext
+                        )
                     )
-                )
-                .setName("envoy.transport_sockets.tls").build()
+                    .setName("envoy.transport_sockets.tls").build()
+            }
 
             clusterBuilder
                 .setTransportSocket(transportSocket)
@@ -560,23 +566,52 @@ class EnvoyClustersFactory(
                     )
             )
             .setTransportSocket(
-                TransportSocket.newBuilder()
-                    .setName("envoy.transport_sockets.tls")
-                    .setTypedConfig(
-                        Any.pack(
-                            UpstreamTlsContext.newBuilder()
-                                .setCommonTlsContext(
-                                    CommonTlsContext.newBuilder()
-                                        .setValidationContext(
-                                            CertificateValidationContext.newBuilder()
-                                                .setTrustedCa(
-                                                    DataSource.newBuilder().setFilename(properties.trustedCaFile)
-                                                        .build()
-                                                )
-                                        )
-                                ).build()
-                        )
-                    )
+                wrapTransportSocket(properties.dynamicForwardProxy.clusterName) {
+                    TransportSocket.newBuilder()
+                        .setName("envoy.transport_sockets.tls")
+                        .setTypedConfig(
+                            Any.pack(
+                                UpstreamTlsContext.newBuilder()
+                                    .setCommonTlsContext(
+                                        CommonTlsContext.newBuilder()
+                                            .setValidationContext(
+                                                CertificateValidationContext.newBuilder()
+                                                    .setTrustedCa(
+                                                        DataSource.newBuilder().setFilename(properties.trustedCaFile)
+                                                            .build()
+                                                    )
+                                            )
+                                    ).build()
+                            )
+                        ).build()
+                }
             ).build()
     }
+
+    private fun wrapTransportSocket(clusterName: String, supplier: () -> TransportSocket): TransportSocket {
+        return if (properties.tcpDumpsEnabled) {
+            TransportSocket.newBuilder()
+                .setName("envoy.transport_sockets.tap")
+                .setTypedConfig(
+                    Any.pack(
+                        Tap.newBuilder().setCommonConfig(
+                            CommonExtensionConfig.newBuilder().setAdminConfig(
+                                AdminConfig.newBuilder().setConfigId("${clusterName}_tap")
+                            )
+                        ).setTransportSocket(supplier()).build()
+                    )
+                ).build()
+        } else {
+            supplier()
+        }
+    }
+
+    private fun createMatchPlainText(clusterName: String) = Cluster.TransportSocketMatch.newBuilder()
+        .setName("plaintext_match")
+        .setTransportSocket(
+            wrapTransportSocket(clusterName) {
+                TransportSocket.newBuilder().setName("envoy.transport_sockets.raw_buffer").build()
+            }
+        )
+        .build()
 }

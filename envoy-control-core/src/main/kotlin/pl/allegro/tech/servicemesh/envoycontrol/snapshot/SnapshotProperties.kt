@@ -35,7 +35,7 @@ class SnapshotProperties {
     var rateLimit = RateLimitProperties()
     var deltaXdsEnabled = false
     var retryPolicy = RetryPolicyProperties()
-    var shouldAuditGlobalSnapshot = false
+    var tcpDumpsEnabled: Boolean = true
 }
 
 class MetricsProperties {
@@ -54,12 +54,22 @@ class HttpFiltersProperties {
 }
 
 class AccessLogProperties {
+    var enabled = false
     var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
     var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
             "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
     var level = "TRACE"
     var logger = "envoy.AccessLog"
     var customFields = mapOf<String, String>()
+    var filters = AccessLogFiltersProperties()
+}
+
+class AccessLogFiltersProperties {
+    var statusCode: String? = null
+    var duration: String? = null
+    var notHealthCheck: Boolean? = true
+    var responseFlag: String? = null
+    var header: String? = null
 }
 
 class OutgoingPermissionsProperties {

@@ -58,7 +58,7 @@ class EnvoySnapshotFactoryTest {
         val properties = SnapshotProperties()
         val envoySnapshotFactory = createSnapshotFactory(properties)
 
-        val group: Group = createServicesGroup()
+        val group: Group = createServicesGroup(snapshotProperties = properties)
         val cluster = createCluster(properties)
         val globalSnapshot = createGlobalSnapshot(cluster)
 
@@ -91,7 +91,7 @@ class EnvoySnapshotFactoryTest {
         val defaultProperties = SnapshotProperties().also { it.dynamicListeners.enabled = false }
         val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
 
-        val group: Group = createServicesGroup()
+        val group: Group = createServicesGroup(snapshotProperties = defaultProperties)
         val cluster = createCluster(defaultProperties)
         val globalSnapshot = createGlobalSnapshot(cluster)
 
@@ -109,7 +109,7 @@ class EnvoySnapshotFactoryTest {
         val defaultProperties = SnapshotProperties().also { it.dynamicListeners.enabled = false }
         val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
 
-        val group: Group = createServicesGroup()
+        val group: Group = createServicesGroup(snapshotProperties = defaultProperties)
         val cluster = createCluster(defaultProperties)
         val globalSnapshot = createGlobalSnapshot(cluster)
 
@@ -128,7 +128,9 @@ class EnvoySnapshotFactoryTest {
         val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
 
         val cluster = createCluster(defaultProperties)
-        val group: Group = createServicesGroup(dependencies = arrayOf(cluster.name to null)
+        val group: Group = createServicesGroup(
+            dependencies = arrayOf(cluster.name to null),
+            snapshotProperties = defaultProperties
         )
         val globalSnapshot = createGlobalSnapshot(cluster)
 
@@ -147,7 +149,10 @@ class EnvoySnapshotFactoryTest {
         val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
 
         val cluster = createCluster(defaultProperties)
-        val group: Group = createServicesGroup(dependencies = arrayOf(cluster.name to outgoingTimeoutPolicy(connectionIdleTimeout = 10)))
+        val group: Group = createServicesGroup(
+            dependencies = arrayOf(cluster.name to outgoingTimeoutPolicy(connectionIdleTimeout = 10)),
+            snapshotProperties = defaultProperties
+        )
         val globalSnapshot = createGlobalSnapshot(cluster)
 
         // when
@@ -168,7 +173,8 @@ class EnvoySnapshotFactoryTest {
         val cluster = createCluster(defaultProperties)
         val group: Group = createAllServicesGroup(
             dependencies = arrayOf(cluster.name to null, "*" to wildcardTimeoutPolicy),
-            defaultServiceSettings = DependencySettings(timeoutPolicy = wildcardTimeoutPolicy)
+            defaultServiceSettings = DependencySettings(timeoutPolicy = wildcardTimeoutPolicy),
+            snapshotProperties = defaultProperties
         )
         val globalSnapshot = createGlobalSnapshot(cluster)
 
@@ -190,8 +196,13 @@ class EnvoySnapshotFactoryTest {
         val cluster1 = createCluster(defaultProperties)
         val cluster2 = createCluster(defaultProperties, clusterName = "cluster-name-2")
         val group: Group = createAllServicesGroup(
-            dependencies = arrayOf(cluster1.name to outgoingTimeoutPolicy(connectionIdleTimeout = 1), cluster2.name to null, "*" to wildcardTimeoutPolicy),
-            defaultServiceSettings = DependencySettings(timeoutPolicy = wildcardTimeoutPolicy)
+            dependencies = arrayOf(
+                cluster1.name to outgoingTimeoutPolicy(connectionIdleTimeout = 1),
+                cluster2.name to null,
+                "*" to wildcardTimeoutPolicy
+            ),
+            defaultServiceSettings = DependencySettings(timeoutPolicy = wildcardTimeoutPolicy),
+            snapshotProperties = defaultProperties
         )
         val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
 
@@ -212,9 +223,12 @@ class EnvoySnapshotFactoryTest {
         val properties = SnapshotProperties().apply { rateLimit.serviceName = "rl_service" }
         val envoySnapshotFactory = createSnapshotFactory(properties)
 
-        val group: Group = createServicesGroup(rateLimitEndpoints = listOf(
-            IncomingRateLimitEndpoint("/hello", rateLimit = "12/s")
-        ))
+        val group: Group = createServicesGroup(
+            rateLimitEndpoints = listOf(
+                IncomingRateLimitEndpoint("/hello", rateLimit = "12/s")
+            ),
+            snapshotProperties = properties
+        )
         val cluster = createCluster(properties)
         val globalSnapshot = createGlobalSnapshot(cluster).withEndpoint("rl_service")
 
@@ -231,7 +245,7 @@ class EnvoySnapshotFactoryTest {
         val properties = SnapshotProperties().apply { rateLimit.serviceName = "rl_service" }
         val envoySnapshotFactory = createSnapshotFactory(properties)
 
-        val group: Group = createServicesGroup(rateLimitEndpoints = emptyList())
+        val group: Group = createServicesGroup(rateLimitEndpoints = emptyList(), snapshotProperties = properties)
         val cluster = createCluster(properties)
         val globalSnapshot = createGlobalSnapshot(cluster).withEndpoint("rl_service")
 
@@ -248,7 +262,7 @@ class EnvoySnapshotFactoryTest {
         val properties = SnapshotProperties().apply { rateLimit.serviceName = "rl_service" }
         val envoySnapshotFactory = createSnapshotFactory(properties)
 
-        val group: Group = createServicesGroup(rateLimitEndpoints = emptyList())
+        val group: Group = createServicesGroup(rateLimitEndpoints = emptyList(), snapshotProperties = properties)
         val cluster = createCluster(properties)
         val globalSnapshot = createGlobalSnapshot(cluster)
 
@@ -260,10 +274,14 @@ class EnvoySnapshotFactoryTest {
     }
 
     private fun GlobalSnapshot.withEndpoint(clusterName: String): GlobalSnapshot = copy(
-        endpoints = SnapshotResources.create<ClusterLoadAssignment>(listOf(ClusterLoadAssignment.newBuilder()
-            .setClusterName(clusterName)
-            .build()
-        ), "v1").resources())
+        endpoints = SnapshotResources.create(
+            listOf(
+                ClusterLoadAssignment.newBuilder()
+                    .setClusterName(clusterName)
+                    .build()
+            ), "v1"
+        )
+    )
 
     private fun createServicesGroup(
         mode: CommunicationMode = CommunicationMode.XDS,
@@ -271,17 +289,21 @@ class EnvoySnapshotFactoryTest {
         discoveryServiceName: String = DEFAULT_DISCOVERY_SERVICE_NAME,
         dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
         listenersConfigExists: Boolean = true,
-        rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList()
+        rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList(),
+        snapshotProperties: SnapshotProperties
     ): ServicesGroup {
         val listenersConfig = when (listenersConfigExists) {
-            true -> createListenersConfig()
+            true -> createListenersConfig(snapshotProperties)
             false -> null
         }
         return ServicesGroup(
             mode,
             serviceName,
             discoveryServiceName,
-            ProxySettings().with(serviceDependencies = serviceDependencies(*dependencies), rateLimitEndpoints = rateLimitEndpoints),
+            ProxySettings().with(
+                serviceDependencies = serviceDependencies(*dependencies),
+                rateLimitEndpoints = rateLimitEndpoints
+            ),
             listenersConfig
         )
     }
@@ -292,28 +314,35 @@ class EnvoySnapshotFactoryTest {
         discoveryServiceName: String = DEFAULT_DISCOVERY_SERVICE_NAME,
         dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
         defaultServiceSettings: DependencySettings,
-        listenersConfigExists: Boolean = true
+        listenersConfigExists: Boolean = true,
+        snapshotProperties: SnapshotProperties
     ): AllServicesGroup {
         val listenersConfig = when (listenersConfigExists) {
-            true -> createListenersConfig()
+            true -> createListenersConfig(snapshotProperties)
             false -> null
         }
         return AllServicesGroup(
             mode,
             serviceName,
             discoveryServiceName,
-            ProxySettings().with(serviceDependencies = serviceDependencies(*dependencies), defaultServiceSettings = defaultServiceSettings),
+            ProxySettings().with(
+                serviceDependencies = serviceDependencies(*dependencies),
+                defaultServiceSettings = defaultServiceSettings
+            ),
             listenersConfig
         )
     }
 
-    private fun createListenersConfig(): ListenersConfig {
+    private fun createListenersConfig(snapshotProperties: SnapshotProperties): ListenersConfig {
         return ListenersConfig(
             ingressHost = INGRESS_HOST,
             ingressPort = INGRESS_PORT,
             egressHost = EGRESS_HOST,
             egressPort = EGRESS_PORT,
-            accessLogFilterSettings = AccessLogFilterSettings(null)
+            accessLogFilterSettings = AccessLogFilterSettings(
+                null,
+                snapshotProperties.dynamicListeners.httpFilters.accessLog.filters
+            )
         )
     }
 
@@ -346,15 +375,20 @@ class EnvoySnapshotFactoryTest {
 
     private fun createGlobalSnapshot(vararg clusters: Cluster): GlobalSnapshot {
         return GlobalSnapshot(
-            SnapshotResources.create<Cluster>(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(),
+            SnapshotResources.create(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3"),
             clusters.map { it.name }.toSet(),
-            SnapshotResources.create<ClusterLoadAssignment>(emptyList<ClusterLoadAssignment>(), "v1").resources(),
+            SnapshotResources.create(emptyList(), "v1"),
             emptyMap(),
-            SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources()
+            SnapshotResources.create(clusters.toList(), "v3")
         )
     }
 
-    private fun createCluster(defaultProperties: SnapshotProperties, clusterName: String = CLUSTER_NAME, serviceName: String = DEFAULT_SERVICE_NAME, idleTimeout: Long = DEFAULT_IDLE_TIMEOUT): Cluster {
+    private fun createCluster(
+        defaultProperties: SnapshotProperties,
+        clusterName: String = CLUSTER_NAME,
+        serviceName: String = DEFAULT_SERVICE_NAME,
+        idleTimeout: Long = DEFAULT_IDLE_TIMEOUT
+    ): Cluster {
         return Cluster.newBuilder().setName(clusterName)
             .setType(Cluster.DiscoveryType.EDS)
             .setConnectTimeout(Durations.fromMillis(defaultProperties.edsConnectionTimeout.toMillis()))
