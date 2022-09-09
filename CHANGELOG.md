@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+## [0.19.20]
+
+### Changed
+- Lua custom metadata
+
 ## [0.19.19]
 
 ### Changed

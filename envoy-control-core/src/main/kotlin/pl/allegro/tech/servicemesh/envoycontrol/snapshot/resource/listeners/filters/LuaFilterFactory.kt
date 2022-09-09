@@ -9,6 +9,9 @@ import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.ListPropertyLua
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.StructPropertyLua
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.StringPropertyLua
 
 class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermissionsProperties) {
 
@@ -41,78 +44,108 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
     private val sanUriWildcardRegexForLua = SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
         .sanUriWildcardRegexForLua
 
-    fun ingressScriptsMetadata(group: Group, flags: Map<String, Boolean> = mapOf()): Metadata {
+    fun ingressScriptsMetadata(group: Group, customLuaMetadata: StructPropertyLua = StructPropertyLua()): Metadata {
+        val metadata = StructPropertyLua(
+            "client_identity_headers" to ListPropertyLua(
+                incomingPermissionsProperties
+                    .clientIdentityHeaders.map(::StringPropertyLua)
+            ),
+            "request_id_headers" to ListPropertyLua(
+                incomingPermissionsProperties.requestIdentificationHeaders.map(
+                    ::StringPropertyLua
+                )
+            ),
+            "trusted_client_identity_header" to StringPropertyLua(trustedClientIdentityHeader),
+            "san_uri_lua_pattern" to StringPropertyLua(sanUriWildcardRegexForLua),
+            "clients_allowed_to_all_endpoints" to ListPropertyLua(
+                incomingPermissionsProperties.clientsAllowedToAllEndpoints.map(
+                    ::StringPropertyLua
+                )
+            ),
+            "service_name" to StringPropertyLua(group.serviceName),
+            "discovery_service_name" to StringPropertyLua(group.discoveryServiceName ?: ""),
+
+            ) + customLuaMetadata
         return Metadata.newBuilder()
-            .putFilterMetadata("envoy.filters.http.lua",
-                Struct.newBuilder()
-                    .putFields("client_identity_headers",
-                        Value.newBuilder()
-                            .setListValue(ListValue.newBuilder()
-                                .addAllValues(
-                                    incomingPermissionsProperties.clientIdentityHeaders
-                                        .map { Value.newBuilder().setStringValue(it).build() }
-                                )
-                                .build()
-                            ).build()
-                    )
-                    .putFields("request_id_headers",
-                        Value.newBuilder()
-                            .setListValue(ListValue.newBuilder()
-                                .addAllValues(
-                                    incomingPermissionsProperties.requestIdentificationHeaders
-                                        .map { Value.newBuilder().setStringValue(it).build() }
-                                )
-                                .build()
-                            ).build()
-                    )
-                    .putFields(
-                        "trusted_client_identity_header",
-                        Value.newBuilder()
-                            .setStringValue(trustedClientIdentityHeader)
-                            .build()
-                    )
-                    .putFields(
-                        "san_uri_lua_pattern",
-                        Value.newBuilder()
-                            .setStringValue(sanUriWildcardRegexForLua).build()
-                    ).putFields("clients_allowed_to_all_endpoints",
-                        Value.newBuilder()
-                            .setListValue(ListValue.newBuilder()
-                                .addAllValues(
-                                    incomingPermissionsProperties.clientsAllowedToAllEndpoints
-                                        .map { Value.newBuilder().setStringValue(it).build() }
-                                )
-                                .build()
-                            ).build()
-                    )
-                    .putFields(
-                        "service_name",
-                        Value.newBuilder()
-                            .setStringValue(group.serviceName)
-                            .build()
-                    )
-                    .putFields(
-                        "discovery_service_name",
-                        Value.newBuilder()
-                            .setStringValue(group.discoveryServiceName ?: "")
-                            .build()
-                    ).putFields("flags", Value.newBuilder()
-                        .setStructValue(Struct.newBuilder()
-                            .apply {
-                                flags.forEach {
-                                    putFields(
-                                        it.key,
-                                        Value.newBuilder().setBoolValue(it.value).build()
-                                    )
-                                }
-                            }
-                            .build()
-                        ).build()
-                    )
-                    .build()
-            ).build()
+            .putFilterMetadata("envoy.filters.http.lua", metadata.toValue().structValue)
+            .build()
     }
 
     fun ingressClientNameHeaderFilter(): HttpFilter? =
         ingressClientNameHeaderFilter.takeIf { trustedClientIdentityHeader.isNotEmpty() }
+}
+
+sealed class LuaMetadataProperty<T>(open val value: T) {
+    abstract fun toValue(): Value
+
+    data class BooleanPropertyLua private constructor(override val value: Boolean) :
+        LuaMetadataProperty<Boolean>(value) {
+        companion object {
+            val TRUE = BooleanPropertyLua(true)
+            val FALSE = BooleanPropertyLua(false)
+
+            fun of(value: Boolean): BooleanPropertyLua {
+                return if (value) TRUE else FALSE
+            }
+        }
+
+        override fun toValue(): Value {
+            return Value.newBuilder()
+                .setBoolValue(value)
+                .build()
+        }
+    }
+
+    data class NumberPropertyLua(override val value: Double) : LuaMetadataProperty<Double>(value) {
+        override fun toValue(): Value {
+            return Value.newBuilder()
+                .setNumberValue(value)
+                .build()
+        }
+    }
+
+    data class StringPropertyLua(override val value: String) : LuaMetadataProperty<String>(value) {
+        override fun toValue(): Value {
+            return Value.newBuilder()
+                .setStringValue(value)
+                .build()
+        }
+    }
+
+    data class ListPropertyLua<T>(override val value: List<LuaMetadataProperty<T>>) :
+        LuaMetadataProperty<List<LuaMetadataProperty<T>>>(value),
+        List<LuaMetadataProperty<T>> by value {
+
+        constructor(vararg pairs: LuaMetadataProperty<T>) : this(pairs.toList())
+
+        override fun toValue(): Value {
+            return Value.newBuilder()
+                .setListValue(ListValue.newBuilder().addAllValues(value.map { it.toValue() }))
+                .build()
+        }
+    }
+
+    data class StructPropertyLua(override val value: Map<String, LuaMetadataProperty<out kotlin.Any>> = mapOf()) :
+        LuaMetadataProperty<Map<String, LuaMetadataProperty<out kotlin.Any>>>(value),
+        Map<String, LuaMetadataProperty<out kotlin.Any>> by value {
+
+        constructor(vararg pairs: Pair<String, LuaMetadataProperty<out kotlin.Any>>) : this(pairs.toMap())
+
+        override fun toValue(): Value {
+            return Value.newBuilder()
+                .setStructValue(Struct.newBuilder()
+                    .apply {
+                        value.forEach {
+                            putFields(
+                                it.key,
+                                it.value.toValue()
+                            )
+                        }
+                    }
+                    .build()
+                ).build()
+        }
+
+        operator fun plus(other: StructPropertyLua) = StructPropertyLua(this.value + other.value)
+    }
 }

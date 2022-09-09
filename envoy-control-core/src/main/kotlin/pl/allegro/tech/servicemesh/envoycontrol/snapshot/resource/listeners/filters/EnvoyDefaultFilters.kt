@@ -9,7 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class EnvoyDefaultFilters(
     private val snapshotProperties: SnapshotProperties,
-    private val flags: Map<String, Boolean>
+    private val customLuaMetadata: LuaMetadataProperty.StructPropertyLua
 ) {
     private val rbacFilterFactory = RBACFilterFactory(
         snapshotProperties.incomingPermissions,
@@ -109,7 +109,7 @@ class EnvoyDefaultFilters(
         return preFilters + filters.toList() + postFilters
     }
 
-    val defaultIngressMetadata = { group: Group -> luaFilterFactory.ingressScriptsMetadata(group, flags) }
+    val defaultIngressMetadata = { group: Group -> luaFilterFactory.ingressScriptsMetadata(group, customLuaMetadata) }
 
     private fun headerToMetadataConfig(
         rules: List<Config.Rule>,

@@ -6,6 +6,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.StructPropertyLua
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.ListPropertyLua
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.StringPropertyLua
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.BooleanPropertyLua
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.NumberPropertyLua
 
 internal class LuaFilterFactoryTest {
 
@@ -39,9 +44,17 @@ internal class LuaFilterFactoryTest {
     }
 
     @Test
-    fun `should create metadata with given flags`() {
+    fun `should create metadata with given customMetadata`() {
         // given
-        val flags = mapOf("flag1" to true, "flag2" to false)
+        val customMetadata = StructPropertyLua(
+            "flags" to StructPropertyLua(
+                "x-enabled" to BooleanPropertyLua.TRUE,
+                "y-enabled" to BooleanPropertyLua.FALSE
+            ),
+            "list-value" to ListPropertyLua(StringPropertyLua("value1"), StringPropertyLua("value2")),
+            "count" to NumberPropertyLua(1.0)
+        )
+
         val expectedServiceName = "service-1"
         val expectedDiscoveryServiceName = "consul-service-1"
         val group: Group = ServicesGroup(
@@ -52,32 +65,12 @@ internal class LuaFilterFactoryTest {
         val factory = LuaFilterFactory(IncomingPermissionsProperties())
 
         // when
-        val luaMetadata = factory.ingressScriptsMetadata(group, flags)
-            .getFilterMetadataOrThrow("envoy.filters.http.lua")
+        val luaMetadata = factory.ingressScriptsMetadata(group, customMetadata)
+            .getFilterMetadataOrThrow("envoy.filters.http.lua").fieldsMap
 
         // then
-        flags.forEach { (k, v) ->
-            assertThat(luaMetadata.getFieldsOrThrow("flags").structValue.getFieldsOrThrow(k).boolValue).isEqualTo(v)
-        }
-    }
-
-    @Test
-    fun `should setup flags empty if not specified`() {
-        // given
-        val expectedServiceName = "service-1"
-        val expectedDiscoveryServiceName = "consul-service-1"
-        val group: Group = ServicesGroup(
-            communicationMode = CommunicationMode.XDS,
-            serviceName = expectedServiceName,
-            discoveryServiceName = expectedDiscoveryServiceName
-        )
-        val factory = LuaFilterFactory(IncomingPermissionsProperties())
-
-        // when
-        val luaMetadata = factory.ingressScriptsMetadata(group)
-            .getFilterMetadataOrThrow("envoy.filters.http.lua")
-
-        // then
-        assertThat(luaMetadata.getFieldsOrThrow("flags").structValue.allFields).isEmpty()
+        assertThat(luaMetadata["flags"]).isEqualTo(customMetadata["flags"]?.toValue())
+        assertThat(luaMetadata["list-value"]).isEqualTo(customMetadata["list-value"]?.toValue())
+        assertThat(luaMetadata["count"]).isEqualTo(customMetadata["count"]?.toValue())
     }
 }
