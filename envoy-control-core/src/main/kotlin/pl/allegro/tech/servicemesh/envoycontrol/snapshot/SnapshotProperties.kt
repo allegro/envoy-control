@@ -49,6 +49,7 @@ class ListenersFactoryProperties {
 
 class HttpFiltersProperties {
     var accessLog = AccessLogProperties()
+    var grpcStatsFilter = GrpcStatsFilterProperties()
     var ingressXffNumTrustedHops = 1
 }
 
@@ -378,7 +379,12 @@ data class RetryPolicyProperties(
         listOf(ResetHeader("Retry-After", "SECONDS"))
     )
 )
-
+data class GrpcStatsFilterProperties(
+    var enabled: Boolean = false,
+    var upstreamStatsEnabled: Boolean = true,
+    var statsForAllMethod: Boolean = true,
+    var emitFilterStateEnabled: Boolean = false,
+)
 data class RetryBackOffProperties(
     var baseInterval: Duration
 )

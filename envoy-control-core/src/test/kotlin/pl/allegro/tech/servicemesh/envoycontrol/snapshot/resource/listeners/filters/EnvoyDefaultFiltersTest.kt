@@ -17,6 +17,7 @@ class EnvoyDefaultFiltersTest {
     fun `should create default filters`() {
         // given
         val expectedFilters = arrayOf(
+            defaultFilters.defaultGrpcStatsFilter,
             defaultFilters.defaultClientNameHeaderFilter,
             defaultFilters.defaultAuthorizationHeaderFilter,
             defaultFilters.defaultJwtHttpFilter,
@@ -44,6 +45,7 @@ class EnvoyDefaultFiltersTest {
                 .build()
         }
         val expectedFilters = arrayOf(
+            defaultFilters.defaultGrpcStatsFilter,
             defaultFilters.defaultClientNameHeaderFilter,
             defaultFilters.defaultAuthorizationHeaderFilter,
             defaultFilters.defaultJwtHttpFilter,

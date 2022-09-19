@@ -1,10 +1,13 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
+import com.google.protobuf.BoolValue
+import io.envoyproxy.envoy.extensions.filters.http.grpc_stats.v3.FilterConfig
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GrpcStatsFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class EnvoyDefaultFilters(
@@ -62,7 +65,14 @@ class EnvoyDefaultFilters(
     val defaultAuthorizationHeaderFilter = { _: Group, _: GlobalSnapshot ->
         authorizationHeaderToMetadataFilter()
     }
-    val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
+
+    private val grpcStatsFilter = createGrpcStatsFilter(snapshotProperties.dynamicListeners.httpFilters.grpcStatsFilter)
+    val defaultGrpcStatsFilter = { _: Group, _: GlobalSnapshot -> grpcStatsFilter }
+    val defaultEgressFilters = listOf(
+        defaultHeaderToMetadataFilter,
+        defaultEnvoyRouterHttpFilter,
+        defaultGrpcStatsFilter
+    )
 
     /**
      * Order matters:
@@ -85,7 +95,8 @@ class EnvoyDefaultFilters(
         defaultRbacFilter,
         defaultRateLimitLuaFilter,
         defaultRateLimitFilter,
-        defaultEnvoyRouterHttpFilter
+        defaultEnvoyRouterHttpFilter,
+        defaultGrpcStatsFilter
     )
 
     /**
@@ -95,6 +106,7 @@ class EnvoyDefaultFilters(
     fun ingressFilters(vararg filters: (Group, GlobalSnapshot) -> HttpFilter?):
         List<(Group, GlobalSnapshot) -> HttpFilter?> {
         val preFilters = listOf(
+            defaultGrpcStatsFilter,
             defaultClientNameHeaderFilter,
             defaultAuthorizationHeaderFilter,
             defaultJwtHttpFilter
@@ -104,7 +116,7 @@ class EnvoyDefaultFilters(
             defaultRbacFilter,
             defaultRateLimitLuaFilter,
             defaultRateLimitFilter,
-            defaultEnvoyRouterHttpFilter
+            defaultEnvoyRouterHttpFilter,
         )
         return preFilters + filters.toList() + postFilters
     }
@@ -172,4 +184,17 @@ class EnvoyDefaultFilters(
                     .build()
             )
         ).build()
+
+    private fun createGrpcStatsFilter(grpcFilterProperties: GrpcStatsFilterProperties) = HttpFilter.newBuilder()
+        .setName("envoy.filters.http.grpc_stats")
+        .setTypedConfig(
+            Any.pack(
+                FilterConfig.newBuilder()
+                    .setStatsForAllMethods(BoolValue.of(grpcFilterProperties.statsForAllMethod))
+                    .setEnableUpstreamStats(grpcFilterProperties.upstreamStatsEnabled)
+                    .setEmitFilterState(grpcFilterProperties.emitFilterStateEnabled)
+                    .build()
+            )
+        ).build()
+        .takeIf { grpcFilterProperties.enabled }
 }
