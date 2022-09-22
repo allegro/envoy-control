@@ -122,7 +122,7 @@ class ConsulServiceChanges(
 
         private fun handleServicesChange(services: RecipesServices) = synchronized(servicesLock) {
             val serviceNames = services.serviceNames()
-                .filterTo(HashSet()) { shouldBeWatched(it, services.tagsForServiceOrNull(it) ?: emptyList()) }
+                .filterTo(HashSet()) { shouldBeWatched(it, services.tagsForServiceOrNull(it)) }
             initialLoader.update(serviceNames)
 
             val newServices = serviceNames - lastServices
@@ -137,8 +137,8 @@ class ConsulServiceChanges(
             lastServices = serviceNames
         }
 
-        private fun shouldBeWatched(service: String, tags: List<String>): Boolean =
-            serviceWatchPolicy.shouldBeWatched(service, tags)
+        private fun shouldBeWatched(service: String, tags: List<String>?): Boolean =
+            serviceWatchPolicy.shouldBeWatched(service, tags ?: emptyList())
 
         private fun handleNewService(service: String) = synchronized(stateLock) {
             val instancesWatcher = HealthServiceInstancesWatcher(
@@ -236,12 +236,4 @@ class ConsulServiceChanges(
             }
         }
     }
-}
-
-interface ServiceWatchPolicy {
-    fun shouldBeWatched(service: String, tags: List<String>): Boolean
-}
-
-object NoOpServiceWatchPolicy: ServiceWatchPolicy {
-    override fun shouldBeWatched(service: String, tags: List<String>): Boolean = true
 }

@@ -99,19 +99,26 @@ class ConsulClusterStateChangesTest {
 
     @Test
     fun `should produce event with only matching services`() {
+        // given
         val filteredServiceName = "serviceFiltered"
         Mockito.`when`(serviceWatchPolicy.shouldBeWatched(eq(filteredServiceName), Mockito.anyList())).thenReturn(false)
         registerService(id = "service1", name = "service1")
         registerService(id = "service2", name = "service2")
 
+        // when
         StepVerifier.create(changes.watchState())
+            // then
             .expectNextMatches { it.serviceNames() == setOf("consul", "service1", "service2") }
             .then { verify(readinessStateHandler).ready() }
+            // when
             .then { registerService(id = "service3", name = "service3") }
             .thenRequest(1) // events: add(service3)
+            // then
             .expectNextMatches { it.serviceNames() == setOf("consul", "service1", "service2", "service3") }
+            // when
             .then { registerService(id = filteredServiceName, name = filteredServiceName) }
             .thenRequest(1) // events: add(filteredService)
+            // then
             .expectNextMatches { it.serviceNames() == setOf("consul", "service1", "service2", "service3") }
             .thenCancel()
             .verify()
