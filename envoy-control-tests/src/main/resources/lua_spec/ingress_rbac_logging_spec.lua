@@ -438,41 +438,6 @@ describe("envoy_on_response:", function()
             assert.spy(handle.logInfo).was_called(1)
         end)
 
-        it("as logged when status code is 405 and proper headers should be set", function ()
-            -- given
-            headers[':status'] = "405"
-
-            local filter_metadata = {
-                ['service_name'] = "service",
-            }
-
-            local handle = handlerMock(headers, metadata, ssl, filter_metadata)
-
-            -- when
-            envoy_on_response(handle)
-
-            -- then
-            assert.spy(handle.logInfo).was_called_with(_, formatLog(
-                "POST",
-                "/path?query=val",
-                "127.1.1.3",
-                "service-first",
-                "https",
-                "",
-                "405",
-                false,
-                false,
-                "shadow_denied",
-                "authority",
-                "lua_authority"
-            ))
-            assert.are.equal(headers["x-envoy-wrong-destination-reached"], "service")
-            assert.are.equal(headers["x-envoy-wrong-destination-target"], "authority")
-            assert.are.equal(headers["x-envoy-wrong-lua-destination-target"], "lua_authority")
-
-            assert.spy(handle.logInfo).was_called(1)
-        end)
-
         it("allowed & logged request", function ()
             -- given
             headers[':status'] = '200'

@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+
+## [0.19.21]
+
+### Changed
+- Remove enriching (with wrong destination) responses with 405 status code in lua
+
 ### Changed
 
 ## [0.19.20]
