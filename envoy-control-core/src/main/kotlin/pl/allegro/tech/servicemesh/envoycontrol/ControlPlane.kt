@@ -12,6 +12,7 @@ import io.grpc.netty.NettyServerBuilder
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics
 import io.netty.channel.nio.NioEventLoopGroup
+import io.netty.channel.socket.nio.NioServerSocketChannel
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.GroupChangeWatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.MetadataNodeGroup
@@ -89,6 +90,7 @@ class ControlPlane private constructor(
     ) {
         var grpcServerExecutor: Executor? = null
         var nioEventLoopExecutor: Executor? = null
+        var nioBossEventLoopExecutor: Executor? = null
         var executorGroup: ExecutorGroup? = null
         var globalSnapshotExecutor: Executor? = null
         var globalSnapshotAuditExecutor: Executor? = null
@@ -110,6 +112,12 @@ class ControlPlane private constructor(
                 // unbounded executor - netty will only use configured number of threads
                 // (by nioEventLoopThreadCount property or default netty value: <number of CPUs> * 2)
                 nioEventLoopExecutor = newMeteredCachedThreadPool("grpc-worker-event-loop")
+            }
+
+            if (nioBossEventLoopExecutor == null) {
+                // unbounded executor - netty will only use configured number of threads
+                // (by nioEventLoopThreadCount property or default netty value: <number of CPUs> * 2)
+                nioBossEventLoopExecutor = newMeteredCachedThreadPool("grpc-boss-event-loop")
             }
 
             if (executorGroup == null) {
@@ -210,6 +218,11 @@ class ControlPlane private constructor(
                     nioEventLoopExecutor
                 )
             )
+            .bossEventLoopGroup(NioEventLoopGroup(
+                properties.server.nioBossEventLoopThreadCount,
+                nioBossEventLoopExecutor
+            ))
+            .channelType(NioServerSocketChannel::class.java)
             .executor(grpcServerExecutor)
             .keepAliveTime(properties.server.netty.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
             .permitKeepAliveTime(properties.server.netty.permitKeepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
@@ -297,6 +310,11 @@ class ControlPlane private constructor(
 
         fun withNioEventLoopExecutor(executor: Executor): ControlPlaneBuilder {
             nioEventLoopExecutor = executor
+            return this
+        }
+
+        fun withNioBossEventLoopExecutor(executor: Executor): ControlPlaneBuilder {
+            nioBossEventLoopExecutor = executor
             return this
         }
 

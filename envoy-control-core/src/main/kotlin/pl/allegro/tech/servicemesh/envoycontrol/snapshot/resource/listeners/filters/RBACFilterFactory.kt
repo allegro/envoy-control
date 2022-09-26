@@ -507,7 +507,8 @@ class RBACFilterFactory(
         selectorMatching: SelectorMatching?,
         snapshot: GlobalSnapshot
     ): List<Principal> {
-        val clusterLoadAssignment = snapshot.endpoints.resources()[client.name]
+        val resources = snapshot.endpoints
+        val clusterLoadAssignment = resources[client.name]
         val sourceIpPrincipal = mapEndpointsToExactPrincipals(clusterLoadAssignment)
 
         return if (sourceIpPrincipal == null) {

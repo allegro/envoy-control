@@ -223,7 +223,7 @@ class EnvoySnapshotFactory(
             if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
         val allClusters = egressRouteClusters + rateLimitClusters
 
-        return allClusters.mapNotNull { name -> globalSnapshot.endpoints.resources()[name] }
+        return allClusters.mapNotNull { name -> globalSnapshot.endpoints[name] }
     }
 
     private fun newSnapshotForGroup(
@@ -271,7 +271,7 @@ class EnvoySnapshotFactory(
         val endpoints = getServicesEndpointsForGroup(group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot,
                             egressRouteSpecification)
 
-        val version = snapshotsVersions.version(group, clusters, endpoints, listeners)
+        val version = snapshotsVersions.version(group, clusters, endpoints, listeners, routes)
 
         return createSnapshot(
             clusters = clusters,

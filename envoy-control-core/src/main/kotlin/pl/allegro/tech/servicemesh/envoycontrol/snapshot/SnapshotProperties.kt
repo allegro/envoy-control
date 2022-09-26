@@ -33,6 +33,7 @@ class SnapshotProperties {
     var jwt = JwtFilterProperties()
     var requireServiceName = false
     var rateLimit = RateLimitProperties()
+    var deltaXdsEnabled = false
     var retryPolicy = RetryPolicyProperties()
     var tcpDumpsEnabled: Boolean = true
 }

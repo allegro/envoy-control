@@ -448,9 +448,19 @@ body_format {
       value {
         struct_value {
           fields {
-            key: "service-tag"
+            key: "listOfIntegers"
             value {
-              string_value: "test"
+              list_value {
+                values {
+                  number_value: 1.0
+                }
+                values {
+                  number_value: 2.0
+                }
+                values {
+                  number_value: 3.0
+                }
+              }
             }
           }
           fields {
@@ -467,28 +477,12 @@ body_format {
             }
           }
           fields {
-            key: "listOfIntegers"
+            key: "service-tag"
             value {
-              list_value {
-                values {
-                  number_value: 1.0
-                }
-                values {
-                  number_value: 2.0
-                }
-                values {
-                  number_value: 3.0
-                }
-              }
+              string_value: "test"
             }
           }
         }
-      }
-    }
-    fields {
-      key: "reason"
-      value {
-        number_value: 1.0
       }
     }
     fields {
@@ -516,6 +510,12 @@ body_format {
             }
           }
         }
+      }
+    }
+    fields {
+      key: "reason"
+      value {
+        number_value: 1.0
       }
     }
   }

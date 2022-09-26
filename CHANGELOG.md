@@ -1,5 +1,3 @@
-
-
 # Changelog
 
 Lists all changes with user impact.
@@ -19,6 +17,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - Lua custom metadata
+
+## [0.19.19]
+
+### Changed
+- Added support for Delta XDS
 
 ## [0.19.19]
 
@@ -44,7 +47,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - Added flags for lua filters
-
+- 
 ## [0.19.14]
 
 ### Changed
