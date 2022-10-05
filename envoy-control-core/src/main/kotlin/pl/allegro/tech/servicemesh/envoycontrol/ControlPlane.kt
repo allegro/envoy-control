@@ -13,6 +13,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioServerSocketChannel
+import pl.allegro.tech.servicemesh.envoycontrol.groups.EmptyCustomGroupDataMapper
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.GroupChangeWatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.MetadataNodeGroup
@@ -54,21 +55,21 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class ControlPlane private constructor(
+class ControlPlane<T> private constructor(
     val grpcServer: Server,
     val snapshotUpdater: SnapshotUpdater,
-    val nodeGroup: NodeGroup<Group>,
-    val cache: SnapshotCache<Group, Snapshot>,
+    val nodeGroup: NodeGroup<Group<T>>,
+    val cache: SnapshotCache<Group<T>, Snapshot>,
     private val changes: Flux<MultiClusterState>
 ) : AutoCloseable {
 
     private var servicesDisposable: Disposable? = null
 
     companion object {
-        fun builder(
+        fun <T> builder(
             properties: EnvoyControlProperties,
             meterRegistry: MeterRegistry
-        ) = ControlPlaneBuilder(properties, meterRegistry)
+        ) = ControlPlaneBuilder<T>(properties, meterRegistry)
     }
 
     fun start() {
@@ -84,7 +85,7 @@ class ControlPlane private constructor(
         grpcServer.awaitTermination()
     }
 
-    class ControlPlaneBuilder(
+    class ControlPlaneBuilder<T>(
         val properties: EnvoyControlProperties,
         val meterRegistry: MeterRegistry
     ) {
@@ -99,11 +100,12 @@ class ControlPlane private constructor(
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
         var snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor
 
-        var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
-            properties = properties.envoy.snapshot
+        var nodeGroup: NodeGroup<Group<T>> = MetadataNodeGroup(
+            properties = properties.envoy.snapshot,
+            EmptyCustomGroupDataMapper()
         )
 
-        fun build(changes: Flux<MultiClusterState>): ControlPlane {
+        fun build(changes: Flux<MultiClusterState>): ControlPlane<T> {
             if (grpcServerExecutor == null) {
                 grpcServerExecutor = buildThreadPoolExecutor()
             }
@@ -242,8 +244,8 @@ class ControlPlane private constructor(
         }
 
         private fun buildSnapshotCollectingCallback(
-            cache: SimpleCache<Group>
-        ): SnapshotCollectingCallback<Group, Snapshot> {
+            cache: SimpleCache<Group<T>>
+        ): SnapshotCollectingCallback<Group<T>, Snapshot> {
             val cleanupProperties = properties.server.snapshotCleanup
             return SnapshotCollectingCallback(
                 cache,
@@ -298,57 +300,57 @@ class ControlPlane private constructor(
             )
         }
 
-        fun withNodeGroup(nodeGroup: NodeGroup<Group>): ControlPlaneBuilder {
+        fun withNodeGroup(nodeGroup: NodeGroup<Group<T>>): ControlPlaneBuilder<T> {
             this.nodeGroup = nodeGroup
             return this
         }
 
-        fun withGrpcServerExecutor(executor: Executor): ControlPlaneBuilder {
+        fun withGrpcServerExecutor(executor: Executor): ControlPlaneBuilder<T> {
             grpcServerExecutor = executor
             return this
         }
 
-        fun withNioEventLoopExecutor(executor: Executor): ControlPlaneBuilder {
+        fun withNioEventLoopExecutor(executor: Executor): ControlPlaneBuilder<T> {
             nioEventLoopExecutor = executor
             return this
         }
 
-        fun withNioBossEventLoopExecutor(executor: Executor): ControlPlaneBuilder {
+        fun withNioBossEventLoopExecutor(executor: Executor): ControlPlaneBuilder<T> {
             nioBossEventLoopExecutor = executor
             return this
         }
 
-        fun withExecutorGroup(executor: ExecutorGroup): ControlPlaneBuilder {
+        fun withExecutorGroup(executor: ExecutorGroup): ControlPlaneBuilder<T> {
             executorGroup = executor
             return this
         }
 
-        fun withGlobalSnapshotExecutor(executor: Executor): ControlPlaneBuilder {
+        fun withGlobalSnapshotExecutor(executor: Executor): ControlPlaneBuilder<T> {
             globalSnapshotExecutor = executor
             return this
         }
 
-        fun withGlobalSnapshotAuditExecutor(executor: Executor): ControlPlaneBuilder {
+        fun withGlobalSnapshotAuditExecutor(executor: Executor): ControlPlaneBuilder<T> {
             globalSnapshotAuditExecutor = executor
             return this
         }
 
-        fun withSnapshotChangeAuditor(snapshotChangeAuditor: SnapshotChangeAuditor): ControlPlaneBuilder {
+        fun withSnapshotChangeAuditor(snapshotChangeAuditor: SnapshotChangeAuditor): ControlPlaneBuilder<T> {
             this.snapshotChangeAuditor = snapshotChangeAuditor
             return this
         }
 
-        fun withGroupSnapshotParallelExecutor(executorSupplier: () -> Executor): ControlPlaneBuilder {
+        fun withGroupSnapshotParallelExecutor(executorSupplier: () -> Executor): ControlPlaneBuilder<T> {
             groupSnapshotParallelExecutorSupplier = executorSupplier
             return this
         }
 
-        fun withMetrics(metrics: EnvoyControlMetrics): ControlPlaneBuilder {
+        fun withMetrics(metrics: EnvoyControlMetrics): ControlPlaneBuilder<T> {
             this.metrics = metrics
             return this
         }
 
-        fun withEnvoyHttpFilters(envoyHttpFilters: EnvoyHttpFilters): ControlPlaneBuilder {
+        fun withEnvoyHttpFilters(envoyHttpFilters: EnvoyHttpFilters): ControlPlaneBuilder<T> {
             this.envoyHttpFilters = envoyHttpFilters
             return this
         }

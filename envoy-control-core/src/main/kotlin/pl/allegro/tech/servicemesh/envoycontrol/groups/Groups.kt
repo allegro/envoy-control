@@ -1,28 +1,31 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
-sealed class Group {
-    abstract val communicationMode: CommunicationMode
-    abstract val serviceName: String
-    abstract val discoveryServiceName: String?
-    abstract val proxySettings: ProxySettings
-    abstract val listenersConfig: ListenersConfig?
+sealed interface Group<T> {
+    val communicationMode: CommunicationMode
+    val serviceName: String
+    val discoveryServiceName: String?
+    val proxySettings: ProxySettings
+    val listenersConfig: ListenersConfig?
+    val customData: T?
 }
 
-data class ServicesGroup(
+data class ServicesGroup<T>(
     override val communicationMode: CommunicationMode,
     override val serviceName: String = "",
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val listenersConfig: ListenersConfig? = null
-) : Group()
+    override val listenersConfig: ListenersConfig? = null,
+    override val customData: T?
+) : Group<T>
 
-data class AllServicesGroup(
+data class AllServicesGroup<T>(
     override val communicationMode: CommunicationMode,
     override val serviceName: String = "",
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val listenersConfig: ListenersConfig? = null
-) : Group()
+    override val listenersConfig: ListenersConfig? = null,
+    override val customData: T?
+) : Group<T>
 
 data class ListenersConfig(
     val ingressHost: String,
