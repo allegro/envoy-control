@@ -132,7 +132,10 @@ class ConsulServiceChanges(
             logger.info("Start watching $service on ${instancesWatcher.endpoint()}")
             val canceller = instancesWatcher.watch(
                 { instances -> handleServiceInstancesChange(instances.body) },
-                { error -> logger.warn("Error while watching service $service", error) }
+                { error ->
+                    logger.error("Error while watching service $service", error)
+                    initialLoader.observed(service)
+                }
             )
             val oldCanceller = watchedServices.put(service, canceller)
             oldCanceller?.cancel()
