@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+- Fix never ready state of control plane when single service response from consul is not parsable
 
 ## [0.19.21]
 
