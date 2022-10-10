@@ -1,3 +1,15 @@
+---
+node:
+  metadata:
+    ads: true
+    service_name: service1
+    proxy_settings:
+      outgoing:
+        dependencies:
+          - service: "*"
+  locality:
+    zone: default-zone
+
 static_resources:
   listeners:
   - address:
@@ -10,15 +22,15 @@ static_resources:
       - name: envoy.filters.network.http_connection_manager
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          tracing:
-            provider:
-              name: envoy.tracers.zipkin
-              typed_config:
-                "@type": type.googleapis.com/envoy.config.trace.v3.ZipkinConfig
-                collector_cluster: jaeger
-                collector_endpoint: "/api/v2/spans"
-                shared_span_context: false
-                collector_endpoint_version: HTTP_JSON
+          # tracing:
+          #   provider:
+          #     name: envoy.tracers.zipkin
+          #     typed_config:
+          #       "@type": type.googleapis.com/envoy.config.trace.v3.ZipkinConfig
+          #       collector_cluster: jaeger
+          #       collector_endpoint: "/api/v2/spans"
+          #       shared_span_context: false
+          #       collector_endpoint_version: HTTP_JSON
           codec_type: AUTO
           stat_prefix: ingress_http
           route_config:
@@ -77,7 +89,7 @@ static_resources:
                   address:
                     socket_address:
                       address: host.docker.internal
-                      port_value: 5000
+                      port_value: 50000
       http2_protocol_options: { }
       name: envoy-control-xds
     - name: envoy-original-destination

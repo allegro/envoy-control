@@ -21,6 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.HttpFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config.LocalReplyConfigFactory
+import com.google.protobuf.Any
 
 class HttpConnectionManagerFactory(
     val snapshotProperties: SnapshotProperties,
@@ -54,7 +55,7 @@ class HttpConnectionManagerFactory(
         direction: Direction
     ): HttpConnectionManager? {
         val listenersConfig = group.listenersConfig!!
-        val tracingEnabled = tracing.services.contains(group.serviceName)
+        // val tracingEnabled = tracing.services.contains(group.serviceName)
 
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix(statPrefix)
@@ -62,9 +63,8 @@ class HttpConnectionManagerFactory(
             .setGenerateRequestId(BoolValue.newBuilder().setValue(listenersConfig.generateRequestId).build())
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
 
-        if (tracingEnabled) {
-            connectionManagerBuilder.setTracing(prepareTracing())
-        }
+        val tracingConfig = prepareTracing()
+        connectionManagerBuilder.setTracing(tracingConfig)
 
         when (direction) {
             Direction.INGRESS -> {
@@ -183,7 +183,7 @@ class HttpConnectionManagerFactory(
 
         val provider = Tracing.Http.newBuilder()
             .setName("envoy.tracers.zipkin")
-            .setTypedConfig(jaegerConfig as com.google.protobuf.Any)
+            .setTypedConfig(Any.pack(jaegerConfig))
 
         return HttpConnectionManager.Tracing.newBuilder().setProvider(provider)
     }

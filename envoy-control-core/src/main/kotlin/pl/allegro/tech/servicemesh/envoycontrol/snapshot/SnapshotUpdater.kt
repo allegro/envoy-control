@@ -71,10 +71,15 @@ class SnapshotUpdater(
                     result.groups
                 }
 
+                groups.forEach { println(it.serviceName) }
+                // println(result.adsSnapshot)
+                // println(result.xdsSnapshot)
+
                 // step 4: update the snapshot for either all groups (if services changed)
                 //         or specific groups (groups changed).
                 // TODO(dj): on what occasion can this be false?
                 if (result.adsSnapshot != null || result.xdsSnapshot != null) {
+                    println("Is going to update snapshot")
                     // Stateful operation! This is the meat of this processing.
                     updateSnapshotForGroups(groups, result)
                 } else {
