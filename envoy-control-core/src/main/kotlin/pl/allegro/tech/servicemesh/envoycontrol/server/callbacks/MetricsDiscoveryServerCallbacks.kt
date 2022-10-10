@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as V3DiscoveryRequest
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as V3DeltaDiscoveryRequest
 import io.micrometer.core.instrument.MeterRegistry
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -51,6 +52,14 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
 
     override fun onV3StreamRequest(streamId: Long, request: V3DiscoveryRequest) {
         meterRegistry.counter("grpc.requests.${StreamType.fromTypeUrl(request.typeUrl).name.toLowerCase()}")
+            .increment()
+    }
+
+    override fun onV3StreamDeltaRequest(
+        streamId: Long,
+        request: V3DeltaDiscoveryRequest
+    ) {
+        meterRegistry.counter("grpc.requests.${StreamType.fromTypeUrl(request.typeUrl).name.toLowerCase()}.delta")
             .increment()
     }
 

@@ -26,10 +26,10 @@ internal class CachedProtoResourcesSerializer(
         }
     }
 
-    private val cache: Cache<Collection<Message>, MutableCollection<Any>> = createCache("protobuf-cache")
+    private val cache: Cache<Message, Any> = createCache("protobuf-cache")
     private val timer = createTimer(reportMetrics, meterRegistry, "protobuf-cache.serialize.time")
 
-    private fun createCache(cacheName: String): Cache<Collection<Message>, MutableCollection<Any>> {
+    private fun <K, V> createCache(cacheName: String): Cache<K, V> {
         return if (reportMetrics) {
             GuavaCacheMetrics
                     .monitor(
@@ -37,33 +37,23 @@ internal class CachedProtoResourcesSerializer(
                             CacheBuilder.newBuilder()
                                     .recordStats()
                                     .weakValues()
-                                    .build(),
+                                    .build<K, V>(),
                             cacheName
                     )
         } else {
             CacheBuilder.newBuilder()
                     .weakValues()
-                    .build()
+                    .build<K, V>()
         }
     }
 
-    override fun serialize(
-        resources: MutableCollection<out Message>,
-        apiVersion: Resources.ApiVersion
-    ): MutableCollection<Any> {
-        return timer.record(Supplier { getResources(resources) })
-    }
-
-    private fun getResources(resources: MutableCollection<out Message>): MutableCollection<Any> {
-        return cache.get(resources) {
-            resources.asSequence()
-                .map { Any.pack(it) }
-                .toMutableList()
-        }
-    }
-
-    @Suppress("NotImplementedDeclaration")
-    override fun serialize(resource: Message?, apiVersion: Resources.ApiVersion?): Any {
-        throw NotImplementedError("Serializing single messages is not supported")
+    override fun serialize(resource: Message, apiVersion: Resources.ApiVersion): Any {
+        return timer.record(Supplier {
+            cache.get(resource) {
+                    Any.pack(
+                        resource
+                )
+            }
+        })
     }
 }

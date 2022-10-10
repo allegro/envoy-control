@@ -7,6 +7,7 @@ import io.envoyproxy.controlplane.cache.NodeGroup;
 import io.envoyproxy.controlplane.cache.Resources;
 import io.envoyproxy.controlplane.cache.Response;
 import io.envoyproxy.controlplane.cache.StatusInfo;
+import io.envoyproxy.controlplane.cache.VersionedResource;
 import io.envoyproxy.controlplane.cache.Watch;
 import io.envoyproxy.controlplane.cache.XdsRequest;
 import io.envoyproxy.controlplane.cache.v3.Snapshot;
@@ -523,7 +524,8 @@ public class SimpleCacheTest {
         assertThat(response).isNotNull();
         assertThat(response.version()).isEqualTo(snapshot.version(watchAndTracker.watch.request().getTypeUrl()));
         assertThat(response.resources().toArray(new Message[0]))
-            .containsExactlyElementsOf(snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values());
+            .containsExactlyElementsOf(snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values()
+                .stream().map(VersionedResource::resource).collect(Collectors.toList()));
     }
 
     protected static class ResponseTracker implements Consumer<Response> {

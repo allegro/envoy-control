@@ -1,6 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.rbac
 
 import io.envoyproxy.controlplane.cache.SnapshotResources
+import io.envoyproxy.envoy.config.cluster.v3.Cluster
+import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -39,11 +41,11 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
     )
 
     val snapshot = GlobalSnapshot(
-        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources(),
         setOf(),
-        SnapshotResources.create(listOf(), ""),
+        SnapshotResources.create<ClusterLoadAssignment>(listOf<ClusterLoadAssignment>(), "").resources(),
         mapOf(),
-        SnapshotResources.create(listOf(), "")
+        SnapshotResources.create<Cluster>(listOf<Cluster>(), "").resources()
     )
 
     @ParameterizedTest(name = "should generate RBAC rules for {arguments} OAuth Policy")

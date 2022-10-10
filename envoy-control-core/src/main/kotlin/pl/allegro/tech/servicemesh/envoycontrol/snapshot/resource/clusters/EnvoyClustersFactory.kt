@@ -167,7 +167,7 @@ class EnvoyClustersFactory(
 
     private fun getRateLimitClusterForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         if (group.proxySettings.incoming.rateLimitEndpoints.containsGlobalRateLimits()) {
-            val cluster = globalSnapshot.clusters.resources()[properties.rateLimit.serviceName]
+            val cluster = globalSnapshot.clusters[properties.rateLimit.serviceName]
 
             if (cluster != null) {
                 return listOf(Cluster.newBuilder(cluster).build())
@@ -185,9 +185,9 @@ class EnvoyClustersFactory(
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
-            globalSnapshot.securedClusters.resources()
+            globalSnapshot.securedClusters
         } else {
-            globalSnapshot.clusters.resources()
+            globalSnapshot.clusters
         }
 
         val serviceDependencies = group.proxySettings.outgoing.getServiceDependencies().associateBy { it.service }
@@ -376,7 +376,13 @@ class EnvoyClustersFactory(
                                 .setResourceApiVersion(ApiVersion.V3)
                                 .setApiConfigSource(
                                     ApiConfigSource.newBuilder()
-                                        .setApiType(ApiConfigSource.ApiType.GRPC)
+                                        .setApiType(
+                                            if (properties.deltaXdsEnabled) {
+                                                ApiConfigSource.ApiType.DELTA_GRPC
+                                            } else {
+                                                ApiConfigSource.ApiType.GRPC
+                                            }
+                                        )
                                         .setTransportApiVersion(ApiVersion.V3)
                                         .addGrpcServices(
                                             0, GrpcService.newBuilder().setEnvoyGrpc(

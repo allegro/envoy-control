@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import org.slf4j.LoggerFactory
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as v3DeltaDiscoveryRequest
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as v3DiscoveryRequest
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryResponse as v3DiscoveryResponse
 
@@ -17,6 +18,13 @@ class LoggingDiscoveryServerCallbacks(
 
     override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
         logger.debug("onV3StreamRequest streamId: {} request: {}", streamId, requestData(request))
+    }
+
+    override fun onV3StreamDeltaRequest(
+        streamId: Long,
+        request: v3DeltaDiscoveryRequest?
+    ) {
+        logger.debug("onV3StreamDeltaRequest streamId: {} request: {}", streamId, requestData(request))
     }
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String?, error: Throwable?) {
@@ -40,6 +48,14 @@ class LoggingDiscoveryServerCallbacks(
         )
     }
 
+    private fun requestData(request: v3DeltaDiscoveryRequest?): String {
+        return if (logFullRequest) {
+            "$request"
+        } else {
+            "id: ${request?.node?.id}, cluster: ${request?.node?.cluster}, " +
+                "type: ${request?.typeUrl}, responseNonce: ${request?.responseNonce}"
+        }
+    }
     private fun requestData(request: v3DiscoveryRequest?): String {
         return if (logFullRequest) {
             "$request"

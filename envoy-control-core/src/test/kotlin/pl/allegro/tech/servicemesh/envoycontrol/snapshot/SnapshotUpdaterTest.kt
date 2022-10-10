@@ -1,6 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 
 import com.google.protobuf.util.Durations
+import io.envoyproxy.controlplane.cache.DeltaResponse
+import io.envoyproxy.controlplane.cache.DeltaWatch
+import io.envoyproxy.controlplane.cache.DeltaXdsRequest
 import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.cache.Response
 import io.envoyproxy.controlplane.cache.SnapshotCache
@@ -1138,6 +1141,18 @@ class SnapshotUpdaterTest {
                     .isTrue()
             }
         }
+
+        override fun createDeltaWatch(
+            request: DeltaXdsRequest?,
+            requesterVersion: String?,
+            resourceVersions: MutableMap<String, String>?,
+            pendingResources: MutableSet<String>?,
+            isWildcard: Boolean,
+            responseConsumer: Consumer<DeltaResponse>?,
+            hasClusterChanged: Boolean
+        ): DeltaWatch {
+            throw UnsupportedOperationException("not used in testing")
+        }
     }
 
     private fun hasSnapshot(cache: SnapshotCache<Group, Snapshot>, group: Group): Snapshot {
@@ -1249,7 +1264,7 @@ class SnapshotUpdaterTest {
     )
 
     private fun GlobalSnapshot.hasHttp2Cluster(clusterName: String): GlobalSnapshot {
-        val cluster = this.clusters.resources()[clusterName]
+        val cluster = this.clusters[clusterName]
         assertThat(cluster).isNotNull
         assertThat(cluster!!.hasHttp2ProtocolOptions()).isTrue()
         return this
@@ -1259,7 +1274,7 @@ class SnapshotUpdaterTest {
         clusterName: String,
         zones: Set<String>
     ): GlobalSnapshot {
-        val endpoints = this.endpoints.resources()[clusterName]
+        val endpoints = this.endpoints[clusterName]
         assertThat(endpoints).isNotNull
         assertThat(endpoints!!.endpointsList.map { it.locality.zone }.toSet()).containsAll(zones)
         assertThat(endpoints.endpointsList.flatMap { it.lbEndpointsList }).isEmpty()
@@ -1267,7 +1282,7 @@ class SnapshotUpdaterTest {
     }
 
     private fun GlobalSnapshot.hasAnEndpoint(clusterName: String, ip: String, port: Int): GlobalSnapshot {
-        val endpoints = this.endpoints.resources()[clusterName]
+        val endpoints = this.endpoints[clusterName]
         assertThat(endpoints).isNotNull
         assertThat(endpoints!!.endpointsList.flatMap { it.lbEndpointsList })
             .anyMatch { it.endpoint.address.socketAddress.let { it.address == ip && it.portValue == port } }
@@ -1275,20 +1290,20 @@ class SnapshotUpdaterTest {
     }
 
     private fun GlobalSnapshot.hasTheSameClusters(other: GlobalSnapshot): GlobalSnapshot {
-        val clusters = this.clusters.resources()
-        assertThat(clusters).isEqualTo(other.clusters.resources())
+        val clusters = this.clusters
+        assertThat(clusters).isEqualTo(other.clusters)
         return this
     }
 
     private fun GlobalSnapshot.hasTheSameEndpoints(other: GlobalSnapshot): GlobalSnapshot {
-        val endpoints = this.endpoints.resources()
-        assertThat(endpoints).isEqualTo(other.endpoints.resources())
+        val endpoints = this.endpoints
+        assertThat(endpoints).isEqualTo(other.endpoints)
         return this
     }
 
     private fun GlobalSnapshot.hasTheSameSecuredClusters(other: GlobalSnapshot): GlobalSnapshot {
-        val securedClusters = this.securedClusters.resources()
-        assertThat(securedClusters).isEqualTo(other.securedClusters.resources())
+        val securedClusters = this.securedClusters
+        assertThat(securedClusters).isEqualTo(other.securedClusters)
         return this
     }
 

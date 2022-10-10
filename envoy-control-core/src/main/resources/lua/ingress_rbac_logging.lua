@@ -77,9 +77,6 @@ function envoy_on_response(handle)
             rbac_action = "denied"
         end
         log_request(lua_metadata, handle, rbac_action)
-        if status_code == "405" then
-            enrichResponseForWrongDestination(handle, lua_metadata)
-        end
     end
 end
 
@@ -108,15 +105,6 @@ function log_request(lua_metadata, handle, rbac_action)
         "\", \"requestId\": \""..escape(request_id)..
         "\", \"statusCode\": "..status_code..
         ", \"rbacAction\": \""..rbac_action.."\" }")
-end
-
-function enrichResponseForWrongDestination(handle, lua_metadata)
-    local currentService = handle:metadata():get("service_name") or ""
-    local lua_destination_authority = lua_metadata["request.info.lua_destination_authority"] or ""
-    local authority = lua_metadata["request.info.authority"] or ""
-    handle:headers():add("x-envoy-wrong-destination-reached", currentService)
-    handle:headers():add("x-envoy-wrong-destination-target", authority)
-    handle:headers():add("x-envoy-wrong-lua-destination-target", lua_destination_authority)
 end
 
 escapeList = {
