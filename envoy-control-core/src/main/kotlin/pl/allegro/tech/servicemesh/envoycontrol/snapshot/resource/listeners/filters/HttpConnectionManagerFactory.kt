@@ -55,7 +55,7 @@ class HttpConnectionManagerFactory(
         direction: Direction
     ): HttpConnectionManager? {
         val listenersConfig = group.listenersConfig!!
-        // val tracingEnabled = tracing.services.contains(group.serviceName)
+        val tracingEnabled = tracing.services.contains(group.serviceName) && listenersConfig.generateRequestId
 
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix(statPrefix)
@@ -63,8 +63,9 @@ class HttpConnectionManagerFactory(
             .setGenerateRequestId(BoolValue.newBuilder().setValue(listenersConfig.generateRequestId).build())
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
 
-        val tracingConfig = prepareTracing()
-        connectionManagerBuilder.setTracing(tracingConfig)
+        if (tracingEnabled) {
+            connectionManagerBuilder.setTracing(prepareTracing())
+        }
 
         when (direction) {
             Direction.INGRESS -> {

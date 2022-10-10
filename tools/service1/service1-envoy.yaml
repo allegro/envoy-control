@@ -137,18 +137,6 @@ static_resources:
                       address: service3
                       port_value: 8070
       connect_timeout: 1s
-    - name: jaeger
-      type: STRICT_DNS
-      load_assignment:
-        cluster_name: jaeger
-        endpoints:
-          - lb_endpoints:
-              - endpoint:
-                  address:
-                    socket_address:
-                      address: jaeger
-                      port_value: 9411
-      connect_timeout: 1s
     - name: this_admin
       type: STATIC
       load_assignment:

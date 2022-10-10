@@ -75,6 +75,8 @@ class EnvoyClustersFactory(
     private val clustersForJWT: List<Cluster> =
         properties.jwt.providers.values.mapNotNull(this::clusterForOAuthProvider)
 
+    private val clusterForTracing: Cluster = clusterForTracing()
+
     companion object {
         private val logger by logger()
     }
@@ -108,7 +110,7 @@ class EnvoyClustersFactory(
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
         getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clustersForJWT +
-            getRateLimitClusterForGroup(group, globalSnapshot)
+            getRateLimitClusterForGroup(group, globalSnapshot) + clusterForTracing
 
     private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster? {
         if (provider.createCluster) {
@@ -160,6 +162,23 @@ class EnvoyClustersFactory(
         } else {
             return null
         }
+    }
+
+    private fun clusterForTracing(): Cluster {
+        return Cluster.newBuilder().setName("jaeger")
+            .setLoadAssignment(
+                ClusterLoadAssignment.newBuilder().setClusterName("jaeger").addEndpoints(
+                    LocalityLbEndpoints.newBuilder().addLbEndpoints(
+                        LbEndpoint.newBuilder().setEndpoint(
+                            Endpoint.newBuilder().setAddress(
+                                Address.newBuilder().setSocketAddress(
+                                    SocketAddress.newBuilder().setAddress("jaeger").setPortValue(9411)
+                                )
+                            )
+                        )
+                    )
+                )
+            ).build()
     }
 
     private fun getRateLimitClusterForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {

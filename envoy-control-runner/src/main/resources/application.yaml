@@ -6,8 +6,10 @@ application:
 envoy-control:
   tracing:
     services:
-      - http-echo1
-      - http-echo2
+      - front-proxy
+      - service1
+      - service2
+      - service3
   source:
     consul:
       host: localhost
