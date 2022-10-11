@@ -75,7 +75,7 @@ class EnvoyClustersFactory(
     private val clustersForJWT: List<Cluster> =
         properties.jwt.providers.values.mapNotNull(this::clusterForOAuthProvider)
 
-    private val clusterForTracing: Cluster = clusterForTracing()
+    private val clustersForTracing: List<Cluster> = listOf(clusterForTracing())
 
     companion object {
         private val logger by logger()
@@ -110,7 +110,7 @@ class EnvoyClustersFactory(
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
         getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clustersForJWT +
-            getRateLimitClusterForGroup(group, globalSnapshot) + clusterForTracing
+            getRateLimitClusterForGroup(group, globalSnapshot) + clustersForTracing
 
     private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster? {
         if (provider.createCluster) {
