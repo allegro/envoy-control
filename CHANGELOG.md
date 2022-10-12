@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- Add functionality to filter observed services
+
 ## [0.19.20]
 
 ### Changed

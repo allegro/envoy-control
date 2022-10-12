@@ -56,7 +56,7 @@ open class ConsulWatcherConfig {
             .withWatchesHttpClient(client)
             .build()
             .consulWatcher(watcherPool)
-            .requireDefaultConsistency()
+            .allowStale(false)
             .build()
     }
 
