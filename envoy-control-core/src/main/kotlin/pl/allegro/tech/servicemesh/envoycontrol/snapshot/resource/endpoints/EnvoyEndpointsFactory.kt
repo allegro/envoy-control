@@ -12,6 +12,7 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.endpoint.v3.Endpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
@@ -46,6 +47,67 @@ class EnvoyEndpointsFactory(
                     .build()
             }
     }
+
+    fun filterEndpoints(clusterLoadAssignment: ClusterLoadAssignment, routingPolicy: RoutingPolicy): ClusterLoadAssignment {
+        if (!routingPolicy.autoServiceTag) {
+            return clusterLoadAssignment
+        }
+
+        val filteredLoadAssignment = routingPolicy.serviceTagPreference.firstNotNullOfOrNull { serviceTag ->
+            val tagPresence = containsEndpointWithServiceTag(clusterLoadAssignment, serviceTag)
+            when (tagPresence) {
+                ContainsResult.ALL -> clusterLoadAssignment
+                ContainsResult.SOME -> createFilteredLoadAssignment(clusterLoadAssignment, serviceTag)
+                ContainsResult.NONE -> null
+            }
+        }
+
+        TODO("Not yet implemented")
+    }
+
+    private fun createFilteredLoadAssignment(
+        loadAssignment: ClusterLoadAssignment,
+        serviceTag: String
+    ): ClusterLoadAssignment {
+        val builder = loadAssignment.toBuilder()
+        builder.endpointsBuilderList.forEach { localityLbEndpointsBuilder ->
+            val filteredEndpoints = localityLbEndpointsBuilder.lbEndpointsList
+                .filter { metadataContainsServiceTag(it.metadata, serviceTag) }
+            localityLbEndpointsBuilder.clearLbEndpoints().addAllLbEndpoints(filteredEndpoints)
+        }
+        return builder.build()
+    }
+
+    private enum class ContainsResult {
+        ALL, SOME, NONE
+    }
+    private fun containsEndpointWithServiceTag(loadAssignment: ClusterLoadAssignment, tag: String): ContainsResult {
+        var endpointWithTagFound = false
+        var endpointWithoutTagFound = false
+        loadAssignment.endpointsList.forEach { localityLbEndpint ->
+            localityLbEndpint.lbEndpointsList.forEach { lbEndpoint ->
+                if (metadataContainsServiceTag(lbEndpoint.metadata, tag)) {
+                    endpointWithTagFound = true
+                } else {
+                    endpointWithoutTagFound = true
+                }
+
+                if (endpointWithTagFound && endpointWithoutTagFound) {
+                    return ContainsResult.SOME
+                }
+            }
+        }
+        return when {
+            endpointWithTagFound -> ContainsResult.ALL
+            else -> ContainsResult.NONE
+        }
+    }
+
+    private fun metadataContainsServiceTag(metadata: Metadata, serviceTag: String) = metadata
+        .filterMetadataMap["envoy.lb"]?.fieldsMap
+        ?.get(properties.routing.serviceTags.metadataKey)
+        ?.listValue?.valuesList.orEmpty()
+        .any { it.stringValue == serviceTag }
 
     private fun createEndpointsGroup(
         serviceInstances: ServiceInstances?,

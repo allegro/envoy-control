@@ -117,7 +117,8 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
             ),
         )
     )
-    val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
+    val defaultSettings = this.toSettings(defaultSettingsFromProperties)
+    val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettings)
     val services = rawDependencies.filter { it.service != null && it.service != allServiceDependenciesIdentifier }
         .map {
             ServiceDependency(
@@ -127,10 +128,10 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
         }
     val domains = rawDependencies.filter { it.domain != null }
         .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
-        .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
+        .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettings)) }
     val domainPatterns = rawDependencies.filter { it.domainPattern != null }
         .onEach { validateDomainPatternFormat(it) }
-        .map { DomainPatternDependency(it.domainPattern.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
+        .map { DomainPatternDependency(it.domainPattern.orEmpty(), it.value.toSettings(defaultSettings)) }
     return Outgoing(
         serviceDependencies = services,
         domainDependencies = domains,
@@ -219,11 +220,18 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
             defaultSettings.retryPolicy
         )
     }
+    val routingPolicy = this?.field("routingPolicy")?.let { policy ->
+        RoutingPolicy(
+            autoServiceTag = policy.field("autoServiceTag")?.boolValue ?: false,
+            serviceTagPreference = policy.field("serviceTagPreference")?.list().orEmpty().map { it.stringValue }
+        )
+    }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
             rewriteHostHeader == null &&
             timeoutPolicy == null &&
-            retryPolicy == null
+            retryPolicy == null &&
+            routingPolicy == null
 
     return if (shouldAllBeDefault) {
         defaultSettings
@@ -232,7 +240,8 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
             handleInternalRedirect = handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
             timeoutPolicy = timeoutPolicy ?: defaultSettings.timeoutPolicy,
             rewriteHostHeader = rewriteHostHeader ?: defaultSettings.rewriteHostHeader,
-            retryPolicy = retryPolicy ?: defaultSettings.retryPolicy
+            retryPolicy = retryPolicy ?: defaultSettings.retryPolicy,
+            routingPolicy = routingPolicy ?: defaultSettings.routingPolicy
         )
     }
 }
@@ -520,6 +529,7 @@ data class Outgoing(
         val connectionIdleTimeout: Duration? = null,
         val requestTimeout: Duration? = null
     )
+
 }
 
 // TODO: Make it default method, currently some problems with kotlin version, might upgrade in next PR
@@ -580,7 +590,8 @@ data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
     val timeoutPolicy: Outgoing.TimeoutPolicy = Outgoing.TimeoutPolicy(),
     val rewriteHostHeader: Boolean = false,
-    val retryPolicy: RetryPolicy = RetryPolicy()
+    val retryPolicy: RetryPolicy = RetryPolicy(),
+    val routingPolicy: RoutingPolicy = RoutingPolicy()
 )
 
 data class RetryPolicy(
@@ -594,6 +605,13 @@ data class RetryPolicy(
     val retryableStatusCodes: List<Int>? = null,
     val retryableHeaders: List<String>? = null,
     val methods: Set<String>? = null
+)
+
+
+data class RoutingPolicy(
+    val autoServiceTag: Boolean = false,
+    val serviceTagPreference: List<String> = emptyList(),
+    val fallbackToAnyInstance: Boolean = false
 )
 
 data class RetryBackOff(
