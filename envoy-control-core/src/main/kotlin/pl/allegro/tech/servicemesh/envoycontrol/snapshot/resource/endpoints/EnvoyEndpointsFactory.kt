@@ -54,15 +54,18 @@ class EnvoyEndpointsFactory(
         }
 
         val filteredLoadAssignment = routingPolicy.serviceTagPreference.firstNotNullOfOrNull { serviceTag ->
-            val tagPresence = containsEndpointWithServiceTag(clusterLoadAssignment, serviceTag)
-            when (tagPresence) {
+            when (containsEndpointWithServiceTag(clusterLoadAssignment, serviceTag)) {
                 ContainsResult.ALL -> clusterLoadAssignment
                 ContainsResult.SOME -> createFilteredLoadAssignment(clusterLoadAssignment, serviceTag)
                 ContainsResult.NONE -> null
             }
         }
 
-        TODO("Not yet implemented")
+        return when {
+            filteredLoadAssignment != null -> filteredLoadAssignment
+            routingPolicy.fallbackToAnyInstance -> clusterLoadAssignment
+            else -> createEmptyLoadAssignment(clusterLoadAssignment)
+        }
     }
 
     private fun createFilteredLoadAssignment(
@@ -76,6 +79,10 @@ class EnvoyEndpointsFactory(
             localityLbEndpointsBuilder.clearLbEndpoints().addAllLbEndpoints(filteredEndpoints)
         }
         return builder.build()
+    }
+
+    private fun createEmptyLoadAssignment(loadAssignment: ClusterLoadAssignment): ClusterLoadAssignment {
+        return loadAssignment.toBuilder().clearEndpoints().build();
     }
 
     private enum class ContainsResult {
