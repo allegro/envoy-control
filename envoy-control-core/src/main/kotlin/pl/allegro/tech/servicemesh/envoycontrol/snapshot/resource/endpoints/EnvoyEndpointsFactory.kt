@@ -48,7 +48,10 @@ class EnvoyEndpointsFactory(
             }
     }
 
-    fun filterEndpoints(clusterLoadAssignment: ClusterLoadAssignment, routingPolicy: RoutingPolicy): ClusterLoadAssignment {
+    fun filterEndpoints(
+        clusterLoadAssignment: ClusterLoadAssignment,
+        routingPolicy: RoutingPolicy
+    ): ClusterLoadAssignment {
         if (!routingPolicy.autoServiceTag) {
             return clusterLoadAssignment
         }
@@ -82,7 +85,7 @@ class EnvoyEndpointsFactory(
     }
 
     private fun createEmptyLoadAssignment(loadAssignment: ClusterLoadAssignment): ClusterLoadAssignment {
-        return loadAssignment.toBuilder().clearEndpoints().build();
+        return loadAssignment.toBuilder().clearEndpoints().build()
     }
 
     private enum class ContainsResult {

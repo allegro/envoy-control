@@ -529,7 +529,6 @@ data class Outgoing(
         val connectionIdleTimeout: Duration? = null,
         val requestTimeout: Duration? = null
     )
-
 }
 
 // TODO: Make it default method, currently some problems with kotlin version, might upgrade in next PR
@@ -606,7 +605,6 @@ data class RetryPolicy(
     val retryableHeaders: List<String>? = null,
     val methods: Set<String>? = null
 )
-
 
 data class RoutingPolicy(
     val autoServiceTag: Boolean = false,
