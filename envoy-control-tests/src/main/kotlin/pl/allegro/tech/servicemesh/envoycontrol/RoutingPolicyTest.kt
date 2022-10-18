@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
-import org.junit.jupiter.api.fail
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
@@ -193,7 +192,100 @@ class RoutingPolicyTest {
 
     @Test
     fun `should change routing when instance with prefered tag disappers`() {
-        fail("not implemented")
+        // given
+        val ipsumId = consul.server.operations.registerService(
+            name = "echo",
+            extension = ipsumEchoService,
+            tags = listOf("ipsum", "other")
+        )
+        val otherId = consul.server.operations.registerService(
+            name = "echo",
+            extension = otherEchoService,
+            tags = listOf("other")
+        )
+
+        waitForEcConsulStateSynchronized(listOf(ipsumId, otherId))
+        waitForEndpointReady("echo", otherEchoService, autoServiceTagDisabledEnvoy)
+        waitForEndpointReady("echo", ipsumEchoService, autoServiceTagEnabledEnvoy)
+
+        // when
+        val statsNoAutoServiceTag = callEchoTenTimes(autoServiceTagDisabledEnvoy)
+        val statsAutoServiceTag = callEchoTenTimes(autoServiceTagEnabledEnvoy)
+
+        // then
+        statsNoAutoServiceTag.let { stats ->
+            assertThat(stats.totalHits).isEqualTo(10)
+            assertThat(stats.hits(ipsumEchoService)).isEqualTo(5)
+            assertThat(stats.hits(otherEchoService)).isEqualTo(5)
+        }
+        statsAutoServiceTag.let { stats ->
+            assertThat(stats.totalHits).isEqualTo(10)
+            assertThat(stats.hits(ipsumEchoService)).isEqualTo(10)
+            assertThat(stats.hits(otherEchoService)).isEqualTo(0)
+        }
+
+        // when
+        consul.server.operations.deregisterService(ipsumId)
+
+        waitForEcConsulStateSynchronized(listOf(otherId))
+        waitForEndpointRemoved("echo", ipsumEchoService, autoServiceTagDisabledEnvoy)
+        waitForEndpointRemoved("echo", ipsumEchoService, autoServiceTagEnabledEnvoy)
+
+        // and
+        val statsNoAutoServiceTagAfterNoIpsum = callEchoTenTimes(autoServiceTagDisabledEnvoy)
+        val statsAutoServiceTagAfterNoIpsum = callEchoTenTimes(autoServiceTagEnabledEnvoy, assertNoErrors = false)
+
+        // then
+        statsNoAutoServiceTagAfterNoIpsum.let { stats ->
+            assertThat(stats.totalHits).isEqualTo(10)
+            assertThat(stats.hits(otherEchoService)).isEqualTo(10)
+        }
+        statsAutoServiceTagAfterNoIpsum.let { stats ->
+            assertThat(stats.totalHits).isEqualTo(10)
+            assertThat(stats.failedHits).isEqualTo(10)
+        }
+    }
+
+    @Test
+    fun `should consider client side service-tag`() {
+        // given
+        val ipsumBetaEchoService = ipsumEchoService
+        val ipsumAlphaEchoService = otherEchoService
+        val loremBetaEchoService = loremEchoService
+
+        val ipsumBetaId = consul.server.operations.registerService(
+            name = "echo",
+            extension = ipsumBetaEchoService,
+            tags = listOf("ipsum", "beta")
+        )
+        val loremBetaId = consul.server.operations.registerService(
+            name = "echo",
+            extension = loremBetaEchoService,
+            tags = listOf("lorem", "beta")
+        )
+        val ipsumAlphaId = consul.server.operations.registerService(
+            name = "echo",
+            extension = ipsumAlphaEchoService,
+            tags = listOf("ipsum", "alpha")
+        )
+        waitForEcConsulStateSynchronized(listOf(ipsumBetaId, ipsumAlphaId, loremBetaId))
+        waitForEndpointReady("echo", ipsumAlphaEchoService, autoServiceTagEnabledEnvoy)
+        waitForEndpointReady("echo", ipsumAlphaEchoService, autoServiceTagDisabledEnvoy)
+
+        // when
+        val statsAutoServiceTag = callEchoTenTimes(autoServiceTagEnabledEnvoy, tag = "beta")
+        val statsNoAutoServiceTag = callEchoTenTimes(autoServiceTagDisabledEnvoy, tag = "beta")
+
+        // then
+        statsAutoServiceTag.let { stats ->
+            assertThat(stats.totalHits).isEqualTo(10)
+            assertThat(stats.hits(ipsumBetaEchoService)).isEqualTo(10)
+        }
+        statsNoAutoServiceTag.let { stats ->
+            assertThat(stats.totalHits).isEqualTo(10)
+            assertThat(stats.hits(ipsumBetaEchoService)).isEqualTo(5)
+            assertThat(stats.hits(loremBetaEchoService)).isEqualTo(5)
+        }
     }
 
     private fun waitForEcConsulStateSynchronized(expectedInstancesIds: Collection<String>) {
@@ -226,15 +318,38 @@ class RoutingPolicyTest {
         }
     }
 
+    private fun waitForEndpointRemoved(
+        serviceName: String,
+        serviceInstance: EchoServiceExtension,
+        envoy: EnvoyExtension
+    ) {
+        untilAsserted(wait = Duration.ofSeconds(5)) {
+            assertThat(envoy.container.admin().isEndpointHealthy(serviceName, serviceInstance.container().ipAddress()))
+                .withFailMessage {
+                    "Expected to not see endpoint of cluster '$serviceName' with address " +
+                        "'${serviceInstance.container().address()}' in envoy " +
+                        "${serviceInstance.container().address()}/clusters, " +
+                        "but it's still present. Found following endpoints: " +
+                        "${envoy.container.admin().endpointsAddress(serviceName)}"
+                }
+                .isFalse()
+        }
+    }
+
     private fun callStats() = CallStats(listOf(ipsumEchoService, loremEchoService, otherEchoService))
 
-    private fun callEchoTenTimes(envoy: EnvoyExtension, assertNoErrors: Boolean = true): CallStats {
+    private fun callEchoTenTimes(
+        envoy: EnvoyExtension,
+        assertNoErrors: Boolean = true,
+        tag: String? = null
+    ): CallStats {
         val stats = callStats()
         envoy.egressOperations.callServiceRepeatedly(
             service = "echo",
             stats = stats,
             maxRepeat = 10,
-            assertNoErrors = assertNoErrors
+            assertNoErrors = assertNoErrors,
+            headers = tag?.let { mapOf("x-service-tag" to it) } ?: emptyMap(),
         )
         return stats
     }
