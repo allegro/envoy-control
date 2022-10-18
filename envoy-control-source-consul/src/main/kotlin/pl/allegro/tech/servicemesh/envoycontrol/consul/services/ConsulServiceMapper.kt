@@ -48,7 +48,8 @@ open class ConsulServiceMapper(
                     else -> {
                         if (it.size > 1) {
                             logger.warn(
-                                "Multiple weight tags on consul instance ${consulInstance.serviceId}. " + "Expected 0 or 1."
+                                "Multiple weight tags on consul instance ${consulInstance.serviceId}. "
+                                    + "Expected 0 or 1."
                             )
                         }
                         it[0]
