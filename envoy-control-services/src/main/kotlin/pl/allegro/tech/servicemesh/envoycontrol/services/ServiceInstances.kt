@@ -20,4 +20,11 @@ data class ServiceInstances(
                 .filter { it.address.isNotBlank() }
                 .toSet())
         } else this
+
+    fun withoutInvalidPortInstances(): ServiceInstances =
+        if (instances.any { it.port == 0 }) {
+            copy(instances = instances.asSequence()
+                .filter { it.port > 0 }
+                .toSet())
+        } else this
 }
