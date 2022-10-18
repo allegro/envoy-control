@@ -54,7 +54,7 @@ internal class InvalidPortFilterTest {
         assertThat(filteredInstances.toList()).isEqualTo(expectedMergedInstances.toList())
     }
 
-    private fun createServiceInstanceWithPort(port: Int?): ServiceInstance{
+    private fun createServiceInstanceWithPort(port: Int?): ServiceInstance {
         return ServiceInstance(
             id = "ipsum-$port",
             tags = setOf("hardware:c32", "index:items", port.toString()),
