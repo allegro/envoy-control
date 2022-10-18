@@ -7,9 +7,7 @@ import kotlin.text.Regex.Companion.escape
 typealias ConsulServiceInstance = pl.allegro.tech.discovery.consul.recipes.watch.catalog.ServiceInstance
 
 open class ConsulServiceMapper(
-    private val canaryTag: String = "",
-    weightTag: String = "",
-    private val defaultWeight: Int = 1
+    private val canaryTag: String = "", weightTag: String = "", private val defaultWeight: Int = 1
 ) {
     private val logger by logger()
 
@@ -22,8 +20,8 @@ open class ConsulServiceMapper(
         return ServiceInstance(
             id = consulInstance.serviceId,
             tags = consulInstance.serviceTags.toSet(),
-            address = consulInstance.serviceAddress,
-            port = consulInstance.servicePort,
+            address = consulInstance.serviceAddress.orElse(""),
+            port = consulInstance.servicePort.orElse(0),
             regular = true, // override this class if in some case canary are not to be included in regular set
             canary = canary,
             weight = getWeight(actualWeight)
@@ -43,19 +41,19 @@ open class ConsulServiceMapper(
         if (!weightEnabled) {
             return defaultWeight
         }
-        return consulInstance.serviceTags.orEmpty()
-            .mapNotNull { weightTagRegex.matchEntire(it) }
-            .map { it.groupValues[1] }
-            .mapNotNull { it.runCatching { toInt() }.getOrNull() }
-            .let { when (it.size) {
-                0 -> defaultWeight
-                else -> {
-                    if (it.size > 1) {
-                        logger.warn("Multiple weight tags on consul instance ${consulInstance.serviceId}. " +
-                            "Expected 0 or 1.")
+        return consulInstance.serviceTags.orEmpty().mapNotNull { weightTagRegex.matchEntire(it) }
+            .map { it.groupValues[1] }.mapNotNull { it.runCatching { toInt() }.getOrNull() }.let {
+                when (it.size) {
+                    0 -> defaultWeight
+                    else -> {
+                        if (it.size > 1) {
+                            logger.warn(
+                                "Multiple weight tags on consul instance ${consulInstance.serviceId}. " + "Expected 0 or 1."
+                            )
+                        }
+                        it[0]
                     }
-                    it[0]
                 }
-            } }
+            }
     }
 }
