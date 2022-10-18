@@ -13,116 +13,36 @@ internal class InvalidPortFilterTest {
         val filter = InvalidPortFilter()
         val instances = sequenceOf(
             ServiceInstances(
-                "lorem",
+                "ipsum",
                 setOf(
-                    ServiceInstance(
-                        id = "lorem-1",
-                        tags = setOf("version:v1.0", "secure"),
-                        address = "127.0.0.2",
-                        port = 0,
-                        canary = false,
-                        regular = true,
-                        weight = 10
-                    ),
-                    ServiceInstance(
-                        id = "lorem-2",
-                        tags = setOf("version:v1.1", "hardware:c32"),
-                        address = "127.0.0.5",
-                        port = 8888,
-                        canary = false,
-                        regular = true,
-                        weight = 10
-                    ),
-                    ServiceInstance(
-                        id = "lorem-3",
-                        tags = setOf("version:v1.1", "canary"),
-                        address = "127.0.0.9",
-                        port = 0,
-                        canary = true,
-                        regular = true,
-                        weight = 10
-                    ),
-                    ServiceInstance(
-                        id = "lorem-4",
-                        tags = setOf("version:v1.1", "machine:1337"),
-                        address = "127.0.0.11",
-                        port = 8080,
-                        canary = false,
-                        regular = true,
-                        weight = 10
-                    )
+                    createServiceInstanceWithPort(8888),
+                    createServiceInstanceWithPort(null),
+                    createServiceInstanceWithPort(8080),
+                    createServiceInstanceWithPort(null)
                 )
             ),
             ServiceInstances(
                 "ipsum",
                 setOf(
-                    ServiceInstance(
-                        id = "ipsum-1",
-                        tags = setOf("hardware:c32", "index:items"),
-                        address = "127.0.0.2",
-                        port = 8888,
-                        canary = true,
-                        regular = false,
-                        weight = 15
-                    ),
-                    ServiceInstance(
-                        id = "ipsum-2",
-                        tags = setOf("hardware:c64", "index:transactions"),
-                        address = "127.0.0.7",
-                        port = 0,
-                        canary = true,
-                        regular = false,
-                        weight = 1
-                    ),
-                    ServiceInstance(
-                        id = "ipsum-3",
-                        tags = setOf("hardware:c32", "index:users"),
-                        address = "127.0.0.2",
-                        port = 0,
-                        canary = false,
-                        regular = true,
-                        weight = 20
-                    )
+                    createServiceInstanceWithPort(8888),
+                    createServiceInstanceWithPort(null),
+                    createServiceInstanceWithPort(null)
                 )
             )
         )
 
         val expectedMergedInstances = sequenceOf(
             ServiceInstances(
-                "lorem",
+                "ipsum",
                 setOf(
-                    ServiceInstance(
-                        id = "lorem-2",
-                        tags = setOf("version:v1.1", "hardware:c32"),
-                        address = "127.0.0.5",
-                        port = 8888,
-                        canary = false,
-                        regular = true,
-                        weight = 10
-                    ),
-                    ServiceInstance(
-                        id = "lorem-4",
-                        tags = setOf("version:v1.1", "machine:1337"),
-                        address = "127.0.0.11",
-                        port = 8080,
-                        canary = false,
-                        regular = true,
-                        weight = 10
-                    )
+                    createServiceInstanceWithPort(8888),
+                    createServiceInstanceWithPort(8080)
                 )
             ),
             ServiceInstances(
                 "ipsum",
                 setOf(
-                    ServiceInstance(
-                        id = "ipsum-1",
-                        tags = setOf("hardware:c32", "index:items"),
-                        address = "127.0.0.2",
-                        port = 8888,
-                        canary = true,
-                        regular = false,
-                        weight = 15
-                    )
+                    createServiceInstanceWithPort(8888)
                 )
             )
         )
@@ -132,5 +52,14 @@ internal class InvalidPortFilterTest {
 
         // then
         assertThat(filteredInstances.toList()).isEqualTo(expectedMergedInstances.toList())
+    }
+
+    private fun createServiceInstanceWithPort(port: Int?): ServiceInstance{
+        return ServiceInstance(
+            id = "ipsum-$port",
+            tags = setOf("hardware:c32", "index:items", port.toString()),
+            address = "127.0.0.$port",
+            port = port
+        )
     }
 }
