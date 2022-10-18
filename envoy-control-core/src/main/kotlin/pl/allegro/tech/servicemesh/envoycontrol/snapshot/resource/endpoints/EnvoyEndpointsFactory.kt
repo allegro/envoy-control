@@ -77,9 +77,11 @@ class EnvoyEndpointsFactory(
     ): ClusterLoadAssignment {
         val builder = loadAssignment.toBuilder()
         builder.endpointsBuilderList.forEach { localityLbEndpointsBuilder ->
-            val filteredEndpoints = localityLbEndpointsBuilder.lbEndpointsList
-                .filter { metadataContainsServiceTag(it.metadata, serviceTag) }
-            localityLbEndpointsBuilder.clearLbEndpoints().addAllLbEndpoints(filteredEndpoints)
+            val lbEndpointsList = localityLbEndpointsBuilder.lbEndpointsList
+            val filteredEndpoints = lbEndpointsList.filter { metadataContainsServiceTag(it.metadata, serviceTag) }
+            if (filteredEndpoints.size < lbEndpointsList.size) {
+                localityLbEndpointsBuilder.clearLbEndpoints().addAllLbEndpoints(filteredEndpoints)
+            }
         }
         return builder.build()
     }
