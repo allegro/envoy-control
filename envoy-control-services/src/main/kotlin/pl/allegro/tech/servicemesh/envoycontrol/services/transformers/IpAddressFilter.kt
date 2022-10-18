@@ -10,7 +10,7 @@ class IpAddressFilter : ServiceInstancesTransformer {
 
     override fun transform(services: Sequence<ServiceInstances>): Sequence<ServiceInstances> =
         services.filter { (_, instances) ->
-            instances.all { isIpAddress(it.address) }
+            instances.all { isIpAddress(it.address.orEmpty()) }
         }
 
     private fun isIpAddress(address: String): Boolean = address.all { !it.isLetter() }

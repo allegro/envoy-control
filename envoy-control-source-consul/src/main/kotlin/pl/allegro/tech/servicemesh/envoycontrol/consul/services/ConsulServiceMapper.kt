@@ -20,8 +20,8 @@ open class ConsulServiceMapper(
         return ServiceInstance(
             id = consulInstance.serviceId,
             tags = consulInstance.serviceTags.toSet(),
-            address = consulInstance.serviceAddress.orElse(""),
-            port = consulInstance.servicePort.orElse(0),
+            address = consulInstance.serviceAddress.get(),
+            port = consulInstance.servicePort.get(),
             regular = true, // override this class if in some case canary are not to be included in regular set
             canary = canary,
             weight = getWeight(actualWeight)
