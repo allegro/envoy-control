@@ -6,13 +6,26 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+
+## [0.19.24]
+
+### Changed
 - Bump consul recipies to fit new consul api which has optional port field since 1.10.0
+
+## [0.19.23]
+
+### Changed
+- Add functionality to filter observed services
+
+## [0.19.22]
+
+### Changed
+- Added support for Delta XDS
 
 ## [0.19.21]
 
 ### Changed
 - Remove enriching (with wrong destination) responses with 405 status code in lua
-- Add functionality to filter observed services
 
 ## [0.19.20]
 
