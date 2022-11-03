@@ -10,6 +10,7 @@ import pl.allegro.tech.discovery.consul.recipes.watch.health.HealthServiceInstan
 import pl.allegro.tech.servicemesh.envoycontrol.DefaultEnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
@@ -17,10 +18,9 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import pl.allegro.tech.discovery.consul.recipes.watch.catalog.ServiceInstances as RecipesServiceInstances
 import pl.allegro.tech.discovery.consul.recipes.watch.catalog.Services as RecipesServices
-import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
-import java.util.concurrent.TimeUnit
 
 @Suppress("LongParameterList")
 class ConsulServiceChanges(
@@ -29,13 +29,22 @@ class ConsulServiceChanges(
     private val metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(),
     private val objectMapper: ObjectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build()),
     private val subscriptionDelay: Duration = Duration.ZERO,
-    private val readinessStateHandler: ReadinessStateHandler
+    private val readinessStateHandler: ReadinessStateHandler,
+    private val serviceWatchPolicy: ServiceWatchPolicy = NoOpServiceWatchPolicy,
 ) {
     private val logger by logger()
 
     fun watchState(): Flux<ServicesState> {
         val watcher =
-            StateWatcher(watcher, serviceMapper, objectMapper, metrics, subscriptionDelay, readinessStateHandler)
+            StateWatcher(
+                watcher,
+                serviceMapper,
+                objectMapper,
+                metrics,
+                subscriptionDelay,
+                readinessStateHandler,
+                serviceWatchPolicy,
+            )
         return Flux.create<ServicesState>(
             { sink ->
                 watcher.start { state: ServicesState -> sink.next(state) }
@@ -59,7 +68,8 @@ class ConsulServiceChanges(
         private val objectMapper: ObjectMapper,
         private val metrics: EnvoyControlMetrics,
         private val subscriptionDelay: Duration,
-        private val readinessStateHandler: ReadinessStateHandler
+        private val readinessStateHandler: ReadinessStateHandler,
+        private val serviceWatchPolicy: ServiceWatchPolicy,
     ) : AutoCloseable {
         lateinit var stateReceiver: (ServicesState) -> (Unit)
 
@@ -111,19 +121,24 @@ class ConsulServiceChanges(
         }
 
         private fun handleServicesChange(services: RecipesServices) = synchronized(servicesLock) {
-            initialLoader.update(services.serviceNames())
+            val serviceNames = services.serviceNames()
+                .filterTo(HashSet()) { shouldBeWatched(it, services.tagsForServiceOrNull(it)) }
+            initialLoader.update(serviceNames)
 
-            val newServices = services.serviceNames() - lastServices
+            val newServices = serviceNames - lastServices
             newServices.forEach { service ->
                 handleNewService(service)
                 Thread.sleep(subscriptionDelay.toMillis())
             }
 
-            val removedServices = lastServices - services.serviceNames()
+            val removedServices = lastServices - serviceNames
             removedServices.forEach { handleServiceRemoval(it) }
 
-            lastServices = services.serviceNames()
+            lastServices = serviceNames
         }
+
+        private fun shouldBeWatched(service: String, tags: List<String>?): Boolean =
+            serviceWatchPolicy.shouldBeWatched(service, tags ?: emptyList())
 
         private fun handleNewService(service: String) = synchronized(stateLock) {
             val instancesWatcher = HealthServiceInstancesWatcher(

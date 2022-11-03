@@ -25,6 +25,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.consul.ConsulProperties
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulLocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceChanges
 import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ConsulServiceMapper
+import pl.allegro.tech.servicemesh.envoycontrol.consul.services.NoOpServiceWatchPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.consul.services.ServiceWatchPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.server.NoopReadinessStateHandler
 import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
@@ -32,6 +34,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.LocalClusterStateChange
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.EmptyAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InstanceMerger
+import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InvalidPortFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServiceInstancesFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
@@ -77,6 +80,10 @@ class ControlPlaneConfig {
     )
 
     @Bean
+    @ConditionalOnMissingBean(ServiceWatchPolicy::class)
+    fun serviceWatchPolicy(): ServiceWatchPolicy = NoOpServiceWatchPolicy
+
+    @Bean
     @Suppress("LongParameterList")
     fun consulServiceChanges(
         watcher: ConsulWatcher,
@@ -84,14 +91,16 @@ class ControlPlaneConfig {
         metrics: EnvoyControlMetrics,
         objectMapper: ObjectMapper,
         consulProperties: ConsulProperties,
-        readinessStateHandler: ReadinessStateHandler
+        readinessStateHandler: ReadinessStateHandler,
+        watchPolicy: ServiceWatchPolicy,
     ) = ConsulServiceChanges(
         watcher,
         serviceMapper,
         metrics,
         objectMapper,
         consulProperties.subscriptionDelay,
-        readinessStateHandler
+        readinessStateHandler,
+        watchPolicy
     )
 
     @Bean
@@ -121,6 +130,9 @@ class ControlPlaneConfig {
 
     @Bean
     fun emptyAddressFilter() = EmptyAddressFilter()
+
+    @Bean
+    fun invalidPortFilter() = InvalidPortFilter()
 
     @Bean
     fun instanceMerger() = InstanceMerger()

@@ -10,6 +10,7 @@ class ConsulProperties {
     var subscriptionDelay: Duration = Duration.ofMillis(20) // max 50 subscription/s
     var watcher = ConsulWatcherOkHttpProperties()
     var tags = TagsProperties()
+    var blacklist = BlacklistProperties()
 }
 
 class ConsulWatcherOkHttpProperties {
@@ -23,4 +24,8 @@ class TagsProperties {
     var weight = "weight"
     var defaultWeight = 50
     var canary = "canary"
+}
+
+class BlacklistProperties {
+    var serviceTags: List<String> = listOf()
 }

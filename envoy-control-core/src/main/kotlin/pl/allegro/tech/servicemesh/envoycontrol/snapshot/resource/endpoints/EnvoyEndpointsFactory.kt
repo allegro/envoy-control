@@ -165,7 +165,7 @@ class EnvoyEndpointsFactory(
     private fun buildSocketAddress(serviceInstance: ServiceInstance): SocketAddress.Builder {
         return SocketAddress.newBuilder()
             .setAddress(serviceInstance.address)
-            .setPortValue(serviceInstance.port)
+            .setPortValue(serviceInstance.port ?: 0)
             .setProtocol(SocketAddress.Protocol.TCP)
     }
 
