@@ -169,6 +169,8 @@ fun Route.toCluster(cluster: String): Route {
     return this
 }
 
+// TODO: all below assertions that use .satisfies { condition(it) } doesn't work, because condition should throw
+//   assertion exception, not return true/false
 fun Route.directResponse(condition: (DirectResponseAction) -> Boolean) {
     assertThat(this.directResponse).satisfies { condition(it) }
 }

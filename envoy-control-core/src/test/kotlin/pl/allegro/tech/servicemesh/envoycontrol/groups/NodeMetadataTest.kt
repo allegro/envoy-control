@@ -1151,6 +1151,72 @@ class NodeMetadataTest {
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
+    @Test
+    fun `should use default routing policy`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService("lorem")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val loremDependency = outgoing.getServiceDependencies().single()
+        assertThat(loremDependency.service).isEqualTo("lorem")
+        assertThat(loremDependency.settings.routingPolicy.autoServiceTag).isFalse
+    }
+
+    @Test
+    fun `should use global and overriden routing policy`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            routingPolicy = RoutingPolicyInput(
+                autoServiceTag = true,
+                serviceTagPreference = listOf("preferredGlobalTag", "fallbackGlobalTag"),
+                fallbackToAnyInstance = true
+            )
+            withService("lorem")
+            withService("ipsum", routingPolicy = RoutingPolicyInput(autoServiceTag = false))
+            withService("dolom", routingPolicy = RoutingPolicyInput(fallbackToAnyInstance = false))
+            withService("est", routingPolicy = RoutingPolicyInput(serviceTagPreference = listOf("estTag"))
+            )
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // then
+        val dependencies = outgoing.getServiceDependencies()
+        assertThat(dependencies).hasSize(4)
+        val loremDependency = dependencies[0]
+        assertThat(loremDependency.service).isEqualTo("lorem")
+        assertThat(loremDependency.settings.routingPolicy).satisfies { policy ->
+            assertThat(policy.autoServiceTag).isTrue
+            assertThat(policy.serviceTagPreference).isEqualTo(listOf("preferredGlobalTag", "fallbackGlobalTag"))
+            assertThat(policy.fallbackToAnyInstance).isTrue
+        }
+        val ipsumDependency = dependencies[1]
+        assertThat(ipsumDependency.service).isEqualTo("ipsum")
+        assertThat(ipsumDependency.settings.routingPolicy).satisfies { policy ->
+            assertThat(policy.autoServiceTag).isFalse
+        }
+        val dolomDependency = dependencies[2]
+        assertThat(dolomDependency.service).isEqualTo("dolom")
+        assertThat(dolomDependency.settings.routingPolicy).satisfies { policy ->
+            assertThat(policy.autoServiceTag).isTrue
+            assertThat(policy.serviceTagPreference).isEqualTo(listOf("preferredGlobalTag", "fallbackGlobalTag"))
+            assertThat(policy.fallbackToAnyInstance).isFalse
+        }
+        val estDependency = dependencies[3]
+        assertThat(estDependency.service).isEqualTo("est")
+        assertThat(estDependency.settings.routingPolicy).satisfies { policy ->
+            assertThat(policy.autoServiceTag).isTrue
+            assertThat(policy.serviceTagPreference).isEqualTo(listOf("estTag"))
+            assertThat(policy.fallbackToAnyInstance).isTrue
+        }
+    }
+
     fun ObjectAssert<DependencySettings>.hasTimeouts(
         idleTimeout: String,
         connectionIdleTimeout: String,

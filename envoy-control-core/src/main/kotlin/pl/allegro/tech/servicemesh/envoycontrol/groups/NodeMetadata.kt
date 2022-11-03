@@ -221,10 +221,7 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
         )
     }
     val routingPolicy = this?.field("routingPolicy")?.let { policy ->
-        RoutingPolicy(
-            autoServiceTag = policy.field("autoServiceTag")?.boolValue ?: false,
-            serviceTagPreference = policy.field("serviceTagPreference")?.list().orEmpty().map { it.stringValue }
-        )
+        mapToRoutingPolicy(value = policy, defaultRoutingPolicy = defaultSettings.routingPolicy)
     }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
@@ -274,6 +271,17 @@ private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy)
             it.stringValue
         },
         methods = mapProtoToMethods(value)
+    )
+}
+
+private fun mapToRoutingPolicy(value: Value, defaultRoutingPolicy: RoutingPolicy): RoutingPolicy {
+    return RoutingPolicy(
+        autoServiceTag = value.field("autoServiceTag")?.boolValue
+            ?: defaultRoutingPolicy.autoServiceTag,
+        serviceTagPreference = value.field("serviceTagPreference")?.list()?.map { it.stringValue }
+            ?: defaultRoutingPolicy.serviceTagPreference,
+        fallbackToAnyInstance = value.field("fallbackToAnyInstance")?.boolValue
+            ?: defaultRoutingPolicy.fallbackToAnyInstance
     )
 }
 
