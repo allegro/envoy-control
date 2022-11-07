@@ -38,8 +38,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InvalidPor
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServiceInstancesFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.IngressGatewayPortMappingsCache
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.synchronization.SyncableLocalServiceStateCreator
 import reactor.core.scheduler.Schedulers
 import java.net.URI
 
@@ -114,6 +116,16 @@ class ControlPlaneConfig {
         localDatacenter(consulProperties),
         transformers
     )
+
+    @Bean
+    fun syncableLocalServiceStateCreator(
+        localStateChanges: LocalClusterStateChanges,
+        mappingsCache: IngressGatewayPortMappingsCache
+    ): SyncableLocalServiceStateCreator =
+        SyncableLocalServiceStateCreator(localStateChanges, mappingsCache)
+
+    @Bean
+    fun ingressGatewayPortMappingsCache() = IngressGatewayPortMappingsCache()
 
     @Bean
     fun consulDatacenterReader(consulProperties: ConsulProperties, objectMapper: ObjectMapper): ConsulDatacenterReader =

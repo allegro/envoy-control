@@ -8,10 +8,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 
 @RestController
-class StateController(val localClusterStateChanges: LocalClusterStateChanges) {
+class StateController(
+    val localClusterStateChanges: LocalClusterStateChanges,
+    val syncableLocalServiceStateCreator: SyncableLocalServiceStateCreator
+) {
 
     @GetMapping("/state")
-    fun getState(): ServicesState = localClusterStateChanges.latestServiceState.get()
+    fun getState(): ServicesState = syncableLocalServiceStateCreator.createSyncableLocalState()
 
     @GetMapping("/state/{serviceName}")
     fun getStateByServiceName(@PathVariable("serviceName") serviceName: String): ServiceInstances? =

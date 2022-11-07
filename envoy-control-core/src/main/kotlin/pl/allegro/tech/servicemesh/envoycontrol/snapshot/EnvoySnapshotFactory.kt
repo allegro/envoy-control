@@ -9,27 +9,34 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesIngressGatewayGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesIngressGatewayGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IngressGatewayGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.SidecarGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyIngressGatewayListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import java.util.SortedMap
 
+@Suppress("LongParameterList")
 class EnvoySnapshotFactory(
     private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
     private val egressRoutesFactory: EnvoyEgressRoutesFactory,
     private val clustersFactory: EnvoyClustersFactory,
     private val endpointsFactory: EnvoyEndpointsFactory,
     private val listenersFactory: EnvoyListenersFactory,
+    private val ingressGatewayListenersFactory: EnvoyIngressGatewayListenersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
     private val meterRegistry: MeterRegistry
@@ -150,7 +157,10 @@ class EnvoySnapshotFactory(
     fun getSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot): Snapshot {
         val groupSample = Timer.start(meterRegistry)
 
-        val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
+        val newSnapshotForGroup = when (group) {
+            is IngressGatewayGroup -> newSnapshotForIngressGroup(group, globalSnapshot)
+            is SidecarGroup -> newSnapshotForGroup(group, globalSnapshot)
+        }
         groupSample.stop(meterRegistry.timer("snapshot-factory.get-snapshot-for-group.time"))
         return newSnapshotForGroup
     }
@@ -188,10 +198,10 @@ class EnvoySnapshotFactory(
             )
         }
         return when (group) {
-            is ServicesGroup -> {
+            is ServicesGroup, is ServicesIngressGatewayGroup -> {
                 definedServicesRoutes
             }
-            is AllServicesGroup -> {
+            is AllServicesGroup, is AllServicesIngressGatewayGroup -> {
                 val servicesNames = group.proxySettings.outgoing.getServiceDependencies().map { it.service }.toSet()
                 val allServicesRoutes = globalSnapshot.allServicesNames.subtract(servicesNames).map {
                     RouteSpecification(
@@ -227,7 +237,7 @@ class EnvoySnapshotFactory(
     }
 
     private fun newSnapshotForGroup(
-        group: Group,
+        group: SidecarGroup,
         globalSnapshot: GlobalSnapshot
     ): Snapshot {
 
@@ -268,8 +278,44 @@ class EnvoySnapshotFactory(
 
         // TODO(dj): endpoints depends on prerequisite of routes -> but only to extract clusterName,
         // which is present only in services (not domains) so it could be implemented differently.
-        val endpoints = getServicesEndpointsForGroup(group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot,
-                            egressRouteSpecification)
+        val endpoints = getServicesEndpointsForGroup(
+            group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot,
+            egressRouteSpecification
+        )
+
+        val version = snapshotsVersions.version(group, clusters, endpoints, listeners, routes)
+
+        return createSnapshot(
+            clusters = clusters,
+            clustersVersion = version.clusters,
+            endpoints = endpoints,
+            endpointsVersions = version.endpoints,
+            listeners = listeners,
+            // TODO: java-control-plane: https://github.com/envoyproxy/java-control-plane/issues/134
+            listenersVersion = version.listeners,
+            routes = routes,
+            routesVersion = version.routes
+        )
+    }
+
+    private fun newSnapshotForIngressGroup(
+        group: IngressGatewayGroup,
+        globalSnapshot: GlobalSnapshot
+    ): Snapshot {
+
+        val clusters: List<Cluster> =
+            clustersFactory.getClustersForGroup(group, globalSnapshot)
+
+        val serviceRouteSpecification = getServiceRouteSpecifications(group, globalSnapshot)
+
+        val routes = emptyList<RouteConfiguration>()
+
+        val listeners = ingressGatewayListenersFactory.createListeners(group, globalSnapshot)
+
+        val endpoints = getServicesEndpointsForGroup(
+            group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot,
+            serviceRouteSpecification
+        )
 
         val version = snapshotsVersions.version(group, clusters, endpoints, listeners, routes)
 

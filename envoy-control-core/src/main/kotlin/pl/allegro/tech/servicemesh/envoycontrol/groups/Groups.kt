@@ -8,13 +8,16 @@ sealed class Group {
     abstract val listenersConfig: ListenersConfig?
 }
 
+sealed class IngressGatewayGroup: Group()
+sealed class SidecarGroup: Group()
+
 data class ServicesGroup(
     override val communicationMode: CommunicationMode,
     override val serviceName: String = "",
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
     override val listenersConfig: ListenersConfig? = null
-) : Group()
+) : SidecarGroup()
 
 data class AllServicesGroup(
     override val communicationMode: CommunicationMode,
@@ -22,7 +25,23 @@ data class AllServicesGroup(
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
     override val listenersConfig: ListenersConfig? = null
-) : Group()
+) : SidecarGroup()
+
+data class ServicesIngressGatewayGroup(
+    override val communicationMode: CommunicationMode,
+    override val serviceName: String = "",
+    override val discoveryServiceName: String? = null,
+    override val proxySettings: ProxySettings = ProxySettings(),
+    override val listenersConfig: ListenersConfig? = null
+) : IngressGatewayGroup()
+
+data class AllServicesIngressGatewayGroup(
+    override val communicationMode: CommunicationMode,
+    override val serviceName: String = "",
+    override val discoveryServiceName: String? = null,
+    override val proxySettings: ProxySettings = ProxySettings(),
+    override val listenersConfig: ListenersConfig? = null
+) : IngressGatewayGroup()
 
 data class ListenersConfig(
     val ingressHost: String,
