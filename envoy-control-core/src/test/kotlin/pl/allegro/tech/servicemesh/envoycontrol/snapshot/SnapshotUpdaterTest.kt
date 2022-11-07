@@ -47,8 +47,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceName
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.IngressGatewayPortMappingsCache
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyIngressGatewayListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
@@ -1319,6 +1321,7 @@ class SnapshotUpdaterTest {
                 snapshotProperties,
                 EnvoyHttpFilters.emptyFilters
             ),
+            ingressGatewayListenersFactory = EnvoyIngressGatewayListenersFactory(IngressGatewayPortMappingsCache()),
             // Remember when LDS change we have to send RDS again
             snapshotsVersions = SnapshotsVersions(),
             properties = snapshotProperties,

@@ -28,6 +28,7 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
         .fieldsMap["discovery_service_name"]
         ?.stringValue
 
+    val mode = metadata.fieldsMap["mode"]?.stringValue?.let { Mode.valueOf(it) } ?: Mode.SERVICE
     val communicationMode = getCommunicationMode(metadata.fieldsMap["ads"])
 
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
@@ -675,6 +676,10 @@ enum class PathMatchingType {
 
 enum class CommunicationMode {
     ADS, XDS
+}
+
+enum class Mode {
+    SERVICE, INGRESS_GATEWAY
 }
 
 data class OAuth(

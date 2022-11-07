@@ -65,6 +65,11 @@ val Echo3EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
     certificateChain = "/app/fullchain_echo3.pem",
     privateKey = "/app/privkey_echo3.pem"
 )
+val GatewayEnvoyAuthConfig = EnvoyConfig(filePath = "envoy/config_gateway.yaml",
+    serviceName = "gateway",
+    certificateChain = "/app/fullchain_echo3.pem",
+    privateKey = "/app/privkey_echo3.pem"
+)
 val AdsWithDisabledEndpointPermissions = EnvoyConfig("envoy/config_ads_disabled_endpoint_permissions.yaml")
 val AdsWithStaticListeners = EnvoyConfig("envoy/config_ads_static_listeners.yaml")
 val AdsWithNoDependencies = EnvoyConfig("envoy/config_ads_no_dependencies.yaml")

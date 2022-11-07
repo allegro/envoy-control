@@ -5,9 +5,11 @@ import org.springframework.core.io.ClassPathResource
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.Container
 import org.testcontainers.containers.output.Slf4jLogConsumer
+import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.images.builder.dockerfile.DockerfileBuilder
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Mode
 import pl.allegro.tech.servicemesh.envoycontrol.logger as loggerDelegate
 
 class EnvoyContainer(
@@ -16,6 +18,7 @@ class EnvoyContainer(
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
     private val logLevel: String = "info",
+    private val mode: Mode = Mode.SERVICE,
     image: String = DEFAULT_IMAGE
 ) : SSLGenericContainer<EnvoyContainer>(
     dockerfileBuilder = DockerfileBuilder()
@@ -54,7 +57,14 @@ class EnvoyContainer(
             withClasspathResourceMapping(EXTRA_DIR, EXTRA_DIR_DEST, BindMode.READ_ONLY)
         }
         withEnv(ENVOY_UID_ENV_NAME, "0")
-        withExposedPorts(EGRESS_LISTENER_CONTAINER_PORT, INGRESS_LISTENER_CONTAINER_PORT, ADMIN_PORT)
+        when (mode) {
+            Mode.SERVICE -> withExposedPorts(
+                EGRESS_LISTENER_CONTAINER_PORT,
+                INGRESS_LISTENER_CONTAINER_PORT,
+                ADMIN_PORT
+            )
+            Mode.INGRESS_GATEWAY -> withExposedPorts(INGRESS_LISTENER_CONTAINER_PORT, ADMIN_PORT)
+        }
         withPrivilegedMode(true)
 
         withCommand(
@@ -70,6 +80,7 @@ class EnvoyContainer(
             "--config-yaml", config.configOverride,
             "-l", logLevel
         )
+        waitingFor(Wait.forListeningPort())
     }
 
     fun addIptablesRedirect(redirectToPort: Int, destinationPort: Int) {

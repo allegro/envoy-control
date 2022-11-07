@@ -16,6 +16,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesIngressGatewayGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -24,14 +25,17 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesIngressGatewayGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.outgoingTimeoutPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.IngressGatewayPortMappingsCache
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyIngressGatewayListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
@@ -272,6 +276,50 @@ class EnvoySnapshotFactoryTest {
         assertThat(snapshot.endpoints().resources()).doesNotContainKey("rl_service")
     }
 
+    @Test
+    fun `should create ingress snapshot`() {
+        // given
+        val properties = SnapshotProperties()
+        val envoySnapshotFactory = createSnapshotFactory(properties)
+
+        val cluster1 = createCluster(properties, clusterName = "cluster-1")
+        val cluster2 = createCluster(properties, clusterName = "cluster-2")
+        val servicesGroup: Group = createServicesIngressGatewayGroup(
+            dependencies = arrayOf(
+                cluster1.name to null,
+                cluster2.name to null,
+            ), snapshotProperties = properties
+        )
+
+        val allServicesGroup: Group = createAllServicesIngressGatewayGroup(
+            dependencies = arrayOf(
+                "*" to null,
+            ), snapshotProperties = properties
+        )
+
+        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
+
+        listOf(servicesGroup, allServicesGroup).forEach { group ->
+
+            // when
+            val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+            // then
+            val ingressListenersCluster1 = snapshot.listeners().resources()["ingress_listener_for_cluster-1"]
+            val ingressListenersCluster2 = snapshot.listeners().resources()["ingress_listener_for_cluster-2"]
+            val socketAddressCluster1 = ingressListenersCluster1!!.address.socketAddress
+            val socketAddressCluster2 = ingressListenersCluster2!!.address.socketAddress
+            assertThat(socketAddressCluster1.address).isEqualTo(INGRESS_HOST)
+            assertThat(socketAddressCluster1.portValue).isEqualTo(INGRESS_PORT + 0)
+            assertThat(socketAddressCluster2.address).isEqualTo(INGRESS_HOST)
+            assertThat(socketAddressCluster2.portValue).isEqualTo(INGRESS_PORT + 1)
+            listOf(ingressListenersCluster1, ingressListenersCluster2).map { it.filterChainsList.firstOrNull()!!.filtersList }
+                .forEach { filterList ->
+                    assertThat(filterList?.get(0)?.name).isEqualTo("envoy.filters.network.tcp_proxy")
+                }
+        }
+    }
+
     private fun GlobalSnapshot.withEndpoint(clusterName: String): GlobalSnapshot = copy(
         endpoints = SnapshotResources.create<ClusterLoadAssignment>(listOf(ClusterLoadAssignment.newBuilder()
                     .setClusterName(clusterName)
@@ -328,6 +376,45 @@ class EnvoySnapshotFactoryTest {
         )
     }
 
+    private fun createServicesIngressGatewayGroup(
+        mode: CommunicationMode = CommunicationMode.XDS,
+        serviceName: String = DEFAULT_SERVICE_NAME,
+        discoveryServiceName: String = DEFAULT_DISCOVERY_SERVICE_NAME,
+        dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
+        rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList(),
+        snapshotProperties: SnapshotProperties
+    ): ServicesIngressGatewayGroup {
+        val listenersConfig = createListenersConfig(snapshotProperties)
+        return ServicesIngressGatewayGroup(
+            mode,
+            serviceName,
+            discoveryServiceName,
+            ProxySettings().with(
+                serviceDependencies = serviceDependencies(*dependencies),
+                rateLimitEndpoints = rateLimitEndpoints
+            ),
+            listenersConfig
+        )
+    }
+
+    private fun createAllServicesIngressGatewayGroup(
+        mode: CommunicationMode = CommunicationMode.XDS,
+        serviceName: String = DEFAULT_SERVICE_NAME,
+        discoveryServiceName: String = DEFAULT_DISCOVERY_SERVICE_NAME,
+        dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
+        snapshotProperties: SnapshotProperties
+    ): AllServicesIngressGatewayGroup {
+        val listenersConfig = createListenersConfig(snapshotProperties)
+        return AllServicesIngressGatewayGroup(
+            mode,
+            serviceName,
+            discoveryServiceName,
+            ProxySettings().with(
+                serviceDependencies = serviceDependencies(*dependencies)),
+            listenersConfig
+        )
+    }
+
     private fun createListenersConfig(snapshotProperties: SnapshotProperties): ListenersConfig {
         return ListenersConfig(
             ingressHost = INGRESS_HOST,
@@ -353,6 +440,7 @@ class EnvoySnapshotFactoryTest {
         val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator())
         val envoyHttpFilters = EnvoyHttpFilters.defaultFilters(properties)
         val listenersFactory = EnvoyListenersFactory(properties, envoyHttpFilters)
+        val ingressListenersFactory = EnvoyIngressGatewayListenersFactory(IngressGatewayPortMappingsCache())
         val snapshotsVersions = SnapshotsVersions()
         val meterRegistry: MeterRegistry = SimpleMeterRegistry()
 
@@ -362,6 +450,7 @@ class EnvoySnapshotFactoryTest {
             clustersFactory,
             endpointsFactory,
             listenersFactory,
+            ingressListenersFactory,
             snapshotsVersions,
             properties,
             meterRegistry
@@ -379,7 +468,7 @@ class EnvoySnapshotFactoryTest {
     }
 
     private fun createCluster(
-        defaultProperties: SnapshotProperties,
+        defaultProperties: SnapshotProperties = SnapshotProperties(),
         clusterName: String = CLUSTER_NAME,
         serviceName: String = DEFAULT_SERVICE_NAME,
         idleTimeout: Long = DEFAULT_IDLE_TIMEOUT

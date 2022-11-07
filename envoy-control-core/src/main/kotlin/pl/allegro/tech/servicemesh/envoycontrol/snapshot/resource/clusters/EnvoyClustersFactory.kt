@@ -36,12 +36,15 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesIngressGatewayGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IngressGatewayGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesIngressGatewayGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.containsGlobalRateLimits
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -184,7 +187,7 @@ class EnvoyClustersFactory(
     }
 
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
-        val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
+        val clusters: Map<String, Cluster> = if (enableTlsForGroup(group) && group !is IngressGatewayGroup) {
             globalSnapshot.securedClusters
         } else {
             globalSnapshot.clusters
@@ -193,10 +196,10 @@ class EnvoyClustersFactory(
         val serviceDependencies = group.proxySettings.outgoing.getServiceDependencies().associateBy { it.service }
 
         val clustersForGroup = when (group) {
-            is ServicesGroup -> serviceDependencies.mapNotNull {
+            is ServicesGroup, is ServicesIngressGatewayGroup -> serviceDependencies.mapNotNull {
                 createClusterForGroup(it.value.settings, clusters[it.key])
             }
-            is AllServicesGroup -> {
+            is AllServicesGroup, is AllServicesIngressGatewayGroup -> {
                 globalSnapshot.allServicesNames.mapNotNull {
                     val dependency = serviceDependencies[it]
                     if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
@@ -242,10 +245,12 @@ class EnvoyClustersFactory(
         .setName(tlsProperties.validationContextSecretName).build()
 
     private val tlsCertificateSecretConfig = SdsSecretConfig.newBuilder()
-        .setName(tlsProperties.tlsCertificateSecretName).build()
+        .setName(tlsProperties.tlsCertificateSecretName)
+        .build()
 
     private fun createTlsContextWithSdsSecretConfig(serviceName: String): UpstreamTlsContext {
         val sanMatch = sanUriMatcher.createSanUriMatcher(serviceName)
+        val gatewaySanMatch = sanUriMatcher.createSanUriMatcher(properties.dcIngressGatewayService)
         return UpstreamTlsContext.newBuilder()
             .setCommonTlsContext(
                 CommonTlsContext.newBuilder()
@@ -254,7 +259,7 @@ class EnvoyClustersFactory(
                         CommonTlsContext.CombinedCertificateValidationContext.newBuilder()
                             .setDefaultValidationContext(
                                 CertificateValidationContext.newBuilder()
-                                    .addAllMatchSubjectAltNames(listOf(sanMatch))
+                                    .addAllMatchSubjectAltNames(listOf(sanMatch, gatewaySanMatch))
                                     .build()
                             )
                             .setValidationContextSdsSecretConfig(validationContextSecretConfig)
