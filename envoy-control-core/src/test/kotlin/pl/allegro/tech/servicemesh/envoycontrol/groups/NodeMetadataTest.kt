@@ -1186,7 +1186,7 @@ class NodeMetadataTest {
         // when
         val outgoing = proto.toOutgoing(snapshotProperties())
 
-        // then
+        // expects
         val dependencies = outgoing.getServiceDependencies()
         assertThat(dependencies).hasSize(4)
         val loremDependency = dependencies[0]
