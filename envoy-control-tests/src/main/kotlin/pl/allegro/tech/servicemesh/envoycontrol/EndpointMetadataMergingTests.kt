@@ -55,7 +55,6 @@ open class EndpointMetadataMergingTests {
     protected open fun callEchoServiceRepeatedly(
         repeat: Int,
         tag: String,
-        assertNoErrors: Boolean = true
     ): CallStats {
         val stats = CallStats(listOf(service))
         envoy.egressOperations.callServiceRepeatedly(
@@ -64,7 +63,7 @@ open class EndpointMetadataMergingTests {
             minRepeat = repeat,
             maxRepeat = repeat,
             headers = mapOf("x-service-tag" to tag),
-            assertNoErrors = assertNoErrors
+            assertNoErrors = true
         )
         return stats
     }

@@ -464,7 +464,7 @@ class EnvoyClustersFactory(
         thresholdsBuilder.maxPendingRequests = UInt32Value.of(threshold.maxPendingRequests)
         thresholdsBuilder.maxRequests = UInt32Value.of(threshold.maxRequests)
         thresholdsBuilder.maxRetries = UInt32Value.of(threshold.maxRetries)
-        when (threshold.priority.toUpperCase()) {
+        when (threshold.priority.uppercase()) {
             "DEFAULT" -> thresholdsBuilder.priority = RoutingPriority.DEFAULT
             "HIGH" -> thresholdsBuilder.priority = RoutingPriority.HIGH
             else -> thresholdsBuilder.priority = RoutingPriority.UNRECOGNIZED

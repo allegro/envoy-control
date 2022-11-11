@@ -152,12 +152,8 @@ class NodeMetadataValidatorTest {
         // expects
         assertThatExceptionOfType(ServiceNameNotProvidedException::class.java)
             .isThrownBy { requireServiceNameValidator.onV3StreamRequest(streamId = 123, request = request) }
-            .satisfies {
-                assertThat(it.status.description).isEqualTo(
-                    "Service name has not been provided."
-                )
-                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-            }
+            .matches { it.status.description == "Service name has not been provided." }
+            .matches { it.status.code == Status.Code.INVALID_ARGUMENT }
     }
 
     @Test
@@ -187,12 +183,8 @@ class NodeMetadataValidatorTest {
         // then
         assertThatExceptionOfType(RateLimitIncorrectValidationException::class.java)
             .isThrownBy { validator.onV3StreamRequest(123, request = request) }
-            .satisfies {
-                assertThat(it.status.description).isEqualTo(
-                    "Rate limit value: 0/j is incorrect."
-                )
-                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-            }
+            .matches { it.status.description == "Rate limit value: 0/j is incorrect." }
+            .matches { it.status.code == Status.Code.INVALID_ARGUMENT }
     }
 
     private fun createIncomingPermissions(

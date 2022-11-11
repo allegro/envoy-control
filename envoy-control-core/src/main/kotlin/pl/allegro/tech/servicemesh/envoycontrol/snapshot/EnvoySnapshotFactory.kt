@@ -315,7 +315,7 @@ class EnvoySnapshotFactory(
                 routes.add(
                     egressRoutesFactory.createEgressDomainRoutes(
                         it.value,
-                        it.key.port.toString().toLowerCase()
+                        it.key.port.toString().lowercase()
                     )
                 )
             }

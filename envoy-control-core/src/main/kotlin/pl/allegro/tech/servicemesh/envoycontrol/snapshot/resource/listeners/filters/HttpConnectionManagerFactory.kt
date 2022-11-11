@@ -3,10 +3,9 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.config.core.v3.ApiConfigSource
+import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ApiVersion
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
-import io.envoyproxy.envoy.config.core.v3.GrpcService
 import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
@@ -34,7 +33,6 @@ class HttpConnectionManagerFactory(
         snapshotProperties.dynamicForwardProxy
     ).filter
 
-    private val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource()
     private val accessLogFilter = AccessLogFilter(snapshotProperties)
 
     @SuppressWarnings("LongParameterList")
@@ -93,7 +91,7 @@ class HttpConnectionManagerFactory(
             connectionManagerBuilder.addAccessLog(
                 accessLogFilter.createFilter(
                     listenersConfig.accessLogPath,
-                    direction.name.toLowerCase(),
+                    direction.name.lowercase(),
                     listenersConfig.accessLogFilterSettings
                 )
             )
@@ -106,44 +104,22 @@ class HttpConnectionManagerFactory(
     private fun setupRds(
         rdsInitialFetchTimeout: Duration,
         routeConfigName: String
-    ): Rds {
-        val configSource = ConfigSource.newBuilder()
-            .setInitialFetchTimeout(rdsInitialFetchTimeout)
-            .setResourceApiVersion(ApiVersion.V3)
-            .setApiConfigSource(defaultApiConfigSourceV3)
-
-        return Rds.newBuilder()
+    ): Rds = Rds.newBuilder()
             .setRouteConfigName(routeConfigName)
             .setConfigSource(
-                configSource.build()
+                ConfigSource.newBuilder()
+                    .setInitialFetchTimeout(rdsInitialFetchTimeout)
+                    .setResourceApiVersion(ApiVersion.V3)
+                    .setAds(AggregatedConfigSource.getDefaultInstance())
+                    .build()
             )
             .build()
-    }
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
         return Http1ProtocolOptions.newBuilder()
             .setAcceptHttp10(true)
             .setDefaultHostForHttp10(serviceName)
             .build()
-    }
-
-    private fun apiConfigSource(): ApiConfigSource {
-        return ApiConfigSource.newBuilder()
-            .setApiType(
-                if (snapshotProperties.deltaXdsEnabled) {
-                    ApiConfigSource.ApiType.DELTA_GRPC
-                } else {
-                    ApiConfigSource.ApiType.GRPC
-                }
-            )
-            .setTransportApiVersion(ApiVersion.V3)
-            .addGrpcServices(
-                GrpcService.newBuilder()
-                    .setEnvoyGrpc(
-                        GrpcService.EnvoyGrpc.newBuilder()
-                            .setClusterName(snapshotProperties.xdsClusterName)
-                    )
-            ).build()
     }
 
     private fun addHttpFilters(

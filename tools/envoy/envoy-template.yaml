@@ -1,7 +1,6 @@
 ---
 node:
   metadata:
-    ads: true
     service_name: docker
     ingress_host: "0.0.0.0"
     ingress_port: {{.IngressListenerPort}}
