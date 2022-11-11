@@ -10,11 +10,9 @@ import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.cluster.v3.OutlierDetection
 import io.envoyproxy.envoy.config.core.v3.Address
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
-import io.envoyproxy.envoy.config.core.v3.ApiConfigSource
 import io.envoyproxy.envoy.config.core.v3.ApiVersion
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.DataSource
-import io.envoyproxy.envoy.config.core.v3.GrpcService
 import io.envoyproxy.envoy.config.core.v3.Http2ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.RoutingPriority
@@ -36,9 +34,6 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -77,10 +72,9 @@ class EnvoyClustersFactory(
     }
 
     fun getClustersForServices(
-        services: Collection<ClusterConfiguration>,
-        communicationMode: CommunicationMode
+        services: Collection<ClusterConfiguration>
     ): List<Cluster> {
-        return services.map { edsCluster(it, communicationMode) }
+        return services.map { edsCluster(it) }
     }
 
     fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
@@ -351,8 +345,7 @@ class EnvoyClustersFactory(
     }
 
     private fun edsCluster(
-        clusterConfiguration: ClusterConfiguration,
-        communicationMode: CommunicationMode
+        clusterConfiguration: ClusterConfiguration
     ): Cluster {
         val clusterBuilder = Cluster.newBuilder()
 
@@ -366,32 +359,9 @@ class EnvoyClustersFactory(
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
             .setEdsClusterConfig(
                 Cluster.EdsClusterConfig.newBuilder().setEdsConfig(
-                    when (communicationMode) {
-                        // here we do not have group information
-                        ADS -> ConfigSource.newBuilder()
-                            .setResourceApiVersion(ApiVersion.V3)
-                            .setAds(AggregatedConfigSource.newBuilder())
-                        XDS ->
-                            ConfigSource.newBuilder()
-                                .setResourceApiVersion(ApiVersion.V3)
-                                .setApiConfigSource(
-                                    ApiConfigSource.newBuilder()
-                                        .setApiType(
-                                            if (properties.deltaXdsEnabled) {
-                                                ApiConfigSource.ApiType.DELTA_GRPC
-                                            } else {
-                                                ApiConfigSource.ApiType.GRPC
-                                            }
-                                        )
-                                        .setTransportApiVersion(ApiVersion.V3)
-                                        .addGrpcServices(
-                                            0, GrpcService.newBuilder().setEnvoyGrpc(
-                                                GrpcService.EnvoyGrpc.newBuilder()
-                                                    .setClusterName(properties.xdsClusterName)
-                                            )
-                                        )
-                                )
-                    }
+                    ConfigSource.newBuilder()
+                        .setResourceApiVersion(ApiVersion.V3)
+                        .setAds(AggregatedConfigSource.newBuilder())
                 ).setServiceName(clusterConfiguration.serviceName)
             )
             .setLbPolicy(properties.loadBalancing.policy)

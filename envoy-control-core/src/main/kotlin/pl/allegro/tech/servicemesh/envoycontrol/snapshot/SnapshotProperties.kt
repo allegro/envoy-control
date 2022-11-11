@@ -26,7 +26,6 @@ class SnapshotProperties {
     var staticClusterConnectionTimeout: Duration = Duration.ofSeconds(2)
     var trustedCaFile = "/etc/ssl/certs/ca-certificates.crt"
     var dynamicListeners = ListenersFactoryProperties()
-    var enabledCommunicationModes = EnabledCommunicationModes()
     var shouldSendMissingEndpoints = false
     var metrics: MetricsProperties = MetricsProperties()
     var dynamicForwardProxy = DynamicForwardProxyProperties()
@@ -294,11 +293,6 @@ class Threshold(var priority: String) {
 class Http2Properties {
     var enabled = true
     var tagName = "envoy"
-}
-
-class EnabledCommunicationModes {
-    var ads = true
-    var xds = true
 }
 
 class HostHeaderRewritingProperties {

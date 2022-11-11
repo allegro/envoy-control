@@ -8,7 +8,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsWithNoDependencies
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsWithStaticListeners
 import pl.allegro.tech.servicemesh.envoycontrol.config.DeltaAds
-import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
@@ -119,35 +118,6 @@ class DeltaAdsEnvoyControlSmokeTest : EnvoyControlSmokeTest {
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service, config = DeltaAds)
-    }
-
-    override fun consul() = consul
-
-    override fun envoyControl() = envoyControl
-
-    override fun service() = service
-
-    override fun envoy() = envoy
-}
-
-class XdsEnvoyControlSmokeTest : EnvoyControlSmokeTest {
-    companion object {
-
-        @JvmField
-        @RegisterExtension
-        val consul = ConsulExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul)
-
-        @JvmField
-        @RegisterExtension
-        val service = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, service, config = Xds)
     }
 
     override fun consul() = consul

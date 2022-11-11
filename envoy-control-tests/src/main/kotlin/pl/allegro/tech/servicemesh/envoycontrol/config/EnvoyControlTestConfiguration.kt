@@ -68,8 +68,7 @@ val Echo3EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
 val AdsWithDisabledEndpointPermissions = EnvoyConfig("envoy/config_ads_disabled_endpoint_permissions.yaml")
 val AdsWithStaticListeners = EnvoyConfig("envoy/config_ads_static_listeners.yaml")
 val AdsWithNoDependencies = EnvoyConfig("envoy/config_ads_no_dependencies.yaml")
-val Xds = EnvoyConfig("envoy/config_xds.yaml")
-val RandomConfigFile = listOf(Ads, Xds, DeltaAds).random()
+val RandomConfigFile = listOf(Ads, DeltaAds).random()
 val OAuthEnvoyConfig = EnvoyConfig("envoy/config_oauth.yaml")
 
 @Deprecated("use extension approach instead, e.g. RetryPolicyTest")
@@ -171,15 +170,15 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             localServiceIp: String = localServiceContainer.ipAddress(),
             envoyImage: String = EnvoyContainer.DEFAULT_IMAGE
         ): EnvoyContainer {
-            val envoyControl1XdsPort = envoyConnectGrpcPort ?: envoyControl1.grpcPort
-            val envoyControl2XdsPort = if (envoyControls == 2 && instancesInSameDc) {
+            val envoyControl1Port = envoyConnectGrpcPort ?: envoyControl1.grpcPort
+            val envoyControl2Port = if (envoyControls == 2 && instancesInSameDc) {
                 envoyConnectGrpcPort2 ?: envoyControl2.grpcPort
-            } else envoyControl1XdsPort
+            } else envoyControl1Port
             return EnvoyContainer(
                 config = envoyConfig,
                 localServiceIp = { localServiceIp },
-                envoyControl1XdsPort = envoyControl1XdsPort,
-                envoyControl2XdsPort = envoyControl2XdsPort,
+                envoyControl1Port = envoyControl1Port,
+                envoyControl2Port = envoyControl2Port,
                 image = envoyImage
             ).withNetwork(network)
         }

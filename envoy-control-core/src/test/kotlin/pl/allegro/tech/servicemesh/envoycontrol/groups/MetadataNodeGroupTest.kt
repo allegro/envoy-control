@@ -10,8 +10,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
@@ -22,7 +20,7 @@ class MetadataNodeGroupTest {
     fun `should assign to group with all dependencies`() {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
-        val node = nodeV3(serviceDependencies = setOf("*", "a", "b", "c"), ads = false)
+        val node = nodeV3(serviceDependencies = setOf("*", "a", "b", "c"))
 
         // when
         val group = nodeGroup.hash(node)
@@ -33,7 +31,6 @@ class MetadataNodeGroupTest {
                 // we have to preserve all services even if wildcard is present,
                 // because service may define different settings for different dependencies (for example endpoints, which
                 // will be implemented in https://github.com/allegro/envoy-control/issues/6
-                communicationMode = XDS,
                 proxySettings = ProxySettings().with(
                     serviceDependencies = serviceDependencies("a", "b", "c"),
                     allServicesDependencies = true
@@ -53,8 +50,7 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             ServicesGroup(
-                proxySettings = ProxySettings().with(serviceDependencies = setOf()),
-                communicationMode = XDS
+                proxySettings = ProxySettings().with(serviceDependencies = setOf())
             )
         )
     }
@@ -63,7 +59,7 @@ class MetadataNodeGroupTest {
     fun `should assign to group with listed dependencies`() {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
-        val node = nodeV3(serviceDependencies = setOf("a", "b", "c"), ads = false)
+        val node = nodeV3(serviceDependencies = setOf("a", "b", "c"))
 
         // when
         val group = nodeGroup.hash(node)
@@ -71,44 +67,7 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             ServicesGroup(
-                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-                communicationMode = XDS
-            )
-        )
-    }
-
-    @Test
-    fun `should assign to group with all dependencies on ads`() {
-        // given
-        val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
-        val node = nodeV3(serviceDependencies = setOf("*"), ads = true)
-
-        // when
-        val group = nodeGroup.hash(node)
-
-        // then
-        assertThat(group).isEqualTo(
-            AllServicesGroup(
-                communicationMode = ADS,
-                proxySettings = ProxySettings().with(allServicesDependencies = true)
-            )
-        )
-    }
-
-    @Test
-    fun `should assign to group with listed dependencies on ads`() {
-        // given
-        val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
-        val node = nodeV3(serviceDependencies = setOf("a", "b", "c"), ads = true)
-
-        // when
-        val group = nodeGroup.hash(node)
-
-        // then
-        assertThat(group).isEqualTo(
-            ServicesGroup(
-                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-                communicationMode = ADS
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c"))
             )
         )
     }
@@ -117,7 +76,7 @@ class MetadataNodeGroupTest {
     fun `should assign to group with all dependencies when outgoing-permissions is not enabled`() {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = false))
-        val node = nodeV3(serviceDependencies = setOf("a", "b", "c"), ads = true)
+        val node = nodeV3(serviceDependencies = setOf("a", "b", "c"))
 
         // when
         val group = nodeGroup.hash(node)
@@ -127,7 +86,6 @@ class MetadataNodeGroupTest {
             AllServicesGroup(
                 // we have to preserve all services even if outgoingPermissions is disabled,
                 // because service may define different settings for different dependencies (for example retry config)
-                communicationMode = ADS,
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c"))
             )
         )
@@ -139,7 +97,7 @@ class MetadataNodeGroupTest {
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
         val node = nodeV3(
             serviceDependencies = setOf("a", "b", "c"),
-            ads = false, serviceName = "app1",
+            serviceName = "app1",
             incomingSettings = true
         )
 
@@ -150,7 +108,6 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
-                communicationMode = XDS,
                 serviceName = "app1"
             )
         )
@@ -160,7 +117,7 @@ class MetadataNodeGroupTest {
     fun `should not include service settings when incoming permissions are disabled for all dependencies`() {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
-        val node = nodeV3(serviceDependencies = setOf("*"), ads = false, serviceName = "app1", incomingSettings = true)
+        val node = nodeV3(serviceDependencies = setOf("*"), serviceName = "app1", incomingSettings = true)
 
         // when
         val group = nodeGroup.hash(node)
@@ -177,7 +134,6 @@ class MetadataNodeGroupTest {
         )
         val node = nodeV3(
             serviceDependencies = setOf("a", "b"),
-            ads = true,
             serviceName = "app1",
             incomingSettings = true
         )
@@ -188,7 +144,6 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             ServicesGroup(
-                communicationMode = ADS,
                 serviceName = "app1",
                 proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("a", "b"))
             )
@@ -201,7 +156,7 @@ class MetadataNodeGroupTest {
         val nodeGroup = MetadataNodeGroup(
             createSnapshotProperties(outgoingPermissions = true, incomingPermissions = true)
         )
-        val node = nodeV3(serviceDependencies = setOf("*"), ads = false, serviceName = "app1", incomingSettings = true)
+        val node = nodeV3(serviceDependencies = setOf("*"), serviceName = "app1", incomingSettings = true)
 
         // when
         val group = nodeGroup.hash(node)
@@ -209,7 +164,6 @@ class MetadataNodeGroupTest {
         // then
         assertThat(group).isEqualTo(
             AllServicesGroup(
-                communicationMode = XDS,
                 serviceName = "app1",
                 proxySettings = addedProxySettings.with(allServicesDependencies = true)
             )
@@ -221,7 +175,7 @@ class MetadataNodeGroupTest {
         // when
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
         val node = nodeV3(
-            serviceDependencies = setOf("*"), ads = true, incomingSettings = true,
+            serviceDependencies = setOf("*"), incomingSettings = true,
             responseTimeout = "777s", idleTimeout = "13.33s"
         )
 
@@ -238,7 +192,7 @@ class MetadataNodeGroupTest {
         // when
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(incomingPermissions = true))
         val node = nodeV3(
-            serviceDependencies = setOf("*"), ads = true, incomingSettings = true,
+            serviceDependencies = setOf("*"), incomingSettings = true,
             healthCheckPath = "/status/ping", healthCheckClusterName = "local_service_health_check"
         )
 

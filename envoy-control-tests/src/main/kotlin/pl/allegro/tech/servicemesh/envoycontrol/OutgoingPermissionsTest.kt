@@ -8,7 +8,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnreachable
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
-import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -36,37 +35,6 @@ class AdsOutgoingPermissionsTest : OutgoingPermissionsTest {
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, config = Ads)
-    }
-
-    override fun consul() = consul
-
-    override fun service() = service
-
-    override fun envoy() = envoy
-}
-
-class XdsOutgoingPermissionsTest : OutgoingPermissionsTest {
-
-    companion object {
-
-        @JvmField
-        @RegisterExtension
-        val consul = ConsulExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul, mapOf(
-            "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true,
-            "envoy-control.envoy.snapshot.egress.domains" to mutableListOf(".test.domain", ".domain")
-        ))
-
-        @JvmField
-        @RegisterExtension
-        val service = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, config = Xds)
     }
 
     override fun consul() = consul

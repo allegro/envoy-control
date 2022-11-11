@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import com.google.protobuf.util.Durations
-import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ApiConfigSource
 import io.envoyproxy.envoy.config.core.v3.ApiVersion
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
@@ -12,7 +11,6 @@ import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -53,7 +51,7 @@ class HttpConnectionManagerFactory(
 
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix(statPrefix)
-            .setRds(setupRds(group.communicationMode, initialFetchTimeout, routeConfigName))
+            .setRds(setupRds(initialFetchTimeout, routeConfigName))
             .setGenerateRequestId(BoolValue.newBuilder().setValue(listenersConfig.generateRequestId).build())
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
 
@@ -106,18 +104,13 @@ class HttpConnectionManagerFactory(
     }
 
     private fun setupRds(
-        communicationMode: CommunicationMode,
         rdsInitialFetchTimeout: Duration,
         routeConfigName: String
     ): Rds {
         val configSource = ConfigSource.newBuilder()
             .setInitialFetchTimeout(rdsInitialFetchTimeout)
-        configSource.resourceApiVersion = ApiVersion.V3
-
-        when (communicationMode) {
-            CommunicationMode.ADS -> configSource.ads = AggregatedConfigSource.getDefaultInstance()
-            CommunicationMode.XDS -> configSource.apiConfigSource = defaultApiConfigSourceV3
-        }
+            .setResourceApiVersion(ApiVersion.V3)
+            .setApiConfigSource(defaultApiConfigSourceV3)
 
         return Rds.newBuilder()
             .setRouteConfigName(routeConfigName)
@@ -148,7 +141,7 @@ class HttpConnectionManagerFactory(
                 GrpcService.newBuilder()
                     .setEnvoyGrpc(
                         GrpcService.EnvoyGrpc.newBuilder()
-                            .setClusterName("envoy-control-xds")
+                            .setClusterName(snapshotProperties.xdsClusterName)
                     )
             ).build()
     }

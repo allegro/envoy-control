@@ -7,47 +7,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
-import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-
-class XdsEnvoyControlHttp2Test : EnvoyControlHttp2Test {
-    companion object {
-
-        @JvmField
-        @RegisterExtension
-        val consul = ConsulExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul)
-
-        @JvmField
-        @RegisterExtension
-        val service = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, service, config = Xds)
-
-        @JvmField
-        @RegisterExtension
-        val secondEnvoy = EnvoyExtension(envoyControl, service, config = Xds)
-    }
-
-    override fun consul() = consul
-
-    override fun envoyControl() = envoyControl
-
-    override fun service() = service
-
-    override fun envoy() = envoy
-
-    override fun secondEnvoy() = secondEnvoy
-}
 
 class AdsEnvoyControlHttp2Test : EnvoyControlHttp2Test {
     companion object {

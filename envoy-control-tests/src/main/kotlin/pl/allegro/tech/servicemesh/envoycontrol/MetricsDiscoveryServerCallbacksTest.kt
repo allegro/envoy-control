@@ -7,7 +7,6 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.DeltaAds
-import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
@@ -20,62 +19,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.RDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.SDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.UNKNOWN
-
-class XdsMetricsDiscoveryServerCallbacksTest : MetricsDiscoveryServerCallbacksTest {
-    companion object {
-
-        @JvmField
-        @RegisterExtension
-        val consul = ConsulExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul)
-
-        @JvmField
-        @RegisterExtension
-        val service = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, service, config = Xds)
-    }
-
-    override fun consul() = consul
-
-    override fun envoyControl() = envoyControl
-
-    override fun service() = service
-
-    override fun envoy() = envoy
-
-    override fun expectedGrpcConnectionsGaugeValues() = mapOf(
-        CDS to 1,
-        EDS to 2, // separate streams for consul and echo
-        LDS to 1,
-        RDS to 2, // default_routes
-        SDS to 0,
-        ADS to 0,
-        UNKNOWN to 0
-    )
-
-    override fun expectedGrpcRequestsCounterValues() = mapOf(
-        CDS.name.toLowerCase() to isGreaterThanZero(),
-        EDS.name.toLowerCase() to isGreaterThanZero(),
-        LDS.name.toLowerCase() to isGreaterThanZero(),
-        RDS.name.toLowerCase() to isGreaterThanZero(),
-        SDS.name.toLowerCase() to isNull(),
-        ADS.name.toLowerCase() to isNull(),
-        UNKNOWN.name.toLowerCase() to isNull(),
-        "${CDS.name.toLowerCase()}.delta" to isNull(),
-        "${EDS.name.toLowerCase()}.delta" to isNull(),
-        "${LDS.name.toLowerCase()}.delta" to isNull(),
-        "${RDS.name.toLowerCase()}.delta" to isNull(),
-        "${SDS.name.toLowerCase()}.delta" to isNull(),
-        "${ADS.name.toLowerCase()}.delta" to isNull(),
-        "${UNKNOWN.name.toLowerCase()}.delta" to isNull()
-    )
-}
 
 class AdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbacksTest {
     companion object {

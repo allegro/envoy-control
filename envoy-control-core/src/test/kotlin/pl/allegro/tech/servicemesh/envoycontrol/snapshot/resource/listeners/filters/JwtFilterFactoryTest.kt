@@ -7,7 +7,6 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
@@ -38,7 +37,7 @@ internal class JwtFilterFactoryTest {
     )
     private val noProviderJwtFilterFactory = JwtFilterFactory(JwtFilterProperties().also { it.providers = emptyMap() })
 
-    private val emptyGroup: Group = ServicesGroup(CommunicationMode.ADS)
+    private val emptyGroup: Group = ServicesGroup()
 
     @Test
     fun `should not create JWT filter when no providers are defined`() {
@@ -160,7 +159,7 @@ internal class JwtFilterFactoryTest {
     }
 
     private fun createGroup(pathToProvider: Map<String, String>, policy: OAuth.Policy) = ServicesGroup(
-        CommunicationMode.ADS, proxySettings = ProxySettings(
+        proxySettings = ProxySettings(
             Incoming(
                 pathToProvider.map { (path, provider) ->
                     IncomingEndpoint(
@@ -173,12 +172,12 @@ internal class JwtFilterFactoryTest {
     )
 
     private fun createGroup(incomingEndpoints: List<IncomingEndpoint>) = ServicesGroup(
-        CommunicationMode.ADS, proxySettings = ProxySettings(
+        proxySettings = ProxySettings(
             Incoming(incomingEndpoints)
         )
     )
     private fun createGroupWithClientWithSelector(pathToProvider: Map<String, String>) = ServicesGroup(
-        CommunicationMode.ADS, proxySettings = ProxySettings(
+        proxySettings = ProxySettings(
             Incoming(
                 pathToProvider.map { (path, _) ->
                     IncomingEndpoint(

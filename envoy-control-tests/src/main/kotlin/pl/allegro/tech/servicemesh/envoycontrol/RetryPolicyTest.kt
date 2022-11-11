@@ -7,7 +7,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
-import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
+import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
@@ -59,7 +59,7 @@ node:
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, service, config = Xds.copy(configOverride = RETRY_SETTINGS_CONFIG))
+        val envoy = EnvoyExtension(envoyControl, service, config = Ads.copy(configOverride = RETRY_SETTINGS_CONFIG))
     }
 
     @Test

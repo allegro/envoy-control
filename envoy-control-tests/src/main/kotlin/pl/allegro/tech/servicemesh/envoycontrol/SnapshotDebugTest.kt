@@ -185,34 +185,21 @@ interface SnapshotDebugTest {
     }
 
     @Test
-    fun `should return global snapshot debug info from xds`() {
-        untilAsserted {
-            // when
-            val snapshot = envoyControl().app.getGlobalSnapshot(xds = true)
-
-            // then
-            assertThat(snapshot.snapshot!!["clusters"]).isNotEmpty()
-            assertThat(snapshot.snapshot["endpoints"]).isNotEmpty()
-            assertThat(snapshot.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains("envoy-control-xds")
-        }
-    }
-
-    @Test
     fun `should return global snapshot debug info from ads`() {
         untilAsserted {
             // when
-            val snapshotXdsNull = envoyControl().app.getGlobalSnapshot(xds = null)
-            val snapshotXdsFalse = envoyControl().app.getGlobalSnapshot(xds = false)
+            val snapshotNull = envoyControl().app.getGlobalSnapshot()
+            val snapshotFalse = envoyControl().app.getGlobalSnapshot()
 
             // then
-            assertThat(snapshotXdsNull.snapshot!!["clusters"]).isNotEmpty()
-            assertThat(snapshotXdsNull.snapshot["endpoints"]).isNotEmpty()
-            assertThat(snapshotXdsFalse.snapshot!!["clusters"]).isNotEmpty()
-            assertThat(snapshotXdsFalse.snapshot["endpoints"]).isNotEmpty()
-            assertThat(snapshotXdsNull.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains(
+            assertThat(snapshotNull.snapshot!!["clusters"]).isNotEmpty()
+            assertThat(snapshotNull.snapshot["endpoints"]).isNotEmpty()
+            assertThat(snapshotFalse.snapshot!!["clusters"]).isNotEmpty()
+            assertThat(snapshotFalse.snapshot["endpoints"]).isNotEmpty()
+            assertThat(snapshotNull.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains(
                 "ads"
             )
-            assertThat(snapshotXdsFalse.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains(
+            assertThat(snapshotFalse.snapshot["clusters"].first()["edsClusterConfig"]["edsConfig"].toString()).contains(
                 "ads"
             )
         }

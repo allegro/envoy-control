@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.HealthCheck
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming.TimeoutPolicy
@@ -117,7 +116,6 @@ internal class EnvoyIngressRoutesFactoryTest {
             )
         )
         val group = ServicesGroup(
-            CommunicationMode.XDS,
             "service_1",
             "service_1",
             proxySettingsOneEndpoint
@@ -196,7 +194,6 @@ internal class EnvoyIngressRoutesFactoryTest {
             )
         )
         val group = ServicesGroup(
-            CommunicationMode.XDS,
             "service_1",
             "service_1",
             proxySettingsOneEndpoint

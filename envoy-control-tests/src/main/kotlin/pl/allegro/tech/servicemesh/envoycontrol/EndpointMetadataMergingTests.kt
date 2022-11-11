@@ -54,7 +54,7 @@ open class EndpointMetadataMergingTests {
 
     protected open fun callEchoServiceRepeatedly(
         repeat: Int,
-        tag: String? = null,
+        tag: String,
         assertNoErrors: Boolean = true
     ): CallStats {
         val stats = CallStats(listOf(service))
@@ -63,7 +63,7 @@ open class EndpointMetadataMergingTests {
             stats = stats,
             minRepeat = repeat,
             maxRepeat = repeat,
-            headers = tag?.let { mapOf("x-service-tag" to it) } ?: emptyMap(),
+            headers = mapOf("x-service-tag" to tag),
             assertNoErrors = assertNoErrors
         )
         return stats

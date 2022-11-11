@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
-import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
@@ -36,44 +35,6 @@ open class AdsRateLimitTest : RateLimitTest {
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service, config = Ads.copy(configOverride = RATE_LIMIT_CONFIG))
-
-        @JvmField
-        @RegisterExtension
-        val redis = GenericServiceExtension(RedisContainer())
-
-        @JvmField
-        @RegisterExtension
-        val rateLimitService = GenericServiceExtension(RedisBasedRateLimitContainer(redis.container()))
-    }
-
-    override fun consul() = consul
-
-    override fun envoyControl() = envoyControl
-
-    override fun service() = service
-
-    override fun envoy() = envoy
-
-    override fun rateLimitService() = rateLimitService
-}
-
-open class XdsRateLimitTest : RateLimitTest {
-    companion object {
-        @JvmField
-        @RegisterExtension
-        val consul = ConsulExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul)
-
-        @JvmField
-        @RegisterExtension
-        val service = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, service, config = Xds.copy(configOverride = RATE_LIMIT_CONFIG))
 
         @JvmField
         @RegisterExtension

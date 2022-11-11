@@ -25,9 +25,6 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.mockito.Mockito
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -76,11 +73,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyContr
 class SnapshotUpdaterTest {
 
     companion object {
-        @JvmStatic
-        fun configurationModeNotSupported() = listOf(
-            Arguments.of(false, false, ADS, "ADS not supported by server"),
-            Arguments.of(false, false, XDS, "XDS not supported by server")
-        )
 
         @JvmStatic
         fun tapConfiguration() = listOf(
@@ -92,7 +84,6 @@ class SnapshotUpdaterTest {
     }
 
     val groupWithProxy = AllServicesGroup(
-        communicationMode = ADS,
         serviceName = "service"
     )
     val groupWithServiceName = groupOf(
@@ -124,7 +115,7 @@ class SnapshotUpdaterTest {
         val cache = MockCache()
 
         val allServicesGroup = AllServicesGroup(
-            communicationMode = XDS, proxySettings = ProxySettings(
+            proxySettings = ProxySettings(
                 outgoing = Outgoing(
                     serviceDependencies = listOf(
                         ServiceDependency(
@@ -173,7 +164,7 @@ class SnapshotUpdaterTest {
         val snapshotAuditor = Mockito.mock(SnapshotChangeAuditor::class.java)
         Mockito.`when`(snapshotAuditor.audit(any(UpdateResult::class.java), any(UpdateResult::class.java)))
             .thenReturn(Mono.empty())
-        val groups = listOf(groupWithProxy, groupWithServiceName, AllServicesGroup(communicationMode = ADS))
+        val groups = listOf(groupWithProxy, groupWithServiceName, AllServicesGroup())
         groups.forEach {
             cache.setSnapshot(it, uninitializedSnapshot)
         }
@@ -217,7 +208,7 @@ class SnapshotUpdaterTest {
             methods = setOf("POST")
         )
         val allServicesGroup = AllServicesGroup(
-            communicationMode = XDS, proxySettings = ProxySettings(
+            proxySettings = ProxySettings(
                 outgoing = Outgoing(
                     serviceDependencies = listOf(
                         ServiceDependency(
@@ -271,7 +262,7 @@ class SnapshotUpdaterTest {
 
         // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
         val groups = listOf(
-            AllServicesGroup(communicationMode = XDS), groupWithProxy, groupWithServiceName,
+            AllServicesGroup(), groupWithProxy, groupWithServiceName,
             groupOf(services = serviceDependencies("existingService1")),
             groupOf(services = serviceDependencies("existingService2"))
         )
@@ -300,7 +291,7 @@ class SnapshotUpdaterTest {
         updater.startWithServices("existingService1", "existingService2")
 
         // then
-        hasSnapshot(cache, AllServicesGroup(communicationMode = XDS))
+        hasSnapshot(cache, AllServicesGroup())
             .hasOnlyClustersFor("existingService1", "existingService2")
 
         hasSnapshot(cache, groupWithProxy)
@@ -336,7 +327,7 @@ class SnapshotUpdaterTest {
 
         // groups are generated foreach element in SnapshotCache.groups(), so we need to initialize them
         val groups = listOf(
-            AllServicesGroup(communicationMode = XDS), groupWithProxy, groupWithServiceName,
+            AllServicesGroup(), groupWithProxy, groupWithServiceName,
             groupOf(services = serviceDependencies("existingService1")),
             groupOf(services = serviceDependencies("existingService2"))
         )
@@ -365,7 +356,7 @@ class SnapshotUpdaterTest {
         updater.startWithServices("existingService1", "existingService2")
 
         // then
-        hasSnapshot(cache, AllServicesGroup(communicationMode = XDS))
+        hasSnapshot(cache, AllServicesGroup())
             .tapConfigurationVerifier()
 
         hasSnapshot(cache, groupWithProxy)
@@ -386,34 +377,6 @@ class SnapshotUpdaterTest {
                 domains = domainDependencies("http://domain")
             )
         ).tapConfigurationVerifier()
-    }
-
-    @ParameterizedTest
-    @MethodSource("configurationModeNotSupported")
-    fun `should not generate group snapshots for modes not supported by the server`(
-        adsSupported: Boolean,
-        xdsSupported: Boolean,
-        mode: CommunicationMode
-    ) {
-        val allServiceGroup = AllServicesGroup(communicationMode = mode)
-
-        val cache = MockCache()
-        cache.setSnapshot(allServiceGroup, uninitializedSnapshot)
-
-        val updater = snapshotUpdater(
-            cache = cache,
-            properties = SnapshotProperties().apply {
-                enabledCommunicationModes.ads = adsSupported; enabledCommunicationModes.xds = xdsSupported
-            }
-        )
-
-        // when
-        updater.start(
-            Flux.just(MultiClusterState.empty())
-        ).blockFirst()
-
-        // should not generate snapshot
-        assertThat(cache.getSnapshot(allServiceGroup)).isNull()
     }
 
     @Test
@@ -451,7 +414,6 @@ class SnapshotUpdaterTest {
     fun `should not crash on bad snapshot generation`() {
         // given
         val servicesGroup = AllServicesGroup(
-            communicationMode = ADS,
             serviceName = "example-service"
         )
         val cache = FailingMockCache()
@@ -506,17 +468,15 @@ class SnapshotUpdaterTest {
 
         // then
         assertThat(results.size).isEqualTo(2)
-        results[0].adsSnapshot!!.hasHttp2Cluster("service")
-        results[0].xdsSnapshot!!.hasHttp2Cluster("service")
-        results[1].adsSnapshot!!.hasHttp2Cluster("service")
-        results[1].xdsSnapshot!!.hasHttp2Cluster("service")
+        results[0].snapshot!!.hasHttp2Cluster("service")
+        results[1].snapshot!!.hasHttp2Cluster("service")
     }
 
     @Test
     fun `should not change CDS version when service order in remote cluster is different`() {
         // given
         val cache = MockCache()
-        val allServicesGroup = AllServicesGroup(communicationMode = ADS)
+        val allServicesGroup = AllServicesGroup()
         val groups = listOf(allServicesGroup)
         val updater = snapshotUpdater(
             cache = cache,
@@ -566,7 +526,7 @@ class SnapshotUpdaterTest {
     fun `should not change EDS when remote doesn't have state of service`() {
         // given
         val cache = MockCache()
-        val allServicesGroup = AllServicesGroup(communicationMode = ADS)
+        val allServicesGroup = AllServicesGroup()
         val groups = listOf(allServicesGroup)
         val updater = snapshotUpdater(
             cache = cache,
@@ -639,22 +599,14 @@ class SnapshotUpdaterTest {
             .collectList().block()!!
 
         // then
-        resultsRemoteWithBothServices[0].adsSnapshot!!
-            .hasTheSameClusters(resultsRemoteWithJustOneService[0].adsSnapshot!!)
-            .hasTheSameEndpoints(resultsRemoteWithJustOneService[0].adsSnapshot!!)
-            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[0].adsSnapshot!!)
-        resultsRemoteWithBothServices[0].xdsSnapshot!!
-            .hasTheSameClusters(resultsRemoteWithJustOneService[0].xdsSnapshot!!)
-            .hasTheSameEndpoints(resultsRemoteWithJustOneService[0].xdsSnapshot!!)
-            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[0].xdsSnapshot!!)
-        resultsRemoteWithBothServices[1].adsSnapshot!!
-            .hasTheSameClusters(resultsRemoteWithJustOneService[1].adsSnapshot!!)
-            .hasTheSameEndpoints(resultsRemoteWithJustOneService[1].adsSnapshot!!)
-            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[1].adsSnapshot!!)
-        resultsRemoteWithBothServices[1].xdsSnapshot!!
-            .hasTheSameClusters(resultsRemoteWithJustOneService[1].xdsSnapshot!!)
-            .hasTheSameEndpoints(resultsRemoteWithJustOneService[1].xdsSnapshot!!)
-            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[1].xdsSnapshot!!)
+        resultsRemoteWithBothServices[0].snapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[0].snapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[0].snapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[0].snapshot!!)
+        resultsRemoteWithBothServices[1].snapshot!!
+            .hasTheSameClusters(resultsRemoteWithJustOneService[1].snapshot!!)
+            .hasTheSameEndpoints(resultsRemoteWithJustOneService[1].snapshot!!)
+            .hasTheSameSecuredClusters(resultsRemoteWithJustOneService[1].snapshot!!)
     }
 
     @Test
@@ -687,17 +639,11 @@ class SnapshotUpdaterTest {
         // then
         assertThat(results.size).isEqualTo(2)
 
-        results[0].adsSnapshot!!
-            .hasHttp2Cluster("service")
-            .hasAnEndpoint("service", "127.0.0.3", 4444)
-        results[0].xdsSnapshot!!
+        results[0].snapshot!!
             .hasHttp2Cluster("service")
             .hasAnEndpoint("service", "127.0.0.3", 4444)
 
-        results[1].adsSnapshot!!
-            .hasHttp2Cluster("service")
-            .hasAnEmptyLocalityEndpointsList("service", setOf("cluster"))
-        results[1].xdsSnapshot!!
+        results[1].snapshot!!
             .hasHttp2Cluster("service")
             .hasAnEmptyLocalityEndpointsList("service", setOf("cluster"))
     }
@@ -707,7 +653,7 @@ class SnapshotUpdaterTest {
         // given
         val cache = MockCache()
 
-        val allServicesGroup = AllServicesGroup(communicationMode = ADS)
+        val allServicesGroup = AllServicesGroup()
         val groupWithBlacklistedDependency = groupOf(services = serviceDependencies("mock-service"))
 
         val groups = listOf(allServicesGroup, groupWithBlacklistedDependency)
@@ -744,19 +690,19 @@ class SnapshotUpdaterTest {
         hasSnapshot(cache, allServicesGroup)
             .hasOnlyClustersFor(*expectedWhitelistedServices)
             .hasOnlyEndpointsFor(*expectedWhitelistedServices)
-            .hasOnlyEgressRoutesForClusters(expected = *expectedDomainsWhitelistedServices)
+            .hasOnlyEgressRoutesForClusters(expected = expectedDomainsWhitelistedServices)
 
         hasSnapshot(cache, groupWithBlacklistedDependency)
             .hasOnlyClustersFor(*expectedBlacklistedServices)
             .hasOnlyEndpointsFor(*expectedBlacklistedServices)
-            .hasOnlyEgressRoutesForClusters(expected = *expectedDomainsBlacklistedServices)
+            .hasOnlyEgressRoutesForClusters(expected = expectedDomainsBlacklistedServices)
     }
 
     @Test
     fun `should set snapshot in parallel`() {
         // given
         val cache = MockCache()
-        val groups = listOf(groupWithProxy, groupWithServiceName, AllServicesGroup(communicationMode = ADS))
+        val groups = listOf(groupWithProxy, groupWithServiceName, AllServicesGroup())
         groups.forEach {
             cache.setSnapshot(it, uninitializedSnapshot)
         }
@@ -776,7 +722,7 @@ class SnapshotUpdaterTest {
         updater.startWithServices("existingService1", "existingService2")
 
         // then
-        hasSnapshot(cache, AllServicesGroup(communicationMode = ADS))
+        hasSnapshot(cache, AllServicesGroup())
             .hasOnlyClustersFor("existingService1", "existingService2")
         hasSnapshot(cache, groupWithProxy)
             .hasOnlyClustersFor("existingService1", "existingService2")
@@ -1256,7 +1202,6 @@ class SnapshotUpdaterTest {
         domains: Set<DomainDependency> = emptySet(),
         listenerConfig: ListenersConfig? = null
     ) = ServicesGroup(
-        communicationMode = XDS,
         listenersConfig = listenerConfig,
         proxySettings = ProxySettings().with(
             serviceDependencies = services, domainDependencies = domains

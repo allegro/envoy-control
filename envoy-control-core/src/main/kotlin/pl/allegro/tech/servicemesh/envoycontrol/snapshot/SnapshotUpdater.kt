@@ -4,8 +4,6 @@ import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
@@ -59,8 +57,7 @@ class SnapshotUpdater(
                 UpdateResult(
                     action = newUpdate.action,
                     groups = newUpdate.groups,
-                    adsSnapshot = newUpdate.adsSnapshot ?: previous.adsSnapshot,
-                    xdsSnapshot = newUpdate.xdsSnapshot ?: previous.xdsSnapshot
+                    snapshot = newUpdate.snapshot ?: previous.snapshot
                 )
             }
             // concat map guarantees sequential processing (unlike flatMap)
@@ -74,7 +71,7 @@ class SnapshotUpdater(
                 // step 4: update the snapshot for either all groups (if services changed)
                 //         or specific groups (groups changed).
                 // TODO(dj): on what occasion can this be false?
-                if (result.adsSnapshot != null || result.xdsSnapshot != null) {
+                if (result.snapshot != null) {
                     // Stateful operation! This is the meat of this processing.
                     updateSnapshotForGroups(groups, result)
                 } else {
@@ -111,19 +108,9 @@ class SnapshotUpdater(
             .name("snapshot-updater-services-published").metrics()
             .createClusterConfigurations()
             .map { (states, clusters) ->
-                var lastXdsSnapshot: GlobalSnapshot? = null
-                var lastAdsSnapshot: GlobalSnapshot? = null
-
-                if (properties.enabledCommunicationModes.xds) {
-                    lastXdsSnapshot = snapshotFactory.newSnapshot(states, clusters, XDS)
-                }
-                if (properties.enabledCommunicationModes.ads) {
-                    lastAdsSnapshot = snapshotFactory.newSnapshot(states, clusters, ADS)
-                }
                 val updateResult = UpdateResult(
                     action = Action.ALL_SERVICES_GROUP_ADDED,
-                    adsSnapshot = lastAdsSnapshot,
-                    xdsSnapshot = lastXdsSnapshot
+                    snapshot = snapshotFactory.newSnapshot(states, clusters),
                 )
                 globalSnapshot = updateResult
                 updateResult
@@ -169,13 +156,11 @@ class SnapshotUpdater(
         versions.retainGroups(cache.groups())
         val results = Flux.fromIterable(groups)
             .doOnNextScheduledOn(groupSnapshotScheduler) { group ->
-                if (result.adsSnapshot != null && group.communicationMode == ADS) {
-                    updateSnapshotForGroup(group, result.adsSnapshot)
-                } else if (result.xdsSnapshot != null && group.communicationMode == XDS) {
-                    updateSnapshotForGroup(group, result.xdsSnapshot)
+                if (result.snapshot != null) {
+                    updateSnapshotForGroup(group, result.snapshot)
                 } else {
                     meterRegistry.counter("snapshot-updater.communication-mode.errors").increment()
-                    logger.error("Requested snapshot for ${group.communicationMode.name} mode, but it is not here. " +
+                    logger.error("Requested snapshot, but it is not here. " +
                         "Handling Envoy with not supported communication mode should have been rejected before." +
                         " Please report this to EC developers.")
                 }
@@ -212,6 +197,5 @@ enum class Action {
 data class UpdateResult(
     val action: Action,
     val groups: List<Group> = listOf(),
-    val adsSnapshot: GlobalSnapshot? = null,
-    val xdsSnapshot: GlobalSnapshot? = null
+    val snapshot: GlobalSnapshot? = null
 )
