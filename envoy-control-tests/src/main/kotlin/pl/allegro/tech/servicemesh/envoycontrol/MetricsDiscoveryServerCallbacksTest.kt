@@ -105,7 +105,7 @@ class DeltaAdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbac
     override fun envoy() = envoy
 
     override fun expectedGrpcConnectionsGaugeValues() = mapOf(
-        CDS to 1,
+        CDS to 0,
         EDS to 0,
         LDS to 0,
         RDS to 0,
