@@ -39,7 +39,12 @@ open class EndpointMetadataMergingTests {
         consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("ipsum"))
         consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("lorem", "dolom"))
 
-        envoy.waitForReadyServices("echo")
+        //TODO: flaky test. I'm not sure why, but it fails time to time.
+        //      Theoretically after one call service should be ready,
+        //      but for some reason sometimes is not and returns 503.
+        repeat(3) {
+            envoy.waitForReadyServices("echo")
+        }
 
         // when
         val ipsumStats = callEchoServiceRepeatedly(repeat = 1, tag = "ipsum")
