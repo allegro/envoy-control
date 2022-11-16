@@ -16,7 +16,6 @@ An example configuration:
 
 ```yaml
 metadata:
-  ads: true
   proxy_settings:
     outgoing:
       dependencies:

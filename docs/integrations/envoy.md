@@ -24,16 +24,6 @@ and the IP can be put in `x-envoy-original-dst-host` header (`x-envoy-original-d
 By default, Envoy will respond with `404` status code when it receives a request for a cluster that does not exist.
 The behavior is changed so that the `503` status code is returned.
 
-## ADS Support
-
-By default, the xDS is used instead of
-[Aggregated Discovery Service](https://www.envoyproxy.io/docs/envoy/latest/configuration/overview/xds_api#aggregated-discovery-service)
-(ADS). To use ADS for given node put the
-```
-ads: true
-```
-in Envoy metadata config. Envoy Control will pick it up and use ADS for this node.
-
 ## Outlier detection
 
 You can configure global
