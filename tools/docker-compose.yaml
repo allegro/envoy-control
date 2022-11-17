@@ -48,6 +48,9 @@ services:
       - PORT=8070
     expose:
       - 8070
+      - 9999
+    ports:
+      - "10001:9999"
 
   service2:
     depends_on: 
@@ -60,6 +63,10 @@ services:
       - PORT=8070
     expose:
       - 8070
+      - 9999
+    ports:
+      - "10002:9999"
+
 
   service3:
     depends_on: 
@@ -72,8 +79,14 @@ services:
       - PORT=8070
     expose:
       - 8070
+      - 9999
+    ports:
+      - "10003:9999"
+
 
   jaeger:
+    depends_on:
+      - consul
     build:
       context: ./jaeger
       dockerfile: Dockerfile
