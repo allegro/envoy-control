@@ -183,7 +183,7 @@ internal class JwtFilterFactoryTest {
                 pathToProvider.map { (path, _) ->
                     IncomingEndpoint(
                         path,
-                        clients = setOf(ClientWithSelector("oauth", "client")),
+                        clients = setOf(ClientWithSelector.create("oauth", "client")),
                         oauth = null
                     )
                 }
