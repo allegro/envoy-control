@@ -32,7 +32,6 @@ services:
   flask-service:
     build:
       context: ./flask
-    image: flask_service:python-3.10-slim-bullseye
     restart: "no"
     deploy:
       replicas: 0
