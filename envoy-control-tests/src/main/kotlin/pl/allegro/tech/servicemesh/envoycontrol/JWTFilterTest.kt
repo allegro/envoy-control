@@ -40,7 +40,7 @@ class JWTFilterTest {
                 Arguments.of("/allow-team1-deny-team2", "team1,team2", false),
                 Arguments.of("/allow-team1-deny-team2", "team3,team2", false),
                 Arguments.of("/non-team1-access", "team1", false),
-                Arguments.of("/non-team1-access", "team2", false)
+                Arguments.of("/non-team1-access", "team2", true)
             )
         }
 

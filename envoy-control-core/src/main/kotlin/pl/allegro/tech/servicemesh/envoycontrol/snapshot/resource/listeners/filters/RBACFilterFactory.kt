@@ -95,14 +95,6 @@ class RBACFilterFactory(
                     ).map { mergeWithOAuthPolicy(client, it, incomingEndpoint.oauth?.policy) }
                 }
                 .toSet()
-                .ifEmpty {
-                    setOf(
-                        oAuthPolicyForEmptyClients(
-                            incomingEndpoint.oauth?.policy,
-                            incomingEndpoint.unlistedClientsPolicy
-                        )
-                    )
-                }
             val negatedPrincipals = clientsWithNegatedSelectors.flatMap { client ->
                 getPrincipals(
                     principalCache,
@@ -118,7 +110,14 @@ class RBACFilterFactory(
                 notNegatedPrincipals.map { principal -> mergePrincipals(listOf(principal, mergedNegatedPrincipals)) }
                     .ifEmpty { negatedPrincipals }
             } else {
-                notNegatedPrincipals
+                notNegatedPrincipals.ifEmpty {
+                    setOf(
+                        oAuthPolicyForEmptyClients(
+                            incomingEndpoint.oauth?.policy,
+                            incomingEndpoint.unlistedClientsPolicy
+                        )
+                    )
+                }
             }
 
             val policy = Policy.newBuilder().addAllPrincipals(principals)
