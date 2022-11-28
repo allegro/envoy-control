@@ -370,7 +370,7 @@ class RBACFilterFactory(
                 Principal.Set.newBuilder().addAllIds(principals)
             ).build()
     } else {
-        principals.first()
+        principals.firstOrNull() ?: Principal.getDefaultInstance()
     }
 
     private val strictPolicyPrincipal = Principal.newBuilder().setAndIds(

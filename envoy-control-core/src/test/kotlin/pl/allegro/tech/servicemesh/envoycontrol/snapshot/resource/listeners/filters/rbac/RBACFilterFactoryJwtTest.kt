@@ -138,14 +138,12 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             oAuthClientPrincipal(getTokenFieldForClientWithSelector("oauth-provider", client), negatedSelector, true)
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
-                withNegatedPrincipal(oAuthPrincipal, negatedOAuthPrincipal),
-                // "$oAuthPrincipal, $negatedOAuthPrincipal",
+                conjunctionOfPrincipals(oAuthPrincipal, negatedOAuthPrincipal),
                 "ClientWithSelector(name=$client, selector=$selector, negated=false), ClientWithSelector(name=$client, selector=$negatedSelector, negated=true)",
                 "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             ),
             expectedPoliciesForOAuth(
-                withNegatedPrincipal(oAuthPrincipal, negatedOAuthPrincipal),
-                // "$oAuthPrincipal, $negatedOAuthPrincipal",
+                conjunctionOfPrincipals(oAuthPrincipal, negatedOAuthPrincipal),
                 "ClientWithSelector(name=$client, selector=$selector, negated=false), ClientWithSelector(name=$client, selector=$negatedSelector, negated=true)",
                 "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             )
@@ -306,8 +304,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         jwtProperties.providers[provider]!!.matchings[client]!!
 
     private fun oAuthClientPrincipal(selectorMatching: String, selector: String, negated: Boolean = false) =
-        if (!negated) {
-            """{
+        """{
                        "metadata": {
                         "filter": "envoy.filters.http.jwt_authn",
                         "path": [
@@ -327,33 +324,9 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
                           }
                          }
                         }
+                        ${if (negated) ",\"invert\": true" else ""}
                        }
                       }"""
-        } else {
-            """{
-                       "metadata": {
-                        "filter": "envoy.filters.http.jwt_authn",
-                        "path": [
-                         {
-                          "key": "jwt"
-                         },
-                         {
-                          "key": "$selectorMatching"
-                         }
-                        ],
-                        "value": {
-                         "list_match": {
-                          "one_of": {
-                           "string_match": {
-                            "exact": "$selector"
-                           }
-                          }
-                         }
-                        },
-                         "invert": true
-                       }
-                      }"""
-        }
 
     private fun expectedPoliciesForOAuth(
         principals: String,
@@ -385,9 +358,9 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         }
     """
 
-    private fun withNegatedPrincipal(principal: String, negatedPrincipal: String) = """{
+    private fun conjunctionOfPrincipals(vararg principals: String) = """{
         "andIds": {
-            "ids": [$principal, $negatedPrincipal]
+            "ids": [${principals.joinToString(", ")}]
         }
     }
     """
