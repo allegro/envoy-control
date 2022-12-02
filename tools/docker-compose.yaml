@@ -36,7 +36,7 @@ services:
     deploy:
       replicas: 0
 
-  service1:
+  s1:
     depends_on: 
       - consul
     image: envoyproxy:tracing
@@ -51,7 +51,7 @@ services:
     ports:
       - "10001:9999"
 
-  service2:
+  s2:
     depends_on: 
       - consul
     image: envoyproxy:tracing
@@ -67,7 +67,7 @@ services:
       - "10002:9999"
 
 
-  service3:
+  s3:
     depends_on: 
       - consul
     image: envoyproxy:tracing
@@ -82,7 +82,7 @@ services:
     ports:
       - "10003:9999"
 
-  service3-2:
+  s3-2:
     depends_on:
       - consul
     image: envoyproxy:tracing
