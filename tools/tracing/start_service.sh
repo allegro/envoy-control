@@ -4,7 +4,7 @@
 
 port="${PORT}"
 service_name="service${SERVICE_NAME}"
-instance_id="${service_name}-1"
+instance_id="${service_name}-${SERVICE_INSTANCE:-1}"
 
 echo "Registering instance of ${service_name} in consul"
 echo "============================="

@@ -108,9 +108,15 @@ class EnvoyClustersFactory(
         }
     }
 
-    fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
-        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clustersForJWT +
-            getRateLimitClusterForGroup(group, globalSnapshot) + clustersForTracing
+    fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
+        val edsCluster = getEdsClustersForGroup(group, globalSnapshot)
+        val strictDnsClusters = getStrictDnsClustersForGroup(group)
+        val jwtClusters = clustersForJWT
+        val rateLimitCluster =    getRateLimitClusterForGroup(group, globalSnapshot)
+        val jaegerCluster = listOf(globalSnapshot.clusters.resources()["jaeger"]!!)
+
+        return edsCluster + strictDnsClusters + jwtClusters + rateLimitCluster + jaegerCluster
+    }
 
     private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster? {
         if (provider.createCluster) {
@@ -165,20 +171,7 @@ class EnvoyClustersFactory(
     }
 
     private fun clusterForTracing(): Cluster {
-        return Cluster.newBuilder().setName("jaeger")
-            .setLoadAssignment(
-                ClusterLoadAssignment.newBuilder().setClusterName("jaeger").addEndpoints(
-                    LocalityLbEndpoints.newBuilder().addLbEndpoints(
-                        LbEndpoint.newBuilder().setEndpoint(
-                            Endpoint.newBuilder().setAddress(
-                                Address.newBuilder().setSocketAddress(
-                                    SocketAddress.newBuilder().setAddress("jaeger").setPortValue(9411)
-                                )
-                            )
-                        )
-                    )
-                )
-            ).build()
+        return edsCluster(ClusterConfiguration("jaeger", false), ADS)
     }
 
     private fun getRateLimitClusterForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
