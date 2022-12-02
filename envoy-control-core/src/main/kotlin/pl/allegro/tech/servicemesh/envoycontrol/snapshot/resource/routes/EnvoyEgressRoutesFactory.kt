@@ -11,6 +11,7 @@ import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy.ResetHeaderFormat
+import io.envoyproxy.envoy.config.route.v3.RetryPolicy.RetryPriority
 import io.envoyproxy.envoy.config.route.v3.Route
 import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
@@ -20,12 +21,15 @@ import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RateLimitedRetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EgressProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 class EnvoyEgressRoutesFactory(
-    private val properties: SnapshotProperties
+    private val egressProperties: EgressProperties,
+    private val incomingPermissionsProperties: IncomingPermissionsProperties
 ) {
 
     /**
@@ -44,8 +48,8 @@ class EnvoyEgressRoutesFactory(
                 )
                 .setRoute(
                     RouteAction.newBuilder()
-                        .setIdleTimeout(Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()))
-                        .setTimeout(Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis()))
+                        .setIdleTimeout(Durations.fromMillis(egressProperties.commonHttp.idleTimeout.toMillis()))
+                        .setTimeout(Durations.fromMillis(egressProperties.commonHttp.requestTimeout.toMillis()))
                         .setCluster("envoy-original-destination")
                 )
         )
@@ -62,7 +66,7 @@ class EnvoyEgressRoutesFactory(
                 )
                 .setDirectResponse(
                     DirectResponseAction.newBuilder()
-                        .setStatus(properties.egress.clusterNotFoundStatusCode)
+                        .setStatus(egressProperties.clusterNotFoundStatusCode)
                 )
         )
         .build()
@@ -97,20 +101,20 @@ class EnvoyEgressRoutesFactory(
             .addAllVirtualHosts(
                 virtualHosts + originalDestinationRoute + wildcardRoute
             ).also {
-                if (properties.incomingPermissions.enabled) {
+                if (incomingPermissionsProperties.enabled) {
                     it.addRequestHeadersToAdd(
                         HeaderValueOption.newBuilder()
                             .setHeader(
                                 HeaderValue.newBuilder()
-                                    .setKey(properties.incomingPermissions.serviceNameHeader)
+                                    .setKey(incomingPermissionsProperties.serviceNameHeader)
                                     .setValue(serviceName)
                             ).setAppend(BoolValue.of(false))
                     )
                 }
             }
 
-        if (properties.egress.headersToRemove.isNotEmpty()) {
-            routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
+        if (egressProperties.headersToRemove.isNotEmpty()) {
+            routeConfiguration.addAllRequestHeadersToRemove(egressProperties.headersToRemove)
         }
 
         if (addUpstreamAddressHeader) {
@@ -210,8 +214,8 @@ class EnvoyEgressRoutesFactory(
             .addAllVirtualHosts(
                 virtualHosts + originalDestinationRoute + wildcardRoute
             )
-        if (properties.egress.headersToRemove.isNotEmpty()) {
-            routeConfiguration.addAllRequestHeadersToRemove(properties.egress.headersToRemove)
+        if (egressProperties.headersToRemove.isNotEmpty()) {
+            routeConfiguration.addAllRequestHeadersToRemove(egressProperties.headersToRemove)
         }
         return routeConfiguration.build()
     }
@@ -238,8 +242,8 @@ class EnvoyEgressRoutesFactory(
             routeAction.internalRedirectPolicy = InternalRedirectPolicy.newBuilder().build()
         }
 
-        if (properties.egress.hostHeaderRewriting.enabled && routeSpecification.settings.rewriteHostHeader) {
-            routeAction.hostRewriteHeader = properties.egress.hostHeaderRewriting.customHostHeader
+        if (egressProperties.hostHeaderRewriting.enabled && routeSpecification.settings.rewriteHostHeader) {
+            routeAction.hostRewriteHeader = egressProperties.hostHeaderRewriting.customHostHeader
         }
 
         return routeAction

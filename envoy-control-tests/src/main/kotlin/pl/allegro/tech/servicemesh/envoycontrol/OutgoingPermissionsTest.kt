@@ -89,6 +89,8 @@ interface OutgoingPermissionsTest {
         // given
         consul().server.operations.registerService(service(), name = "not-accessible")
         consul().server.operations.registerService(service(), name = "echo")
+        consul().server.operations.registerService(service(), name = "tag-service-A", tags = listOf("scope"))
+        consul().server.operations.registerService(service(), name = "tag-service-B", tags = listOf("scope"))
 
         untilAsserted {
             // when
@@ -99,6 +101,8 @@ interface OutgoingPermissionsTest {
             val reachableResponseEchoWithDomain2 = envoy().egressOperations.callService("echo.domain")
             val reachableDomainResponse = envoy().egressOperations.callDomain("www.example.com")
             val unreachableDomainResponse = envoy().egressOperations.callDomain("www.another-example.com")
+            val reachableFirstTagResponse = envoy().egressOperations.callService("tag-service-A")
+            val reachableSecondTagResponse = envoy().egressOperations.callService("tag-service-B")
 
             // then
             assertThat(reachableResponse).isOk().isFrom(service())
@@ -108,6 +112,8 @@ interface OutgoingPermissionsTest {
             assertThat(unreachableDomainResponse).isUnreachable()
             assertThat(unreachableResponse).isUnreachable()
             assertThat(unregisteredResponse).isUnreachable()
+            assertThat(reachableFirstTagResponse).isOk().isFrom(service())
+            assertThat(reachableSecondTagResponse).isOk().isFrom(service())
         }
     }
 }

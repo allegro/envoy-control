@@ -37,7 +37,7 @@ class HttpConnectionManagerFactory(
     ).filter
 
     private val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource()
-    private val accessLogFilter = AccessLogFilter(snapshotProperties)
+    private val accessLogFilter = AccessLogFilter(snapshotProperties.dynamicListeners.httpFilters.accessLog)
 
     @SuppressWarnings("LongParameterList")
     fun createFilter(

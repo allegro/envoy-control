@@ -30,13 +30,25 @@ class EnvoySnapshotFactory(
     private val clustersFactory: EnvoyClustersFactory,
     private val endpointsFactory: EnvoyEndpointsFactory,
     private val listenersFactory: EnvoyListenersFactory,
+    private val routeSpecificationFactory: RouteSpecificationFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
-    private val meterRegistry: MeterRegistry
+    private val meterRegistry: MeterRegistry,
 ) {
 
     companion object {
         const val DEFAULT_HTTP_PORT = 80
+
+        internal fun tagExtractor(tagPrefix: String, servicesStates: MultiClusterState): Map<String, Set<String>>
+            = servicesStates.flatMap { it.servicesState.serviceNameToInstances.asIterable() }
+            .fold(emptyMap()) {
+                    acc, entry ->
+                val value = acc.getOrDefault(entry.key, emptySet())
+                val newValue = entry.value.instances
+                    .flatMap { it.tags }
+                    .filter { it.startsWith(tagPrefix) }
+                acc.plus(entry.key to (value + newValue))
+            }
     }
 
     fun newSnapshot(
@@ -62,7 +74,8 @@ class EnvoySnapshotFactory(
             clusters = clusters,
             securedClusters = securedClusters,
             endpoints = endpoints,
-            properties = properties.outgoingPermissions
+            properties = properties.outgoingPermissions,
+            tags = tagExtractor(properties.outgoingPermissions.tagPrefix, servicesStates)
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 
@@ -155,64 +168,6 @@ class EnvoySnapshotFactory(
         return newSnapshotForGroup
     }
 
-    private fun getDomainRouteSpecifications(group: Group): Map<DomainRoutesGrouper, Collection<RouteSpecification>> {
-        return group.proxySettings.outgoing.getDomainDependencies().groupBy(
-            { DomainRoutesGrouper(it.getPort(), it.useSsl()) },
-            {
-                RouteSpecification(
-                    clusterName = it.getClusterName(),
-                    routeDomains = listOf(it.getRouteDomain()),
-                    settings = it.settings
-                )
-            }
-        )
-    }
-
-    private fun getDomainPatternRouteSpecifications(group: Group): RouteSpecification {
-        return RouteSpecification(
-            clusterName = properties.dynamicForwardProxy.clusterName,
-            routeDomains = group.proxySettings.outgoing.getDomainPatternDependencies().map { it.domainPattern },
-            settings = group.proxySettings.outgoing.defaultServiceSettings
-        )
-    }
-
-    private fun getServiceRouteSpecifications(
-        group: Group,
-        globalSnapshot: GlobalSnapshot
-    ): Collection<RouteSpecification> {
-        val definedServicesRoutes = group.proxySettings.outgoing.getServiceDependencies().map {
-            RouteSpecification(
-                clusterName = it.service,
-                routeDomains = listOf(it.service) + getServiceWithCustomDomain(it.service),
-                settings = it.settings
-            )
-        }
-        return when (group) {
-            is ServicesGroup -> {
-                definedServicesRoutes
-            }
-            is AllServicesGroup -> {
-                val servicesNames = group.proxySettings.outgoing.getServiceDependencies().map { it.service }.toSet()
-                val allServicesRoutes = globalSnapshot.allServicesNames.subtract(servicesNames).map {
-                    RouteSpecification(
-                        clusterName = it,
-                        routeDomains = listOf(it) + getServiceWithCustomDomain(it),
-                        settings = group.proxySettings.outgoing.defaultServiceSettings
-                    )
-                }
-                allServicesRoutes + definedServicesRoutes
-            }
-        }
-    }
-
-    private fun getServiceWithCustomDomain(it: String): List<String> {
-        return if (properties.egress.domains.isNotEmpty()) {
-            properties.egress.domains.map { domain -> "$it$domain" }
-        } else {
-            emptyList()
-        }
-    }
-
     private fun getServicesEndpointsForGroup(
         rateLimitEndpoints: List<IncomingRateLimitEndpoint>,
         globalSnapshot: GlobalSnapshot,
@@ -232,10 +187,11 @@ class EnvoySnapshotFactory(
     ): Snapshot {
 
         // TODO(dj): This is where serious refactoring needs to be done
-        val egressDomainRouteSpecifications = getDomainRouteSpecifications(group)
-        val egressServiceRouteSpecification = getServiceRouteSpecifications(group, globalSnapshot)
+        val egressDomainRouteSpecifications = routeSpecificationFactory.domainRouteSpecifications(group)
+        val egressServiceRouteSpecification = routeSpecificationFactory.serviceRouteSpecifications(group, globalSnapshot)
         val egressRouteSpecification = egressServiceRouteSpecification +
-            egressDomainRouteSpecifications.values.flatten().toSet() + getDomainPatternRouteSpecifications(group)
+            egressDomainRouteSpecifications.values.flatten().toSet() +
+            routeSpecificationFactory.domainPatternRouteSpecifications(group)
 
         val clusters: List<Cluster> =
             clustersFactory.getClustersForGroup(group, globalSnapshot)
@@ -357,6 +313,88 @@ data class ClusterConfiguration(
     val serviceName: String,
     val http2Enabled: Boolean
 )
+
+class RouteSpecificationFactory(
+    private val properties: SnapshotProperties
+) {
+    fun serviceRouteSpecifications(
+        group: Group,
+        globalSnapshot: GlobalSnapshot
+    ): Collection<RouteSpecification> {
+        val definedServicesRoutes = group.proxySettings.outgoing.getServiceDependencies().map {
+            RouteSpecification(
+                clusterName = it.service,
+                routeDomains = listOf(it.service) + getServiceWithCustomDomain(it.service),
+                settings = it.settings
+            )
+        }
+        val servicesNames = group.proxySettings.outgoing.getServiceDependencies().map { it.service }.toSet()
+        val definedTagsRoutes = group.proxySettings.outgoing.getTagDependencies().flatMap { tagDependency ->
+            globalSnapshot.tags
+                .filterKeys { !servicesNames.contains(it) }
+                .filterValues { it.contains(tagDependency.tag) }
+                .map { RouteSpecification(
+                    clusterName = it.key,
+                    routeDomains = listOf(it.key) + getServiceWithCustomDomain(it.key),
+                    settings = tagDependency.settings
+                ) }
+        }.fold(emptyMap<String, RouteSpecification>()) {
+                acc, routeSpecification ->
+            if (acc.containsKey(routeSpecification.clusterName)) {
+                acc
+            } else {
+                acc.plus(routeSpecification.clusterName to routeSpecification)
+            }
+        }
+        return when (group) {
+            is ServicesGroup -> {
+                definedServicesRoutes + definedTagsRoutes.values
+            }
+            is AllServicesGroup -> {
+                val allServicesRoutes = globalSnapshot.allServicesNames
+                    .subtract(servicesNames)
+                    .subtract(definedTagsRoutes.keys)
+                    .map {
+                        RouteSpecification(
+                            clusterName = it,
+                            routeDomains = listOf(it) + getServiceWithCustomDomain(it),
+                            settings = group.proxySettings.outgoing.defaultServiceSettings
+                        )
+                    }
+                allServicesRoutes + definedServicesRoutes + definedTagsRoutes.values
+            }
+        }
+    }
+
+    fun domainRouteSpecifications(group: Group): Map<DomainRoutesGrouper, Collection<RouteSpecification>> {
+        return group.proxySettings.outgoing.getDomainDependencies().groupBy(
+            { DomainRoutesGrouper(it.getPort(), it.useSsl()) },
+            {
+                RouteSpecification(
+                    clusterName = it.getClusterName(),
+                    routeDomains = listOf(it.getRouteDomain()),
+                    settings = it.settings
+                )
+            }
+        )
+    }
+
+    fun domainPatternRouteSpecifications(group: Group): RouteSpecification {
+        return RouteSpecification(
+            clusterName = properties.dynamicForwardProxy.clusterName,
+            routeDomains = group.proxySettings.outgoing.getDomainPatternDependencies().map { it.domainPattern },
+            settings = group.proxySettings.outgoing.defaultServiceSettings
+        )
+    }
+
+    private fun getServiceWithCustomDomain(it: String): List<String> {
+        return if (properties.egress.domains.isNotEmpty()) {
+            properties.egress.domains.map { domain -> "$it$domain" }
+        } else {
+            emptyList()
+        }
+    }
+}
 
 class RouteSpecification(
     val clusterName: String,

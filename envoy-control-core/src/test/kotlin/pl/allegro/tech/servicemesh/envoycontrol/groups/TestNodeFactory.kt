@@ -21,7 +21,8 @@ fun nodeV3(
     connectionIdleTimeout: String? = null,
     healthCheckPath: String? = null,
     healthCheckClusterName: String? = null,
-    rateLimit: String? = null
+    rateLimit: String? = null,
+    tagDependencies: Set<String> = emptySet()
 ): NodeV3 {
     val meta = NodeV3.newBuilder().metadataBuilder
 
@@ -37,13 +38,14 @@ fun nodeV3(
         meta.putFields("ads", Value.newBuilder().setBoolValue(ads).build())
     }
 
-    if (incomingSettings || serviceDependencies.isNotEmpty()) {
+    if (incomingSettings || serviceDependencies.isNotEmpty() || tagDependencies.isNotEmpty()) {
         meta.putFields(
             "proxy_settings",
             proxySettingsProto(
                 path = "/endpoint",
                 clients = clients,
                 serviceDependencies = serviceDependencies,
+                tagDependencies = tagDependencies,
                 incomingSettings = incomingSettings,
                 idleTimeout = idleTimeout,
                 responseTimeout = responseTimeout,
@@ -129,7 +131,8 @@ fun proxySettingsProto(
     healthCheckPath: String? = null,
     healthCheckClusterName: String? = null,
     clients: List<String> = listOf("client1"),
-    rateLimit: String? = null
+    rateLimit: String? = null,
+    tagDependencies: Set<String> = emptySet()
 ): Value = struct {
     if (incomingSettings) {
         putFields("incoming", struct {
@@ -162,9 +165,14 @@ fun proxySettingsProto(
             })
         })
     }
-    if (serviceDependencies.isNotEmpty()) {
+    if (serviceDependencies.isNotEmpty() || tagDependencies.isNotEmpty()) {
         putFields("outgoing", outgoingDependenciesProto {
-            withServices(serviceDependencies.toList(), idleTimeout, responseTimeout)
+            serviceDependencies.forEach {
+                withService(it, idleTimeout, responseTimeout)
+            }
+            tagDependencies.forEach {
+                withTag(it, idleTimeout, responseTimeout)
+            }
         })
     }
 }
@@ -195,6 +203,7 @@ class OutgoingDependenciesProtoScope {
         val service: String? = null,
         val domain: String? = null,
         val domainPattern: String? = null,
+        val tag: String? = null,
         val idleTimeout: String? = null,
         val connectionIdleTimeout: String? = null,
         val requestTimeout: String? = null,
@@ -256,6 +265,20 @@ class OutgoingDependenciesProtoScope {
         )
     )
 
+    fun withTag(
+        tag: String,
+        idleTimeout: String? = null,
+        connectionIdleTimeout: String? = null,
+        requestTimeout: String? = null
+    ) = dependencies.add(
+        Dependency(
+            tag = tag,
+            idleTimeout = idleTimeout,
+            connectionIdleTimeout = connectionIdleTimeout,
+            requestTimeout = requestTimeout
+        )
+    )
+
     fun withInvalid(service: String? = null, domain: String? = null) = dependencies.add(
         Dependency(
             service = service,
@@ -276,6 +299,7 @@ fun outgoingDependenciesProto(
                         service = it.service,
                         domain = it.domain,
                         domainPattern = it.domainPattern,
+                        tag = it.tag,
                         idleTimeout = it.idleTimeout,
                         connectionIdleTimeout = it.connectionIdleTimeout,
                         requestTimeout = it.requestTimeout,
@@ -292,17 +316,19 @@ fun outgoingDependencyProto(
     service: String? = null,
     domain: String? = null,
     domainPattern: String? = null,
+    tag: String? = null,
     handleInternalRedirect: Boolean? = null,
     idleTimeout: String? = null,
     connectionIdleTimeout: String? = null,
     requestTimeout: String? = null,
     retryPolicy: RetryPolicyInput? = null
 ) = struct {
-    service?.also { putFields("service", string(service)) }
-    domain?.also { putFields("domain", string(domain)) }
-    retryPolicy?.also { putFields("retryPolicy", retryPolicyProto(retryPolicy)) }
-    domainPattern?.also { putFields("domainPattern", string(domainPattern)) }
-    handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(handleInternalRedirect)) }
+    service?.also { putFields("service", string(it)) }
+    domain?.also { putFields("domain", string(it)) }
+    domainPattern?.also { putFields("domainPattern", string(it)) }
+    tag?.also { putFields("tag", string(it)) }
+    retryPolicy?.also { putFields("retryPolicy", retryPolicyProto(it)) }
+    handleInternalRedirect?.also { putFields("handleInternalRedirect", boolean(it)) }
     if (idleTimeout != null || requestTimeout != null || connectionIdleTimeout != null) {
         putFields("timeoutPolicy", outgoingTimeoutPolicy(idleTimeout, connectionIdleTimeout, requestTimeout))
     }

@@ -9,7 +9,8 @@ data class GlobalSnapshot(
     val allServicesNames: Set<String>,
     val endpoints: Map<String, ClusterLoadAssignment>,
     val clusterConfigurations: Map<String, ClusterConfiguration>,
-    val securedClusters: Map<String, Cluster>
+    val securedClusters: Map<String, Cluster>,
+    val tags: Map<String, Set<String>>
 )
 
 @Suppress("LongParameterList")
@@ -18,7 +19,8 @@ fun globalSnapshot(
     endpoints: Iterable<ClusterLoadAssignment> = emptyList(),
     properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties(),
     clusterConfigurations: Map<String, ClusterConfiguration> = emptyMap(),
-    securedClusters: List<Cluster> = emptyList()
+    securedClusters: List<Cluster> = emptyList(),
+    tags: Map<String, Set<String>>
 ): GlobalSnapshot {
     val clusters = SnapshotResources.create<Cluster>(clusters, "").resources()
     val securedClusters = SnapshotResources.create<Cluster>(securedClusters, "").resources()
@@ -29,7 +31,8 @@ fun globalSnapshot(
         securedClusters = securedClusters,
         endpoints = endpoints,
         allServicesNames = allServicesNames,
-        clusterConfigurations = clusterConfigurations
+        clusterConfigurations = clusterConfigurations,
+        tags = tags
     )
 }
 

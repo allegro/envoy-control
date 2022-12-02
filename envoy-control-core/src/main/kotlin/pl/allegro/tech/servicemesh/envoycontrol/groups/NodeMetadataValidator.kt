@@ -18,6 +18,10 @@ class AllDependenciesValidationException(serviceName: String?) : NodeMetadataVal
     "Blocked service $serviceName from using all dependencies. Only defined services can use all dependencies"
 )
 
+class TagDependencyValidationException(serviceName: String?, tags: List<String>) : NodeMetadataValidationException(
+    "Blocked service $serviceName from using tag dependencies $tags. Only allowed tags are supported."
+)
+
 class WildcardPrincipalValidationException(serviceName: String?) : NodeMetadataValidationException(
     "Blocked service $serviceName from allowing everyone in incoming permissions. " +
         "Only defined services can use that."
@@ -99,9 +103,14 @@ class NodeMetadataValidator(
         if (!properties.outgoingPermissions.enabled) {
             return
         }
-        validateEndpointPermissionsMethods(metadata)
         if (hasAllServicesDependencies(metadata) && !isAllowedToHaveAllServiceDependencies(metadata)) {
             throw AllDependenciesValidationException(metadata.serviceName)
+        }
+        if (properties.outgoingPermissions.tagPrefix.isNotBlank()) {
+            val unsupportedTags = metadata.proxySettings.outgoing.getTagDependencies()
+                .filter { !it.tag.startsWith(properties.outgoingPermissions.tagPrefix) }
+                .map { it.tag }
+            throw TagDependencyValidationException(metadata.serviceName, unsupportedTags)
         }
     }
 
@@ -109,6 +118,8 @@ class NodeMetadataValidator(
         if (!properties.incomingPermissions.enabled) {
             return
         }
+
+        validateEndpointPermissionsMethods(metadata)
 
         metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
             val clients = incomingEndpoint.clients.map { it.name }

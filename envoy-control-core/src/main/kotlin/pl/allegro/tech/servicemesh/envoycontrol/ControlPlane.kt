@@ -26,6 +26,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.NoopSnapshotChangeAuditor
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecificationFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotChangeAuditor
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
@@ -167,7 +168,7 @@ class ControlPlane private constructor(
             val snapshotProperties = properties.envoy.snapshot
             val envoySnapshotFactory = EnvoySnapshotFactory(
                 ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties, envoyHttpFilters),
-                egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
+                egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties.egress, snapshotProperties.incomingPermissions),
                 clustersFactory = EnvoyClustersFactory(snapshotProperties),
                 endpointsFactory = EnvoyEndpointsFactory(
                     snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags)
@@ -176,6 +177,7 @@ class ControlPlane private constructor(
                     snapshotProperties,
                     envoyHttpFilters
                 ),
+                routeSpecificationFactory = RouteSpecificationFactory(snapshotProperties),
                 // Remember when LDS change we have to send RDS again
                 snapshotsVersions = snapshotsVersions,
                 properties = snapshotProperties,

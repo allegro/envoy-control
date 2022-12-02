@@ -1319,6 +1319,7 @@ class SnapshotUpdaterTest {
                 snapshotProperties,
                 EnvoyHttpFilters.emptyFilters
             ),
+            routeSpecificationFactory = RouteSpecificationFactory(snapshotProperties),
             // Remember when LDS change we have to send RDS again
             snapshotsVersions = SnapshotsVersions(),
             properties = snapshotProperties,

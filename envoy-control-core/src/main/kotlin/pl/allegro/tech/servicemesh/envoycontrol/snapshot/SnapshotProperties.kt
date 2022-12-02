@@ -76,6 +76,7 @@ class OutgoingPermissionsProperties {
     var enabled = false
     var allServicesDependencies = AllServicesDependenciesProperties()
     var servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()
+    var tagPrefix = ""
 }
 
 class AllServicesDependenciesProperties {

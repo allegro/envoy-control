@@ -27,6 +27,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecificationFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.outgoingTimeoutPolicy
@@ -353,6 +354,7 @@ class EnvoySnapshotFactoryTest {
         val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator())
         val envoyHttpFilters = EnvoyHttpFilters.defaultFilters(properties)
         val listenersFactory = EnvoyListenersFactory(properties, envoyHttpFilters)
+        val routeSpecificationFactory = RouteSpecificationFactory(properties)
         val snapshotsVersions = SnapshotsVersions()
         val meterRegistry: MeterRegistry = SimpleMeterRegistry()
 
@@ -362,6 +364,7 @@ class EnvoySnapshotFactoryTest {
             clustersFactory,
             endpointsFactory,
             listenersFactory,
+            routeSpecificationFactory,
             snapshotsVersions,
             properties,
             meterRegistry
@@ -374,7 +377,8 @@ class EnvoySnapshotFactoryTest {
             clusters.map { it.name }.toSet(),
             SnapshotResources.create<ClusterLoadAssignment>(emptyList<ClusterLoadAssignment>(), "v1").resources(),
             emptyMap(),
-            SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources()
+            SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources(),
+            emptyMap()
         )
     }
 
@@ -399,4 +403,13 @@ class EnvoySnapshotFactoryTest {
             )
             .build()
     }
+}
+
+class RouteSpecificationFactoryTest {
+
+    @Test
+    fun `a`() {
+
+    }
+
 }

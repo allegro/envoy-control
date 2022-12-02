@@ -135,6 +135,7 @@ class MetadataNodeGroup(
         val proxySettings = proxySettings(nodeMetadata)
         val listenersConfig = createListenersConfig(node.id, node.metadata)
 
+        println("ksksks hasAllServicesDependencies(nodeMetadata) ${hasAllServicesDependencies(nodeMetadata)}")
         return when {
             hasAllServicesDependencies(nodeMetadata) ->
                 AllServicesGroup(
@@ -156,6 +157,8 @@ class MetadataNodeGroup(
     }
 
     private fun hasAllServicesDependencies(metadata: NodeMetadata): Boolean {
+        println("ksksks !properties.outgoingPermissions.enabled ${!properties.outgoingPermissions.enabled}")
+        println("ksksks metadata.proxySettings.outgoing.allServicesDependencies ${metadata.proxySettings.outgoing.allServicesDependencies}")
         return !properties.outgoingPermissions.enabled ||
             metadata.proxySettings.outgoing.allServicesDependencies
     }
