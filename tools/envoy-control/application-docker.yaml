@@ -1,0 +1,9 @@
+envoy-control:
+  source:
+    consul:
+      host: consul
+      port: 8500
+
+chaos:
+  username: "user"
+  password: "pass"
