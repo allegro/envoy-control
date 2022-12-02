@@ -49,30 +49,6 @@ static_resources:
                       address: 127.0.0.1
                       port_value: 8070
       connect_timeout: 1s
-    - name: service1
-      type: STRICT_DNS
-      load_assignment:
-        cluster_name: service1
-        endpoints:
-          - lb_endpoints:
-              - endpoint:
-                  address:
-                    socket_address:
-                      address: service1
-                      port_value: 8000
-      connect_timeout: 1s
-    - name: service2
-      type: STRICT_DNS
-      load_assignment:
-        cluster_name: service3
-        endpoints:
-          - lb_endpoints:
-              - endpoint:
-                  address:
-                    socket_address:
-                      address: service3
-                      port_value: 8000
-      connect_timeout: 1s
     - name: this_admin
       type: STATIC
       load_assignment:
