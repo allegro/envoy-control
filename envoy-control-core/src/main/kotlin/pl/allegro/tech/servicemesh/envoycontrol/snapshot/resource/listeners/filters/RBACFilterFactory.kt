@@ -60,6 +60,13 @@ class RBACFilterFactory(
         }
     }
 
+    private val defaultClientsList = incomingPermissionsProperties.clientsLists
+        .defaultClientsList.map { ClientWithSelector.decomposeClient(it) }
+    private val customClientsLists = incomingPermissionsProperties.clientsLists
+        .customClientsLists.mapValues {
+            it.value.map(ClientWithSelector::decomposeClient)
+        }
+
     companion object {
         private val logger by logger()
         private const val ALLOW_UNLISTED_POLICY_NAME = "ALLOW_UNLISTED_POLICY"
@@ -275,8 +282,21 @@ class RBACFilterFactory(
         val clients = incomingEndpoint.clients.flatMap { clientOrRole ->
             roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
         }
+        val clientsWithDefaults = mutableListOf<ClientWithSelector>()
+        var anyCustomListApplied = false
+        for (client in clients) {
+            if (customClientsLists.containsKey(client.compositeName())) {
+                clientsWithDefaults.addAll(customClientsLists.getOrDefault(client.compositeName(), emptyList()))
+                anyCustomListApplied = true
+            } else {
+                clientsWithDefaults.add(client)
+            }
+        }
+        if (!anyCustomListApplied) {
+            clientsWithDefaults.addAll(defaultClientsList)
+        }
         // sorted order ensures that we do not duplicate rules
-        return clients.toSortedSet()
+        return clientsWithDefaults.toSortedSet()
     }
 
     private fun mapClientWithSelectorToPrincipals(

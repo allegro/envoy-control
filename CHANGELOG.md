@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+## [0.19.25]
+
+### Changed
+
+- Configurable default clients lists
+
+### Changed
+
 ## [0.19.24]
 
 ### Changed

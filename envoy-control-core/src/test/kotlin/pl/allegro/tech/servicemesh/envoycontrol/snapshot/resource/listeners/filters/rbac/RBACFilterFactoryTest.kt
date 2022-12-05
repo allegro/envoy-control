@@ -15,6 +15,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClientsListsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
@@ -82,6 +83,20 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
         IncomingPermissionsProperties().also {
             it.enabled = true
             it.clientsAllowedToAllEndpoints = mutableListOf("allowed-client")
+        },
+        StatusRouteProperties()
+    )
+
+    private val rbacFilterFactoryWithDefaultAndCustomClientsLists = RBACFilterFactory(
+        IncomingPermissionsProperties().also {
+            it.enabled = true
+            it.clientsLists = ClientsListsProperties().also {
+                it.defaultClientsList = listOf("default-client")
+                it.customClientsLists = mapOf(
+                    "custom1" to listOf("custom1-client"),
+                    "ad:custom2" to listOf("ad:custom2-client")
+                )
+            }
         },
         StatusRouteProperties()
     )
@@ -724,6 +739,52 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
         assertThat(generated).isEqualTo(expectedRbacBuilder)
     }
 
+    @Test
+    fun `should generate RBAC rules for incoming permissions with default client list`() {
+        // given
+        val incomingPermission = Incoming(
+            permissionsEnabled = true,
+            endpoints = listOf(IncomingEndpoint(
+                "/default",
+                PathMatchingType.PATH,
+                setOf("GET"),
+                setOf(ClientWithSelector("client1"))
+            ))
+        )
+
+        val rules = expectedPoliciesForDefaultAndCustomLists(listOf("client1"), listOf("client1", "default-client"), "/default")
+        val expectedDefaultRbacBuilder = getRBACFilterWithShadowRules(rules, rules)
+
+        // when
+        val generated = rbacFilterFactoryWithDefaultAndCustomClientsLists.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedDefaultRbacBuilder)
+    }
+
+    @Test
+    fun `should generate RBAC rules for incoming permissions with custom client list`() {
+        // given
+        val incomingPermission = Incoming(
+            permissionsEnabled = true,
+            endpoints = listOf(IncomingEndpoint(
+                "/custom",
+                PathMatchingType.PATH,
+                setOf("GET"),
+                setOf(ClientWithSelector("client1"), ClientWithSelector("custom1"))
+            ))
+        )
+
+        val rules = expectedPoliciesForDefaultAndCustomLists(listOf("client1", "custom1"), listOf("client1", "custom1-client"), "/custom")
+        val expectedDefaultRbacBuilder = getRBACFilterWithShadowRules(rules, rules)
+
+        // when
+        val generated = rbacFilterFactoryWithDefaultAndCustomClientsLists.createHttpFilter(createGroup(incomingPermission), snapshot)
+
+        // then
+        assertThat(generated).isEqualTo(expectedDefaultRbacBuilder)
+    }
+
     private val expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson = """
         {
           "policies": {
@@ -1309,6 +1370,30 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
         }
     """
 
+    private fun expectedPoliciesForDefaultAndCustomLists(clients: List<String>, principals: List<String>, path: String) = """
+        {
+          "policies": {
+            "IncomingEndpoint(path=$path, pathMatchingType=PATH, methods=[GET], clients=[${clients.joinToString(", ") { "ClientWithSelector(name=$it, selector=null)" }}], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+              "permissions": [
+                {
+                  "and_rules": {
+                    "rules": [
+                      ${pathRule(path)},
+                      {
+                        "or_rules": {
+                          "rules": [
+                            ${methodRule("GET")}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ], "principals": [ ${principals.joinToString(", ") { originalAndAuthenticatedPrincipal(it) }} ]
+            }
+          }
+        }
+    """
     private val expectedRulesForAllowedClient = expectedPoliciesForAllowedClient(
         "${originalAndAuthenticatedPrincipal("client1")}, ${originalAndAuthenticatedPrincipal("allowed-client")}"
     )
