@@ -21,6 +21,14 @@ services:
     ports: 
       - "80:80"
 
+  flask_service:
+    build:
+      context: ./flask
+    image: flask_service:python-3.10-slim-bullseye
+    restart: "no"
+    deploy:
+      replicas: 0
+
   tracing:
     build:
       context: ./tracing
