@@ -1309,8 +1309,9 @@ class SnapshotUpdaterTest {
         return this
     }
 
-    private fun snapshotFactory(snapshotProperties: SnapshotProperties, meterRegistry: MeterRegistry) =
-        EnvoySnapshotFactory(
+    private fun snapshotFactory(snapshotProperties: SnapshotProperties, meterRegistry: MeterRegistry): EnvoySnapshotFactory {
+        val igsw = IngressGatewayPortMappingsCache()
+        return EnvoySnapshotFactory(
             ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties),
             egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
             clustersFactory = EnvoyClustersFactory(snapshotProperties),
@@ -1321,12 +1322,15 @@ class SnapshotUpdaterTest {
                 snapshotProperties,
                 EnvoyHttpFilters.emptyFilters
             ),
-            ingressGatewayListenersFactory = EnvoyIngressGatewayListenersFactory(IngressGatewayPortMappingsCache()),
+
+            ingressGatewayListenersFactory = EnvoyIngressGatewayListenersFactory(igsw),
             // Remember when LDS change we have to send RDS again
             snapshotsVersions = SnapshotsVersions(),
             properties = snapshotProperties,
-            meterRegistry = meterRegistry
+            meterRegistry = meterRegistry,
+            igsw
         )
+    }
 
     private fun snapshotUpdater(
         cache: SnapshotCache<Group, Snapshot>,

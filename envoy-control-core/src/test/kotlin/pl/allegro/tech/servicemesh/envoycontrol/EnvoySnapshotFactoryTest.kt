@@ -4,11 +4,16 @@ import com.google.protobuf.Duration
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.cache.SnapshotResources
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
+import io.envoyproxy.envoy.config.core.v3.Address
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.Metadata
+import io.envoyproxy.envoy.config.core.v3.SocketAddress
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.endpoint.v3.Endpoint
+import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
+import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
 import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
@@ -21,6 +26,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IngressGatewayGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
@@ -277,6 +283,54 @@ class EnvoySnapshotFactoryTest {
     }
 
     @Test
+    fun `should create snapshot with gateway endpoints`() {
+        // serviceA -> ma zaleznosc do service B
+            // powinien w snapshocie w endpointach miec ip do serviceBGateway
+        // serviceBGateway -> ma zależnośc do service b i tryb gateway
+        // serviceB -> ma losowe zaleznosci
+        // przepisać metadata?
+
+        //given
+        val properties = SnapshotProperties()
+
+        val serviceAGroup: Group = createServicesGroup(
+            serviceName = "serviceA",
+            discoveryServiceName = "discoveryName-serviceA",
+            dependencies = arrayOf("clusterB" to null),
+            snapshotProperties = properties
+        )
+
+        val serviceBGroup: ServicesIngressGatewayGroup = createServicesIngressGatewayGroup(
+            serviceName = "serviceB",
+            discoveryServiceName = "discoveryName-serviceB",
+            snapshotProperties = properties
+        )
+
+        val serviceBGatewayGroup: ServicesIngressGatewayGroup = createServicesIngressGatewayGroup(
+            serviceName = "serviceBGateway",
+            discoveryServiceName = "clusterBGateway", // todo mb ?
+            snapshotProperties = properties
+        )
+
+        val ingressGatewayPortMappingsCache = IngressGatewayPortMappingsCache()
+        ingressGatewayPortMappingsCache.addMapping(serviceBGatewayGroup, mapOf("clusterB" to 31000))
+        val envoySnapshotFactory = createSnapshotFactory(properties, ingressGatewayPortMappingsCache)
+
+        val globalSnapshot = createGlobalSnapshot(properties)
+
+        //when
+        val serviceASnapshot = envoySnapshotFactory.getSnapshotForGroup(serviceAGroup, globalSnapshot)
+
+        //then
+        assertThat(true)
+        assertThat(serviceASnapshot.clusters().resources().get("clusterB")?.edsClusterConfig?.serviceName).isEqualTo("serviceB")
+        assertThat(serviceASnapshot.endpoints().resources().get("clusterB")?.endpointsList?.get(0)?.lbEndpointsList?.first()?.endpoint?.address?.socketAddress?.address).isEqualTo("ip-serviceBGateway-1")
+        assertThat(serviceASnapshot.endpoints().resources().get("clusterB")?.endpointsList?.get(0)?.lbEndpointsList?.first()?.endpoint?.address?.socketAddress?.portValue).isEqualTo(31000)
+        assertThat(serviceASnapshot.endpoints().resources().get("clusterB")?.endpointsList?.get(1)?.lbEndpointsList?.first()?.endpoint?.address?.socketAddress?.address).isEqualTo("ip-serviceBGateway-2")
+        assertThat(serviceASnapshot.endpoints().resources().get("clusterB")?.endpointsList?.get(1)?.lbEndpointsList?.first()?.endpoint?.address?.socketAddress?.portValue).isEqualTo(31000)
+    }
+
+    @Test
     fun `should create ingress snapshot`() {
         // given
         val properties = SnapshotProperties()
@@ -430,7 +484,7 @@ class EnvoySnapshotFactoryTest {
         )
     }
 
-    fun createSnapshotFactory(properties: SnapshotProperties): EnvoySnapshotFactory {
+    fun createSnapshotFactory(properties: SnapshotProperties, ingressGatewayPortMappingsCache: IngressGatewayPortMappingsCache = IngressGatewayPortMappingsCache()): EnvoySnapshotFactory {
         val ingressRoutesFactory = EnvoyIngressRoutesFactory(
             SnapshotProperties(),
             EnvoyHttpFilters(
@@ -442,7 +496,7 @@ class EnvoySnapshotFactoryTest {
         val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator())
         val envoyHttpFilters = EnvoyHttpFilters.defaultFilters(properties)
         val listenersFactory = EnvoyListenersFactory(properties, envoyHttpFilters)
-        val ingressListenersFactory = EnvoyIngressGatewayListenersFactory(IngressGatewayPortMappingsCache())
+        val ingressListenersFactory = EnvoyIngressGatewayListenersFactory(ingressGatewayPortMappingsCache)
         val snapshotsVersions = SnapshotsVersions()
         val meterRegistry: MeterRegistry = SimpleMeterRegistry()
 
@@ -455,7 +509,8 @@ class EnvoySnapshotFactoryTest {
             ingressListenersFactory,
             snapshotsVersions,
             properties,
-            meterRegistry
+            meterRegistry,
+            ingressGatewayPortMappingsCache
         )
     }
 
@@ -466,6 +521,59 @@ class EnvoySnapshotFactoryTest {
             SnapshotResources.create<ClusterLoadAssignment>(emptyList<ClusterLoadAssignment>(), "v1").resources(),
             emptyMap(),
             SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources()
+        )
+    }
+
+    private fun createEndpointsForCluster(clusterName: String, ips: List<String>): ClusterLoadAssignment? {
+        val clusterLoadAssignment = ClusterLoadAssignment.newBuilder().setClusterName(clusterName)
+        for (ip in ips) {
+            clusterLoadAssignment.addEndpoints(
+                LocalityLbEndpoints.newBuilder()
+                    .addLbEndpoints(
+                        LbEndpoint.newBuilder()
+                            .setEndpoint(
+                                Endpoint.newBuilder()
+                                    .setAddress(
+                                        Address.newBuilder()
+                                            .setSocketAddress(
+                                                SocketAddress.newBuilder()
+                                                    .setAddress(ip)
+                                                    .setPortValue(31000)
+                                                    .build()
+                                            )
+                                    )
+                            ).build()
+                    )
+            )
+        }
+        return clusterLoadAssignment.build()
+    }
+
+    private fun createGlobalSnapshot(properties: SnapshotProperties): GlobalSnapshot {
+        val clusters = SnapshotResources.create<Cluster>(
+            listOf(
+                createCluster(properties, "clusterA", "serviceA"),
+                createCluster(properties, "clusterBGateway", "serviceBGateway"),
+                createCluster(properties, "clusterB", "serviceB")
+            ),
+            "v3")
+            .resources()
+
+        val endpoints = SnapshotResources.create<ClusterLoadAssignment>(
+            listOf(
+                createEndpointsForCluster("clusterA", listOf("ip-serviceA-1", "ip-serviceA-2")),
+                createEndpointsForCluster("clusterBGateway", listOf("ip-serviceBGateway-1", "ip-serviceBGateway-2")),
+                createEndpointsForCluster("clusterB", listOf("ip-serviceB-1", "ip-serviceB-2")),
+            ),
+            "v3"
+        ).resources()
+
+        return GlobalSnapshot(
+            clusters,
+            setOf("serviceA", "serviceBGateway", "serviceB"),
+            endpoints,
+            emptyMap(),
+            emptyMap()
         )
     }
 

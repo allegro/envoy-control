@@ -21,6 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.SidecarGroup
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.IngressGatewayPortMappingsCache
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyIngressGatewayListenersFactory
@@ -39,7 +40,8 @@ class EnvoySnapshotFactory(
     private val ingressGatewayListenersFactory: EnvoyIngressGatewayListenersFactory,
     private val snapshotsVersions: SnapshotsVersions,
     private val properties: SnapshotProperties,
-    private val meterRegistry: MeterRegistry
+    private val meterRegistry: MeterRegistry,
+    private val mappingsCache: IngressGatewayPortMappingsCache
 ) {
 
     companion object {
@@ -233,7 +235,29 @@ class EnvoySnapshotFactory(
             if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
         val allClusters = egressRouteClusters + rateLimitClusters
 
-        return allClusters.mapNotNull { name -> globalSnapshot.endpoints[name] }
+        val mapped = allClusters.mapNotNull { name ->
+            getGatewayNameIfClusterIsGatewayed(name)
+                ?.let {
+                    var m = globalSnapshot.endpoints[it]
+                    ClusterLoadAssignment.newBuilder()
+                        .setClusterName(name)
+                        .addAllEndpoints(m!!.endpointsList)
+                        .build()
+                }
+                ?: globalSnapshot.endpoints[name]
+        }
+        return mapped
+    }
+
+    private fun getGatewayNameIfClusterIsGatewayed(clusterName: String): String? {
+        mappingsCache.serviceIngressGatewaysMappings.entries.forEach { gatewayNameToMap ->
+            gatewayNameToMap.value.entries.forEach { clusterToPort ->
+                if (clusterToPort.key == clusterName) {
+                    return gatewayNameToMap.key
+                }
+            }
+        }
+        return null
     }
 
     private fun newSnapshotForGroup(

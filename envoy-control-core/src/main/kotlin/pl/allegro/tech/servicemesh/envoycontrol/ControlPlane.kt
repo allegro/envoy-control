@@ -189,7 +189,8 @@ class ControlPlane private constructor(
                 // Remember when LDS change we have to send RDS again
                 snapshotsVersions = snapshotsVersions,
                 properties = snapshotProperties,
-                meterRegistry = meterRegistry
+                meterRegistry = meterRegistry,
+                mappingsCache = ingressGatewayPortMappingsCache!!
             )
             val grpcServerBuilder = grpcServerBuilder()
 

@@ -11,7 +11,7 @@ typealias Port = Int
 typealias Cluster = String
 
 class IngressGatewayPortMappingsCache {
-    private val serviceIngressGatewaysMappings: ConcurrentMap<GatewayName, Map<Cluster, Port>> = ConcurrentHashMap()
+    val serviceIngressGatewaysMappings: ConcurrentMap<GatewayName, Map<Cluster, Port>> = ConcurrentHashMap()
     private val allServicesIngressGatewayMappings: ConcurrentMap<GatewayName, Map<Cluster, Port>> = ConcurrentHashMap()
 
     fun addMapping(group: IngressGatewayGroup, mapping: Map<Cluster, Port>) {
