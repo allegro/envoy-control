@@ -9,6 +9,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.discovery.consul.recipes.internal.http.MediaType
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isForbidden
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
@@ -24,9 +27,22 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtens
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.OAuthServerExtension
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import java.net.URI
+import java.util.stream.Stream
 
 class JWTFilterTest {
     companion object {
+        @JvmStatic
+        fun provideClientsForTestWithNegatedSelector(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("/allow-team1-deny-team2", "team1", true),
+                Arguments.of("/allow-team1-deny-team2", "team2", false),
+                Arguments.of("/allow-team1-deny-team2", "team3", false),
+                Arguments.of("/allow-team1-deny-team2", "team1,team2", false),
+                Arguments.of("/allow-team1-deny-team2", "team3,team2", false),
+                Arguments.of("/non-team1-access", "team1", false),
+                Arguments.of("/non-team1-access", "team2", true)
+            )
+        }
 
         @JvmField
         @RegisterExtension
@@ -115,6 +131,12 @@ class JWTFilterTest {
                     - path: '/team-access'
                       clients: ['first-provider-prefix:team1']
                       unlistedClientsPolicy: blockAndLog
+                    - path: '/non-team1-access'
+                      clients: ['first-provider-prefix:!team1']
+                      unlistedClientsPolicy: blockAndLog
+                    - path: '/allow-team1-deny-team2'
+                      clients: ['first-provider-prefix:team1','first-provider-prefix:!team2']
+                      unlistedClientsPolicy: blockAndLog                    
                     - pathPrefix: '/no-clients'
                       clients: []
                       unlistedClientsPolicy: log
@@ -145,7 +167,11 @@ class JWTFilterTest {
 
         @JvmField
         @RegisterExtension
-        val oauthEnvoy = EnvoyExtension(envoyControl, oAuthServer, config = OAuthEnvoyConfig.copy(serviceName = "oauth", configOverride = oauthConfig))
+        val oauthEnvoy = EnvoyExtension(
+            envoyControl,
+            oAuthServer,
+            config = OAuthEnvoyConfig.copy(serviceName = "oauth", configOverride = oauthConfig)
+        )
 
         @JvmField
         @RegisterExtension
@@ -163,7 +189,11 @@ class JWTFilterTest {
 
         @JvmField
         @RegisterExtension
-        val echo2Envoy = EnvoyExtension(envoyControl, localService = service, config = Echo2EnvoyAuthConfig.copy(configOverride = echo2Config))
+        val echo2Envoy = EnvoyExtension(
+            envoyControl,
+            localService = service,
+            config = Echo2EnvoyAuthConfig.copy(configOverride = echo2Config)
+        )
     }
 
     @BeforeEach
@@ -429,6 +459,26 @@ class JWTFilterTest {
         assertThat(response).isOk().isFrom(service)
     }
 
+    @ParameterizedTest
+    @MethodSource("provideClientsForTestWithNegatedSelector")
+    fun `should allow only clients without negated selector`(endpoint: String, authority: String, isAllowed: Boolean) {
+
+        // given
+        registerClientWithAuthority("first-provider", authority, authority)
+        val token = tokenForProvider("first-provider", authority)
+
+        val response = envoy.ingressOperations.callLocalService(
+            endpoint = endpoint, headers = headersOf("Authorization", "Bearer $token")
+        )
+
+        // then
+        if (isAllowed) {
+            assertThat(response).isOk()
+        } else {
+            assertThat(response).isForbidden()
+        }
+    }
+
     @Test
     fun `should allow request with token when policy is strict, unlisted clients policy is log and there are no clients`() {
         // given
@@ -481,7 +531,10 @@ class JWTFilterTest {
     }
 
     private fun tokenForProvider(provider: String, clientId: String = "client1") =
-        OkHttpClient().newCall(Request.Builder().post(FormBody.Builder().add("client_id", clientId).build()).url(oAuthServer.getTokenAddress(provider)).build())
+        OkHttpClient().newCall(
+            Request.Builder().post(FormBody.Builder().add("client_id", clientId).build())
+                .url(oAuthServer.getTokenAddress(provider)).build()
+        )
             .execute().addToCloseableResponses()
             .body!!.string()
 
@@ -491,7 +544,10 @@ class JWTFilterTest {
             "clientSecret": "secret",
              "authorities":["$authority"]
         }"""
-        return OkHttpClient().newCall(Request.Builder().put(RequestBody.create(MediaType.JSON_MEDIA_TYPE, body)).url("http://localhost:${oAuthServer.container().port()}/$provider/client").build())
+        return OkHttpClient().newCall(
+            Request.Builder().put(RequestBody.create(MediaType.JSON_MEDIA_TYPE, body))
+                .url("http://localhost:${oAuthServer.container().port()}/$provider/client").build()
+        )
             .execute().close()
     }
 }
