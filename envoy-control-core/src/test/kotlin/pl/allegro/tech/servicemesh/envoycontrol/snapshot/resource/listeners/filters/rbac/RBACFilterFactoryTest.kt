@@ -748,7 +748,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                 "/default",
                 PathMatchingType.PATH,
                 setOf("GET"),
-                setOf(ClientWithSelector("client1"))
+                setOf(ClientWithSelector.create("client1"))
             ))
         )
 
@@ -771,7 +771,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                 "/custom",
                 PathMatchingType.PATH,
                 setOf("GET"),
-                setOf(ClientWithSelector("client1"), ClientWithSelector("custom1"))
+                setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("custom1"))
             ))
         )
 
@@ -1373,7 +1373,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private fun expectedPoliciesForDefaultAndCustomLists(clients: List<String>, principals: List<String>, path: String) = """
         {
           "policies": {
-            "IncomingEndpoint(path=$path, pathMatchingType=PATH, methods=[GET], clients=[${clients.joinToString(", ") { "ClientWithSelector(name=$it, selector=null)" }}], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=$path, pathMatchingType=PATH, methods=[GET], clients=[${clients.joinToString(", ") { "ClientWithSelector(name=$it, selector=null, negated=false)" }}], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
