@@ -211,7 +211,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     fun `should generate RBAC rules for incoming permissions with log unlisted clients and endpoints`() {
         // given
         val policyName = "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], " +
-            "clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], " +
+            "clients=[ClientWithSelector(name=client1, selector=null, negated=false), ClientWithSelector(name=client2, selector=null, negated=false)], " +
             "unlistedClientsPolicy=LOG, oauth=null)"
         val expectedShadowRules = expectedSimpleEndpointPermissionsJson(policyName)
 
@@ -226,7 +226,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                 "/example",
                     PathMatchingType.PATH,
                     setOf("GET", "POST"),
-                    setOf(ClientWithSelector("client1"), ClientWithSelector("client2")),
+                    setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("client2")),
                     Incoming.UnlistedPolicy.LOG
                 )
             ),
@@ -244,7 +244,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     fun `should generate RBAC rules for incoming permissions with block unlisted endpoints and log clients`() {
         // given
         val policyName = "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], " +
-            "clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], " +
+            "clients=[ClientWithSelector(name=client1, selector=null, negated=false), ClientWithSelector(name=client2, selector=null, negated=false)], " +
             "unlistedClientsPolicy=LOG, oauth=null)"
         val expectedShadowRules = expectedSimpleEndpointPermissionsJson(policyName)
 
@@ -259,7 +259,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                                 "/example",
                                 PathMatchingType.PATH,
                                 setOf("GET", "POST"),
-                                setOf(ClientWithSelector("client1"), ClientWithSelector("client2")),
+                                setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("client2")),
                                 Incoming.UnlistedPolicy.LOG
                         )
                 ),
@@ -277,7 +277,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     fun `should generate RBAC rules for incoming permissions with log unlisted endpoints and block clients`() {
         // given
         val policyName = "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], " +
-            "clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], " +
+            "clients=[ClientWithSelector(name=client1, selector=null, negated=false), ClientWithSelector(name=client2, selector=null, negated=false)], " +
             "unlistedClientsPolicy=BLOCKANDLOG, oauth=null)"
         val expectedShadowRules = expectedSimpleEndpointPermissionsJson(policyName)
 
@@ -292,7 +292,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                                 "/example",
                                 PathMatchingType.PATH,
                                 setOf("GET", "POST"),
-                                setOf(ClientWithSelector("client1"), ClientWithSelector("client2")),
+                                setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("client2")),
                                 Incoming.UnlistedPolicy.BLOCKANDLOG
                         )
                 ),
@@ -310,7 +310,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     fun `should generate RBAC rules for incoming permissions with roles`() {
         // given
         val policyName = "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], " +
-            "clients=[ClientWithSelector(name=role-1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)"
+            "clients=[ClientWithSelector(name=role-1, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)"
         val expectedRbacBuilder = getRBACFilter(expectedSimpleEndpointPermissionsJson(policyName))
         val incomingPermission = Incoming(
                 permissionsEnabled = true,
@@ -318,8 +318,8 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf(ClientWithSelector("role-1"))
-                )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
+                        setOf(ClientWithSelector.create("role-1"))
+                )), roles = listOf(Role("role-1", setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("client2"))))
         )
 
         // when
@@ -340,17 +340,17 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
                         setOf(
-                                ClientWithSelector("client1"),
-                                ClientWithSelector("client1"),
-                                ClientWithSelector("client1", "selector"),
-                                ClientWithSelector("client1-duplicated", "selector"),
-                                ClientWithSelector("client1-duplicated"),
-                                ClientWithSelector("role-1")
+                                ClientWithSelector.create("client1"),
+                                ClientWithSelector.create("client1"),
+                                ClientWithSelector.create("client1", "selector"),
+                                ClientWithSelector.create("client1-duplicated", "selector"),
+                                ClientWithSelector.create("client1-duplicated"),
+                                ClientWithSelector.create("role-1")
                         )
                 )), roles = listOf(Role("role-1", setOf(
-                        ClientWithSelector("client1-duplicated"),
-                        ClientWithSelector("client1-duplicated"),
-                        ClientWithSelector("client2"))
+                        ClientWithSelector.create("client1-duplicated"),
+                        ClientWithSelector.create("client1-duplicated"),
+                        ClientWithSelector.create("client2"))
                 ))
         )
 
@@ -371,12 +371,12 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf(ClientWithSelector("client1"))
+                        setOf(ClientWithSelector.create("client1"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("POST"),
-                        setOf(ClientWithSelector("client2"))
+                        setOf(ClientWithSelector.create("client2"))
                 ))
         )
 
@@ -396,13 +396,13 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf(ClientWithSelector("role-1"))
+                        setOf(ClientWithSelector.create("role-1"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf(ClientWithSelector("client2"), ClientWithSelector("client1"))
-                )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))))
+                        setOf(ClientWithSelector.create("client2"), ClientWithSelector.create("client1"))
+                )), roles = listOf(Role("role-1", setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("client2"))))
         )
         val expectedRbacBuilder = getRBACFilter(expectedTwoClientsSimpleEndpointPermissionsJson(
             "${incomingPermission.endpoints[0]}", "${incomingPermission.endpoints[1]}"
@@ -424,13 +424,13 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf(ClientWithSelector("client2"), ClientWithSelector("role-1"))
+                        setOf(ClientWithSelector.create("client2"), ClientWithSelector.create("role-1"))
                 ), IncomingEndpoint(
                         "/example2",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf(ClientWithSelector("role-2"), ClientWithSelector("client1"))
-                )), roles = listOf(Role("role-1", setOf(ClientWithSelector("client1"))), Role("role-2", setOf(ClientWithSelector("client2"))))
+                        setOf(ClientWithSelector.create("role-2"), ClientWithSelector.create("client1"))
+                )), roles = listOf(Role("role-1", setOf(ClientWithSelector.create("client1"))), Role("role-2", setOf(ClientWithSelector.create("client2"))))
         )
         val expectedRbacBuilder = getRBACFilter(expectedTwoClientsSimpleEndpointPermissionsJson(
             "${incomingPermission.endpoints[0]}", "${incomingPermission.endpoints[1]}"
@@ -453,7 +453,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET", "POST"),
-                        setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))
+                        setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("client2"))
                 ))
         )
 
@@ -589,7 +589,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf(ClientWithSelector("client1"))
+                        setOf(ClientWithSelector.create("client1"))
                 ))
         )
 
@@ -610,7 +610,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf(ClientWithSelector("client1"), ClientWithSelector("client2"))
+                        setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("client2"))
                 ))
         )
 
@@ -634,7 +634,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf(ClientWithSelector("client2", "selector"))
+                        setOf(ClientWithSelector.create("client2", "selector"))
                 ))
         )
 
@@ -658,7 +658,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf(ClientWithSelector("client1", "selector"))
+                        setOf(ClientWithSelector.create("client1", "selector"))
                 ))
         )
 
@@ -682,11 +682,11 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         "/example",
                         PathMatchingType.PATH,
                         setOf("GET"),
-                        setOf(ClientWithSelector("role1"))
+                        setOf(ClientWithSelector.create("role1"))
                 )),
                 roles = listOf(Role("role1", setOf(
-                        ClientWithSelector("client1", "selector1"),
-                        ClientWithSelector("client2", "selector2"))
+                        ClientWithSelector.create("client1", "selector1"),
+                        ClientWithSelector.create("client2", "selector2"))
                 ))
         )
 
@@ -710,7 +710,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                 "/example",
                 PathMatchingType.PATH,
                 setOf("GET"),
-                setOf(ClientWithSelector("client1"))
+                setOf(ClientWithSelector.create("client1"))
             ))
         )
 
@@ -727,7 +727,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private val expectedEndpointPermissionsWithDifferentRulesForDifferentClientsJson = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -747,7 +747,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                 ${originalAndAuthenticatedPrincipal("client1")}
               ]
             },
-            "IncomingEndpoint(path=/example2, pathMatchingType=PATH, methods=[POST], clients=[ClientWithSelector(name=client2, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example2, pathMatchingType=PATH, methods=[POST], clients=[ClientWithSelector(name=client2, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -774,7 +774,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private val expectedSourceIpFromDiscoveryWithSelectorAuthPermissionsJson = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=selector)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=selector, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -809,7 +809,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private val expectedSourceIpWithSelectorAuthPermissionsJson = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client2, selector=selector)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client2, selector=selector, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -844,7 +844,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private val expectedSourceIpWithStaticRangeAndSelectorAuthPermissionsAndRolesJson = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=role1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=role1, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -888,7 +888,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private val expectedSourceIpAuthPermissionsJson = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null, negated=false), ClientWithSelector(name=client2, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -947,7 +947,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
         {
           "policies": {
            """ /* notice that duplicated clients occurs only once here */ + """
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client1, selector=selector), ClientWithSelector(name=client1-duplicated, selector=selector), ClientWithSelector(name=client1-duplicated, selector=null), ClientWithSelector(name=role-1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null, negated=false), ClientWithSelector(name=client1, selector=selector, negated=false), ClientWithSelector(name=client1-duplicated, selector=selector, negated=false), ClientWithSelector(name=client1-duplicated, selector=null, negated=false), ClientWithSelector(name=role-1, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -1167,7 +1167,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private val expectedSourceIpAuthWithStaticRangeJson = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -1194,7 +1194,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private val expectedSourceIpAuthWithStaticRangeAndSourceIpJson = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null, negated=false), ClientWithSelector(name=client2, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {
@@ -1231,7 +1231,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private val expectedEndpointPermissionsLogUnlistedEndpointsAndBlockUnlistedClients = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null), ClientWithSelector(name=client2, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET, POST], clients=[ClientWithSelector(name=client1, selector=null, negated=false), ClientWithSelector(name=client2, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                     "and_rules": {
@@ -1287,7 +1287,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
     private fun expectedPoliciesForAllowedClient(principals: String) = """
         {
           "policies": {
-            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
+            "IncomingEndpoint(path=/example, pathMatchingType=PATH, methods=[GET], clients=[ClientWithSelector(name=client1, selector=null, negated=false)], unlistedClientsPolicy=BLOCKANDLOG, oauth=null)": {
               "permissions": [
                 {
                   "and_rules": {

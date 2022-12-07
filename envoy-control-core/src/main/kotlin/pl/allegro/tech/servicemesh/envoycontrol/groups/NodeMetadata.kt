@@ -91,6 +91,7 @@ fun Value?.toHeaderFilter(default: String? = null): HeaderFilterSettings? {
         AccessLogFilterParser.parseHeaderFilter(it)
     }
 }
+
 private class RawDependency(val service: String?, val domain: String?, val domainPattern: String?, val value: Value)
 
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
@@ -221,9 +222,9 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
-            rewriteHostHeader == null &&
-            timeoutPolicy == null &&
-            retryPolicy == null
+        rewriteHostHeader == null &&
+        timeoutPolicy == null &&
+        retryPolicy == null
 
     return if (shouldAllBeDefault) {
         defaultSettings
@@ -377,9 +378,9 @@ fun isMoreThanOnePropertyDefined(vararg properties: String?): Boolean = properti
 private fun decomposeClient(client: ClientComposite): ClientWithSelector {
     val parts = client.split(":", ignoreCase = false, limit = 2)
     return if (parts.size == 2) {
-        ClientWithSelector(parts[0], parts[1])
+        ClientWithSelector.create(parts[0], parts[1])
     } else {
-        ClientWithSelector(client, null)
+        ClientWithSelector.create(client, null)
     }
 }
 
@@ -454,7 +455,7 @@ fun Value.toDuration(): Duration? {
     return when (this.kindCase) {
         Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException(
             "Timeout definition has number format" +
-                    " but should be in string format and ends with 's'"
+                " but should be in string format and ends with 's'"
         )
         Value.KindCase.STRING_VALUE -> {
             try {
@@ -635,13 +636,30 @@ data class HealthCheck(
 
 typealias ClientComposite = String
 
-data class ClientWithSelector(
+data class ClientWithSelector private constructor(
     val name: String,
-    val selector: String? = null
+    val selector: String? = null,
+    val negated: Boolean = false
 ) : Comparable<ClientWithSelector> {
+
+    companion object {
+        const val NEGATION_PREFIX = "!"
+        fun create(name: String, selector: String? = null): ClientWithSelector {
+            return ClientWithSelector(
+                name, selector?.removePrefix(NEGATION_PREFIX), selector?.startsWith(
+                    NEGATION_PREFIX
+                ) ?: false
+            )
+        }
+    }
+
     fun compositeName(): ClientComposite {
         return if (selector != null) {
-            "$name:$selector"
+            if (negated) {
+                "$name:$NEGATION_PREFIX$selector"
+            } else {
+                "$name:$selector"
+            }
         } else {
             name
         }
