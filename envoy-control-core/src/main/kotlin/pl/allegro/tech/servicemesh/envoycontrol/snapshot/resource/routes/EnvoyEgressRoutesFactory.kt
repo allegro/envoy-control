@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
-import com.google.protobuf.Any
 import com.google.protobuf.BoolValue
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
@@ -17,7 +16,6 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
-import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RateLimitedRetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
@@ -331,7 +329,7 @@ class RequestPolicyMapper private constructor() {
             retryPolicyBuilder: RetryPolicy.Builder
         ) {
             hostPredicates.map {
-                RetryPolicy.RetryHostPredicate.newBuilder().setName(it.name).setTypedConfig(Any.pack(PreviousHostsPredicate.newBuilder().build())).build()
+                RetryPolicy.RetryHostPredicate.newBuilder().setName(it.name).build()
             }.also {
                 retryPolicyBuilder.addAllRetryHostPredicate(it)
             }

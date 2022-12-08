@@ -64,7 +64,8 @@ class HttpConnectionManagerFactory(
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
 
         if (tracingEnabled) {
-            connectionManagerBuilder.setTracing(prepareTracing())
+            println("ksksks adding tracing")
+            connectionManagerBuilder.setTracing(tracingConfig)
         }
 
         when (direction) {
@@ -171,7 +172,9 @@ class HttpConnectionManagerFactory(
         }
     }
 
-    private fun prepareTracing(): HttpConnectionManager.Tracing.Builder {
+    private val tracingConfig = prepareTracing()
+
+    private fun prepareTracing(): HttpConnectionManager.Tracing {
         val jaegerConfig = ZipkinConfig.newBuilder()
             .setCollectorCluster("jaeger")
             .setCollectorEndpoint("/api/v2/spans")
@@ -185,7 +188,8 @@ class HttpConnectionManagerFactory(
         val provider = Tracing.Http.newBuilder()
             .setName("envoy.tracers.zipkin")
             .setTypedConfig(Any.pack(jaegerConfig))
+            .build()
 
-        return HttpConnectionManager.Tracing.newBuilder().setProvider(provider)
+        return HttpConnectionManager.Tracing.newBuilder().setProvider(provider).build()
     }
 }

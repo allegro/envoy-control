@@ -3,7 +3,7 @@ version: '3'
 services:
   consul:
     container_name: consul
-    image: consul:1.5.3
+    image: consul:1.10.12
     ports:
       - "18500:8500"
       - "18300:8300"
@@ -12,100 +12,98 @@ services:
       - ./tmp/_data/consul:/data
     command: agent -server -data-dir=/data -bind 0.0.0.0 -client 0.0.0.0 -bootstrap-expect=1 -ui
 
-  http-echo:
+  s1-envoy:
+    build:
+      context: ./envoy
+      dockerfile: Dockerfile
+    container_name: s1-envoy
     depends_on:
       - consul
-    build:
-      context: ./service
-      dockerfile: Dockerfile
-    ports: 
-      - "80:80"
-
-  flask_service:
-    build:
-      context: ./flask
-    image: flask_service:python-3.10-slim-bullseye
-    restart: "no"
-    deploy:
-      replicas: 0
-
-  tracing:
-    build:
-      context: ./tracing
-    image: envoyproxy:tracing
-    restart: "no"
-    deploy:
-      replicas: 0
-
-  flask-service:
-    build:
-      context: ./flask
-    restart: "no"
-    deploy:
-      replicas: 0
+    environment:
+      - SERVICE_NAME=s1
+      - SERVICE_HOST=s1
+      - SERVICE_PORT=8070
+      - HEALTH_CHECK=/health-check
+    ports:
+      - "30000:31000"
+      - "30001:31001"
+      - "30002:9999"
 
   s1:
-    depends_on: 
-      - consul
-    image: envoyproxy:tracing
+    container_name: s1
+    build:
+      context: ./tracing
+      dockerfile: Dockerfile
     volumes:
       - ./service1/service1-envoy.yaml:/etc/service-envoy.yaml
     environment:
-      - SERVICE_NAME=1
+      - SERVICE_NAME=s1
       - PORT=8070
-    expose:
-      - 8070
-      - 9999
+      - ENVOY_HOST=s1-envoy
     ports:
-      - "10001:9999"
+      - "10001:8070"
 
-  s2:
-    depends_on: 
-      - consul
-    image: envoyproxy:tracing
-    volumes:
-      - ./service2/service2-envoy.yaml:/etc/service-envoy.yaml
-    environment:
-      - SERVICE_NAME=2
-      - PORT=8070
-    expose:
-      - 8070
-      - 9999
-    ports:
-      - "10002:9999"
-
-
-  s3:
-    depends_on: 
-      - consul
-    image: envoyproxy:tracing
-    volumes:
-      - ./service3/service3-envoy.yaml:/etc/service-envoy.yaml
-    environment:
-      - SERVICE_NAME=3
-      - PORT=8070
-    expose:
-      - 8070
-      - 9999
-    ports:
-      - "10003:9999"
-
-  s3-2:
+  s2-envoy:
+    build:
+      context: ./envoy
+      dockerfile: Dockerfile
+    container_name: s2-envoy
     depends_on:
       - consul
-    image: envoyproxy:tracing
-    volumes:
-      - ./service3/service3-envoy.yaml:/etc/service-envoy.yaml
     environment:
-      - SERVICE_NAME=3
-      - SERVICE_INSTANCE=2
-      - PORT=8070
-    expose:
-      - 8070
-      - 9999
+      - SERVICE_NAME=s2
+      - SERVICE_HOST=s2
+      - SERVICE_PORT=8070
+      - HEALTH_CHECK=/health-check
     ports:
-      - "10004:9999"
+      - "31000:31000"
+      - "31001:31001"
+      - "31002:9999"
 
+  s2:
+    container_name: s2
+    build:
+      context: ./tracing
+      dockerfile: Dockerfile
+    volumes:
+      - ./service1/service1-envoy.yaml:/etc/service-envoy.yaml
+    environment:
+      - SERVICE_NAME=s2
+      - PORT=8070
+      - ENVOY_HOST=s2-envoy
+    ports:
+      - "11001:8070"
+
+  s3-envoy:
+    build:
+      context: ./envoy
+      dockerfile: Dockerfile
+    container_name: s3-envoy
+    depends_on:
+      - consul
+    environment:
+      - SERVICE_NAME=s3
+      - SERVICE_HOST=s3
+      - SERVICE_PORT=8070
+      - HEALTH_CHECK=/health-check
+    ports:
+      - "32000:31000"
+      - "32001:31001"
+      - "32002:9999"
+
+  s3:
+    container_name: s3
+    build:
+      context: ./tracing
+      dockerfile: Dockerfile
+    volumes:
+      - ./service1/service1-envoy.yaml:/etc/service-envoy.yaml
+    environment:
+      - SERVICE_NAME=s3
+      - PORT=8070
+      - ENVOY_HOST=s3-envoy
+    ports:
+      - "12001:8070"
 
   jaeger:
     depends_on:
@@ -119,16 +117,6 @@ services:
     - "9411:9411"
     - "16686:16686"
     - "16687:16687"
-
-  front-proxy:
-    build:
-      context: ./envoy
-      dockerfile: Dockerfile
-    ports:
-      - "9999:9999"
-      - "31000:31000"
-      - "31001:31001"
-      - "8000:8000"
 
   envoy-control:
     container_name: envoy-control

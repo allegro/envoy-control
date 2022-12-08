@@ -19,6 +19,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.mockito.Mockito
+import pl.allegro.tech.servicemesh.envoycontrol.TracingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
@@ -1227,13 +1228,14 @@ class SnapshotUpdaterTest {
         EnvoySnapshotFactory(
             ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties),
             egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
-            clustersFactory = EnvoyClustersFactory(snapshotProperties),
+            clustersFactory = EnvoyClustersFactory(snapshotProperties, TracingProperties()),
             endpointsFactory = EnvoyEndpointsFactory(
                 snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags)
             ),
             listenersFactory = EnvoyListenersFactory(
                 snapshotProperties,
-                EnvoyHttpFilters.emptyFilters
+                EnvoyHttpFilters.emptyFilters,
+                TracingProperties()
             ),
             // Remember when LDS change we have to send RDS again
             snapshotsVersions = SnapshotsVersions(),

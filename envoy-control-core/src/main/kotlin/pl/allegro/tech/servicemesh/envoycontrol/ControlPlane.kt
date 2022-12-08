@@ -160,7 +160,7 @@ class ControlPlane private constructor(
             val envoySnapshotFactory = EnvoySnapshotFactory(
                 ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties, envoyHttpFilters),
                 egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
-                clustersFactory = EnvoyClustersFactory(snapshotProperties),
+                clustersFactory = EnvoyClustersFactory(snapshotProperties, properties.tracing),
                 endpointsFactory = EnvoyEndpointsFactory(
                     snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags)
                 ),

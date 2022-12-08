@@ -324,10 +324,10 @@ class EnvoySnapshotFactoryTest {
             ) { Metadata.getDefaultInstance() }
         )
         val egressRoutesFactory = EnvoyEgressRoutesFactory(properties)
-        val clustersFactory = EnvoyClustersFactory(properties)
+        val clustersFactory = EnvoyClustersFactory(properties, TracingProperties())
         val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator())
         val envoyHttpFilters = EnvoyHttpFilters.defaultFilters(properties)
-        val listenersFactory = EnvoyListenersFactory(properties, envoyHttpFilters)
+        val listenersFactory = EnvoyListenersFactory(properties, envoyHttpFilters, TracingProperties())
         val snapshotsVersions = SnapshotsVersions()
         val meterRegistry: MeterRegistry = SimpleMeterRegistry()
 
