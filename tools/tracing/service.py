@@ -4,6 +4,7 @@ import os
 import requests
 import socket
 import sys
+import json
 
 TRACE_HEADERS_TO_PROPAGATE = [
     'X-Ot-Span-Context',
@@ -35,6 +36,7 @@ def proxy2(first, second):
     headers = {
         'Host': first
     }
+    print(request.headers, file=sys.stderr)
     for header in TRACE_HEADERS_TO_PROPAGATE:
         if header in request.headers:
             headers[header] = request.headers[header]
@@ -47,6 +49,7 @@ def proxy(first):
     headers = {
         'Host': first
     }
+    print(request.headers, file=sys.stderr)
     for header in TRACE_HEADERS_TO_PROPAGATE:
         if header in request.headers:
             headers[header] = request.headers[header]

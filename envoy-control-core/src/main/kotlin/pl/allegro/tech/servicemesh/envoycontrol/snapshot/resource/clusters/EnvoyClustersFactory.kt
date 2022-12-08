@@ -49,6 +49,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.SanUriMatcherFactory
+import kotlin.math.log
 
 class EnvoyClustersFactory(
     private val properties: SnapshotProperties,
@@ -110,17 +111,13 @@ class EnvoyClustersFactory(
         }
     }
 
+    val logger by logger()
+
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         var edsCluster = getEdsClustersForGroup(group, globalSnapshot)
         val strictDnsClusters = getStrictDnsClustersForGroup(group)
         val jwtClusters = clustersForJWT
         val rateLimitCluster = getRateLimitClusterForGroup(group, globalSnapshot)
-        println("ksksks building clusters")
-        if (properties.tracing &&
-            tracingProperties.services.contains(group.serviceName) &&
-            edsCluster.none { it.name != "jaeger" }) {
-            edsCluster = edsCluster + edsCluster(ClusterConfiguration("jaeger", false), ADS)
-        }
         return edsCluster + strictDnsClusters + jwtClusters + rateLimitCluster
     }
 

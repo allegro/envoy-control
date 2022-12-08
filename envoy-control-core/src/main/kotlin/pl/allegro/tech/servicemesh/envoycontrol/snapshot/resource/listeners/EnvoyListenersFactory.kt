@@ -24,6 +24,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Dependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory.Companion.DEFAULT_HTTP_PORT
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -297,6 +298,8 @@ class EnvoyListenersFactory(
                 .build()
         }
     }
+
+    val logger by logger()
 
     private fun createHttpProxyFilterChainForDomains(
         group: Group,

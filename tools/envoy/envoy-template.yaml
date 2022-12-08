@@ -10,7 +10,7 @@ node:
     proxy_settings:
       outgoing:
         dependencies:
-          - service: "*"
+          - service: "{{.DependencyService}}"
     generate_request_id: true
   locality:
     zone: default-zone

@@ -1,9 +1,9 @@
 FROM gradle:6.6.1-jdk11 AS builder
 COPY --chown=gradle:gradle settings.gradle build.gradle gradle.properties /home/gradle/src/
-COPY --chown=gradle:gradle envoy-control-core/ /home/gradle/src/envoy-control-core/
 COPY --chown=gradle:gradle envoy-control-runner/ /home/gradle/src/envoy-control-runner/
 COPY --chown=gradle:gradle envoy-control-services/ /home/gradle/src/envoy-control-services/
 COPY --chown=gradle:gradle envoy-control-source-consul/ /home/gradle/src/envoy-control-source-consul/
+COPY --chown=gradle:gradle envoy-control-core/ /home/gradle/src/envoy-control-core/
 
 WORKDIR /home/gradle/src
 RUN gradle :envoy-control-runner:assemble --parallel --no-daemon

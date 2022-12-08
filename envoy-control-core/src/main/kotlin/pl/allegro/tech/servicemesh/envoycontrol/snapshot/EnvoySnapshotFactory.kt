@@ -149,7 +149,6 @@ class EnvoySnapshotFactory(
 
     fun getSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot): Snapshot {
         val groupSample = Timer.start(meterRegistry)
-
         val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
         groupSample.stop(meterRegistry.timer("snapshot-factory.get-snapshot-for-group.time"))
         return newSnapshotForGroup

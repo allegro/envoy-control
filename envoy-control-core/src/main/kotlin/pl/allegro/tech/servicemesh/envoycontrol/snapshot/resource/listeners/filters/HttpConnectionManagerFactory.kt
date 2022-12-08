@@ -22,6 +22,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.HttpFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config.LocalReplyConfigFactory
 import com.google.protobuf.Any
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class HttpConnectionManagerFactory(
     val snapshotProperties: SnapshotProperties,
@@ -43,7 +44,7 @@ class HttpConnectionManagerFactory(
 
     private val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource()
     private val accessLogFilter = AccessLogFilter(snapshotProperties)
-
+    private val logger by logger()
     @SuppressWarnings("LongParameterList")
     fun createFilter(
         group: Group,
@@ -62,9 +63,7 @@ class HttpConnectionManagerFactory(
             .setRds(setupRds(group.communicationMode, initialFetchTimeout, routeConfigName))
             .setGenerateRequestId(BoolValue.newBuilder().setValue(listenersConfig.generateRequestId).build())
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
-
         if (tracingEnabled) {
-            println("ksksks adding tracing")
             connectionManagerBuilder.setTracing(tracingConfig)
         }
 

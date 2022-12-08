@@ -38,6 +38,8 @@ sed -i "s/{{.AdminPort}}/${ENVOY_ADMIN_PORT}/g" /etc/envoy/envoy.yaml
 sed -i "s/{{.ServiceName}}/${SERVICE_NAME}/g" /etc/envoy/envoy.yaml
 sed -i "s/{{.ServiceHost}}/${SERVICE_HOST}/g" /etc/envoy/envoy.yaml
 sed -i "s/{{.ServicePort}}/${SERVICE_PORT}/g" /etc/envoy/envoy.yaml
+sed -i "s/{{.DependencyService}}/${DEPENDENCY_SERVICE}/g" /etc/envoy/envoy.yaml
+
 
 curl -X PUT --fail --data "${body}" -s consul:8500/v1/agent/service/register
 

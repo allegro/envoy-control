@@ -3,6 +3,20 @@ envoy-control:
     consul:
       host: consul
       port: 8500
+  tracing:
+    services:
+      - s1
+      - s2
+      - s3
+  envoy:
+    snapshot:
+      tracing: true
+      outgoing-permissions:
+        enabled: true
+        services-allowed-to-use-wildcard:
+          - s1
+          - s2
+          - s3
 
 chaos:
   username: "user"

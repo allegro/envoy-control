@@ -8,6 +8,7 @@ ENV ENVOY_XDS_HOST=host.docker.internal
 ENV SERVICE_NAME=abc
 ENV SERVICE_HOST=abc
 ENV SERVICE_PORT=123
+ENV DEPENDENCY_SERVICE="*"
 
 RUN apt update && apt install curl -y
 
