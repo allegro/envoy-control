@@ -38,7 +38,7 @@ def proxy2(first, second):
     for header in TRACE_HEADERS_TO_PROPAGATE:
         if header in request.headers:
             headers[header] = request.headers[header]
-    resp = requests.get(f"{os.environ['ENVOY_HOST']}:31000/{second}", headers=headers)
+    resp = requests.get(f"http://{os.environ['ENVOY_HOST']}:31000/proxy/{second}", headers=headers)
     return (resp.text, 200)
 
 
@@ -50,7 +50,7 @@ def proxy(first):
     for header in TRACE_HEADERS_TO_PROPAGATE:
         if header in request.headers:
             headers[header] = request.headers[header]
-    resp = requests.get(f"{os.environ['ENVOY_HOST']}:31000/health-check", headers=headers)
+    resp = requests.get(f"http://{os.environ['ENVOY_HOST']}:31000/health-check", headers=headers)
     return (resp.text, 200)
 
 
