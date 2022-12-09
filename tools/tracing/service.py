@@ -4,8 +4,7 @@ import os
 import requests
 import socket
 import sys
-
-app = Flask(__name__)
+import json
 
 TRACE_HEADERS_TO_PROPAGATE = [
     'X-Ot-Span-Context',
@@ -25,38 +24,38 @@ TRACE_HEADERS_TO_PROPAGATE = [
     "sw8"
 ]
 
-s = int(os.environ['SERVICE_NAME'])
-
-
-@app.route('/service/<service_number>')
-def hello(service_number):
-    return (
-        'Hello from behind Envoy (service {})! hostname: {} resolved'
-        'hostname: {}\n'.format(
-            os.environ['SERVICE_NAME'], socket.gethostname(),
-            socket.gethostbyname(socket.gethostname())))
-
+app = Flask(__name__)
 
 @app.route('/health-check')
 def health_check():
-    return ('', 200)
+    return (os.environ['SERVICE_NAME'], 200)
 
 
-@app.route('/trace')
-def trace():
-    headers = {}
+@app.route('/proxy/<first>/<second>')
+def proxy2(first, second):
+    headers = {
+        'Host': first
+    }
+    print(request.headers, file=sys.stderr)
+    for header in TRACE_HEADERS_TO_PROPAGATE:
+        if header in request.headers:
+            headers[header] = request.headers[header]
+    resp = requests.get(f"http://{os.environ['ENVOY_HOST']}:31000/proxy/{second}", headers=headers)
+    return (resp.text, 200)
 
-    if s == 1 or s == 2:
-        for header in TRACE_HEADERS_TO_PROPAGATE:
-            if header in request.headers:
-                headers[header] = request.headers[header]
-        requests.get("http://localhost:9000/trace", headers=headers)
 
-    return (
-        'Hello from behind Envoy (service {})! hostname: {} resolved'
-        'hostname: {}\n'.format(
-            os.environ['SERVICE_NAME'], socket.gethostname(),
-            socket.gethostbyname(socket.gethostname())))
+@app.route('/proxy/<first>')
+def proxy(first):
+    headers = {
+        'Host': first
+    }
+    print(request.headers, file=sys.stderr)
+    for header in TRACE_HEADERS_TO_PROPAGATE:
+        if header in request.headers:
+            headers[header] = request.headers[header]
+    resp = requests.get(f"http://{os.environ['ENVOY_HOST']}:31000/health-check", headers=headers)
+    return (resp.text, 200)
+
 
 
 if __name__ == "__main__":

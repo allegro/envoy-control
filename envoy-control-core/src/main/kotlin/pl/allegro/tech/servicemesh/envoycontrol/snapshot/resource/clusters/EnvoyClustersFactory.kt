@@ -32,6 +32,7 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
+import pl.allegro.tech.servicemesh.envoycontrol.TracingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
@@ -50,7 +51,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.SanUriMatcherFactory
 
 class EnvoyClustersFactory(
-    private val properties: SnapshotProperties
+    private val properties: SnapshotProperties,
+    private val tracingProperties: TracingProperties
 ) {
     private val httpProtocolOptions: HttpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(
         Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis())
@@ -75,7 +77,7 @@ class EnvoyClustersFactory(
     private val clustersForJWT: List<Cluster> =
         properties.jwt.providers.values.mapNotNull(this::clusterForOAuthProvider)
 
-    private val clustersForTracing: List<Cluster> = listOf(clusterForTracing())
+    // private val clustersForTracing: List<Cluster> = listOf(clusterForTracing())
 
     companion object {
         private val logger by logger()
@@ -112,10 +114,8 @@ class EnvoyClustersFactory(
         val edsCluster = getEdsClustersForGroup(group, globalSnapshot)
         val strictDnsClusters = getStrictDnsClustersForGroup(group)
         val jwtClusters = clustersForJWT
-        val rateLimitCluster =    getRateLimitClusterForGroup(group, globalSnapshot)
-        val jaegerCluster = listOf(globalSnapshot.clusters.resources()["jaeger"]!!)
-
-        return edsCluster + strictDnsClusters + jwtClusters + rateLimitCluster + jaegerCluster
+        val rateLimitCluster = getRateLimitClusterForGroup(group, globalSnapshot)
+        return edsCluster + strictDnsClusters + jwtClusters + rateLimitCluster
     }
 
     private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster? {
@@ -170,9 +170,9 @@ class EnvoyClustersFactory(
         }
     }
 
-    private fun clusterForTracing(): Cluster {
-        return edsCluster(ClusterConfiguration("jaeger", false), ADS)
-    }
+    // private fun clusterForTracing(): Cluster {
+    //     return edsCluster(ClusterConfiguration("jaeger", false), ADS)
+    // }
 
     private fun getRateLimitClusterForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         if (group.proxySettings.incoming.rateLimitEndpoints.containsGlobalRateLimits()) {

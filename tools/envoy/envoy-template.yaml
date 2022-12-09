@@ -2,7 +2,7 @@
 node:
   metadata:
     ads: true
-    service_name: front-proxy
+    service_name: {{.ServiceName}}
     ingress_host: "0.0.0.0"
     ingress_port: {{.IngressListenerPort}}
     egress_host: "0.0.0.0"
@@ -10,7 +10,8 @@ node:
     proxy_settings:
       outgoing:
         dependencies:
-          - service: "service1"
+          - service: "{{.DependencyService}}"
+    generate_request_id: true
   locality:
     zone: default-zone
 
@@ -38,6 +39,18 @@ static_resources:
         seconds: 1
       http_protocol_options:
         allow_absolute_url: true
+    - name: local_service
+      type: STRICT_DNS
+      load_assignment:
+        cluster_name: local_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: {{.ServiceHost}}
+                      port_value: {{.ServicePort}}
+      connect_timeout: 1s
     - name: this_admin
       type: STATIC
       load_assignment:

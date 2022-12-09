@@ -1,7 +1,5 @@
 FROM flask_service:python-3.10-slim-bullseye
 
-COPY --from=envoyproxy/envoy-dev:latest /usr/local/bin/envoy /usr/local/bin/envoy
-
 RUN apt-get update && apt-get install curl -y
 
 ADD requirements.txt /tmp/requirements.txt

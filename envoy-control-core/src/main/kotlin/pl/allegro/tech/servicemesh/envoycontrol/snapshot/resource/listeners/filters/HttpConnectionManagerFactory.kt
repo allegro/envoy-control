@@ -22,6 +22,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.HttpFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.config.LocalReplyConfigFactory
 import com.google.protobuf.Any
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 
 class HttpConnectionManagerFactory(
     val snapshotProperties: SnapshotProperties,
@@ -62,9 +63,8 @@ class HttpConnectionManagerFactory(
             .setRds(setupRds(group.communicationMode, initialFetchTimeout, routeConfigName))
             .setGenerateRequestId(BoolValue.newBuilder().setValue(listenersConfig.generateRequestId).build())
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
-
         if (tracingEnabled) {
-            connectionManagerBuilder.setTracing(prepareTracing())
+            connectionManagerBuilder.setTracing(tracingConfig)
         }
 
         when (direction) {
@@ -171,7 +171,9 @@ class HttpConnectionManagerFactory(
         }
     }
 
-    private fun prepareTracing(): HttpConnectionManager.Tracing.Builder {
+    private val tracingConfig = prepareTracing()
+
+    private fun prepareTracing(): HttpConnectionManager.Tracing {
         val jaegerConfig = ZipkinConfig.newBuilder()
             .setCollectorCluster("jaeger")
             .setCollectorEndpoint("/api/v2/spans")
@@ -185,7 +187,8 @@ class HttpConnectionManagerFactory(
         val provider = Tracing.Http.newBuilder()
             .setName("envoy.tracers.zipkin")
             .setTypedConfig(Any.pack(jaegerConfig))
+            .build()
 
-        return HttpConnectionManager.Tracing.newBuilder().setProvider(provider)
+        return HttpConnectionManager.Tracing.newBuilder().setProvider(provider).build()
     }
 }

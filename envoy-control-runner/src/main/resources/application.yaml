@@ -6,17 +6,22 @@ application:
 envoy-control:
   tracing:
     services:
-      - front-proxy
-      - service1
-      - service2
-      - service3
+      - s1
+      - s2
+      - s3
   source:
     consul:
       host: localhost
   envoy:
     snapshot:
+      tracing: true
       outgoing-permissions:
         enabled: true
+        services-allowed-to-use-wildcard:
+          - s1
+          - s2
+          - s3
+
 
 chaos:
   username: "user"
