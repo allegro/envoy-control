@@ -44,7 +44,7 @@ class HttpConnectionManagerFactory(
 
     private val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource()
     private val accessLogFilter = AccessLogFilter(snapshotProperties)
-    private val logger by logger()
+
     @SuppressWarnings("LongParameterList")
     fun createFilter(
         group: Group,
