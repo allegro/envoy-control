@@ -3,7 +3,7 @@
 set -o pipefail
 set -o errexit
 
-port=16686
+port=9411
 service_name=jaeger
 instance_id="${service_name}-1"
 
@@ -25,11 +25,11 @@ body='
   "Port": '${port}',
   "Check": {
     "DeregisterCriticalServiceAfter": "90m",
-    "http": "http://'${ip}:${port}'",
+    "http": "http://'${ip}':14269",
     "Interval": "10s"
   }
 }
 '
 curl -X PUT --fail --data "${body}" -s consul:8500/v1/agent/service/register
 
-/go/bin/all-in-one-linux
+/go/bin/all-in-one-linux --collector.zipkin.host-port=9411
