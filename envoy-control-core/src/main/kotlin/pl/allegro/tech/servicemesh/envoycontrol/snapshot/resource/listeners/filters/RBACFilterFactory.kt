@@ -298,21 +298,21 @@ class RBACFilterFactory(
         val clients = incomingEndpoint.clients.flatMap { clientOrRole ->
             roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
         }
-        val clientsWithDefaults = mutableListOf<ClientWithSelector>()
+        val clientsWithPredefinedList = mutableListOf<ClientWithSelector>()
         var anyCustomListApplied = false
         for (client in clients) {
             if (customClientsLists.containsKey(client.compositeName())) {
-                clientsWithDefaults.addAll(customClientsLists.getOrDefault(client.compositeName(), emptyList()))
+                clientsWithPredefinedList.addAll(customClientsLists.getOrDefault(client.compositeName(), emptyList()))
                 anyCustomListApplied = true
             } else {
-                clientsWithDefaults.add(client)
+                clientsWithPredefinedList.add(client)
             }
         }
         if (!anyCustomListApplied) {
-            clientsWithDefaults.addAll(defaultClientsList)
+            clientsWithPredefinedList.addAll(defaultClientsList)
         }
         // sorted order ensures that we do not duplicate rules
-        return clientsWithDefaults.toSortedSet()
+        return clientsWithPredefinedList.toSortedSet()
     }
 
     private fun mapClientWithSelectorToPrincipals(

@@ -91,10 +91,10 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
         IncomingPermissionsProperties().also {
             it.enabled = true
             it.clientsLists = ClientsListsProperties().also {
-                it.defaultClientsList = listOf("default-client")
+                it.defaultClientsList = listOf("default-client", "xyz")
                 it.customClientsLists = mapOf(
-                    "custom1" to listOf("custom1-client"),
-                    "ad:custom2" to listOf("ad:custom2-client")
+                    "custom1" to listOf("custom1-client", "xyz"),
+                    "ad:custom2" to listOf("ad:custom2-client", "xyz")
                 )
             }
         },
@@ -752,7 +752,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
             ))
         )
 
-        val rules = expectedPoliciesForDefaultAndCustomLists(listOf("client1"), listOf("client1", "default-client"), "/default")
+        val rules = expectedPoliciesForDefaultAndCustomLists(listOf("client1"), listOf("client1", "default-client", "xyz"), "/default")
         val expectedDefaultRbacBuilder = getRBACFilterWithShadowRules(rules, rules)
 
         // when
@@ -775,7 +775,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
             ))
         )
 
-        val rules = expectedPoliciesForDefaultAndCustomLists(listOf("client1", "custom1"), listOf("client1", "custom1-client"), "/custom")
+        val rules = expectedPoliciesForDefaultAndCustomLists(listOf("client1", "custom1"), listOf("client1", "custom1-client", "xyz"), "/custom")
         val expectedDefaultRbacBuilder = getRBACFilterWithShadowRules(rules, rules)
 
         // when
