@@ -6,6 +6,7 @@ import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector.Companion.decomposeClient
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFiltersProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
@@ -375,15 +376,6 @@ fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
 
 fun isMoreThanOnePropertyDefined(vararg properties: String?): Boolean = properties.filterNotNull().count() > 1
 
-private fun decomposeClient(client: ClientComposite): ClientWithSelector {
-    val parts = client.split(":", ignoreCase = false, limit = 2)
-    return if (parts.size == 2) {
-        ClientWithSelector.create(parts[0], parts[1])
-    } else {
-        ClientWithSelector.create(client, null)
-    }
-}
-
 private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
     val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
     val responseTimeout: Duration? = this?.field("responseTimeout")?.toDuration()
@@ -650,6 +642,15 @@ data class ClientWithSelector private constructor(
                     NEGATION_PREFIX
                 ) ?: false
             )
+        }
+
+        fun decomposeClient(client: ClientComposite): ClientWithSelector {
+            val parts = client.split(":", ignoreCase = false, limit = 2)
+            return if (parts.size == 2) {
+                ClientWithSelector.create(parts[0], parts[1])
+            } else {
+                ClientWithSelector.create(client, null)
+            }
         }
     }
 
