@@ -349,7 +349,7 @@ class EnvoySnapshotFactoryTest {
                 emptyList(), emptyList()
             ) { Metadata.getDefaultInstance() }
         )
-        val egressRoutesFactory = EnvoyEgressRoutesFactory(properties)
+        val egressRoutesFactory = EnvoyEgressRoutesFactory(properties.egress, properties.incomingPermissions)
         val clustersFactory = EnvoyClustersFactory(properties)
         val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator())
         val envoyHttpFilters = EnvoyHttpFilters.defaultFilters(properties)
@@ -403,13 +403,4 @@ class EnvoySnapshotFactoryTest {
             )
             .build()
     }
-}
-
-class RouteSpecificationFactoryTest {
-
-    @Test
-    fun `a`() {
-
-    }
-
 }

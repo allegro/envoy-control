@@ -2,9 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest
 import io.grpc.Status
-import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
-import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -303,7 +301,6 @@ class NodeMetadataValidatorTest {
         this.xds = xds
     }
 
-
     private fun NodeMetadataValidator.assertThrow(
         request: DiscoveryRequest,
         exceptionClass: Class<out NodeMetadataValidationException>,
@@ -312,7 +309,6 @@ class NodeMetadataValidatorTest {
             .isThrownBy { this.onV3StreamRequest(123, request) }
             .matches { it.status.description == description }
             .matches { it.status.code == Status.Code.INVALID_ARGUMENT }
-
 
     private fun NodeMetadataValidator.notThrow(request: DiscoveryRequest) = assertDoesNotThrow {
         this.onV3StreamRequest(123, request)

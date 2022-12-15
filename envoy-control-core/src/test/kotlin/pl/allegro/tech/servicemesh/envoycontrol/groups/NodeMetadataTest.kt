@@ -1142,7 +1142,6 @@ class AllServiceDependencyTest {
             .isEqualTo("Unsupported 'all serviceDependencies identifier' for domain dependency: *")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
-
 }
 
 class DomainPatternDependencyTest {
@@ -1176,7 +1175,6 @@ class DomainPatternDependencyTest {
         )
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
-
 }
 
 class TagDependencyTest {
