@@ -168,7 +168,10 @@ class ControlPlane private constructor(
             val snapshotProperties = properties.envoy.snapshot
             val envoySnapshotFactory = EnvoySnapshotFactory(
                 ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties, envoyHttpFilters),
-                egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties.egress, snapshotProperties.incomingPermissions),
+                egressRoutesFactory = EnvoyEgressRoutesFactory(
+                    snapshotProperties.egress,
+                    snapshotProperties.incomingPermissions
+                ),
                 clustersFactory = EnvoyClustersFactory(snapshotProperties),
                 endpointsFactory = EnvoyEndpointsFactory(
                     snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags)

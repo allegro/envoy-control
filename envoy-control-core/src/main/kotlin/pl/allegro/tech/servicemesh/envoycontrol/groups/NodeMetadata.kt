@@ -93,7 +93,13 @@ fun Value?.toHeaderFilter(default: String? = null): HeaderFilterSettings? {
     }
 }
 
-private class RawDependency(val service: String?, val domain: String?, val domainPattern: String?, val tag: String?, val value: Value)
+private class RawDependency(
+    val service: String?,
+    val domain: String?,
+    val domainPattern: String?,
+    val tag: String?,
+    val value: Value
+)
 
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val allServiceDependenciesIdentifier = properties.outgoingPermissions.allServicesDependencies.identifier

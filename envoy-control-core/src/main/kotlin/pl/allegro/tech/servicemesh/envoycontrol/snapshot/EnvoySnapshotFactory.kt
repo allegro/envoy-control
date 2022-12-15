@@ -24,6 +24,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEg
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import java.util.SortedMap
 
+@Suppress("LongParameterList")
 class EnvoySnapshotFactory(
     private val ingressRoutesFactory: EnvoyIngressRoutesFactory,
     private val egressRoutesFactory: EnvoyEgressRoutesFactory,
@@ -188,7 +189,10 @@ class EnvoySnapshotFactory(
 
         // TODO(dj): This is where serious refactoring needs to be done
         val egressDomainRouteSpecifications = routeSpecificationFactory.domainRouteSpecifications(group)
-        val egressServiceRouteSpecification = routeSpecificationFactory.serviceRouteSpecifications(group, globalSnapshot)
+        val egressServiceRouteSpecification = routeSpecificationFactory.serviceRouteSpecifications(
+            group,
+            globalSnapshot
+        )
         val egressRouteSpecification = egressServiceRouteSpecification +
             egressDomainRouteSpecifications.values.flatten().toSet() +
             routeSpecificationFactory.domainPatternRouteSpecifications(group)
