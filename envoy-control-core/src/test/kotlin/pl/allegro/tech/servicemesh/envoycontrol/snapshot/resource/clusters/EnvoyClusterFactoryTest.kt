@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters;
+package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters
 
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import org.assertj.core.api.Assertions.assertThat
@@ -276,9 +276,7 @@ class EnvoyClusterFactoryTest {
             .containsAll(services)
         clustersForGroup.assertServiceCluster("service-A")
             .hasIdleTimeout(27)
-
     }
-
 }
 
 private fun List<Cluster>.assertServiceCluster(name: String): ObjectAssert<Cluster> {

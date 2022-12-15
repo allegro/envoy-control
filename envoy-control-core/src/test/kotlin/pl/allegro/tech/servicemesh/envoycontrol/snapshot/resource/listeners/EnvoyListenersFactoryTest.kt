@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
-import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
@@ -96,5 +95,4 @@ class EnvoyListenersFactoryTest {
             .extracting<String> { it.name }
             .contains("0.0.0.0:80")
     }
-
 }
