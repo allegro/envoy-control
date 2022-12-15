@@ -4,33 +4,20 @@ set -o pipefail
 set -o errexit
 
 port=80
-service_name1=http-echo1
-service_name2=http-echo2
-service_name3=http-echo3
+service_name=http-echo
+instance_id="${service_name}-1"
+
+echo "Registering instance of ${service_name} in consul"
+echo "============================="
+echo
+echo
 
 ip="$(hostname -i)"
 
-body1='
+body='
 {
-  "ID": "'${service_name1}'-1",
-  "Name": "'${service_name1}'",
-  "Tags": [
-    "primary",
-    "hermes-consumers"
-  ],
-  "Address": "'${ip}'",
-  "Port": '${port}',
-  "Check": {
-    "DeregisterCriticalServiceAfter": "90m",
-    "http": "http://'${ip}:${port}'",
-    "Interval": "10s"
-  }
-}
-'
-body2='
-{
-  "ID": "'${service_name2}'-1",
-  "Name": "'${service_name2}'",
+  "ID": "'${instance_id}'",
+  "Name": "'${service_name}'",
   "Tags": [
     "primary"
   ],
@@ -43,32 +30,7 @@ body2='
   }
 }
 '
-body3='
-{
-  "ID": "'${service_name3}'-1",
-  "Name": "'${service_name3}'",
-  "Tags": [
-    "primary",
-    "hermes-consumers"
-  ],
-  "Address": "'${ip}'",
-  "Port": '${port}',
-  "Check": {
-    "DeregisterCriticalServiceAfter": "90m",
-    "http": "http://'${ip}:${port}'",
-    "Interval": "10s"
-  }
-}
-'
-
-sleep 15
-
-echo "Registering instance of ${service_name1} in consul"
-curl -X PUT --data "${body1}" consul:8500/v1/agent/service/register
-echo "Registering instance of ${service_name2} in consul"
-curl -X PUT --data "${body2}" consul:8500/v1/agent/service/register
-echo "Registering instance of ${service_name3} in consul"
-curl -X PUT --data "${body3}" consul:8500/v1/agent/service/register
+curl -X PUT --fail --data "${body}" -s consul:8500/v1/agent/service/register
 
 cd /app
 node ./index.js

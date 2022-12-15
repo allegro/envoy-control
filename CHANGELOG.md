@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- Add possibility to set dependency to group of services by tag mechanism
 
 ## [0.19.26]
 

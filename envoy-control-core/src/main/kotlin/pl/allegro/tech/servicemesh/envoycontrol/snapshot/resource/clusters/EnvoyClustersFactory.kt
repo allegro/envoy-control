@@ -111,8 +111,7 @@ class EnvoyClustersFactory(
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
         getEdsClustersForGroup(group, globalSnapshot) +
-            getStrictDnsClustersForGroup(group) +
-            clustersForJWT +
+            getStrictDnsClustersForGroup(group) + clustersForJWT +
             getRateLimitClusterForGroup(group, globalSnapshot)
 
     private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster? {

@@ -10,7 +10,7 @@ node:
     proxy_settings:
       outgoing:
         dependencies:
-          - tag: hermes-consumers
+          - service: "*"
   locality:
     zone: default-zone
 
