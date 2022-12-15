@@ -40,8 +40,8 @@ class EnvoySnapshotFactory(
     companion object {
         const val DEFAULT_HTTP_PORT = 80
 
-        internal fun tagExtractor(tagPrefix: String, servicesStates: MultiClusterState): Map<String, Set<String>>
-            = servicesStates.flatMap { it.servicesState.serviceNameToInstances.asIterable() }
+        internal fun tagExtractor(tagPrefix: String, servicesStates: MultiClusterState): Map<String, Set<String>> =
+            servicesStates.flatMap { it.servicesState.serviceNameToInstances.asIterable() }
             .fold(emptyMap()) {
                     acc, entry ->
                 val value = acc.getOrDefault(entry.key, emptySet())

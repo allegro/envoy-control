@@ -18,7 +18,6 @@ import io.envoyproxy.envoy.extensions.access_loggers.file.v3.FileAccessLog
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ComparisonFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.utils.HeaderFilterSettings
 

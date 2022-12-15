@@ -11,7 +11,6 @@ import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy.ResetHeaderFormat
-import io.envoyproxy.envoy.config.route.v3.RetryPolicy.RetryPriority
 import io.envoyproxy.envoy.config.route.v3.Route
 import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
@@ -24,7 +23,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EgressProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 class EnvoyEgressRoutesFactory(
