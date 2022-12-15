@@ -4,12 +4,6 @@ envoy-control:
       host: consul
       port: 8500
 
-  envoy:
-    snapshot:
-      outgoing-permissions:
-        enabled: true
-
-
 chaos:
   username: "user"
   password: "pass"
