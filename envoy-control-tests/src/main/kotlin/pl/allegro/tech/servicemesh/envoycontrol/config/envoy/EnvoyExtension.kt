@@ -72,12 +72,6 @@ class EnvoyExtension(
             }
         }
     }
-    fun waitForAvailableEndpoints(serviceName: String, expectedNumberOfEndpoints: Int) {
-        val admin = container.admin()
-        untilAsserted {
-            assertThat(admin.numOfEndpoints(serviceName)).isEqualTo(expectedNumberOfEndpoints)
-        }
-    }
 
     fun waitForNoAvailableEndpoints(vararg serviceNames: String) {
         val admin = container.admin()

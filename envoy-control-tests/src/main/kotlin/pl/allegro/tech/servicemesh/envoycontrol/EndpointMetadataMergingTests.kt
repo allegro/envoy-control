@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -30,10 +31,6 @@ open class EndpointMetadataMergingTests {
 
         @JvmField
         @RegisterExtension
-        val service2 = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service)
     }
 
@@ -41,19 +38,23 @@ open class EndpointMetadataMergingTests {
     fun `should merge all service tags of endpoints with the same ip and port`() {
         // given
         consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("ipsum"))
-        consul.server.operations.registerService(name = "echo", extension = service2, tags = listOf("lorem", "dolom"))
+        consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("lorem", "dolom"))
 
-        envoy.waitForAvailableEndpoints("echo", 2)
+        untilAsserted {
+            assertThat(consul.server.operations.getService("echo")).hasSize(2)
+        }
+
+        envoy.waitForAvailableEndpoints("echo")
 
         // when
         val ipsumStats = callEchoServiceRepeatedly(service, repeat = 1, tag = "ipsum")
-        val loremStats = callEchoServiceRepeatedly(service2, repeat = 1, tag = "lorem")
-        val dolomStats = callEchoServiceRepeatedly(service2, repeat = 1, tag = "dolom")
+        val loremStats = callEchoServiceRepeatedly(service, repeat = 1, tag = "lorem")
+        val dolomStats = callEchoServiceRepeatedly(service, repeat = 1, tag = "dolom")
 
         // then
         assertThat(ipsumStats.hits(service)).isEqualTo(1)
-        assertThat(loremStats.hits(service2)).isEqualTo(1)
-        assertThat(dolomStats.hits(service2)).isEqualTo(1)
+        assertThat(loremStats.hits(service)).isEqualTo(1)
+        assertThat(dolomStats.hits(service)).isEqualTo(1)
     }
 
     protected open fun callEchoServiceRepeatedly(
