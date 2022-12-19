@@ -38,7 +38,7 @@ class EnvoyIngressRoutesFactory(
 ) {
 
     private val allClients = setOf(
-        ClientWithSelector(properties.incomingPermissions.tlsAuthentication.wildcardClientIdentifier)
+        ClientWithSelector.create(properties.incomingPermissions.tlsAuthentication.wildcardClientIdentifier)
     )
 
     private val filterMetadata = envoyHttpFilters.ingressMetadata

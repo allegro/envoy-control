@@ -6,6 +6,7 @@ import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector.Companion.decomposeClient
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFiltersProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
@@ -91,6 +92,7 @@ fun Value?.toHeaderFilter(default: String? = null): HeaderFilterSettings? {
         AccessLogFilterParser.parseHeaderFilter(it)
     }
 }
+
 private class RawDependency(val service: String?, val domain: String?, val domainPattern: String?, val value: Value)
 
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
@@ -225,10 +227,10 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
-            rewriteHostHeader == null &&
-            timeoutPolicy == null &&
-            retryPolicy == null &&
-            routingPolicy == null
+        rewriteHostHeader == null &&
+        timeoutPolicy == null &&
+        retryPolicy == null &&
+        routingPolicy == null
 
     return if (shouldAllBeDefault) {
         defaultSettings
@@ -391,15 +393,6 @@ fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
 
 fun isMoreThanOnePropertyDefined(vararg properties: String?): Boolean = properties.filterNotNull().count() > 1
 
-private fun decomposeClient(client: ClientComposite): ClientWithSelector {
-    val parts = client.split(":", ignoreCase = false, limit = 2)
-    return if (parts.size == 2) {
-        ClientWithSelector(parts[0], parts[1])
-    } else {
-        ClientWithSelector(client, null)
-    }
-}
-
 private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
     val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
     val responseTimeout: Duration? = this?.field("responseTimeout")?.toDuration()
@@ -471,7 +464,7 @@ fun Value.toDuration(): Duration? {
     return when (this.kindCase) {
         Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException(
             "Timeout definition has number format" +
-                    " but should be in string format and ends with 's'"
+                " but should be in string format and ends with 's'"
         )
         Value.KindCase.STRING_VALUE -> {
             try {
@@ -659,13 +652,39 @@ data class HealthCheck(
 
 typealias ClientComposite = String
 
-data class ClientWithSelector(
+data class ClientWithSelector private constructor(
     val name: String,
-    val selector: String? = null
+    val selector: String? = null,
+    val negated: Boolean = false
 ) : Comparable<ClientWithSelector> {
+
+    companion object {
+        const val NEGATION_PREFIX = "!"
+        fun create(name: String, selector: String? = null): ClientWithSelector {
+            return ClientWithSelector(
+                name, selector?.removePrefix(NEGATION_PREFIX), selector?.startsWith(
+                    NEGATION_PREFIX
+                ) ?: false
+            )
+        }
+
+        fun decomposeClient(client: ClientComposite): ClientWithSelector {
+            val parts = client.split(":", ignoreCase = false, limit = 2)
+            return if (parts.size == 2) {
+                ClientWithSelector.create(parts[0], parts[1])
+            } else {
+                ClientWithSelector.create(client, null)
+            }
+        }
+    }
+
     fun compositeName(): ClientComposite {
         return if (selector != null) {
-            "$name:$selector"
+            if (negated) {
+                "$name:$NEGATION_PREFIX$selector"
+            } else {
+                "$name:$selector"
+            }
         } else {
             name
         }

@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+## [0.19.26]
+
+### Changed
+- Bump consul recipes to fix index handling behavior in edge cases
+
+## [0.19.25]
+
+### Changed
+- Prefix for negating values from jwt token used in rbac
+- Configurable default clients lists
+
 ## [0.19.24]
 
 ### Changed

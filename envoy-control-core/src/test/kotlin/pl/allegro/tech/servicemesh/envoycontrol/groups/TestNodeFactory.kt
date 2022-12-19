@@ -65,7 +65,7 @@ val addedProxySettings = ProxySettings(
         endpoints = listOf(
             IncomingEndpoint(
                 path = "/endpoint",
-                clients = setOf(ClientWithSelector("client1"))
+                clients = setOf(ClientWithSelector.create("client1"))
             )
         ),
         permissionsEnabled = true
