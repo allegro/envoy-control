@@ -110,7 +110,9 @@ class NodeMetadataValidator(
             val unsupportedTags = metadata.proxySettings.outgoing.getTagDependencies()
                 .filter { !it.tag.startsWith(properties.outgoingPermissions.tagPrefix) }
                 .map { it.tag }
-            throw TagDependencyValidationException(metadata.serviceName, unsupportedTags)
+            if (unsupportedTags.isNotEmpty()) {
+                throw TagDependencyValidationException(metadata.serviceName, unsupportedTags)
+            }
         }
     }
 

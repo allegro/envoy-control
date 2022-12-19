@@ -191,36 +191,30 @@ class EnvoyClustersFactory(
             globalSnapshot.clusters
         }
 
-        val serviceDependencies = group.proxySettings.outgoing.getServiceDependencies().mapNotNull {
-            createClusterForGroup(it.settings, clusters[it.service])
-        }
-        val servicesNames = group.proxySettings.outgoing.getServiceDependencies().map { it.service }.toSet()
+        val serviceSettings = group.proxySettings.outgoing.getServiceDependencies()
+            .associateBy({ it.service }, { it.settings })
 
-        val tagDependencies = group.proxySettings.outgoing.getTagDependencies().flatMap { tagDependency ->
-            globalSnapshot.tags
-                .filterKeys { !servicesNames.contains(it) }
-                .filterValues { it.contains(tagDependency.tag) }
-                .map {
-                    it.key to createClusterForGroup(tagDependency.settings, clusters[it.key])
-                }.toMap().asIterable()
-        }.fold(emptyMap<String, Cluster>()) {
-                acc, entry ->
-            if (acc.containsKey(entry.key) || entry.value == null) {
-                acc
-            } else {
-                acc.plus(entry.key to entry.value!!)
-            }
-        }
+        val serviceFromTagSettings = globalSnapshot
+            .getTagsForDependency(group.proxySettings.outgoing) { serviceName, tagDependency ->
+            serviceName to tagDependency.settings
+        }.reversed().associateBy({ it.first }, { it.second })
 
         val clustersForGroup = when (group) {
-            is ServicesGroup -> serviceDependencies + tagDependencies.values
+            is ServicesGroup -> serviceSettings.mapNotNull {
+                    createClusterForGroup(it.value, clusters[it.key])
+                } + serviceFromTagSettings.mapNotNull {
+                createClusterForGroup(it.value, clusters[it.key])
+            }
             is AllServicesGroup -> {
                 globalSnapshot.allServicesNames
-                    .subtract(servicesNames)
-                    .subtract(tagDependencies.keys)
                     .mapNotNull {
-                        createClusterForGroup(group.proxySettings.outgoing.defaultServiceSettings, clusters[it])
-                    } + serviceDependencies + tagDependencies.values
+                        val settings = serviceSettings[it] ?: serviceFromTagSettings[it]
+                        if (settings != null && settings.timeoutPolicy.connectionIdleTimeout != null) {
+                            createClusterForGroup(settings, clusters[it])
+                        } else {
+                            createClusterForGroup(group.proxySettings.outgoing.defaultServiceSettings, clusters[it])
+                        }
+                    }
             }
         }
 

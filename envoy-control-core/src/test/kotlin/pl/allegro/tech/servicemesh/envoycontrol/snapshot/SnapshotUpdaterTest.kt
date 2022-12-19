@@ -1310,7 +1310,10 @@ class SnapshotUpdaterTest {
     private fun snapshotFactory(snapshotProperties: SnapshotProperties, meterRegistry: MeterRegistry) =
         EnvoySnapshotFactory(
             ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties),
-            egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
+            egressRoutesFactory = EnvoyEgressRoutesFactory(
+                snapshotProperties.egress,
+                snapshotProperties.incomingPermissions
+            ),
             clustersFactory = EnvoyClustersFactory(snapshotProperties),
             endpointsFactory = EnvoyEndpointsFactory(
                 snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags)

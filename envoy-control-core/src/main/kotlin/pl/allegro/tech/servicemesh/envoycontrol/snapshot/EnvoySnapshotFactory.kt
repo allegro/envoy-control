@@ -161,13 +161,9 @@ class EnvoySnapshotFactory(
         }
     }
 
-    fun getSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot): Snapshot {
-        val groupSample = Timer.start(meterRegistry)
-
-        val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
-        groupSample.stop(meterRegistry.timer("snapshot-factory.get-snapshot-for-group.time"))
-        return newSnapshotForGroup
-    }
+    fun getSnapshotForGroup(group: Group, globalSnapshot: GlobalSnapshot): Snapshot =
+        meterRegistry.timer("snapshot-factory.get-snapshot-for-group.time")
+            .record<Snapshot> { newSnapshotForGroup(group, globalSnapshot) }
 
     private fun getServicesEndpointsForGroup(
         rateLimitEndpoints: List<IncomingRateLimitEndpoint>,
@@ -333,31 +329,23 @@ class RouteSpecificationFactory(
             )
         }
         val servicesNames = group.proxySettings.outgoing.getServiceDependencies().map { it.service }.toSet()
-        val definedTagsRoutes = group.proxySettings.outgoing.getTagDependencies().flatMap { tagDependency ->
-            globalSnapshot.tags
-                .filterKeys { !servicesNames.contains(it) }
-                .filterValues { it.contains(tagDependency.tag) }
-                .map { RouteSpecification(
-                    clusterName = it.key,
-                    routeDomains = listOf(it.key) + getServiceWithCustomDomain(it.key),
-                    settings = tagDependency.settings
-                ) }
-        }.fold(emptyMap<String, RouteSpecification>()) {
-                acc, routeSpecification ->
-            if (acc.containsKey(routeSpecification.clusterName)) {
-                acc
-            } else {
-                acc.plus(routeSpecification.clusterName to routeSpecification)
-            }
-        }
+        val definedTagsRoutes = globalSnapshot
+            .getTagsForDependency(group.proxySettings.outgoing) { servicesName, tagDependency ->
+            RouteSpecification(
+                clusterName = servicesName,
+                routeDomains = listOf(servicesName) + getServiceWithCustomDomain(servicesName),
+                settings = tagDependency.settings
+            )
+        }.distinctBy { it.clusterName }
+
         return when (group) {
             is ServicesGroup -> {
-                definedServicesRoutes + definedTagsRoutes.values
+                definedServicesRoutes + definedTagsRoutes
             }
             is AllServicesGroup -> {
                 val allServicesRoutes = globalSnapshot.allServicesNames
                     .subtract(servicesNames)
-                    .subtract(definedTagsRoutes.keys)
+                    .subtract(definedTagsRoutes.map { it.clusterName }.toSet())
                     .map {
                         RouteSpecification(
                             clusterName = it,
@@ -365,7 +353,7 @@ class RouteSpecificationFactory(
                             settings = group.proxySettings.outgoing.defaultServiceSettings
                         )
                     }
-                allServicesRoutes + definedServicesRoutes + definedTagsRoutes.values
+                allServicesRoutes + definedServicesRoutes + definedTagsRoutes
             }
         }
     }

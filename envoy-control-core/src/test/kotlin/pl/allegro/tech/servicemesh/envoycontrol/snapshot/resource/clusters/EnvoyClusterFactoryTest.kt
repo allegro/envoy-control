@@ -44,13 +44,9 @@ class EnvoyClusterFactoryTest {
             )
         )
         val services = listOf("service-A", "service-B", "service-C")
-        val globalSnapshot = GlobalSnapshot(
-            clusters = createClusters(properties, services),
-            allServicesNames = services.toSet(),
-            endpoints = emptyMap(),
-            clusterConfigurations = emptyMap(),
-            securedClusters = emptyMap(),
-            tags = emptyMap()
+        val globalSnapshot = buildGlobalSnapshot(
+            services = services,
+            properties = properties
         )
 
         // when
@@ -77,12 +73,9 @@ class EnvoyClusterFactoryTest {
             )
         )
         val services = listOf("service-A", "service-B", "service-C")
-        val globalSnapshot = GlobalSnapshot(
-            clusters = createClusters(properties, services),
-            allServicesNames = services.toSet(),
-            endpoints = emptyMap(),
-            clusterConfigurations = emptyMap(),
-            securedClusters = emptyMap(),
+        val globalSnapshot = buildGlobalSnapshot(
+            services = services,
+            properties = properties,
             tags = mapOf("service-A" to setOf("tag"), "service-C" to setOf("tag"))
         )
 
@@ -101,7 +94,7 @@ class EnvoyClusterFactoryTest {
     }
 
     @Test
-    fun `should return clusters from tag dependency with `() {
+    fun `should return clusters from tag dependency with keeping order`() {
         // given
         val properties = SnapshotProperties()
         val factory = EnvoyClustersFactory(properties)
@@ -115,12 +108,9 @@ class EnvoyClusterFactoryTest {
             )
         )
         val services = listOf("service-A", "service-B", "service-C")
-        val globalSnapshot = GlobalSnapshot(
-            clusters = createClusters(properties, services),
-            allServicesNames = services.toSet(),
-            endpoints = emptyMap(),
-            clusterConfigurations = emptyMap(),
-            securedClusters = emptyMap(),
+        val globalSnapshot = buildGlobalSnapshot(
+            services = services,
+            properties = properties,
             tags = mapOf("service-A" to setOf("tag-1"), "service-C" to setOf("tag-1", "tag-2"), "service-B" to setOf("tag-2"))
         )
 
@@ -153,19 +143,16 @@ class EnvoyClusterFactoryTest {
                         serviceDependency("service-A", 44)
                     ),
                     tagDependencies = listOf(
-                        tagDependency("tag-1", 33)
+                        tagDependency("tag", 33)
                     )
                 )
             )
         )
         val services = listOf("service-A", "service-B", "service-C")
-        val globalSnapshot = GlobalSnapshot(
-            clusters = createClusters(properties, services),
-            allServicesNames = services.toSet(),
-            endpoints = emptyMap(),
-            clusterConfigurations = emptyMap(),
-            securedClusters = emptyMap(),
-            tags = mapOf("service-A" to setOf("tag-1"), "service-C" to setOf("tag-1"))
+        val globalSnapshot = buildGlobalSnapshot(
+            services = services,
+            properties = properties,
+            tags = mapOf("service-A" to setOf("tag"), "service-C" to setOf("tag"))
         )
 
         // when
@@ -189,13 +176,9 @@ class EnvoyClusterFactoryTest {
         val factory = EnvoyClustersFactory(properties)
         val group = allServicesGroup
         val services = listOf("service-A", "service-B", "service-C")
-        val globalSnapshot = GlobalSnapshot(
-            clusters = createClusters(properties, services),
-            allServicesNames = services.toSet(),
-            endpoints = emptyMap(),
-            clusterConfigurations = emptyMap(),
-            securedClusters = emptyMap(),
-            tags = emptyMap()
+        val globalSnapshot = buildGlobalSnapshot(
+            services = services,
+            properties = properties
         )
 
         // when
@@ -222,13 +205,9 @@ class EnvoyClusterFactoryTest {
             )
         )
         val services = listOf("service-A", "service-B", "service-C")
-        val globalSnapshot = GlobalSnapshot(
-            clusters = createClusters(properties, services),
-            allServicesNames = services.toSet(),
-            endpoints = emptyMap(),
-            clusterConfigurations = emptyMap(),
-            securedClusters = emptyMap(),
-            tags = emptyMap()
+        val globalSnapshot = buildGlobalSnapshot(
+            services = services,
+            properties = properties
         )
 
         // when
@@ -257,14 +236,10 @@ class EnvoyClusterFactoryTest {
             )
         )
         val services = listOf("service-A", "service-B", "service-C")
-        val globalSnapshot = GlobalSnapshot(
-            clusters = createClusters(properties, services),
-            allServicesNames = services.toSet(),
-            endpoints = emptyMap(),
-            clusterConfigurations = emptyMap(),
-            securedClusters = emptyMap(),
-            tags = mapOf("service-A" to setOf("tag"))
-        )
+        val globalSnapshot = buildGlobalSnapshot(
+            services = services,
+            properties = properties,
+            tags = mapOf("service-A" to setOf("tag")))
 
         // when
         val clustersForGroup = factory.getClustersForGroup(group, globalSnapshot)
@@ -278,6 +253,19 @@ class EnvoyClusterFactoryTest {
             .hasIdleTimeout(27)
     }
 }
+
+private fun buildGlobalSnapshot(
+    services: Collection<String> = emptyList(),
+    properties: SnapshotProperties = SnapshotProperties(),
+    tags: Map<String, Set<String>> = emptyMap()
+) = GlobalSnapshot(
+    clusters = createClusters(properties, services.toList()),
+    allServicesNames = services.toSet(),
+    endpoints = emptyMap(),
+    clusterConfigurations = emptyMap(),
+    securedClusters = emptyMap(),
+    tags = tags
+)
 
 private fun List<Cluster>.assertServiceCluster(name: String): ObjectAssert<Cluster> {
     return assertThat(this)

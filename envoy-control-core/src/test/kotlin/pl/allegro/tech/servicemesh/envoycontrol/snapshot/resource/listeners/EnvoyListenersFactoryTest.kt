@@ -35,7 +35,7 @@ class EnvoyListenersFactoryTest {
     }
 
     @Test
-    fun `should return egress http proxy virtual listener listener with service dependency`() {
+    fun `should return egress http proxy virtual listener with service dependency`() {
         // given
         val properties = SnapshotProperties()
         val factory = EnvoyListenersFactory(properties, EnvoyHttpFilters(emptyList(), emptyList()))
@@ -66,7 +66,7 @@ class EnvoyListenersFactoryTest {
     }
 
     @Test
-    fun `should return egress http proxy virtual listener listener with tag dependency`() {
+    fun `should return egress http proxy virtual listener with tag dependency`() {
         // given
         val properties = SnapshotProperties()
         val factory = EnvoyListenersFactory(properties, EnvoyHttpFilters(emptyList(), emptyList()))
