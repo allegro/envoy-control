@@ -1,7 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.consul
 
 import com.ecwid.consul.v1.ConsulClient
+import com.ecwid.consul.v1.QueryParams
 import com.ecwid.consul.v1.agent.model.NewService
+import com.ecwid.consul.v1.catalog.model.CatalogService
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
@@ -71,6 +73,9 @@ class ConsulOperations(port: Int) {
     fun deregisterService(id: String) {
         client.agentServiceDeregister(id)
     }
+
+    fun getService(serviceName: String, params: QueryParams = QueryParams.DEFAULT): List<CatalogService> =
+        client.getCatalogService(serviceName, params).value ?: emptyList()
 
     fun deregisterAll() {
         registeredServices().forEach { deregisterService(it) }
