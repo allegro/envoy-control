@@ -84,7 +84,7 @@ class EnvoyListenersFactoryTest {
             endpoints = emptyMap(),
             clusterConfigurations = emptyMap(),
             securedClusters = emptyMap(),
-            tags = mapOf("service-B" to setOf("tag"))
+            tags = mapOf(serviceWithTags("service-B", "tag"))
         )
 
         // when
@@ -95,4 +95,8 @@ class EnvoyListenersFactoryTest {
             .extracting<String> { it.name }
             .contains("0.0.0.0:80")
     }
+}
+
+private fun serviceWithTags(serviceName: String, vararg tags: String): Pair<String, Set<String>> {
+    return serviceName to tags.toSet()
 }

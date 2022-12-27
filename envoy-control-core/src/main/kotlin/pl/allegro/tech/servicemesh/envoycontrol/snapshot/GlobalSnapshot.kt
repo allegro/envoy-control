@@ -6,22 +6,24 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.TagDependency
 
+typealias ClusterName = String
+
 data class GlobalSnapshot(
-    val clusters: Map<String, Cluster>,
-    val allServicesNames: Set<String>,
-    val endpoints: Map<String, ClusterLoadAssignment>,
-    val clusterConfigurations: Map<String, ClusterConfiguration>,
-    val securedClusters: Map<String, Cluster>,
-    val tags: Map<String, Set<String>>
+    val clusters: Map<ClusterName, Cluster>,
+    val allServicesNames: Set<ClusterName>,
+    val endpoints: Map<ClusterName, ClusterLoadAssignment>,
+    val clusterConfigurations: Map<ClusterName, ClusterConfiguration>,
+    val securedClusters: Map<ClusterName, Cluster>,
+    val tags: Map<ClusterName, Set<String>>
 ) {
-    fun <T> getTagsForDependency(
-        outgoing: Outgoing,
-        mapper: (String, TagDependency) -> T): List<T> {
+    fun getTagsForDependency(
+        outgoing: Outgoing
+    ): List<Pair<ClusterName, TagDependency>> {
         val serviceDependencies = outgoing.getServiceDependencies().map { it.service }.toSet()
         return outgoing.getTagDependencies().flatMap { tagDependency ->
             tags.filterKeys { !serviceDependencies.contains(it) }
                 .filterValues { it.contains(tagDependency.tag) }
-                .map { mapper(it.key, tagDependency) }
+                .map { it.key to tagDependency }
         }
     }
 }
@@ -31,9 +33,9 @@ fun globalSnapshot(
     clusters: Iterable<Cluster> = emptyList(),
     endpoints: Iterable<ClusterLoadAssignment> = emptyList(),
     properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties(),
-    clusterConfigurations: Map<String, ClusterConfiguration> = emptyMap(),
+    clusterConfigurations: Map<ClusterName, ClusterConfiguration> = emptyMap(),
     securedClusters: List<Cluster> = emptyList(),
-    tags: Map<String, Set<String>>
+    tags: Map<ClusterName, Set<String>>
 ): GlobalSnapshot {
     val clusters = SnapshotResources.create<Cluster>(clusters, "").resources()
     val securedClusters = SnapshotResources.create<Cluster>(securedClusters, "").resources()

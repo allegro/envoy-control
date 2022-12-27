@@ -16,8 +16,12 @@ class EnvoySnapshotFactoryTest {
     fun `should return all tags when prefix is empty`() {
         // given
         val tagPrefix = ""
-        val serviceTags = mapOf("abc" to setOf("uws", "poc"), "xyz" to setOf("uj"), "qwerty" to setOf())
-        val state: MultiClusterState = MultiClusterState(listOf(
+        val serviceTags = mapOf(
+            serviceWithTags("abc", "uws", "poc"),
+            serviceWithTags("xyz", "uj"),
+            serviceWithTags("qwerty")
+        )
+        val state = MultiClusterState(listOf(
             ClusterState(serviceState(serviceTags), Locality.LOCAL, "cluster")
         ))
 
@@ -31,8 +35,12 @@ class EnvoySnapshotFactoryTest {
     @Test
     fun `should return all tags with prefix`() {
         val tagPrefix = "tag:"
-        val serviceTags = mapOf("abc" to setOf("tag:uws", "poc"), "xyz" to setOf("uj"), "qwerty" to setOf())
-        val state: MultiClusterState = MultiClusterState(listOf(
+        val serviceTags = mapOf(
+            serviceWithTags("abc", "tag:uws", "poc"),
+            serviceWithTags("xyz", "uj"),
+            serviceWithTags("qwerty")
+        )
+        val state = MultiClusterState(listOf(
             ClusterState(serviceState(serviceTags), Locality.LOCAL, "cluster")
         ))
 
@@ -41,9 +49,9 @@ class EnvoySnapshotFactoryTest {
 
         // then
         assertThat(tags).isEqualTo(mapOf(
-            "abc" to setOf("tag:uws"),
-            "xyz" to emptySet(),
-            "qwerty" to emptySet()
+            serviceWithTags("abc", "tag:uws"),
+            serviceWithTags("xyz"),
+            serviceWithTags("qwerty")
         ))
     }
 
@@ -51,8 +59,14 @@ class EnvoySnapshotFactoryTest {
     fun `should merge multiple Cluster State`() {
         // given
         val tagPrefix = ""
-        val serviceTagsCluster1 = mapOf("abc" to setOf("uws", "poc"), "xyz" to setOf("uj"), "qwerty" to setOf())
-        val serviceTagsCluster2 = mapOf("abc" to setOf("lkj"), "xyz" to setOf(), "qwerty" to setOf("ban"))
+        val serviceTagsCluster1 = mapOf(
+            serviceWithTags("abc", "uws", "poc"),
+            serviceWithTags("xyz", "uj"),
+            serviceWithTags("qwerty"))
+        val serviceTagsCluster2 = mapOf(
+            serviceWithTags("abc", "lkj"),
+            serviceWithTags("xyz"),
+            serviceWithTags("qwerty", "ban"))
         val state = MultiClusterState(listOf(
             ClusterState(serviceState(serviceTagsCluster1), Locality.LOCAL, "cluster"),
             ClusterState(serviceState(serviceTagsCluster2), Locality.LOCAL, "cluster2")
@@ -63,9 +77,9 @@ class EnvoySnapshotFactoryTest {
 
         // then
         assertThat(tags).isEqualTo(mapOf(
-            "abc" to setOf("uws", "poc", "lkj"),
-            "xyz" to setOf("uj"),
-            "qwerty" to setOf("ban")
+            serviceWithTags("abc", "uws", "poc", "lkj"),
+            serviceWithTags("xyz", "uj"),
+            serviceWithTags("qwerty", "ban")
         ))
     }
 
@@ -75,4 +89,8 @@ class EnvoySnapshotFactoryTest {
         }.associateTo(ConcurrentHashMap()) { it.first to ServiceInstances(it.first, it.second) }
         return ServicesState(servicesInstances)
     }
+}
+
+private fun serviceWithTags(serviceName: String, vararg tags: String): Pair<String, Set<String>> {
+    return serviceName to tags.toSet()
 }

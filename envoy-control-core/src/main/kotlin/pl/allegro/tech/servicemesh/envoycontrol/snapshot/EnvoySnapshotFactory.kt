@@ -330,11 +330,12 @@ class RouteSpecificationFactory(
         }
         val servicesNames = group.proxySettings.outgoing.getServiceDependencies().map { it.service }.toSet()
         val definedTagsRoutes = globalSnapshot
-            .getTagsForDependency(group.proxySettings.outgoing) { servicesName, tagDependency ->
+            .getTagsForDependency(group.proxySettings.outgoing)
+            .map {
             RouteSpecification(
-                clusterName = servicesName,
-                routeDomains = listOf(servicesName) + getServiceWithCustomDomain(servicesName),
-                settings = tagDependency.settings
+                clusterName = it.first,
+                routeDomains = listOf(it.first) + getServiceWithCustomDomain(it.first),
+                settings = it.second.settings
             )
         }.distinctBy { it.clusterName }
 

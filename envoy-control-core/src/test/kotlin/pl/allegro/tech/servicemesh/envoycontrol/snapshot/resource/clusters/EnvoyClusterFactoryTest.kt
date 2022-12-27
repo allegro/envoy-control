@@ -76,7 +76,10 @@ class EnvoyClusterFactoryTest {
         val globalSnapshot = buildGlobalSnapshot(
             services = services,
             properties = properties,
-            tags = mapOf("service-A" to setOf("tag"), "service-C" to setOf("tag"))
+            tags = mapOf(
+                serviceWithTags("service-A", "tag"),
+                serviceWithTags("service-C", "tag")
+            )
         )
 
         // when
@@ -111,7 +114,11 @@ class EnvoyClusterFactoryTest {
         val globalSnapshot = buildGlobalSnapshot(
             services = services,
             properties = properties,
-            tags = mapOf("service-A" to setOf("tag-1"), "service-C" to setOf("tag-1", "tag-2"), "service-B" to setOf("tag-2"))
+            tags = mapOf(
+                serviceWithTags("service-A","tag-1"),
+                serviceWithTags("service-C","tag-1", "tag-2"),
+                serviceWithTags("service-B","tag-2")
+            )
         )
 
         // when
@@ -152,7 +159,10 @@ class EnvoyClusterFactoryTest {
         val globalSnapshot = buildGlobalSnapshot(
             services = services,
             properties = properties,
-            tags = mapOf("service-A" to setOf("tag"), "service-C" to setOf("tag"))
+            tags = mapOf(
+                serviceWithTags("service-A", "tag"),
+                serviceWithTags("service-C", "tag")
+            )
         )
 
         // when
@@ -239,7 +249,7 @@ class EnvoyClusterFactoryTest {
         val globalSnapshot = buildGlobalSnapshot(
             services = services,
             properties = properties,
-            tags = mapOf("service-A" to setOf("tag")))
+            tags = mapOf(serviceWithTags("service-A", "tag")))
 
         // when
         val clustersForGroup = factory.getClustersForGroup(group, globalSnapshot)
@@ -278,4 +288,8 @@ private fun ObjectAssert<Cluster>.hasIdleTimeout(idleTimeout: Long): ObjectAsser
     this.extracting { it.commonHttpProtocolOptions.idleTimeout.seconds }
         .isEqualTo(idleTimeout)
     return this
+}
+
+private fun serviceWithTags(serviceName: String, vararg tags: String): Pair<String, Set<String>> {
+    return serviceName to tags.toSet()
 }
