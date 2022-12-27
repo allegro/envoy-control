@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - Add possibility to set dependency to group of services by tag mechanism
+- flaky test fixed
+
 
 ## [0.19.26]
 
