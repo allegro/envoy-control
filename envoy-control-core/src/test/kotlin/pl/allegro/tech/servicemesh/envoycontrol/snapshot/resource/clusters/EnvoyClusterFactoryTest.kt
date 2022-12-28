@@ -115,9 +115,9 @@ class EnvoyClusterFactoryTest {
             services = services,
             properties = properties,
             tags = mapOf(
-                serviceWithTags("service-A","tag-1"),
-                serviceWithTags("service-C","tag-1", "tag-2"),
-                serviceWithTags("service-B","tag-2")
+                serviceWithTags("service-A", "tag-1"),
+                serviceWithTags("service-C", "tag-1", "tag-2"),
+                serviceWithTags("service-B", "tag-2")
             )
         )
 
