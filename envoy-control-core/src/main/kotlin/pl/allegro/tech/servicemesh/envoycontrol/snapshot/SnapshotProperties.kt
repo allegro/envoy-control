@@ -372,6 +372,7 @@ data class RateLimitProperties(
 )
 
 data class RetryPolicyProperties(
+    var enabled: Boolean = true,
     var retryOn: List<String> = emptyList(),
     var numberOfRetries: Int = 1,
     var hostSelectionRetryMaxAttempts: Long = 3,
