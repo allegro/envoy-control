@@ -3,8 +3,8 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.controlplane.cache.SnapshotResources
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
-import pl.allegro.tech.servicemesh.envoycontrol.groups.TagDependency
 
 typealias ClusterName = String
 
@@ -18,15 +18,20 @@ data class GlobalSnapshot(
 ) {
     fun getTagsForDependency(
         outgoing: Outgoing
-    ): List<Pair<ClusterName, TagDependency>> {
+    ): List<TagDependencySettings> {
         val serviceDependencies = outgoing.getServiceDependencies().map { it.service }.toSet()
         return outgoing.getTagDependencies().flatMap { tagDependency ->
             tags.filterKeys { !serviceDependencies.contains(it) }
                 .filterValues { it.contains(tagDependency.tag) }
-                .map { it.key to tagDependency }
+                .map { TagDependencySettings(it.key, tagDependency.settings) }
         }
     }
 }
+
+data class TagDependencySettings(
+    val clusterName: ClusterName,
+    val settings: DependencySettings
+)
 
 @Suppress("LongParameterList")
 fun globalSnapshot(

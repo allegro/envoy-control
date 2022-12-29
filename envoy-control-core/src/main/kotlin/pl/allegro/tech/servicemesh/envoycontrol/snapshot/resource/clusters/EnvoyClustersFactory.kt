@@ -191,14 +191,14 @@ class EnvoyClustersFactory(
             globalSnapshot.clusters
         }
 
-        val serviceSettings = group.proxySettings.outgoing.getServiceDependencies()
-            .associateBy({ it.service }, { it.settings })
+        val serviceSettings =
+            group.proxySettings.outgoing.getServiceDependencies()
+                .associate { it.service to it.settings }
 
         val serviceFromTagSettings = globalSnapshot
             .getTagsForDependency(group.proxySettings.outgoing)
-            .map { it.first to it.second.settings }
-            .distinctBy { it.first }
-            .associateBy({ it.first }, { it.second })
+            .distinctBy { it.clusterName }
+            .associate { it.clusterName to it.settings }
 
         val clustersForGroup = when (group) {
             is ServicesGroup -> serviceSettings.mapNotNull {

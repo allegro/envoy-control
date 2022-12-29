@@ -333,9 +333,9 @@ class RouteSpecificationFactory(
             .getTagsForDependency(group.proxySettings.outgoing)
             .map {
             RouteSpecification(
-                clusterName = it.first,
-                routeDomains = listOf(it.first) + getServiceWithCustomDomain(it.first),
-                settings = it.second.settings
+                clusterName = it.clusterName,
+                routeDomains = listOf(it.clusterName) + getServiceWithCustomDomain(it.clusterName),
+                settings = it.settings
             )
         }.distinctBy { it.clusterName }
 
