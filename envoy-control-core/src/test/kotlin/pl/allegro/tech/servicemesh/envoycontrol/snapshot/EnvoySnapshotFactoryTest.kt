@@ -26,7 +26,7 @@ class EnvoySnapshotFactoryTest {
         ))
 
         // when
-        val tags = EnvoySnapshotFactory.tagExtractor(tagPrefix, state)
+        val tags = EnvoySnapshotFactory.extractTags(tagPrefix, state)
 
         // then
         assertThat(tags).isEqualTo(serviceTags)
@@ -45,7 +45,7 @@ class EnvoySnapshotFactoryTest {
         ))
 
         // when
-        val tags = EnvoySnapshotFactory.tagExtractor(tagPrefix, state)
+        val tags = EnvoySnapshotFactory.extractTags(tagPrefix, state)
 
         // then
         assertThat(tags).isEqualTo(mapOf(
@@ -73,7 +73,7 @@ class EnvoySnapshotFactoryTest {
         ))
 
         // when
-        val tags = EnvoySnapshotFactory.tagExtractor(tagPrefix, state)
+        val tags = EnvoySnapshotFactory.extractTags(tagPrefix, state)
 
         // then
         assertThat(tags).isEqualTo(mapOf(

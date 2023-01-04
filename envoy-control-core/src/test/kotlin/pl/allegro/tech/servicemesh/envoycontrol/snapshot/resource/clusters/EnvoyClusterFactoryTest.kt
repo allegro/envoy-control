@@ -32,6 +32,32 @@ class EnvoyClusterFactoryTest {
     }
 
     @Test
+    fun `should not return cluster from service dependency when is not present in global snapshot`() {
+        // given
+        val properties = SnapshotProperties()
+        val factory = EnvoyClustersFactory(properties)
+        val group = serviceGroup.copy(
+            proxySettings = ProxySettings(
+                outgoing = Outgoing(
+                    serviceDependencies = listOf(serviceDependency("service-A", 33))
+                )
+            )
+        )
+        val services = listOf("service-B", "service-C")
+        val globalSnapshot = buildGlobalSnapshot(
+            services = services,
+            properties = properties
+        )
+
+        // when
+        val clustersForGroup = factory.getClustersForGroup(group, globalSnapshot)
+
+        // then
+        assertThat(clustersForGroup)
+            .isEmpty()
+    }
+
+    @Test
     fun `should return cluster from service dependency`() {
         // given
         val properties = SnapshotProperties()
@@ -139,7 +165,7 @@ class EnvoyClusterFactoryTest {
     }
 
     @Test
-    fun `should return correct configuration for clusters from tag dependency where one service has multiple tags`() {
+    fun `should return correct configuration for clusters from service dependency when service has tag`() {
         // given
         val properties = SnapshotProperties()
         val factory = EnvoyClustersFactory(properties)

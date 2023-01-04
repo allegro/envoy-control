@@ -40,7 +40,7 @@ class EnvoySnapshotFactory(
     companion object {
         const val DEFAULT_HTTP_PORT = 80
 
-        internal fun tagExtractor(tagPrefix: String, servicesStates: MultiClusterState): Map<String, Set<String>> =
+        internal fun extractTags(tagPrefix: String, servicesStates: MultiClusterState): Map<String, Set<String>> =
             servicesStates.flatMap { it.servicesState.serviceNameToInstances.asIterable() }
             .fold(emptyMap()) {
                     acc, entry ->
@@ -76,7 +76,7 @@ class EnvoySnapshotFactory(
             securedClusters = securedClusters,
             endpoints = endpoints,
             properties = properties.outgoingPermissions,
-            tags = tagExtractor(properties.outgoingPermissions.tagPrefix, servicesStates)
+            tags = extractTags(properties.outgoingPermissions.tagPrefix, servicesStates)
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 

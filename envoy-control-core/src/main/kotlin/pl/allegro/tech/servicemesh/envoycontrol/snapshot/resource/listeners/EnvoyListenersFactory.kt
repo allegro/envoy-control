@@ -290,11 +290,11 @@ class EnvoyListenersFactory(
     }
 
     private fun createEgressHttpProxyVirtualListener(
-        portAndDomains: Set<Int>,
+        ports: Set<Int>,
         group: Group,
         globalSnapshot: GlobalSnapshot
     ): List<Listener> {
-        return portAndDomains.map { port ->
+        return ports.map { port ->
             Listener.newBuilder()
                 .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:$port")
                 .setAddress(
