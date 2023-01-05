@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -39,12 +40,16 @@ open class EndpointMetadataMergingTests {
         consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("ipsum"))
         consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("lorem", "dolom"))
 
-        envoy.waitForReadyServices("echo")
+        untilAsserted {
+            assertThat(consul.server.operations.getService("echo")).hasSize(2)
+        }
+
+        envoy.waitForAvailableEndpoints("echo")
 
         // when
-        val ipsumStats = callEchoServiceRepeatedly(repeat = 1, tag = "ipsum")
-        val loremStats = callEchoServiceRepeatedly(repeat = 1, tag = "lorem")
-        val dolomStats = callEchoServiceRepeatedly(repeat = 1, tag = "dolom")
+        val ipsumStats = callEchoServiceRepeatedly(service, repeat = 1, tag = "ipsum")
+        val loremStats = callEchoServiceRepeatedly(service, repeat = 1, tag = "lorem")
+        val dolomStats = callEchoServiceRepeatedly(service, repeat = 1, tag = "dolom")
 
         // then
         assertThat(ipsumStats.hits(service)).isEqualTo(1)
@@ -53,6 +58,7 @@ open class EndpointMetadataMergingTests {
     }
 
     protected open fun callEchoServiceRepeatedly(
+        service: EchoServiceExtension,
         repeat: Int,
         tag: String? = null,
         assertNoErrors: Boolean = true
