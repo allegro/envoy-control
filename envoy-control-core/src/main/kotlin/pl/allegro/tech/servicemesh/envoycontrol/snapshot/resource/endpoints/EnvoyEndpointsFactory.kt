@@ -52,7 +52,7 @@ class EnvoyEndpointsFactory(
         clusterLoadAssignment: ClusterLoadAssignment,
         routingPolicy: RoutingPolicy
     ): ClusterLoadAssignment {
-        if (!routingPolicy.autoServiceTag) {
+        if (!routingPolicy.autoServiceTag || !properties.routing.serviceTags.enabled) {
             return clusterLoadAssignment
         }
 

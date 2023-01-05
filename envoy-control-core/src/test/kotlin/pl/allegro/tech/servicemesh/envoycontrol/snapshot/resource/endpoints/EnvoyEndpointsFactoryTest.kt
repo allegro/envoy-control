@@ -9,7 +9,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 internal class EnvoyEndpointsFactoryTest {
 
-    private val endpointsFactory = EnvoyEndpointsFactory(SnapshotProperties())
+    private val endpointsFactory = EnvoyEndpointsFactory(SnapshotProperties().apply {
+        routing.serviceTags.enabled = true
+    })
 
     // language=json
     private val globalLoadAssignmentJson = """{

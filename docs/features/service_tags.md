@@ -94,3 +94,72 @@ Use this feature with caution, because tags combinations require a lot
 of additional memory for Envoy.
 
 
+## Automatic service tags with fallback support using "routingPolicy"
+
+Above we described a mode where service tags are specified manually by 
+a client - as a header. That mode is very flexible, because it allows for using different
+service tags for every request.
+
+However, sometimes a client doesn't need such flexibility and prefers to set
+ service tags once and don't add it to every request.
+
+It is possible by setting metadata `proxy_settings.outgoing.routingPolicy`.
+
+`routingPolicy` also has an advantage over manual, per-request service tags:
+it supports fallbacks. A client can list multiple service tags with preferred order
+and the best instance will be selected every time.
+
+### Example:
+
+```yaml
+metadata:
+   proxy_settings:
+      outgoing:
+        routingPolicy:
+          autoServiceTag: true
+          serviceTagPreference: ["ipsum", "lorem"]
+        dependencies:
+          - service: "echo" 
+```
+
+* `outgoing.routingPolicy` applies to all `outgoing.dependencies`, unless overriden 
+  on specific dependency level, like
+  below, where only a subset of `routingPolicy` fields is overridden for a service `echo`:
+
+```yaml
+metadata:
+  proxy_settings:
+    outgoing:
+      routingPolicy:
+        autoServiceTag: false
+        serviceTagPreference: ["dolom", "est"]
+      dependencies:
+        - service: "echo" 
+          routingPolicy:
+            autoServiceTag: true
+            fallbackToAnyInstance: true
+```
+
+Then effective `routingPolicy` for service `echo` is:
+
+```yaml
+routingPolicy:
+  autoServiceTag: true
+  serviceTagPreference: ["dolom", "est"]
+  fallbackToAnyInstance: true
+```
+
+### `routingPolicy` fields
+
+`autoServiceTag` - Enable automatic service tag routing. Default: `false`
+
+`serviceTagPreference` - contains one or more service-tags. They are ordered by priority - instances with the 
+  left-most service tag will be selected. If there is no instance with a preferred service-tag, 
+  the next tag from the list is considered. Default: empty list
+
+`fallbackToAnyInstance` - if no instance with a service-tag from the `serviceTagPreference` list is found,
+  select any instance.
+  Default: `false`
+
+### Hints
+`routingPolicy` tags can be combined with manual, per-request service-tags
