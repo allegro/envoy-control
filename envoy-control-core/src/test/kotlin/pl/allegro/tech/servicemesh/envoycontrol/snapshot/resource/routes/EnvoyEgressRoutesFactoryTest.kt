@@ -1,18 +1,26 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.util.Durations
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomIdleTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomRequestTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasHostRewriteHeader
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRequestHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasNoRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeadersToRemove
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRetryPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasVirtualHostsInOrder
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hostRewriteHeaderIsEmpty
+import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
+import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
+import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPrefix
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
@@ -28,7 +36,8 @@ internal class EnvoyEgressRoutesFactoryTest {
                     idleTimeout = Durations.fromSeconds(10L),
                     requestTimeout = Durations.fromSeconds(10L)
                 ),
-                rewriteHostHeader = true
+                rewriteHostHeader = true,
+                retryPolicy = RetryPolicy()
             )
         )
     )
@@ -186,5 +195,87 @@ internal class EnvoyEgressRoutesFactoryTest {
             }
         )
         routeConfig.hasRequestHeadersToRemove(listOf("x-special-case-header", "x-custom"))
+    }
+
+    @Test
+    fun `should create route config and apply retry police only to specified methods`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+        val retryPolicy = RetryPolicy(methods = setOf("GET", "POST"))
+        val routesSpecifications = listOf(
+            RouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
+        )
+
+        val routeConfig = routesFactory.createEgressRouteConfig(
+            "test",
+            routesSpecifications,
+            routeName = "retry",
+            addUpstreamAddressHeader = false
+        )
+
+        routeConfig.hasVirtualHostThat("example") {
+            assertEquals(2, routesCount)
+            val retryRoute = getRoutes(0)
+            val defaultRoute = getRoutes(1)
+
+            retryRoute.hasRetryPolicy()
+            retryRoute.matchingOnMethod("GET|POST", true)
+            retryRoute.matchingOnPrefix("/")
+
+            defaultRoute.hasNoRetryPolicy()
+            defaultRoute.matchingOnAnyMethod()
+            defaultRoute.matchingOnPrefix("/")
+        }
+    }
+
+    @Test
+    fun `should create route config and apply retry policy without specified methods to default prefix and all method`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+        val retryPolicy = RetryPolicy(numberRetries = 3)
+        val routesSpecifications = listOf(
+            RouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
+        )
+
+        val routeConfig = routesFactory.createEgressRouteConfig(
+            "test",
+            routesSpecifications,
+            routeName = "retry",
+            addUpstreamAddressHeader = false
+        )
+
+        routeConfig.hasVirtualHostThat("example") {
+            assertEquals(1, routesCount)
+            val defaultRoute = getRoutes(0)
+
+            defaultRoute.hasRetryPolicy()
+            defaultRoute.matchingOnAnyMethod()
+            defaultRoute.matchingOnPrefix("/")
+        }
+    }
+
+    @Test
+    fun `should create route config and not apply retry policy if it is not specified`() {
+        // given
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+        val routesSpecifications = listOf(
+            RouteSpecification("example", listOf("example.pl:1553"), DependencySettings()),
+        )
+
+        val routeConfig = routesFactory.createEgressRouteConfig(
+            "test",
+            routesSpecifications,
+            routeName = "retry",
+            addUpstreamAddressHeader = false
+        )
+
+        routeConfig.hasVirtualHostThat("example") {
+            assertEquals(1, routesCount)
+            val defaultRoute = getRoutes(0)
+
+            defaultRoute.hasNoRetryPolicy()
+            defaultRoute.matchingOnAnyMethod()
+            defaultRoute.matchingOnPrefix("/")
+        }
     }
 }

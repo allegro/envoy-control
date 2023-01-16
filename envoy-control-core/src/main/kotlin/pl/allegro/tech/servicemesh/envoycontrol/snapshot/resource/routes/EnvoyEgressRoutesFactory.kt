@@ -124,10 +124,6 @@ class EnvoyEgressRoutesFactory(
         val virtualHost = VirtualHost.newBuilder()
             .setName(routeSpecification.clusterName)
             .addAllDomains(routeSpecification.routeDomains)
-        val defaultRouteMatch = RouteMatch
-            .newBuilder()
-            .setPrefix("/")
-            .build()
         val retryPolicy = routeSpecification.settings.retryPolicy
         if (retryPolicy != null) {
             buildEgressRouteWithRetryPolicy(virtualHost, retryPolicy, routeSpecification)
