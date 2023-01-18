@@ -36,6 +36,7 @@ open class EndpointMetadataMergingTests {
     }
 
     @Test
+    @Suppress("MagicNumber")
     fun `should merge all service tags of endpoints with the same ip and port`() {
         // given
         consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("ipsum"))
