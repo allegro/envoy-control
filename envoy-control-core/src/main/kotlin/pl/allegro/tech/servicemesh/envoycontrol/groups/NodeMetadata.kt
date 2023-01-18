@@ -8,6 +8,7 @@ import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector.Companion.decomposeClient
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFiltersProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CommonHttpProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
@@ -113,19 +114,23 @@ private fun defaultRetryPolicy(retryPolicy: RetryPolicyProperties) = if (retryPo
     null
 }
 
+private fun defaultTimeoutPolicy(commonHttpProperties: CommonHttpProperties) = Outgoing.TimeoutPolicy(
+    idleTimeout = Durations.fromMillis(commonHttpProperties.idleTimeout.toMillis()),
+    connectionIdleTimeout = Durations.fromMillis(commonHttpProperties.connectionIdleTimeout.toMillis()),
+    requestTimeout = Durations.fromMillis(commonHttpProperties.requestTimeout.toMillis())
+)
+
+private fun defaultDependencySettings(properties: SnapshotProperties) = DependencySettings(
+    handleInternalRedirect = properties.egress.handleInternalRedirect,
+    timeoutPolicy = defaultTimeoutPolicy(properties.egress.commonHttp),
+    retryPolicy = defaultRetryPolicy(properties.retryPolicy)
+)
+
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val allServiceDependenciesIdentifier = properties.outgoingPermissions.allServicesDependencies.identifier
     val rawDependencies = this?.field("dependencies")?.list().orEmpty().map(::toRawDependency)
     val allServicesDependencies = toAllServiceDependencies(rawDependencies, allServiceDependenciesIdentifier)
-    val defaultSettingsFromProperties = DependencySettings(
-        handleInternalRedirect = properties.egress.handleInternalRedirect,
-        timeoutPolicy = Outgoing.TimeoutPolicy(
-            idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
-            connectionIdleTimeout = Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis()),
-            requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-        ),
-        retryPolicy = defaultRetryPolicy(properties.retryPolicy)
-    )
+    val defaultSettingsFromProperties = defaultDependencySettings(properties)
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
     val services = rawDependencies.filter { it.service != null && it.service != allServiceDependenciesIdentifier }
         .map {
