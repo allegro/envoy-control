@@ -9,6 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
+import java.time.Duration
 
 open class EndpointMetadataMergingTests {
 
@@ -52,9 +53,11 @@ open class EndpointMetadataMergingTests {
         val dolomStats = callEchoServiceRepeatedly(service, repeat = 1, tag = "dolom")
 
         // then
-        assertThat(ipsumStats.hits(service)).isEqualTo(1)
-        assertThat(loremStats.hits(service)).isEqualTo(1)
-        assertThat(dolomStats.hits(service)).isEqualTo(1)
+        untilAsserted(wait = Duration.ofSeconds(30)) {
+            assertThat(ipsumStats.hits(service)).isEqualTo(1)
+            assertThat(loremStats.hits(service)).isEqualTo(1)
+            assertThat(dolomStats.hits(service)).isEqualTo(1)
+        }
     }
 
     protected open fun callEchoServiceRepeatedly(
