@@ -216,15 +216,8 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     val handleInternalRedirect = this?.field("handleInternalRedirect")?.boolValue
     val timeoutPolicy = this?.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(defaultSettings.timeoutPolicy)
     val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
-    val retryPolicy = this?.field("retryPolicy")?.let { retryPolicy ->
-        mapProtoToRetryPolicy(
-            retryPolicy,
-            defaultSettings.retryPolicy
-        )
-    }
-    val routingPolicy = this?.field("routingPolicy")?.let { policy ->
-        mapToRoutingPolicy(value = policy, defaultRoutingPolicy = defaultSettings.routingPolicy)
-    }
+    val retryPolicy = this?.field("retryPolicy")?.toRetryPolicy(defaultSettings.retryPolicy)
+    val routingPolicy = this?.field("routingPolicy")?.toRoutingPolicy(defaultSettings.routingPolicy)
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
         rewriteHostHeader == null &&
@@ -245,44 +238,44 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 }
 
-private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy): RetryPolicy {
+private fun Value.toRetryPolicy(defaultRetryPolicy: RetryPolicy): RetryPolicy {
     return RetryPolicy(
-        retryOn = value.field("retryOn")?.listValue?.valuesList?.map { it.stringValue } ?: defaultRetryPolicy.retryOn,
-        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
+        retryOn = this.field("retryOn")?.listValue?.valuesList?.map { it.stringValue } ?: defaultRetryPolicy.retryOn,
+        hostSelectionRetryMaxAttempts = this.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
             ?: defaultRetryPolicy.hostSelectionRetryMaxAttempts,
-        numberRetries = value.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy.numberRetries,
-        retryHostPredicate = value.field("retryHostPredicate")?.listValue?.valuesList?.map {
+        numberRetries = this.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy.numberRetries,
+        retryHostPredicate = this.field("retryHostPredicate")?.listValue?.valuesList?.map {
             RetryHostPredicate(it.field("name")!!.stringValue)
         }?.toList() ?: defaultRetryPolicy.retryHostPredicate,
-        perTryTimeoutMs = value.field("perTryTimeoutMs")?.numberValue?.toLong(),
-        retryBackOff = value.field("retryBackOff")?.structValue?.let {
+        perTryTimeoutMs = this.field("perTryTimeoutMs")?.numberValue?.toLong(),
+        retryBackOff = this.field("retryBackOff")?.structValue?.let {
             RetryBackOff(
                 baseInterval = it.fieldsMap["baseInterval"]?.toDuration(),
                 maxInterval = it.fieldsMap["maxInterval"]?.toDuration()
             )
         } ?: defaultRetryPolicy.retryBackOff,
-        rateLimitedRetryBackOff = value.field("rateLimitedRetryBackOff")?.structValue?.let {
+        rateLimitedRetryBackOff = this.field("rateLimitedRetryBackOff")?.structValue?.let {
             RateLimitedRetryBackOff(
                 it.fieldsMap["resetHeaders"]?.listValue?.valuesList?.mapNotNull(::mapProtoToResetHeader)
             )
         } ?: defaultRetryPolicy.rateLimitedRetryBackOff,
-        retryableStatusCodes = value.field("retryableStatusCodes")?.listValue?.valuesList?.map {
+        retryableStatusCodes = this.field("retryableStatusCodes")?.listValue?.valuesList?.map {
             it.numberValue.toInt()
         },
-        retryableHeaders = value.field("retryableHeaders")?.listValue?.valuesList?.map {
+        retryableHeaders = this.field("retryableHeaders")?.listValue?.valuesList?.map {
             it.stringValue
         },
-        methods = mapProtoToMethods(value)
+        methods = mapProtoToMethods(this)
     )
 }
 
-private fun mapToRoutingPolicy(value: Value, defaultRoutingPolicy: RoutingPolicy): RoutingPolicy {
+private fun Value.toRoutingPolicy(defaultRoutingPolicy: RoutingPolicy): RoutingPolicy {
     return RoutingPolicy(
-        autoServiceTag = value.field("autoServiceTag")?.boolValue
+        autoServiceTag = this.field("autoServiceTag")?.boolValue
             ?: defaultRoutingPolicy.autoServiceTag,
-        serviceTagPreference = value.field("serviceTagPreference")?.list()?.map { it.stringValue }
+        serviceTagPreference = this.field("serviceTagPreference")?.list()?.map { it.stringValue }
             ?: defaultRoutingPolicy.serviceTagPreference,
-        fallbackToAnyInstance = value.field("fallbackToAnyInstance")?.boolValue
+        fallbackToAnyInstance = this.field("fallbackToAnyInstance")?.boolValue
             ?: defaultRoutingPolicy.fallbackToAnyInstance
     )
 }
