@@ -57,11 +57,7 @@ class EnvoyEndpointsFactory(
         }
 
         val filteredLoadAssignment = routingPolicy.serviceTagPreference.firstNotNullOfOrNull { serviceTag ->
-            when (containsEndpointWithServiceTag(clusterLoadAssignment, serviceTag)) {
-                ContainsResult.ALL -> clusterLoadAssignment
-                ContainsResult.SOME -> createFilteredLoadAssignment(clusterLoadAssignment, serviceTag)
-                ContainsResult.NONE -> null
-            }
+            filterEndpoints(clusterLoadAssignment, serviceTag)
         }
 
         return when {
@@ -71,48 +67,41 @@ class EnvoyEndpointsFactory(
         }
     }
 
-    private fun createFilteredLoadAssignment(
-        loadAssignment: ClusterLoadAssignment,
-        serviceTag: String
-    ): ClusterLoadAssignment {
-        val builder = loadAssignment.toBuilder()
-        builder.endpointsBuilderList.forEach { localityLbEndpointsBuilder ->
-            val lbEndpointsList = localityLbEndpointsBuilder.lbEndpointsList
-            val filteredEndpoints = lbEndpointsList.filter { metadataContainsServiceTag(it.metadata, serviceTag) }
-            if (filteredEndpoints.size < lbEndpointsList.size) {
-                localityLbEndpointsBuilder.clearLbEndpoints().addAllLbEndpoints(filteredEndpoints)
+    private fun filterEndpoints(loadAssignment: ClusterLoadAssignment, tag: String): ClusterLoadAssignment? {
+        var allEndpointMatched = true
+        val filteredEndpoints = loadAssignment.endpointsList.mapNotNull { localityLbEndpoint ->
+            val (matchedEndpoints, unmatchedEndpoints) = localityLbEndpoint.lbEndpointsList.partition {
+                metadataContainsServiceTag(it.metadata, tag)
             }
-        }
-        return builder.build()
-    }
-
-    private fun createEmptyLoadAssignment(loadAssignment: ClusterLoadAssignment): ClusterLoadAssignment {
-        return loadAssignment.toBuilder().clearEndpoints().build()
-    }
-
-    private enum class ContainsResult {
-        ALL, SOME, NONE
-    }
-    private fun containsEndpointWithServiceTag(loadAssignment: ClusterLoadAssignment, tag: String): ContainsResult {
-        var endpointWithTagFound = false
-        var endpointWithoutTagFound = false
-        loadAssignment.endpointsList.forEach { localityLbEndpint ->
-            localityLbEndpint.lbEndpointsList.forEach { lbEndpoint ->
-                if (metadataContainsServiceTag(lbEndpoint.metadata, tag)) {
-                    endpointWithTagFound = true
-                } else {
-                    endpointWithoutTagFound = true
+            when {
+                matchedEndpoints.isNotEmpty() && unmatchedEndpoints.isNotEmpty() -> { // SOME
+                    allEndpointMatched = false
+                    localityLbEndpoint.toBuilder()
+                        .clearLbEndpoints()
+                        .addAllLbEndpoints(matchedEndpoints)
+                        .build()
                 }
-
-                if (endpointWithTagFound && endpointWithoutTagFound) {
-                    return ContainsResult.SOME
+                matchedEndpoints.isNotEmpty() -> { // ALL
+                    localityLbEndpoint
+                }
+                else -> { // NONE
+                    allEndpointMatched = false
+                    null
                 }
             }
         }
         return when {
-            endpointWithTagFound -> ContainsResult.ALL
-            else -> ContainsResult.NONE
+            allEndpointMatched -> loadAssignment // ALL
+            filteredEndpoints.isNotEmpty() -> loadAssignment.toBuilder() // SOME
+                .clearEndpoints()
+                .addAllEndpoints(filteredEndpoints)
+                .build()
+            else -> null // NONE
         }
+    }
+
+    private fun createEmptyLoadAssignment(loadAssignment: ClusterLoadAssignment): ClusterLoadAssignment {
+        return loadAssignment.toBuilder().clearEndpoints().build()
     }
 
     private fun metadataContainsServiceTag(metadata: Metadata, serviceTag: String) = metadata

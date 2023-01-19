@@ -124,10 +124,6 @@ internal class EnvoyEndpointsFactoryTest {
                 }
               ],
               "priority": 1
-            },
-            {
-              "locality": { "zone": "south" },
-              "priority": 1
             }
           ]
         }"""
@@ -163,10 +159,6 @@ internal class EnvoyEndpointsFactoryTest {
           "cluster_name": "lorem-service",
           "endpoints": [
             {
-              "locality": { "zone": "west" },
-              "lb_endpoints": [] 
-            },
-            {
               "locality": { "zone": "east" },
               "lb_endpoints": [
                 {
@@ -178,10 +170,6 @@ internal class EnvoyEndpointsFactoryTest {
                   "load_balancing_weight": 60
                 }
               ],
-              "priority": 1
-            },
-            {
-              "locality": { "zone": "south" },
               "priority": 1
             }
           ]
@@ -195,11 +183,11 @@ internal class EnvoyEndpointsFactoryTest {
             .isNotEqualTo(globalLoadAssignmentJson.toClusterLoadAssignment())
             .isEqualTo(expectedLoadAssignmentJson.toClusterLoadAssignment())
 
-        val eastEndpoints = filtered.getEndpoints(1)
+        val eastEndpoints = filtered.getEndpoints(0)
         val globalEastEndpoints = globalLoadAssignment.getEndpoints(1)
         assertThat(eastEndpoints).describedAs("unnecessary copy!").isSameAs(globalEastEndpoints)
 
-        val southEndpoints = filtered.getEndpoints(1)
+        val southEndpoints = filtered.getEndpoints(0)
         val globalSouthEndpoints = globalLoadAssignment.getEndpoints(1)
         assertThat(southEndpoints).describedAs("unnecessary copy!").isSameAs(globalSouthEndpoints)
     }
