@@ -213,7 +213,7 @@ class SnapshotUpdaterTest {
                 baseInterval = Durations.fromMillis(123),
                 maxInterval = Durations.fromMillis(234)
             ),
-            retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost")),
+            retryHostPredicate = listOf(RetryHostPredicate.PREVIOUS_HOSTS),
             methods = setOf("POST")
         )
         val allServicesGroup = AllServicesGroup(
@@ -1381,7 +1381,7 @@ fun serviceDependencies(vararg serviceNames: String): Set<ServiceDependency> =
                 timeoutPolicy = outgoingTimeoutPolicy(),
                 retryPolicy = pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy(
                     hostSelectionRetryMaxAttempts = 3,
-                    retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
+                    retryHostPredicate = listOf(RetryHostPredicate.PREVIOUS_HOSTS),
                     numberRetries = 1,
                     retryBackOff = RetryBackOff(Durations.fromMillis(25), Durations.fromMillis(250)),
                     rateLimitedRetryBackOff = EnvoyControlRateLimitedRetryBackOff(
