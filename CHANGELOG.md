@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Changed
 - flaky test fixed
 - remove duplicated routes
+- update envoy version to 1.24.0
 
 ## [0.19.26]
 
