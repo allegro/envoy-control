@@ -18,6 +18,7 @@ class RoutingPolicyTest {
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
+            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true
         )
 
         @JvmField

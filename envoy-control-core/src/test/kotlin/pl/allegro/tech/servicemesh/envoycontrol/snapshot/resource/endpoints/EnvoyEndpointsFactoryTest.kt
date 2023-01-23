@@ -11,6 +11,7 @@ internal class EnvoyEndpointsFactoryTest {
 
     private val endpointsFactory = EnvoyEndpointsFactory(SnapshotProperties().apply {
         routing.serviceTags.enabled = true
+        routing.serviceTags.autoServiceTagEnabled = true
     })
 
     // language=json
