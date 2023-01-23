@@ -8,6 +8,8 @@ import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector.Companion.decomposeClient
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFiltersProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CommonHttpProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ComparisonFilterSettings
@@ -95,30 +97,40 @@ fun Value?.toHeaderFilter(default: String? = null): HeaderFilterSettings? {
 
 private class RawDependency(val service: String?, val domain: String?, val domainPattern: String?, val value: Value)
 
+private fun defaultRetryPolicy(retryPolicy: RetryPolicyProperties) = if (retryPolicy.enabled) {
+    RetryPolicy(
+        retryOn = retryPolicy.retryOn,
+        numberRetries = retryPolicy.numberOfRetries,
+        retryHostPredicate = retryPolicy.retryHostPredicate,
+        hostSelectionRetryMaxAttempts = retryPolicy.hostSelectionRetryMaxAttempts,
+        rateLimitedRetryBackOff = RateLimitedRetryBackOff(
+            retryPolicy.rateLimitedRetryBackOff.resetHeaders.map { ResetHeader(it.name, it.format) }
+        ),
+        retryBackOff = RetryBackOff(
+            Durations.fromMillis(retryPolicy.retryBackOff.baseInterval.toMillis())
+        ),
+    )
+} else {
+    null
+}
+
+private fun defaultTimeoutPolicy(commonHttpProperties: CommonHttpProperties) = Outgoing.TimeoutPolicy(
+    idleTimeout = Durations.fromMillis(commonHttpProperties.idleTimeout.toMillis()),
+    connectionIdleTimeout = Durations.fromMillis(commonHttpProperties.connectionIdleTimeout.toMillis()),
+    requestTimeout = Durations.fromMillis(commonHttpProperties.requestTimeout.toMillis())
+)
+
+private fun defaultDependencySettings(properties: SnapshotProperties) = DependencySettings(
+    handleInternalRedirect = properties.egress.handleInternalRedirect,
+    timeoutPolicy = defaultTimeoutPolicy(properties.egress.commonHttp),
+    retryPolicy = defaultRetryPolicy(properties.retryPolicy)
+)
+
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val allServiceDependenciesIdentifier = properties.outgoingPermissions.allServicesDependencies.identifier
     val rawDependencies = this?.field("dependencies")?.list().orEmpty().map(::toRawDependency)
     val allServicesDependencies = toAllServiceDependencies(rawDependencies, allServiceDependenciesIdentifier)
-    val defaultSettingsFromProperties = DependencySettings(
-        handleInternalRedirect = properties.egress.handleInternalRedirect,
-        timeoutPolicy = Outgoing.TimeoutPolicy(
-            idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
-            connectionIdleTimeout = Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis()),
-            requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-        ),
-        retryPolicy = RetryPolicy(
-            retryOn = properties.retryPolicy.retryOn,
-            numberRetries = properties.retryPolicy.numberOfRetries,
-            retryHostPredicate = properties.retryPolicy.retryHostPredicate,
-            hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts,
-            rateLimitedRetryBackOff = RateLimitedRetryBackOff(
-                properties.retryPolicy.rateLimitedRetryBackOff.resetHeaders.map { ResetHeader(it.name, it.format) }
-            ),
-            retryBackOff = RetryBackOff(
-                Durations.fromMillis(properties.retryPolicy.retryBackOff.baseInterval.toMillis())
-            ),
-        )
-    )
+    val defaultSettingsFromProperties = defaultDependencySettings(properties)
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
     val services = rawDependencies.filter { it.service != null && it.service != allServiceDependenciesIdentifier }
         .map {
@@ -239,27 +251,27 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     }
 }
 
-private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy): RetryPolicy {
+private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy?): RetryPolicy {
     return RetryPolicy(
-        retryOn = value.field("retryOn")?.listValue?.valuesList?.map { it.stringValue } ?: defaultRetryPolicy.retryOn,
+        retryOn = value.field("retryOn")?.listValue?.valuesList?.map { it.stringValue } ?: defaultRetryPolicy?.retryOn,
         hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
-            ?: defaultRetryPolicy.hostSelectionRetryMaxAttempts,
-        numberRetries = value.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy.numberRetries,
+            ?: defaultRetryPolicy?.hostSelectionRetryMaxAttempts,
+        numberRetries = value.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy?.numberRetries,
         retryHostPredicate = value.field("retryHostPredicate")?.listValue?.valuesList?.map {
             RetryHostPredicate(it.field("name")!!.stringValue)
-        }?.toList() ?: defaultRetryPolicy.retryHostPredicate,
+        }?.toList() ?: defaultRetryPolicy?.retryHostPredicate,
         perTryTimeoutMs = value.field("perTryTimeoutMs")?.numberValue?.toLong(),
         retryBackOff = value.field("retryBackOff")?.structValue?.let {
             RetryBackOff(
                 baseInterval = it.fieldsMap["baseInterval"]?.toDuration(),
                 maxInterval = it.fieldsMap["maxInterval"]?.toDuration()
             )
-        } ?: defaultRetryPolicy.retryBackOff,
+        } ?: defaultRetryPolicy?.retryBackOff,
         rateLimitedRetryBackOff = value.field("rateLimitedRetryBackOff")?.structValue?.let {
             RateLimitedRetryBackOff(
                 it.fieldsMap["resetHeaders"]?.listValue?.valuesList?.mapNotNull(::mapProtoToResetHeader)
             )
-        } ?: defaultRetryPolicy.rateLimitedRetryBackOff,
+        } ?: defaultRetryPolicy?.rateLimitedRetryBackOff,
         retryableStatusCodes = value.field("retryableStatusCodes")?.listValue?.valuesList?.map {
             it.numberValue.toInt()
         },
@@ -573,11 +585,11 @@ data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
     val timeoutPolicy: Outgoing.TimeoutPolicy = Outgoing.TimeoutPolicy(),
     val rewriteHostHeader: Boolean = false,
-    val retryPolicy: RetryPolicy = RetryPolicy()
+    val retryPolicy: RetryPolicy? = RetryPolicy()
 )
 
 data class RetryPolicy(
-    val retryOn: List<String> = emptyList(),
+    val retryOn: List<String>? = emptyList(),
     val hostSelectionRetryMaxAttempts: Long? = null,
     val numberRetries: Int? = null,
     val retryHostPredicate: List<RetryHostPredicate>? = null,
