@@ -72,6 +72,11 @@ class EnvoyEgressRoutesFactory(
             .setValue("%UPSTREAM_REMOTE_ADDRESS%").build()
     )
 
+    private val defaultRouteMatch = RouteMatch
+        .newBuilder()
+        .setPrefix("/")
+        .build()
+
     /**
      * @see TestResources.createRoute
      */
@@ -84,12 +89,7 @@ class EnvoyEgressRoutesFactory(
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
             .map { routeSpecification ->
-                addMultipleRoutes(
-                    VirtualHost.newBuilder()
-                        .setName(routeSpecification.clusterName)
-                        .addAllDomains(routeSpecification.routeDomains),
-                    routeSpecification
-                ).build()
+                buildEgressRoute(routeSpecification)
             }
 
         var routeConfiguration = RouteConfiguration.newBuilder()
@@ -120,37 +120,55 @@ class EnvoyEgressRoutesFactory(
         return routeConfiguration.build()
     }
 
-    private fun addMultipleRoutes(
-        addAllDomains: VirtualHost.Builder,
-        routeSpecification: RouteSpecification
-    ): VirtualHost.Builder {
-        routeSpecification.settings.retryPolicy.let {
-            buildRouteForRetryPolicy(addAllDomains, routeSpecification)
+    private fun buildEgressRoute(routeSpecification: RouteSpecification): VirtualHost {
+        val virtualHost = VirtualHost.newBuilder()
+            .setName(routeSpecification.clusterName)
+            .addAllDomains(routeSpecification.routeDomains)
+        val retryPolicy = routeSpecification.settings.retryPolicy
+        if (retryPolicy != null) {
+            buildEgressRouteWithRetryPolicy(virtualHost, retryPolicy, routeSpecification)
+        } else {
+            virtualHost.addRoutes(
+                Route.newBuilder()
+                    .setMatch(defaultRouteMatch)
+                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = false))
+                    .build()
+            )
         }
-        buildDefaultRoute(addAllDomains, routeSpecification)
-        return addAllDomains
+        return virtualHost.build()
     }
 
-    private fun buildRouteForRetryPolicy(
-        addAllDomains: VirtualHost.Builder,
+    private fun buildEgressRouteWithRetryPolicy(
+        virtualHost: VirtualHost.Builder,
+        retryPolicy: EnvoyControlRetryPolicy,
         routeSpecification: RouteSpecification
-    ): VirtualHost.Builder? {
-        val regexAsAString = routeSpecification.settings.retryPolicy.methods?.joinToString(separator = "|")
-        val routeMatchBuilder = RouteMatch
-            .newBuilder()
-            .setPrefix("/")
-            .also { routeMatcher ->
-                regexAsAString?.let {
-                    routeMatcher.addHeaders(buildMethodHeaderMatcher(it))
-                }
-            }
-
-        return addAllDomains.addRoutes(
-            Route.newBuilder()
-                .setMatch(routeMatchBuilder.build())
-                .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = true))
+    ): VirtualHost.Builder {
+        return if (retryPolicy.methods != null) {
+            val regexAsAString = retryPolicy.methods.joinToString(separator = "|")
+            val retryRouteMatch = RouteMatch
+                .newBuilder()
+                .setPrefix("/")
+                .addHeaders(buildMethodHeaderMatcher(regexAsAString))
                 .build()
-        )
+            virtualHost.addRoutes(
+                Route.newBuilder()
+                    .setMatch(retryRouteMatch)
+                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = true))
+                    .build()
+            ).addRoutes(
+                Route.newBuilder()
+                    .setMatch(defaultRouteMatch)
+                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = false))
+                    .build()
+            )
+        } else {
+            virtualHost.addRoutes(
+                Route.newBuilder()
+                    .setMatch(defaultRouteMatch)
+                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = true))
+                    .build()
+            )
+        }
     }
 
     private fun buildMethodHeaderMatcher(regexAsAString: String) = HeaderMatcher.newBuilder()
@@ -161,23 +179,6 @@ class EnvoyEgressRoutesFactory(
                 .setGoogleRe2(RegexMatcher.GoogleRE2.getDefaultInstance())
                 .build()
         )
-
-    private fun buildDefaultRoute(
-        addAllDomains: VirtualHost.Builder,
-        routeSpecification: RouteSpecification
-    ) {
-        addAllDomains.addRoutes(
-            Route.newBuilder()
-                .setMatch(
-                    RouteMatch.newBuilder()
-                        .setPrefix("/")
-                        .build()
-                )
-                .setRoute(
-                    createRouteAction(routeSpecification)
-                ).build()
-        )
-    }
 
     /**
      * @see TestResources.createRoute
@@ -194,11 +195,7 @@ class EnvoyEgressRoutesFactory(
                     .addAllDomains(routeSpecification.routeDomains)
                     .addRoutes(
                         Route.newBuilder()
-                            .setMatch(
-                                RouteMatch.newBuilder()
-                                    .setPrefix("/")
-                                    .build()
-                            )
+                            .setMatch(defaultRouteMatch)
                             .setRoute(
                                 createRouteAction(routeSpecification)
                             ).build()
@@ -252,7 +249,7 @@ class RequestPolicyMapper private constructor() {
             return retryPolicy?.let { policy ->
                 val retryPolicyBuilder = RetryPolicy.newBuilder()
 
-                policy.retryOn.let { retryPolicyBuilder.setRetryOn(it.joinToString { joined -> joined }) }
+                policy.retryOn?.let { retryPolicyBuilder.setRetryOn(it.joinToString { joined -> joined }) }
                 policy.hostSelectionRetryMaxAttempts?.let {
                     retryPolicyBuilder.setHostSelectionRetryMaxAttempts(it)
                 }
