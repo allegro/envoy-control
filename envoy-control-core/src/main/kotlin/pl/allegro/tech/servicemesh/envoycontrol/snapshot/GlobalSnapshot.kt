@@ -3,13 +3,34 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.controlplane.cache.SnapshotResources
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
+
+typealias ClusterName = String
 
 data class GlobalSnapshot(
-    val clusters: Map<String, Cluster>,
-    val allServicesNames: Set<String>,
-    val endpoints: Map<String, ClusterLoadAssignment>,
-    val clusterConfigurations: Map<String, ClusterConfiguration>,
-    val securedClusters: Map<String, Cluster>
+    val clusters: Map<ClusterName, Cluster>,
+    val allServicesNames: Set<ClusterName>,
+    val endpoints: Map<ClusterName, ClusterLoadAssignment>,
+    val clusterConfigurations: Map<ClusterName, ClusterConfiguration>,
+    val securedClusters: Map<ClusterName, Cluster>,
+    val tags: Map<ClusterName, Set<String>>
+) {
+    fun getTagsForDependency(
+        outgoing: Outgoing
+    ): List<TagDependencySettings> {
+        val serviceDependencies = outgoing.getServiceDependencies().map { it.service }.toSet()
+        return outgoing.getTagDependencies().flatMap { tagDependency ->
+            tags.filterKeys { !serviceDependencies.contains(it) }
+                .filterValues { it.contains(tagDependency.tag) }
+                .map { TagDependencySettings(it.key, tagDependency.settings) }
+        }
+    }
+}
+
+data class TagDependencySettings(
+    val clusterName: ClusterName,
+    val settings: DependencySettings
 )
 
 @Suppress("LongParameterList")
@@ -17,8 +38,9 @@ fun globalSnapshot(
     clusters: Iterable<Cluster> = emptyList(),
     endpoints: Iterable<ClusterLoadAssignment> = emptyList(),
     properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties(),
-    clusterConfigurations: Map<String, ClusterConfiguration> = emptyMap(),
-    securedClusters: List<Cluster> = emptyList()
+    clusterConfigurations: Map<ClusterName, ClusterConfiguration> = emptyMap(),
+    securedClusters: List<Cluster> = emptyList(),
+    tags: Map<ClusterName, Set<String>>
 ): GlobalSnapshot {
     val clusters = SnapshotResources.create<Cluster>(clusters, "").resources()
     val securedClusters = SnapshotResources.create<Cluster>(securedClusters, "").resources()
@@ -29,7 +51,8 @@ fun globalSnapshot(
         securedClusters = securedClusters,
         endpoints = endpoints,
         allServicesNames = allServicesNames,
-        clusterConfigurations = clusterConfigurations
+        clusterConfigurations = clusterConfigurations,
+        tags = tags
     )
 }
 

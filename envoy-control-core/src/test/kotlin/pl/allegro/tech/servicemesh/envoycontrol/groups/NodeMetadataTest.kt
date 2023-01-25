@@ -54,21 +54,6 @@ class NodeMetadataTest {
         )
     }
 
-    private fun snapshotProperties(
-        allServicesDependenciesIdentifier: String = "*",
-        handleInternalRedirect: Boolean = false,
-        idleTimeout: String = "120s",
-        connectionIdleTimeout: String = "120s",
-        requestTimeout: String = "120s"
-    ) = SnapshotProperties().apply {
-        outgoingPermissions.allServicesDependencies.identifier = allServicesDependenciesIdentifier
-        egress.handleInternalRedirect = handleInternalRedirect
-        egress.commonHttp.idleTimeout = Duration.ofNanos(Durations.toNanos(Durations.parse(idleTimeout)))
-        egress.commonHttp.connectionIdleTimeout =
-            Duration.ofNanos(Durations.toNanos(Durations.parse(connectionIdleTimeout)))
-        egress.commonHttp.requestTimeout = Duration.ofNanos(Durations.toNanos(Durations.parse(requestTimeout)))
-    }
-
     @Test
     fun `should reject endpoint with both path and pathPrefix defined`() {
         // given
@@ -271,82 +256,6 @@ class NodeMetadataTest {
     }
 
     @Test
-    fun `should reject dependency with unsupported protocol in domain field `() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomain(url = "ftp://domain")
-        }
-
-        // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
-        assertThat(exception.status.description)
-            .isEqualTo("Unsupported protocol for domain dependency for domain ftp://domain")
-        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-    }
-
-    @Test
-    fun `should reject domain dependency with unsupported all services dependencies identifier`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomain(url = "*")
-        }
-        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*")
-
-        // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(properties) }
-        assertThat(exception.status.description)
-            .isEqualTo("Unsupported 'all serviceDependencies identifier' for domain dependency: *")
-        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-    }
-
-    @Test
-    fun `should accept domain dependency`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomain(url = "http://domain")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expects
-        val dependency = outgoing.getDomainDependencies().single()
-        assertThat(dependency.domain).isEqualTo("http://domain")
-    }
-
-    @Test
-    fun `should return correct host and default port for domain dependency`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomain(url = "http://domain")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expects
-        val dependency = outgoing.getDomainDependencies().single()
-        assertThat(dependency.getHost()).isEqualTo("domain")
-        assertThat(dependency.getPort()).isEqualTo(80)
-    }
-
-    @Test
-    fun `should return correct host and default port for https domain dependency`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomain(url = "https://domain")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expects
-        val dependency = outgoing.getDomainDependencies().single()
-        assertThat(dependency.getHost()).isEqualTo("domain")
-        assertThat(dependency.getPort()).isEqualTo(443)
-    }
-
-    @Test
     fun `should return retry policy`() {
         // given
         val givenRetryPolicy = RetryPolicyInput(
@@ -438,154 +347,6 @@ class NodeMetadataTest {
     }
 
     @Test
-    fun `should deduplicate domains dependencies based on url`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomain(url = "http://domain", requestTimeout = "8s", idleTimeout = "8s")
-            withDomain(url = "http://domain", requestTimeout = "10s", idleTimeout = "10s", connectionIdleTimeout = "5s")
-            withDomain(url = "http://domain2")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expects
-        val dependencies = outgoing.getDomainDependencies()
-        assertThat(dependencies).hasSize(2)
-        assertThat(dependencies[0].getHost()).isEqualTo("domain")
-        assertThat(dependencies[0].getPort()).isEqualTo(80)
-        assertThat(dependencies[0].settings).hasTimeouts(
-            idleTimeout = "10s",
-            requestTimeout = "10s",
-            connectionIdleTimeout = "5s"
-        )
-        assertThat(dependencies[1].getHost()).isEqualTo("domain2")
-        assertThat(dependencies[1].getPort()).isEqualTo(80)
-    }
-
-    @Test
-    fun `should deduplicate services dependencies based on serviceName`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(serviceName = "service-1", requestTimeout = "8s", idleTimeout = "8s")
-            withService(
-                serviceName = "service-1",
-                requestTimeout = "10s",
-                idleTimeout = "10s",
-                connectionIdleTimeout = "10s"
-            )
-            withService(serviceName = "service-2")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expect
-        val dependencies = outgoing.getServiceDependencies()
-        assertThat(dependencies).hasSize(2)
-        assertThat(dependencies[0].service).isEqualTo("service-1")
-        assertThat(dependencies[0].settings).hasTimeouts(
-            idleTimeout = "10s",
-            requestTimeout = "10s",
-            connectionIdleTimeout = "10s"
-        )
-        assertThat(dependencies[1].service).isEqualTo("service-2")
-    }
-
-    @Test
-    fun `should return custom port for domain dependency if it was defined`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomain(url = "http://domain:1234")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expects
-        val dependency = outgoing.getDomainDependencies().single()
-        assertThat(dependency.getPort()).isEqualTo(1234)
-    }
-
-    @Test
-    fun `should return correct names for domain dependency without port specified`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomain(url = "http://domain.pl")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expects
-        val dependency = outgoing.getDomainDependencies().single()
-        assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
-        assertThat(dependency.getRouteDomain()).isEqualTo("domain.pl")
-    }
-
-    @Test
-    fun `should return correct names for domain dependency with port specified`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomain(url = "http://domain.pl:80")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expects
-        val dependency = outgoing.getDomainDependencies().single()
-        assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
-        assertThat(dependency.getRouteDomain()).isEqualTo("domain.pl:80")
-    }
-
-    @Test
-    fun `should accept domain pattern dependency`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomainPattern(pattern = "*.example.com")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expects
-        val dependency = outgoing.getDomainPatternDependencies().single()
-        assertThat(dependency.domainPattern).isEqualTo("*.example.com")
-    }
-
-    @Test
-    fun `should reject domain pattern dependency with schema`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withDomainPattern(pattern = "http://example.com")
-        }
-
-        // expects
-        val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
-        assertThat(exception.status.description).isEqualTo(
-            "Unsupported format for domainPattern: domainPattern cannot contain a schema like http:// or https://"
-        )
-        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-    }
-
-    @Test
-    fun `should accept service dependency with redirect policy defined`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(serviceName = "service-1", handleInternalRedirect = true)
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties())
-
-        // expect
-        val dependency = outgoing.getServiceDependencies().single()
-        assertThat(dependency.service).isEqualTo("service-1")
-        assertThat(dependency.settings.handleInternalRedirect).isEqualTo(true)
-    }
-
-    @Test
     fun `should accept incoming settings with custom healthCheckPath`() {
         // given
         val proto = proxySettingsProto(
@@ -599,290 +360,6 @@ class NodeMetadataTest {
         assertThat(incoming.healthCheck.clusterName).isEqualTo("local_service_health_check")
         assertThat(incoming.healthCheck.path).isEqualTo("/status/ping")
         assertThat(incoming.healthCheck.hasCustomHealthCheck()).isTrue()
-    }
-
-    @Test
-    fun `should parse allServiceDependency with timeouts configuration`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
-        }
-
-        // when
-        val outgoing = proto.toOutgoing(snapshotProperties(allServicesDependenciesIdentifier = "*"))
-
-        // expects
-        assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
-            idleTimeout = "10s",
-            requestTimeout = "10s",
-            connectionIdleTimeout = "10s"
-        )
-        assertThat(outgoing.getServiceDependencies()).isEmpty()
-    }
-
-    @Test
-    fun `should parse allServiceDependency and use requestTimeout from properties`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = null, connectionIdleTimeout = "10s")
-        }
-        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*", requestTimeout = "5s")
-        // when
-
-        val outgoing = proto.toOutgoing(properties)
-
-        // expects
-        assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
-            idleTimeout = "10s",
-            requestTimeout = "5s",
-            connectionIdleTimeout = "10s"
-        )
-        assertThat(outgoing.getServiceDependencies()).isEmpty()
-    }
-
-    @Test
-    fun `should parse allServiceDependency and use idleTimeout from properties`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(serviceName = "*", idleTimeout = null, requestTimeout = "10s", connectionIdleTimeout = "10s")
-        }
-        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*", idleTimeout = "5s")
-        // when
-
-        val outgoing = proto.toOutgoing(properties)
-
-        // expects
-        assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
-            idleTimeout = "5s",
-            requestTimeout = "10s",
-            connectionIdleTimeout = "10s"
-        )
-        assertThat(outgoing.getServiceDependencies()).isEmpty()
-    }
-
-    @Test
-    fun `should parse allServiceDependency and use connectionIdleTimeout from properties`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = null)
-        }
-        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*", connectionIdleTimeout = "5s")
-        // when
-
-        val outgoing = proto.toOutgoing(properties)
-
-        // expects
-        assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
-            idleTimeout = "10s",
-            requestTimeout = "10s",
-            connectionIdleTimeout = "5s"
-        )
-        assertThat(outgoing.getServiceDependencies()).isEmpty()
-    }
-
-    @Test
-    fun `should parse allServiceDependency and use timeouts from properties`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(serviceName = "*", idleTimeout = null, requestTimeout = null)
-        }
-        val properties =
-            snapshotProperties(
-                allServicesDependenciesIdentifier = "*",
-                idleTimeout = "5s",
-                requestTimeout = "5s",
-                connectionIdleTimeout = "5s"
-            )
-        // when
-
-        val outgoing = proto.toOutgoing(properties)
-
-        // expects
-        assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
-            idleTimeout = "5s",
-            requestTimeout = "5s",
-            connectionIdleTimeout = "5s"
-        )
-        assertThat(outgoing.getServiceDependencies()).isEmpty()
-    }
-
-    @Test
-    fun `should parse service dependencies and for missing config use config defined in allServiceDependency`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
-            withService(
-                serviceName = "service-name-1",
-                idleTimeout = "5s",
-                requestTimeout = null,
-                connectionIdleTimeout = null
-            )
-            withService(
-                serviceName = "service-name-2",
-                idleTimeout = null,
-                requestTimeout = "4s",
-                connectionIdleTimeout = null
-            )
-            withService(
-                serviceName = "service-name-3",
-                idleTimeout = null,
-                requestTimeout = null,
-                connectionIdleTimeout = "3s"
-            )
-            withService(
-                serviceName = "service-name-4",
-                idleTimeout = null,
-                requestTimeout = null,
-                connectionIdleTimeout = null
-            )
-        }
-        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*")
-        // when
-
-        val outgoing = proto.toOutgoing(properties)
-
-        // expects
-        assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
-            idleTimeout = "10s",
-            requestTimeout = "10s",
-            connectionIdleTimeout = "10s"
-        )
-
-        outgoing.getServiceDependencies().assertServiceDependency("service-name-1")
-            .hasTimeouts(idleTimeout = "5s", requestTimeout = "10s", connectionIdleTimeout = "10s")
-        outgoing.getServiceDependencies().assertServiceDependency("service-name-2")
-            .hasTimeouts(idleTimeout = "10s", requestTimeout = "4s", connectionIdleTimeout = "10s")
-        outgoing.getServiceDependencies().assertServiceDependency("service-name-3")
-            .hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "3s")
-        outgoing.getServiceDependencies().assertServiceDependency("service-name-4")
-            .hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
-    }
-
-    @Test
-    fun `should parse service dependencies and for missing configs use config defined in properties when allServiceDependency isn't defined`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(
-                serviceName = "service-name-1",
-                idleTimeout = "5s",
-                requestTimeout = null,
-                connectionIdleTimeout = null
-            )
-            withService(
-                serviceName = "service-name-2",
-                idleTimeout = null,
-                requestTimeout = "4s",
-                connectionIdleTimeout = null
-            )
-            withService(
-                serviceName = "service-name-3",
-                idleTimeout = null,
-                requestTimeout = null,
-                connectionIdleTimeout = "3s"
-            )
-            withService(
-                serviceName = "service-name-4",
-                idleTimeout = null,
-                requestTimeout = null,
-                connectionIdleTimeout = null
-            )
-        }
-        val properties = snapshotProperties(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
-        // when
-
-        val outgoing = proto.toOutgoing(properties)
-
-        // expects
-        assertThat(outgoing.allServicesDependencies).isFalse()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
-            idleTimeout = "12s",
-            requestTimeout = "12s",
-            connectionIdleTimeout = "12s"
-        )
-
-        outgoing.getServiceDependencies().assertServiceDependency("service-name-1")
-            .hasTimeouts(idleTimeout = "5s", requestTimeout = "12s", connectionIdleTimeout = "12s")
-        outgoing.getServiceDependencies().assertServiceDependency("service-name-2")
-            .hasTimeouts(idleTimeout = "12s", requestTimeout = "4s", connectionIdleTimeout = "12s")
-        outgoing.getServiceDependencies().assertServiceDependency("service-name-3")
-            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "3s")
-        outgoing.getServiceDependencies().assertServiceDependency("service-name-4")
-            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
-    }
-
-    @Test
-    fun `should parse domain dependencies and for missing config use config defined in properties even if allServiceDependency is defined`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
-            withDomain(
-                url = "http://domain-name-1",
-                idleTimeout = "5s",
-                requestTimeout = null,
-                connectionIdleTimeout = null
-            )
-            withDomain(
-                url = "http://domain-name-2",
-                idleTimeout = null,
-                requestTimeout = "4s",
-                connectionIdleTimeout = null
-            )
-            withDomain(
-                url = "http://domain-name-3",
-                idleTimeout = null,
-                requestTimeout = null,
-                connectionIdleTimeout = "3s"
-            )
-            withDomain(
-                url = "http://domain-name-4",
-                idleTimeout = null,
-                requestTimeout = null,
-                connectionIdleTimeout = null
-            )
-        }
-        val properties = snapshotProperties(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
-        // when
-
-        val outgoing = proto.toOutgoing(properties)
-
-        // expects
-        assertThat(outgoing.allServicesDependencies).isTrue()
-        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
-            idleTimeout = "10s",
-            requestTimeout = "10s",
-            connectionIdleTimeout = "10s"
-        )
-
-        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-1")
-            .hasTimeouts(idleTimeout = "5s", requestTimeout = "12s", connectionIdleTimeout = "12s")
-        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-2")
-            .hasTimeouts(idleTimeout = "12s", requestTimeout = "4s", connectionIdleTimeout = "12s")
-        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-3")
-            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "3s")
-        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-4")
-            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
-    }
-
-    @Test
-    fun `should throw exception when there are multiple allServiceDependency`() {
-        // given
-        val proto = outgoingDependenciesProto {
-            withServices(serviceDependencies = listOf("*", "*", "a"))
-        }
-
-        // expects
-        val exception = assertThrows<NodeMetadataValidationException> {
-            proto.toOutgoing(snapshotProperties(allServicesDependenciesIdentifier = "*"))
-        }
-        assertThat(exception.status.description)
-            .isEqualTo("Define at most one 'all serviceDependencies identifier' as an service dependency")
-        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test
@@ -1151,35 +628,6 @@ class NodeMetadataTest {
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
-    fun ObjectAssert<DependencySettings>.hasTimeouts(
-        idleTimeout: String,
-        connectionIdleTimeout: String,
-        requestTimeout: String
-    ): ObjectAssert<DependencySettings> {
-        this.extracting { it.timeoutPolicy }.isEqualTo(
-            Outgoing.TimeoutPolicy(
-                idleTimeout = Durations.parse(idleTimeout),
-                connectionIdleTimeout = Durations.parse(connectionIdleTimeout),
-                requestTimeout = Durations.parse(requestTimeout)
-            )
-        )
-        return this
-    }
-
-    fun List<ServiceDependency>.assertServiceDependency(name: String): ObjectAssert<DependencySettings> {
-        val list = this.filter { it.service == name }
-        assertThat(list).hasSize(1)
-        val single = list.single().settings
-        return assertThat(single)
-    }
-
-    fun List<DomainDependency>.assertDomainDependency(name: String): ObjectAssert<DependencySettings> {
-        val list = this.filter { it.domain == name }
-        assertThat(list).hasSize(1)
-        val single = list.single().settings
-        return assertThat(single)
-    }
-
     private fun createJwtSnapshotProperties(): SnapshotProperties {
         val snapshotProperties = SnapshotProperties()
         val jwtFilterProperties = JwtFilterProperties()
@@ -1195,4 +643,723 @@ class NodeMetadataTest {
 
         return snapshotProperties
     }
+}
+
+class DomainDependencyTest {
+
+    @Test
+    fun `should accept domain dependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "http://domain")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainDependencies().single()
+        assertThat(dependency.domain).isEqualTo("http://domain")
+    }
+
+    @Test
+    fun `should deduplicate domains dependencies based on url`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "http://domain", requestTimeout = "8s", idleTimeout = "8s")
+            withDomain(url = "http://domain", requestTimeout = "10s", idleTimeout = "10s", connectionIdleTimeout = "5s")
+            withDomain(url = "http://domain2")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependencies = outgoing.getDomainDependencies()
+        assertThat(dependencies).hasSize(2)
+        assertThat(dependencies[0].getHost()).isEqualTo("domain")
+        assertThat(dependencies[0].getPort()).isEqualTo(80)
+        assertThat(dependencies[0].settings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "5s"
+        )
+        assertThat(dependencies[1].getHost()).isEqualTo("domain2")
+        assertThat(dependencies[1].getPort()).isEqualTo(80)
+    }
+
+    @Test
+    fun `should return custom port for domain dependency if it was defined`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "http://domain:1234")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainDependencies().single()
+        assertThat(dependency.getPort()).isEqualTo(1234)
+    }
+
+    @Test
+    fun `should return correct names for domain dependency without port specified`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "http://domain.pl")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainDependencies().single()
+        assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
+        assertThat(dependency.getRouteDomain()).isEqualTo("domain.pl")
+    }
+
+    @Test
+    fun `should return correct names for domain dependency with port specified`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "http://domain.pl:80")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainDependencies().single()
+        assertThat(dependency.getClusterName()).isEqualTo("domain_pl_80")
+        assertThat(dependency.getRouteDomain()).isEqualTo("domain.pl:80")
+    }
+
+    @Test
+    fun `should parse domain dependencies and for missing config use config defined in properties even if allServiceDependency is defined`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+            withDomain(
+                url = "http://domain-name-1",
+                idleTimeout = "5s",
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+            withDomain(
+                url = "http://domain-name-2",
+                idleTimeout = null,
+                requestTimeout = "4s",
+                connectionIdleTimeout = null
+            )
+            withDomain(
+                url = "http://domain-name-3",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = "3s"
+            )
+            withDomain(
+                url = "http://domain-name-4",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+        }
+        val properties = snapshotProperties(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+        // when
+
+        val outgoing = proto.toOutgoing(properties)
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isTrue()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
+
+        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-1")
+            .hasTimeouts(idleTimeout = "5s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-2")
+            .hasTimeouts(idleTimeout = "12s", requestTimeout = "4s", connectionIdleTimeout = "12s")
+        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-3")
+            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "3s")
+        outgoing.getDomainDependencies().assertDomainDependency("http://domain-name-4")
+            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+    }
+
+    @Test
+    fun `should reject dependency with unsupported protocol in domain field `() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "ftp://domain")
+        }
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
+        assertThat(exception.status.description)
+            .isEqualTo("Unsupported protocol for domain dependency for domain ftp://domain")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should return correct host and default port for domain dependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "http://domain")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainDependencies().single()
+        assertThat(dependency.getHost()).isEqualTo("domain")
+        assertThat(dependency.getPort()).isEqualTo(80)
+    }
+
+    @Test
+    fun `should return correct host and default port for https domain dependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "https://domain")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainDependencies().single()
+        assertThat(dependency.getHost()).isEqualTo("domain")
+        assertThat(dependency.getPort()).isEqualTo(443)
+    }
+
+    fun List<DomainDependency>.assertDomainDependency(name: String): ObjectAssert<DependencySettings> {
+        val list = this.filter { it.domain == name }
+        assertThat(list).hasSize(1)
+        val single = list.single().settings
+        return assertThat(single)
+    }
+}
+
+class ServiceDependencyTest {
+    @Test
+    fun `should deduplicate services dependencies based on serviceName`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "service-1", requestTimeout = "8s", idleTimeout = "8s")
+            withService(
+                serviceName = "service-1",
+                requestTimeout = "10s",
+                idleTimeout = "10s",
+                connectionIdleTimeout = "10s"
+            )
+            withService(serviceName = "service-2")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expect
+        val dependencies = outgoing.getServiceDependencies()
+        assertThat(dependencies).hasSize(2)
+        assertThat(dependencies[0].service).isEqualTo("service-1")
+        assertThat(dependencies[0].settings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
+        assertThat(dependencies[1].service).isEqualTo("service-2")
+    }
+
+    @Test
+    fun `should accept service dependency with redirect policy defined`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "service-1", handleInternalRedirect = true)
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expect
+        val dependency = outgoing.getServiceDependencies().single()
+        assertThat(dependency.service).isEqualTo("service-1")
+        assertThat(dependency.settings.handleInternalRedirect).isEqualTo(true)
+    }
+
+    @Test
+    fun `should parse service dependencies and for missing config use config defined in allServiceDependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+            withService(
+                serviceName = "service-name-1",
+                idleTimeout = "5s",
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+            withService(
+                serviceName = "service-name-2",
+                idleTimeout = null,
+                requestTimeout = "4s",
+                connectionIdleTimeout = null
+            )
+            withService(
+                serviceName = "service-name-3",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = "3s"
+            )
+            withService(
+                serviceName = "service-name-4",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+        }
+        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*")
+        // when
+
+        val outgoing = proto.toOutgoing(properties)
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isTrue()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
+
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-1")
+            .hasTimeouts(idleTimeout = "5s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-2")
+            .hasTimeouts(idleTimeout = "10s", requestTimeout = "4s", connectionIdleTimeout = "10s")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-3")
+            .hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "3s")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-4")
+            .hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+    }
+
+    @Test
+    fun `should parse service dependencies and for missing configs use config defined in properties when allServiceDependency isn't defined`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(
+                serviceName = "service-name-1",
+                idleTimeout = "5s",
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+            withService(
+                serviceName = "service-name-2",
+                idleTimeout = null,
+                requestTimeout = "4s",
+                connectionIdleTimeout = null
+            )
+            withService(
+                serviceName = "service-name-3",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = "3s"
+            )
+            withService(
+                serviceName = "service-name-4",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+        }
+        val properties = snapshotProperties(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+        // when
+
+        val outgoing = proto.toOutgoing(properties)
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isFalse()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "12s",
+            requestTimeout = "12s",
+            connectionIdleTimeout = "12s"
+        )
+
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-1")
+            .hasTimeouts(idleTimeout = "5s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-2")
+            .hasTimeouts(idleTimeout = "12s", requestTimeout = "4s", connectionIdleTimeout = "12s")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-3")
+            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "3s")
+        outgoing.getServiceDependencies().assertServiceDependency("service-name-4")
+            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+    }
+
+    fun List<ServiceDependency>.assertServiceDependency(name: String): ObjectAssert<DependencySettings> {
+        val list = this.filter { it.service == name }
+        assertThat(list).hasSize(1)
+        val single = list.single().settings
+        return assertThat(single)
+    }
+}
+
+class AllServiceDependencyTest {
+    @Test
+    fun `should parse allServiceDependency with timeouts configuration`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties(allServicesDependenciesIdentifier = "*"))
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isTrue()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
+        assertThat(outgoing.getServiceDependencies()).isEmpty()
+    }
+
+    @Test
+    fun `should parse allServiceDependency and use requestTimeout from properties`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = null, connectionIdleTimeout = "10s")
+        }
+        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*", requestTimeout = "5s")
+        // when
+
+        val outgoing = proto.toOutgoing(properties)
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isTrue()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "5s",
+            connectionIdleTimeout = "10s"
+        )
+        assertThat(outgoing.getServiceDependencies()).isEmpty()
+    }
+
+    @Test
+    fun `should parse allServiceDependency and use idleTimeout from properties`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "*", idleTimeout = null, requestTimeout = "10s", connectionIdleTimeout = "10s")
+        }
+        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*", idleTimeout = "5s")
+        // when
+
+        val outgoing = proto.toOutgoing(properties)
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isTrue()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "5s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
+        assertThat(outgoing.getServiceDependencies()).isEmpty()
+    }
+
+    @Test
+    fun `should parse allServiceDependency and use connectionIdleTimeout from properties`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = null)
+        }
+        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*", connectionIdleTimeout = "5s")
+        // when
+
+        val outgoing = proto.toOutgoing(properties)
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isTrue()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "5s"
+        )
+        assertThat(outgoing.getServiceDependencies()).isEmpty()
+    }
+
+    @Test
+    fun `should parse allServiceDependency and use timeouts from properties`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "*", idleTimeout = null, requestTimeout = null)
+        }
+        val properties =
+            snapshotProperties(
+                allServicesDependenciesIdentifier = "*",
+                idleTimeout = "5s",
+                requestTimeout = "5s",
+                connectionIdleTimeout = "5s"
+            )
+        // when
+
+        val outgoing = proto.toOutgoing(properties)
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isTrue()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "5s",
+            requestTimeout = "5s",
+            connectionIdleTimeout = "5s"
+        )
+        assertThat(outgoing.getServiceDependencies()).isEmpty()
+    }
+
+    @Test
+    fun `should throw exception when there are multiple allServiceDependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withServices(serviceDependencies = listOf("*", "*", "a"))
+        }
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> {
+            proto.toOutgoing(snapshotProperties(allServicesDependenciesIdentifier = "*"))
+        }
+        assertThat(exception.status.description)
+            .isEqualTo("Define at most one 'all serviceDependencies identifier' as an service dependency")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should reject domain dependency with unsupported all services dependencies identifier`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomain(url = "*")
+        }
+        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*")
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(properties) }
+        assertThat(exception.status.description)
+            .isEqualTo("Unsupported 'all serviceDependencies identifier' for domain dependency: *")
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+}
+
+class DomainPatternDependencyTest {
+
+    @Test
+    fun `should accept domain pattern dependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomainPattern(pattern = "*.example.com")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependency = outgoing.getDomainPatternDependencies().single()
+        assertThat(dependency.domainPattern).isEqualTo("*.example.com")
+    }
+
+    @Test
+    fun `should reject domain pattern dependency with schema`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withDomainPattern(pattern = "http://example.com")
+        }
+
+        // expects
+        val exception = assertThrows<NodeMetadataValidationException> { proto.toOutgoing(snapshotProperties()) }
+        assertThat(exception.status.description).isEqualTo(
+            "Unsupported format for domainPattern: domainPattern cannot contain a schema like http:// or https://"
+        )
+        assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+}
+
+class TagDependencyTest {
+    @Test
+    fun `should deduplicate tag dependencies based on tag`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withTag(tag = "tag-1", requestTimeout = "8s", idleTimeout = "8s")
+            withTag(
+                tag = "tag-1",
+                requestTimeout = "10s",
+                idleTimeout = "10s",
+                connectionIdleTimeout = "10s"
+            )
+            withTag(tag = "tag-2")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expect
+        val dependencies = outgoing.getTagDependencies()
+        assertThat(dependencies)
+            .hasSize(2)
+
+        assertThat(dependencies[0].tag).isEqualTo("tag-1")
+        assertThat(dependencies[0].settings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
+        assertThat(dependencies[1].tag).isEqualTo("tag-2")
+    }
+
+    @Test
+    fun `should parse tag dependencies and for missing config use config defined in allServiceDependency`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "*", idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+            withTag(
+                tag = "tag-1",
+                idleTimeout = "5s",
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+            withTag(
+                tag = "tag-2",
+                idleTimeout = null,
+                requestTimeout = "4s",
+                connectionIdleTimeout = null
+            )
+            withTag(
+                tag = "tag-3",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = "3s"
+            )
+            withTag(
+                tag = "tag-4",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+        }
+        val properties = snapshotProperties(allServicesDependenciesIdentifier = "*")
+        // when
+
+        val outgoing = proto.toOutgoing(properties)
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isTrue()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "10s",
+            requestTimeout = "10s",
+            connectionIdleTimeout = "10s"
+        )
+
+        outgoing.getTagDependencies().assertTagDependency("tag-1")
+            .hasTimeouts(idleTimeout = "5s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+        outgoing.getTagDependencies().assertTagDependency("tag-2")
+            .hasTimeouts(idleTimeout = "10s", requestTimeout = "4s", connectionIdleTimeout = "10s")
+        outgoing.getTagDependencies().assertTagDependency("tag-3")
+            .hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "3s")
+        outgoing.getTagDependencies().assertTagDependency("tag-4")
+            .hasTimeouts(idleTimeout = "10s", requestTimeout = "10s", connectionIdleTimeout = "10s")
+    }
+
+    @Test
+    fun `should parse tag dependencies and for missing configs use config defined in properties when allServiceDependency isn't defined`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withTag(
+                tag = "tag-1",
+                idleTimeout = "5s",
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+            withTag(
+                tag = "tag-2",
+                idleTimeout = null,
+                requestTimeout = "4s",
+                connectionIdleTimeout = null
+            )
+            withTag(
+                tag = "tag-3",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = "3s"
+            )
+            withTag(
+                tag = "tag-4",
+                idleTimeout = null,
+                requestTimeout = null,
+                connectionIdleTimeout = null
+            )
+        }
+        val properties = snapshotProperties(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+        // when
+
+        val outgoing = proto.toOutgoing(properties)
+
+        // expects
+        assertThat(outgoing.allServicesDependencies).isFalse()
+        assertThat(outgoing.defaultServiceSettings).hasTimeouts(
+            idleTimeout = "12s",
+            requestTimeout = "12s",
+            connectionIdleTimeout = "12s"
+        )
+
+        outgoing.getTagDependencies().assertTagDependency("tag-1")
+            .hasTimeouts(idleTimeout = "5s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+        outgoing.getTagDependencies().assertTagDependency("tag-2")
+            .hasTimeouts(idleTimeout = "12s", requestTimeout = "4s", connectionIdleTimeout = "12s")
+        outgoing.getTagDependencies().assertTagDependency("tag-3")
+            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "3s")
+        outgoing.getTagDependencies().assertTagDependency("tag-4")
+            .hasTimeouts(idleTimeout = "12s", requestTimeout = "12s", connectionIdleTimeout = "12s")
+    }
+
+    fun List<TagDependency>.assertTagDependency(name: String): ObjectAssert<DependencySettings> {
+        val list = this.filter { it.tag == name }
+        assertThat(list).hasSize(1)
+        val single = list.single().settings
+        return assertThat(single)
+    }
+}
+
+private fun snapshotProperties(
+    allServicesDependenciesIdentifier: String = "*",
+    handleInternalRedirect: Boolean = false,
+    idleTimeout: String = "120s",
+    connectionIdleTimeout: String = "120s",
+    requestTimeout: String = "120s"
+) = SnapshotProperties().apply {
+    outgoingPermissions.allServicesDependencies.identifier = allServicesDependenciesIdentifier
+    egress.handleInternalRedirect = handleInternalRedirect
+    egress.commonHttp.idleTimeout = Duration.ofNanos(Durations.toNanos(Durations.parse(idleTimeout)))
+    egress.commonHttp.connectionIdleTimeout =
+        Duration.ofNanos(Durations.toNanos(Durations.parse(connectionIdleTimeout)))
+    egress.commonHttp.requestTimeout = Duration.ofNanos(Durations.toNanos(Durations.parse(requestTimeout)))
+}
+
+fun timeouts(
+    idleTimeout: String,
+    connectionIdleTimeout: String,
+    requestTimeout: String
+) = DependencySettings(
+    timeoutPolicy = Outgoing.TimeoutPolicy(
+        idleTimeout = Durations.parse(idleTimeout),
+        connectionIdleTimeout = Durations.parse(connectionIdleTimeout),
+        requestTimeout = Durations.parse(requestTimeout)
+    )
+)
+
+fun ObjectAssert<DependencySettings>.hasTimeouts(
+    idleTimeout: String,
+    connectionIdleTimeout: String,
+    requestTimeout: String
+): ObjectAssert<DependencySettings> {
+    this.extracting { it.timeoutPolicy }.isEqualTo(
+        Outgoing.TimeoutPolicy(
+            idleTimeout = Durations.parse(idleTimeout),
+            connectionIdleTimeout = Durations.parse(connectionIdleTimeout),
+            requestTimeout = Durations.parse(requestTimeout)
+        )
+    )
+    return this
 }

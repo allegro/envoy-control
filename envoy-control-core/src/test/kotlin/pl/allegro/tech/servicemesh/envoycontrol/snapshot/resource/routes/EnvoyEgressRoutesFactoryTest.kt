@@ -18,6 +18,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasVirtualHostsInOrder
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hostRewriteHeaderIsEmpty
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EgressProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPrefix
@@ -45,9 +47,12 @@ internal class EnvoyEgressRoutesFactoryTest {
     @Test
     fun `should add client identity header if incoming permissions are enabled`() {
         // given
-        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
-            incomingPermissions.enabled = true
-        })
+        val routesFactory = EnvoyEgressRoutesFactory(
+            EgressProperties(),
+            IncomingPermissionsProperties().apply {
+                enabled = true
+            }
+        )
 
         // when
         val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
@@ -67,9 +72,12 @@ internal class EnvoyEgressRoutesFactoryTest {
     @Test
     fun `should not add client identity header if incoming permissions are disabled`() {
         // given
-        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
-            incomingPermissions.enabled = false
-        })
+        val routesFactory = EnvoyEgressRoutesFactory(
+            EgressProperties(),
+            IncomingPermissionsProperties().apply {
+                enabled = false
+            }
+        )
 
         // when
         val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
@@ -89,7 +97,7 @@ internal class EnvoyEgressRoutesFactoryTest {
     @Test
     fun `should add upstream remote address header if addUpstreamAddress is enabled`() {
         // given
-        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+        val routesFactory = EnvoyEgressRoutesFactory(EgressProperties(), IncomingPermissionsProperties())
 
         // when
         val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, true)
@@ -102,7 +110,7 @@ internal class EnvoyEgressRoutesFactoryTest {
     @Test
     fun `should not add upstream remote address header if addUpstreamAddress is disabled`() {
         // given
-        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+        val routesFactory = EnvoyEgressRoutesFactory(EgressProperties(), IncomingPermissionsProperties())
 
         // when
         val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
@@ -115,9 +123,12 @@ internal class EnvoyEgressRoutesFactoryTest {
     @Test
     fun `should not add auto rewrite host header when feature is disabled in configuration`() {
         // given
-        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
-            egress.hostHeaderRewriting.enabled = false
-        })
+        val routesFactory = EnvoyEgressRoutesFactory(
+            EgressProperties().apply {
+                hostHeaderRewriting.enabled = false
+            },
+            IncomingPermissionsProperties()
+        )
 
         // when
         val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
@@ -137,7 +148,7 @@ internal class EnvoyEgressRoutesFactoryTest {
             egress.hostHeaderRewriting.enabled = true
             egress.hostHeaderRewriting.customHostHeader = "test_header"
         }
-        val routesFactory = EnvoyEgressRoutesFactory(snapshotProperties)
+        val routesFactory = EnvoyEgressRoutesFactory(snapshotProperties.egress, snapshotProperties.incomingPermissions)
 
         // when
         val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
@@ -153,9 +164,12 @@ internal class EnvoyEgressRoutesFactoryTest {
     @Test
     fun `should create route config with headers to remove`() {
         // given
-        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
-            egress.headersToRemove = mutableListOf("x-special-case-header", "x-custom")
-        })
+        val routesFactory = EnvoyEgressRoutesFactory(
+            EgressProperties().apply {
+                headersToRemove = mutableListOf("x-special-case-header", "x-custom")
+            },
+            IncomingPermissionsProperties()
+        )
 
         // when
         val routeConfig = routesFactory.createEgressRouteConfig("client1", clusters, false)
@@ -167,9 +181,12 @@ internal class EnvoyEgressRoutesFactoryTest {
     @Test
     fun `should create route config for domains`() {
         // given
-        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
-            egress.headersToRemove = mutableListOf("x-special-case-header", "x-custom")
-        })
+        val routesFactory = EnvoyEgressRoutesFactory(
+            EgressProperties().apply {
+                headersToRemove = mutableListOf("x-special-case-header", "x-custom")
+            },
+            IncomingPermissionsProperties()
+        )
         val routesSpecifications = listOf(
             RouteSpecification("example_pl_1553", listOf("example.pl:1553"), DependencySettings()),
             RouteSpecification("example_com_1553", listOf("example.com:1553"), DependencySettings())

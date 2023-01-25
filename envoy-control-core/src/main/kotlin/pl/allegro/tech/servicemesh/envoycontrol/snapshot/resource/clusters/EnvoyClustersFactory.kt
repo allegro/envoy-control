@@ -110,7 +110,8 @@ class EnvoyClustersFactory(
     }
 
     fun getClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> =
-        getEdsClustersForGroup(group, globalSnapshot) + getStrictDnsClustersForGroup(group) + clustersForJWT +
+        getEdsClustersForGroup(group, globalSnapshot) +
+            getStrictDnsClustersForGroup(group) + clustersForJWT +
             getRateLimitClusterForGroup(group, globalSnapshot)
 
     private fun clusterForOAuthProvider(provider: OAuthProvider): Cluster? {
@@ -190,21 +191,31 @@ class EnvoyClustersFactory(
             globalSnapshot.clusters
         }
 
-        val serviceDependencies = group.proxySettings.outgoing.getServiceDependencies().associateBy { it.service }
+        val serviceSettings =
+            group.proxySettings.outgoing.getServiceDependencies()
+                .associate { it.service to it.settings }
+
+        val serviceFromTagSettings = globalSnapshot
+            .getTagsForDependency(group.proxySettings.outgoing)
+            .distinctBy { it.clusterName }
+            .associate { it.clusterName to it.settings }
 
         val clustersForGroup = when (group) {
-            is ServicesGroup -> serviceDependencies.mapNotNull {
-                createClusterForGroup(it.value.settings, clusters[it.key])
+            is ServicesGroup -> serviceSettings.mapNotNull {
+                    createClusterForGroup(it.value, clusters[it.key])
+                } + serviceFromTagSettings.mapNotNull {
+                createClusterForGroup(it.value, clusters[it.key])
             }
             is AllServicesGroup -> {
-                globalSnapshot.allServicesNames.mapNotNull {
-                    val dependency = serviceDependencies[it]
-                    if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
-                        createClusterForGroup(dependency.settings, clusters[it])
-                    } else {
-                        createClusterForGroup(group.proxySettings.outgoing.defaultServiceSettings, clusters[it])
+                globalSnapshot.allServicesNames
+                    .mapNotNull {
+                        val settings = serviceSettings[it] ?: serviceFromTagSettings[it]
+                        if (settings != null && settings.timeoutPolicy.connectionIdleTimeout != null) {
+                            createClusterForGroup(settings, clusters[it])
+                        } else {
+                            createClusterForGroup(group.proxySettings.outgoing.defaultServiceSettings, clusters[it])
+                        }
                     }
-                }
             }
         }
 

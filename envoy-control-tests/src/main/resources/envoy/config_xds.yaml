@@ -63,6 +63,7 @@ node:
           - domain: "https://www.example.com"
           - domain: "https://www.example-redirect.com"
             handleInternalRedirect: true
+          - tag: scope
 
 static_resources:
   clusters:

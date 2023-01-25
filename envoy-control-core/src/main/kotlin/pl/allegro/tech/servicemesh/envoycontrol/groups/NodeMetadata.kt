@@ -95,7 +95,13 @@ fun Value?.toHeaderFilter(default: String? = null): HeaderFilterSettings? {
     }
 }
 
-private class RawDependency(val service: String?, val domain: String?, val domainPattern: String?, val value: Value)
+private class RawDependency(
+    val service: String?,
+    val domain: String?,
+    val domainPattern: String?,
+    val tag: String?,
+    val value: Value
+)
 
 private fun defaultRetryPolicy(retryPolicy: RetryPolicyProperties) = if (retryPolicy.enabled) {
     RetryPolicy(
@@ -145,10 +151,19 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val domainPatterns = rawDependencies.filter { it.domainPattern != null }
         .onEach { validateDomainPatternFormat(it) }
         .map { DomainPatternDependency(it.domainPattern.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
+
+    val tags = rawDependencies.filter { it.tag != null }
+        .map {
+            TagDependency(
+                tag = it.tag!!,
+                settings = it.value.toSettings(allServicesDefaultSettings)
+            )
+        }
     return Outgoing(
         serviceDependencies = services,
         domainDependencies = domains,
         domainPatternDependencies = domainPatterns,
+        tagDependencies = tags,
         defaultServiceSettings = allServicesDefaultSettings,
         allServicesDependencies = allServicesDependencies != null
     )
@@ -159,6 +174,7 @@ private fun toRawDependency(it: Value): RawDependency {
     val service = it.field("service")?.stringValue
     val domain = it.field("domain")?.stringValue
     val domainPattern = it.field("domainPattern")?.stringValue
+    val tag = it.field("tag")?.stringValue
     var count = 0
     if (!service.isNullOrBlank()) {
         count += 1
@@ -167,6 +183,9 @@ private fun toRawDependency(it: Value): RawDependency {
         count += 1
     }
     if (!domainPattern.isNullOrBlank()) {
+        count += 1
+    }
+    if (!tag.isNullOrBlank()) {
         count += 1
     }
     if (count != 1) {
@@ -178,6 +197,7 @@ private fun toRawDependency(it: Value): RawDependency {
         service = service,
         domain = domain,
         domainPattern = domainPattern,
+        tag = tag,
         value = it
     )
 }
@@ -499,26 +519,29 @@ data class Outgoing(
     private val serviceDependencies: List<ServiceDependency> = emptyList(),
     private val domainDependencies: List<DomainDependency> = emptyList(),
     private val domainPatternDependencies: List<DomainPatternDependency> = emptyList(),
+    private val tagDependencies: List<TagDependency> = emptyList(),
     val allServicesDependencies: Boolean = false,
     val defaultServiceSettings: DependencySettings = DependencySettings()
 ) {
 
     // not declared in primary constructor to exclude from equals(), copy(), etc.
-    private val deduplicatedDomainDependencies: List<DomainDependency> = domainDependencies
-        .map { it.domain to it }
-        .toMap().values.toList()
+    private val deduplicatedDomainDependencies: List<DomainDependency> =
+        domainDependencies.associateBy { it.domain }.values.toList()
 
-    private val deduplicatedServiceDependencies: List<ServiceDependency> = serviceDependencies
-        .map { it.service to it }
-        .toMap().values.toList()
+    private val deduplicatedServiceDependencies: List<ServiceDependency> =
+        serviceDependencies.associateBy { it.service }.values.toList()
 
-    private val deduplicatedDomainPatternDependencies: List<DomainPatternDependency> = domainPatternDependencies
-        .map { it.domainPattern to it }
-        .toMap().values.toList()
+    private val deduplicatedDomainPatternDependencies: List<DomainPatternDependency> =
+        domainPatternDependencies.associateBy { it.domainPattern }.values.toList()
+
+    private val deduplicatedTagDependency: List<TagDependency> =
+        tagDependencies.associateBy { it.tag }.values.toList()
 
     fun getDomainDependencies(): List<DomainDependency> = deduplicatedDomainDependencies
     fun getServiceDependencies(): List<ServiceDependency> = deduplicatedServiceDependencies
     fun getDomainPatternDependencies(): List<DomainPatternDependency> = deduplicatedDomainPatternDependencies
+
+    fun getTagDependencies(): List<TagDependency> = deduplicatedTagDependency
 
     data class TimeoutPolicy(
         val idleTimeout: Duration? = null,
@@ -569,6 +592,20 @@ data class DomainDependency(
 
 data class DomainPatternDependency(
     val domainPattern: String,
+    val settings: DependencySettings = DependencySettings()
+) : Dependency {
+    companion object {
+        private const val DEFAULT_HTTP_PORT = 80
+        private const val DEFAULT_HTTPS_POLICY = false
+    }
+
+    override fun getPort() = DEFAULT_HTTP_PORT
+
+    override fun useSsl() = DEFAULT_HTTPS_POLICY
+}
+
+data class TagDependency(
+    val tag: String,
     val settings: DependencySettings = DependencySettings()
 ) : Dependency {
     companion object {

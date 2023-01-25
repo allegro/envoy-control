@@ -163,8 +163,8 @@ class EnvoyIngressRoutesFactory(
         addAllRetriableStatusCodes(retryProps.retriableStatusCodes)
     }.build()
 
-    val defaultRetryPolicy: RetryPolicy = retryPolicy(properties.localService.retryPolicy.default)
-    val perMethodRetryPolicies: Map<HttpMethod, RetryPolicy> = properties.localService.retryPolicy.perHttpMethod
+    private val defaultRetryPolicy: RetryPolicy = retryPolicy(properties.localService.retryPolicy.default)
+    private val perMethodRetryPolicies: Map<HttpMethod, RetryPolicy> = properties.localService.retryPolicy.perHttpMethod
         .filter { it.value.enabled }
         .map { HttpMethod.valueOf(it.key) to retryPolicy(it.value) }
         .toMap()

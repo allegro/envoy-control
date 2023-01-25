@@ -24,6 +24,7 @@ metadata:
         - service: service-b
           handleInternalRedirect: true
         - domain: http://www.example.com
+        - tag: tag-a
     incoming:
       endpoints:
         - path: /example

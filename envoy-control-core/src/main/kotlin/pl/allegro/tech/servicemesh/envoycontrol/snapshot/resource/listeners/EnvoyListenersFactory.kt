@@ -22,7 +22,6 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.SdsSecretConfig
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.TlsParameters
-import pl.allegro.tech.servicemesh.envoycontrol.groups.Dependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
@@ -203,19 +202,20 @@ class EnvoyListenersFactory(
             { it.getPort() }, { it }
         ).toMap()
 
-        val httpProxy = (group.proxySettings.outgoing.getDomainDependencies() +
-            group.proxySettings.outgoing.getServiceDependencies()).filter {
+        val httpProxyPorts = (group.proxySettings.outgoing.getDomainDependencies() +
+            group.proxySettings.outgoing.getServiceDependencies() +
+            group.proxySettings.outgoing.getTagDependencies()).filter {
             !it.useSsl()
-        }.groupBy(
-            { it.getPort() }, { it }
-        ).toMutableMap()
+        }
+            .map { it.getPort() }
+            .toMutableSet()
 
         if (group.proxySettings.outgoing.allServicesDependencies) {
-            httpProxy[DEFAULT_HTTP_PORT] = group.proxySettings.outgoing.getServiceDependencies()
+            httpProxyPorts.add(DEFAULT_HTTP_PORT)
         }
 
         return createEgressTcpProxyVirtualListener(tcpProxy) +
-            createEgressHttpProxyVirtualListener(httpProxy.toMap(), group, globalSnapshot)
+            createEgressHttpProxyVirtualListener(httpProxyPorts, group, globalSnapshot)
     }
 
     private fun createEgressFilter(
@@ -290,21 +290,21 @@ class EnvoyListenersFactory(
     }
 
     private fun createEgressHttpProxyVirtualListener(
-        portAndDomains: Map<Int, List<Dependency>>,
+        ports: Set<Int>,
         group: Group,
         globalSnapshot: GlobalSnapshot
     ): List<Listener> {
-        return portAndDomains.map {
+        return ports.map { port ->
             Listener.newBuilder()
-                .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:${it.key}")
+                .setName("$DOMAIN_PROXY_LISTENER_ADDRESS:$port")
                 .setAddress(
                     Address.newBuilder().setSocketAddress(
                         SocketAddress.newBuilder()
-                            .setPortValue(it.key)
+                            .setPortValue(port)
                             .setAddress(DOMAIN_PROXY_LISTENER_ADDRESS)
                     )
                 )
-                .addFilterChains(createHttpProxyFilterChainForDomains(group, it.key, globalSnapshot))
+                .addFilterChains(createHttpProxyFilterChainForDomains(group, port, globalSnapshot))
                 .setTrafficDirection(TrafficDirection.OUTBOUND)
                 .setDeprecatedV1(
                     Listener.DeprecatedV1.newBuilder()
