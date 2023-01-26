@@ -6,6 +6,7 @@ sealed class Group {
     abstract val discoveryServiceName: String?
     abstract val proxySettings: ProxySettings
     abstract val listenersConfig: ListenersConfig?
+    abstract val customData: Set<String>
 }
 
 data class ServicesGroup(
@@ -13,7 +14,8 @@ data class ServicesGroup(
     override val serviceName: String = "",
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val listenersConfig: ListenersConfig? = null
+    override val listenersConfig: ListenersConfig? = null,
+    override val customData: Set<String> = emptySet()
 ) : Group()
 
 data class AllServicesGroup(
@@ -21,7 +23,8 @@ data class AllServicesGroup(
     override val serviceName: String = "",
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val listenersConfig: ListenersConfig? = null
+    override val listenersConfig: ListenersConfig? = null,
+    override val customData: Set<String> = emptySet()
 ) : Group()
 
 data class ListenersConfig(

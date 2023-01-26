@@ -134,6 +134,7 @@ class MetadataNodeGroup(
         val discoveryServiceName = nodeMetadata.discoveryServiceName
         val proxySettings = proxySettings(nodeMetadata)
         val listenersConfig = createListenersConfig(node.id, node.metadata)
+        val customData = customData(nodeMetadata)
 
         return when {
             hasAllServicesDependencies(nodeMetadata) ->
@@ -142,7 +143,8 @@ class MetadataNodeGroup(
                     serviceName,
                     discoveryServiceName,
                     proxySettings,
-                    listenersConfig
+                    listenersConfig,
+                    customData
                 )
             else ->
                 ServicesGroup(
@@ -150,7 +152,8 @@ class MetadataNodeGroup(
                     serviceName,
                     discoveryServiceName,
                     proxySettings,
-                    listenersConfig
+                    listenersConfig,
+                    customData
                 )
         }
     }
@@ -169,6 +172,10 @@ class MetadataNodeGroup(
             true -> metadata.proxySettings
             false -> metadata.proxySettings.withIncomingPermissionsDisabled()
         }
+    }
+
+    private fun customData(nodeMetadata: NodeMetadata): Set<String> {
+        return nodeMetadata.customData
     }
 
     companion object {
