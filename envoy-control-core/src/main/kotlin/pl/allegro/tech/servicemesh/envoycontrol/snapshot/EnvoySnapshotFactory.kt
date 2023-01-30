@@ -218,12 +218,22 @@ class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot,
         egressRouteSpecifications: Collection<RouteSpecification>
     ): List<ClusterLoadAssignment> {
-        val egressRouteClusters = egressRouteSpecifications.map(RouteSpecification::clusterName)
+        val egressLoadAssignments = egressRouteSpecifications.mapNotNull { routeSpec ->
+            globalSnapshot.endpoints[routeSpec.clusterName]?.let { endpoints ->
+                // TODO: create a cache in GlobalSnapshot where a key is a pair (serviceName, serviceTag) and a value
+                //    is ClusterLoadAssignment (simple mutable map should be enough).
+                //    endpointsFactory.filterEndpoints() can use this cache to prevent computing the same
+                //    ClusterLoadAssignments many times - it may reduce MEM, CPU and latency if some serviceTags are
+                //    commonly used
+                endpointsFactory.filterEndpoints(endpoints, routeSpec.settings.routingPolicy)
+            }
+        }
+
         val rateLimitClusters =
             if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
-        val allClusters = egressRouteClusters + rateLimitClusters
+        val rateLimitLoadAssignments = rateLimitClusters.mapNotNull { name -> globalSnapshot.endpoints[name] }
 
-        return allClusters.mapNotNull { name -> globalSnapshot.endpoints[name] }
+        return egressLoadAssignments + rateLimitLoadAssignments
     }
 
     private fun newSnapshotForGroup(

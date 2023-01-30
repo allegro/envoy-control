@@ -238,6 +238,7 @@ class ServiceTagsProperties {
     var header = "x-service-tag"
     var routingExcludedTags: MutableList<StringMatcher> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
+    var autoServiceTagEnabled = false
 }
 
 class StringMatcher {

@@ -12,6 +12,7 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.endpoint.v3.Endpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
+import pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
@@ -46,6 +47,70 @@ class EnvoyEndpointsFactory(
                     .build()
             }
     }
+
+    fun filterEndpoints(
+        clusterLoadAssignment: ClusterLoadAssignment,
+        routingPolicy: RoutingPolicy
+    ): ClusterLoadAssignment {
+        if (!routingPolicy.autoServiceTag || !isAutoServiceTagEnabled()) {
+            return clusterLoadAssignment
+        }
+
+        val filteredLoadAssignment = routingPolicy.serviceTagPreference.firstNotNullOfOrNull { serviceTag ->
+            filterEndpoints(clusterLoadAssignment, serviceTag)
+        }
+
+        return when {
+            filteredLoadAssignment != null -> filteredLoadAssignment
+            routingPolicy.fallbackToAnyInstance -> clusterLoadAssignment
+            else -> createEmptyLoadAssignment(clusterLoadAssignment)
+        }
+    }
+
+    private fun isAutoServiceTagEnabled() = properties.routing.serviceTags.run { enabled && autoServiceTagEnabled }
+
+    private fun filterEndpoints(loadAssignment: ClusterLoadAssignment, tag: String): ClusterLoadAssignment? {
+        var allEndpointMatched = true
+        val filteredEndpoints = loadAssignment.endpointsList.mapNotNull { localityLbEndpoint ->
+            val (matchedEndpoints, unmatchedEndpoints) = localityLbEndpoint.lbEndpointsList.partition {
+                metadataContainsServiceTag(it.metadata, tag)
+            }
+            when {
+                matchedEndpoints.isNotEmpty() && unmatchedEndpoints.isNotEmpty() -> { // SOME
+                    allEndpointMatched = false
+                    localityLbEndpoint.toBuilder()
+                        .clearLbEndpoints()
+                        .addAllLbEndpoints(matchedEndpoints)
+                        .build()
+                }
+                matchedEndpoints.isNotEmpty() -> { // ALL
+                    localityLbEndpoint
+                }
+                else -> { // NONE
+                    allEndpointMatched = false
+                    null
+                }
+            }
+        }
+        return when {
+            allEndpointMatched -> loadAssignment // ALL
+            filteredEndpoints.isNotEmpty() -> loadAssignment.toBuilder() // SOME
+                .clearEndpoints()
+                .addAllEndpoints(filteredEndpoints)
+                .build()
+            else -> null // NONE
+        }
+    }
+
+    private fun createEmptyLoadAssignment(loadAssignment: ClusterLoadAssignment): ClusterLoadAssignment {
+        return loadAssignment.toBuilder().clearEndpoints().build()
+    }
+
+    private fun metadataContainsServiceTag(metadata: Metadata, serviceTag: String) = metadata
+        .filterMetadataMap["envoy.lb"]?.fieldsMap
+        ?.get(properties.routing.serviceTags.metadataKey)
+        ?.listValue?.valuesList.orEmpty()
+        .any { it.stringValue == serviceTag }
 
     private fun createEndpointsGroup(
         serviceInstances: ServiceInstances?,
