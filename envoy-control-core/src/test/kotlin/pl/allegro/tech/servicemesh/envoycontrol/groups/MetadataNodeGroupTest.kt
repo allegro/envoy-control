@@ -9,7 +9,10 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -301,6 +304,49 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group.listenersConfig!!.accessLogFilterSettings.statusCodeFilterSettings).isNull()
+    }
+
+    @Test
+    fun `should custom data be empty when using default mapper`() {
+        // given
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
+        val metadata = createMetadataBuilderWithDefaults()
+
+        // when
+        val group = nodeGroup.hash(NodeV3.newBuilder().setMetadata(metadata?.build()).build())
+
+        // then
+        assertThat(group.customData).isEmpty()
+    }
+
+    @ParameterizedTest
+    @MethodSource("customDataProvider")
+    fun `should custom data be populated when using specific mapper`(data: Map<String, Any>) {
+        // given
+        val customMapper = object : CustomMetadataMapper {
+            override fun map(node: NodeMetadata): Map<String, Any> {
+                return data
+            }
+        }
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties(), customMapper)
+        val metadata = createMetadataBuilderWithDefaults()
+
+        // when
+        val group = nodeGroup.hash(NodeV3.newBuilder().setMetadata(metadata?.build()).build())
+
+        // then
+        assertThat(group.customData).isEqualTo(data)
+    }
+
+    companion object {
+        @JvmStatic
+        fun customDataProvider() = listOf<Arguments>(
+            arguments(emptyMap<String, Any>()),
+            arguments(mapOf<String, Any>("abc" to 1)),
+            arguments(mapOf<String, Any>("abc" to "xyz")),
+            arguments(mapOf<String, Any>("abc" to true)),
+            arguments(mapOf<String, Any>("abc" to 1, "xyz" to true)),
+        )
     }
 
     private fun createMetadataBuilderWithDefaults(): Struct.Builder? {

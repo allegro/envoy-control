@@ -8,7 +8,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 class MetadataNodeGroup(
-    val properties: SnapshotProperties
+    val properties: SnapshotProperties,
+    private val customMetadataMapper: CustomMetadataMapper = DefaultCustomMetadataMapper()
 ) : NodeGroup<Group> {
     private val logger by logger()
 
@@ -134,7 +135,7 @@ class MetadataNodeGroup(
         val discoveryServiceName = nodeMetadata.discoveryServiceName
         val proxySettings = proxySettings(nodeMetadata)
         val listenersConfig = createListenersConfig(node.id, node.metadata)
-        val customData = customData(nodeMetadata)
+        val customData = customMetadataMapper.map(nodeMetadata)
 
         return when {
             hasAllServicesDependencies(nodeMetadata) ->
@@ -174,12 +175,18 @@ class MetadataNodeGroup(
         }
     }
 
-    private fun customData(nodeMetadata: NodeMetadata): Set<String> {
-        return nodeMetadata.customData
-    }
-
     companion object {
         private const val MAX_PORT_VALUE = 65535
+    }
+}
+
+interface CustomMetadataMapper {
+    fun map(node: NodeMetadata): Map<String, Any>
+}
+
+class DefaultCustomMetadataMapper: CustomMetadataMapper {
+    override fun map(node: NodeMetadata): Map<String, Any> {
+        return emptyMap()
     }
 }
 
