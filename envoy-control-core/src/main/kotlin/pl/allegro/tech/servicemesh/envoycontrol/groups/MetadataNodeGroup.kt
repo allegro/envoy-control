@@ -135,7 +135,7 @@ class MetadataNodeGroup(
         val discoveryServiceName = nodeMetadata.discoveryServiceName
         val proxySettings = proxySettings(nodeMetadata)
         val listenersConfig = createListenersConfig(node.id, node.metadata)
-        val customData = customMetadataMapper.map(nodeMetadata)
+        val customData = customMetadataMapper.map(node)
 
         return when {
             hasAllServicesDependencies(nodeMetadata) ->
@@ -181,11 +181,11 @@ class MetadataNodeGroup(
 }
 
 interface CustomMetadataMapper {
-    fun map(node: NodeMetadata): Map<String, Any>
+    fun map(node: NodeV3): Map<String, Any>
 }
 
 class DefaultCustomMetadataMapper: CustomMetadataMapper {
-    override fun map(node: NodeMetadata): Map<String, Any> {
+    override fun map(node: NodeV3): Map<String, Any> {
         return emptyMap()
     }
 }

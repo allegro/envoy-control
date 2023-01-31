@@ -34,11 +34,6 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
     val communicationMode = getCommunicationMode(metadata.fieldsMap["ads"])
 
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
-
-    val customData: Set<String> = metadata
-        .fieldsMap["custom-data"]
-        ?.list()?.map { it.stringValue }?.toSet()
-        ?: emptySet()
 }
 
 data class AccessLogFilterSettings(val proto: Value?, val properties: AccessLogFiltersProperties) {
