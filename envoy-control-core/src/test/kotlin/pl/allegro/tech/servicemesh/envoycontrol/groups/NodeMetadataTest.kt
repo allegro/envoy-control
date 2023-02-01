@@ -360,7 +360,7 @@ class NodeMetadataTest {
                 baseInterval = "7s",
                 maxInterval = "8s"
             ),
-            retryHostPredicate = listOf(RetryHostPredicateInput(name = "givenHost")),
+            retryHostPredicate = listOf(RetryHostPredicateInput(name = "previous_hosts")),
             methods = setOf("GET", "POST", "PUT")
         )
         val expectedRetryPolicy = RetryPolicy(
@@ -374,7 +374,7 @@ class NodeMetadataTest {
                 baseInterval = Durations.fromSeconds(7),
                 maxInterval = Durations.fromSeconds(8)
             ),
-            retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost")),
+            retryHostPredicate = listOf(RetryHostPredicate.PREVIOUS_HOSTS),
             methods = setOf("GET", "POST", "PUT"),
             rateLimitedRetryBackOff = RateLimitedRetryBackOff(
                 listOf(ResetHeader("Retry-After", "SECONDS"))
@@ -416,7 +416,7 @@ class NodeMetadataTest {
                 baseInterval = Durations.fromMillis(25),
                 maxInterval = Durations.fromMillis(250)
             ),
-            retryHostPredicate = listOf(RetryHostPredicate(name = "envoy.retry_host_predicates.previous_hosts")),
+            retryHostPredicate = listOf(RetryHostPredicate.PREVIOUS_HOSTS),
             methods = setOf("GET", "POST", "PUT"),
             rateLimitedRetryBackOff = RateLimitedRetryBackOff(
                 listOf(ResetHeader("Retry-After", "SECONDS"))

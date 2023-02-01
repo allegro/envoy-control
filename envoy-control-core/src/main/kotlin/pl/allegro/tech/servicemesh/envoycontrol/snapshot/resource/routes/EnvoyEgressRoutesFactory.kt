@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
+import com.google.protobuf.Any
 import com.google.protobuf.BoolValue
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
@@ -16,6 +17,9 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import io.envoyproxy.envoy.extensions.retry.host.omit_canary_hosts.v3.OmitCanaryHostsPredicate
+import io.envoyproxy.envoy.extensions.retry.host.omit_host_metadata.v3.OmitHostMetadataConfig
+import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RateLimitedRetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
@@ -326,10 +330,23 @@ class RequestPolicyMapper private constructor() {
             retryPolicyBuilder: RetryPolicy.Builder
         ) {
             hostPredicates.map {
-                RetryPolicy.RetryHostPredicate.newBuilder().setName(it.name).build()
+                RetryPolicy.RetryHostPredicate.newBuilder()
+                    .setName(it.predicateName)
+                    .setTypedConfig(it.toRetryHostPredicate())
+                    .build()
             }.also {
                 retryPolicyBuilder.addAllRetryHostPredicate(it)
             }
+        }
+
+        private fun RetryHostPredicate.toRetryHostPredicate(): Any {
+            val any = when (this) {
+                RetryHostPredicate.PREVIOUS_HOSTS -> PreviousHostsPredicate.newBuilder().build()
+                RetryHostPredicate.OMIT_CANARY_HOST -> OmitCanaryHostsPredicate.newBuilder().build()
+                RetryHostPredicate.OMIT_HOST_METADATA -> OmitHostMetadataConfig.newBuilder()
+                    .build()
+            }
+            return Any.pack(any)
         }
 
         private fun parseResetHeaderFormat(format: String): ResetHeaderFormat {

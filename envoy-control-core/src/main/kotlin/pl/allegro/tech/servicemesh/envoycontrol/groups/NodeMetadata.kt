@@ -256,8 +256,8 @@ private fun Value.toRetryPolicy(defaultRetryPolicy: RetryPolicy?): RetryPolicy {
         hostSelectionRetryMaxAttempts = this.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
             ?: defaultRetryPolicy?.hostSelectionRetryMaxAttempts,
         numberRetries = this.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy?.numberRetries,
-        retryHostPredicate = this.field("retryHostPredicate")?.listValue?.valuesList?.map {
-            RetryHostPredicate(it.field("name")!!.stringValue)
+        retryHostPredicate = this.field("retryHostPredicate")?.listValue?.valuesList?.mapNotNull {
+            RetryHostPredicate.parse(it.field("name")!!.stringValue)
         }?.toList() ?: defaultRetryPolicy?.retryHostPredicate,
         perTryTimeoutMs = this.field("perTryTimeoutMs")?.numberValue?.toLong(),
         retryBackOff = this.field("retryBackOff")?.structValue?.let {
@@ -634,9 +634,17 @@ data class RateLimitedRetryBackOff(
 
 data class ResetHeader(val name: String, val format: String)
 
-data class RetryHostPredicate(
-    val name: String
-)
+enum class RetryHostPredicate(val predicateName: String) {
+    OMIT_CANARY_HOST("envoy.retry_host_predicates.omit_canary_hosts"),
+    OMIT_HOST_METADATA("envoy.retry_host_predicates.omit_host_metadata"),
+    PREVIOUS_HOSTS("envoy.retry_host_predicates.previous_hosts");
+
+    companion object {
+        fun parse(value: String): RetryHostPredicate? {
+            return values().find { it.predicateName.equals(value, true) || it.name.equals(value, true) }
+        }
+    }
+}
 
 data class Role(
     val name: String?,

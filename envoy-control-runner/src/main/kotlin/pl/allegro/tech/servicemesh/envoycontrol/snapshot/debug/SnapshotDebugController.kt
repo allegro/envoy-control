@@ -14,7 +14,11 @@ import com.google.protobuf.util.JsonFormat.TypeRegistry
 import io.envoyproxy.envoy.config.rbac.v3.RBAC
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
+import io.envoyproxy.envoy.extensions.filters.http.router.v3.Router
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+import io.envoyproxy.envoy.extensions.retry.host.omit_canary_hosts.v3.OmitCanaryHostsPredicate
+import io.envoyproxy.envoy.extensions.retry.host.omit_host_metadata.v3.OmitHostMetadataConfig
+import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
 import io.envoyproxy.envoy.extensions.transport_sockets.tap.v3.Tap
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
 import io.envoyproxy.envoy.type.matcher.PathMatcher
@@ -87,6 +91,10 @@ class SnapshotDebugController(val debugService: SnapshotDebugService) {
             .add(Any.getDescriptor())
             .add(PathMatcher.getDescriptor())
             .add(StringMatcher.getDescriptor())
+            .add(Router.getDescriptor())
+            .add(PreviousHostsPredicate.getDescriptor())
+            .add(OmitCanaryHostsPredicate.getDescriptor())
+            .add(OmitHostMetadataConfig.getDescriptor())
             .add(Tap.getDescriptor())
             .add(UpstreamTlsContext.getDescriptor())
             .add(Lua.getDescriptor())
