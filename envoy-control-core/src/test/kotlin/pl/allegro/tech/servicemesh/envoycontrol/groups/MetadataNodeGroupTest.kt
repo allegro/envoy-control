@@ -4,6 +4,7 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
+import io.envoyproxy.envoy.config.core.v3.Node
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -324,7 +325,7 @@ class MetadataNodeGroupTest {
     fun `should custom data be populated when using specific mapper`(data: Map<String, Any>) {
         // given
         val customMapper = object : CustomMetadataMapper {
-            override fun map(node: NodeMetadata): Map<String, Any> {
+            override fun map(node: Node): Map<String, Any> {
                 return data
             }
         }
