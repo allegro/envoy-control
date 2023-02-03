@@ -1,5 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.ListValue
+import com.google.protobuf.NullValue
+import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
@@ -51,6 +54,40 @@ class NodeMetadataTest {
             arguments("/path", null, "/regex"),
             arguments(null, "/prefix", "/regex"),
             arguments("/path", "/prefix", "/regex")
+        )
+
+        @JvmStatic
+        fun parsingCustomDataValue() = listOf(
+            arguments(Value.newBuilder().setBoolValue(true).build(), true),
+            arguments(Value.newBuilder().setStringValue("string").build(), "string"),
+            arguments(Value.newBuilder().setNumberValue(1.0).build(), 1.0),
+            arguments(Value.newBuilder().build(), null),
+            arguments(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(), null),
+            arguments(Value.newBuilder().setListValue(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setBoolValue(true).build()).build())
+                .build(), listOf(true)
+            ),
+            arguments(Value.newBuilder().setStructValue(
+                    Struct.newBuilder()
+                        .putFields("string", Value.newBuilder().setBoolValue(true).build())
+                        .build()
+                ).build(), mapOf("string" to true)
+            )
+        )
+
+        @JvmStatic
+        fun parsingCustomData() = listOf(
+            arguments(Value.newBuilder().setBoolValue(true).build(), true),
+            arguments(Value.newBuilder().setStringValue("string").build(), "string"),
+            arguments(Value.newBuilder().setNumberValue(1.0).build(), 1.0),
+            arguments(Value.newBuilder().build(), null),
+            arguments(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(), null),
+            arguments(Value.newBuilder().setListValue(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setBoolValue(true).build()).build())
+                .build(), listOf(true)
+            )
         )
     }
 
@@ -1215,6 +1252,42 @@ class NodeMetadataTest {
             assertThat(policy.serviceTagPreference).isEqualTo(listOf("estTag"))
             assertThat(policy.fallbackToAnyInstance).isTrue
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("parsingCustomDataValue")
+    fun `should parse simple value`(value: Value, expected: Any?) {
+        // when
+        val toCustomDataValue = value.toCustomDataValue()
+
+        // then
+        assertThat(toCustomDataValue).isEqualTo(expected)
+    }
+
+    @ParameterizedTest
+    @MethodSource("parsingCustomData")
+    fun `should return empty custom data if is not a struct`(value: Value) {
+        // when
+        val customData = value.toCustomData()
+
+        // then
+        assertThat(customData).isEmpty()
+    }
+
+    @Test
+    fun `should parse custom data if is a struct`() {
+        // given
+        val value = Value.newBuilder().setStructValue(
+            Struct.newBuilder()
+                .putFields("abc", Value.newBuilder().setBoolValue(true).build())
+                .build()
+        ).build()
+
+        // when
+        val customData = value.toCustomData()
+
+        // then
+        assertThat(customData).isEqualTo(mapOf("abc" to true))
     }
 
     fun ObjectAssert<DependencySettings>.hasTimeouts(
