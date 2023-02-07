@@ -1263,7 +1263,7 @@ class NodeMetadataTest {
         // then
         assertThat(customData).isEmpty()
     }
-    
+
     @ParameterizedTest
     @MethodSource("parsingCustomData")
     fun `should parse custom data if it is a struct with value`(name: String, field: Value, expected: Any?) {
