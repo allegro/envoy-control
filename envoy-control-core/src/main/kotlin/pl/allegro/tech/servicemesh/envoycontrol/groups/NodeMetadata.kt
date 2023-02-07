@@ -506,7 +506,6 @@ private fun Value?.toCustomDataValue(): Any? {
     }
 }
 
-
 data class Incoming(
     val endpoints: List<IncomingEndpoint> = emptyList(),
     val rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList(),
