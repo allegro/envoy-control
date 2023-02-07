@@ -57,18 +57,18 @@ class NodeMetadataTest {
         )
 
         @JvmStatic
-        fun parsingCustomDataValue() = listOf(
-            arguments(Value.newBuilder().setBoolValue(true).build(), true),
-            arguments(Value.newBuilder().setStringValue("string").build(), "string"),
-            arguments(Value.newBuilder().setNumberValue(1.0).build(), 1.0),
-            arguments(Value.newBuilder().build(), null),
-            arguments(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(), null),
-            arguments(Value.newBuilder().setListValue(
+        fun parsingCustomData() = listOf(
+            arguments("bool", Value.newBuilder().setBoolValue(true).build(), true),
+            arguments("string", Value.newBuilder().setStringValue("string").build(), "string"),
+            arguments("number", Value.newBuilder().setNumberValue(1.0).build(), 1.0),
+            arguments("not_set", Value.newBuilder().build(), null),
+            arguments("null", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(), null),
+            arguments("list", Value.newBuilder().setListValue(
                 ListValue.newBuilder()
                     .addValues(Value.newBuilder().setBoolValue(true).build()).build())
                 .build(), listOf(true)
             ),
-            arguments(Value.newBuilder().setStructValue(
+            arguments("struct", Value.newBuilder().setStructValue(
                     Struct.newBuilder()
                         .putFields("string", Value.newBuilder().setBoolValue(true).build())
                         .build()
@@ -77,7 +77,7 @@ class NodeMetadataTest {
         )
 
         @JvmStatic
-        fun parsingCustomData() = listOf(
+        fun parsingNotStructInCustomData() = listOf(
             arguments(Value.newBuilder().setBoolValue(true).build(), true),
             arguments(Value.newBuilder().setStringValue("string").build(), "string"),
             arguments(Value.newBuilder().setNumberValue(1.0).build(), 1.0),
@@ -1255,23 +1255,30 @@ class NodeMetadataTest {
     }
 
     @ParameterizedTest
-    @MethodSource("parsingCustomDataValue")
-    fun `should parse simple value`(value: Value, expected: Any?) {
-        // when
-        val toCustomDataValue = value.toCustomDataValue()
-
-        // then
-        assertThat(toCustomDataValue).isEqualTo(expected)
-    }
-
-    @ParameterizedTest
-    @MethodSource("parsingCustomData")
+    @MethodSource("parsingNotStructInCustomData")
     fun `should return empty custom data if is not a struct`(value: Value) {
         // when
         val customData = value.toCustomData()
 
         // then
         assertThat(customData).isEmpty()
+    }
+    
+    @ParameterizedTest
+    @MethodSource("parsingCustomData")
+    fun `should parse custom data if it is a struct with value`(name: String, field: Value, expected: Any?) {
+        // given
+        val value = Value.newBuilder()
+            .setStructValue(Struct.newBuilder()
+                .putFields(name, field)
+                .build())
+            .build()
+
+        // when
+        val customData = value.toCustomData()
+
+        // then
+        assertThat(customData).isEqualTo(mapOf(name to expected))
     }
 
     @Test

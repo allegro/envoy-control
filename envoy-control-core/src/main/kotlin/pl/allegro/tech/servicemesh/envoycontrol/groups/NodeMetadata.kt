@@ -491,7 +491,7 @@ fun Value?.toCustomData(): Map<String, Any?> {
     }
 }
 
-fun Value?.toCustomDataValue(): Any? {
+private fun Value?.toCustomDataValue(): Any? {
     return when (this?.kindCase) {
         Value.KindCase.BOOL_VALUE -> this.boolValue
         Value.KindCase.LIST_VALUE -> this.listValue.valuesList.map { it.toCustomDataValue() }
