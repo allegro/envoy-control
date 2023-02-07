@@ -486,9 +486,13 @@ fun Value.toDuration(): Duration? {
 
 fun Value?.toCustomData(): Map<String, Any?> {
     return when (this?.kindCase) {
-        Value.KindCase.STRUCT_VALUE -> this.toCustomDataValue() as Map<String, Any?>
+        Value.KindCase.STRUCT_VALUE -> this.toMap()
         else -> emptyMap()
     }
+}
+
+private fun Value.toMap(): Map<String, Any?> {
+    return this.structValue.fieldsMap.map { it.key to it.value.toCustomDataValue() }.toMap()
 }
 
 private fun Value?.toCustomDataValue(): Any? {
@@ -497,10 +501,11 @@ private fun Value?.toCustomDataValue(): Any? {
         Value.KindCase.LIST_VALUE -> this.listValue.valuesList.map { it.toCustomDataValue() }
         Value.KindCase.STRING_VALUE -> this.stringValue
         Value.KindCase.NUMBER_VALUE -> this.numberValue
-        Value.KindCase.STRUCT_VALUE -> this.structValue.fieldsMap.map { it.key to it.value.toCustomDataValue() }.toMap()
+        Value.KindCase.STRUCT_VALUE -> this.toMap()
         else -> null
     }
 }
+
 
 data class Incoming(
     val endpoints: List<IncomingEndpoint> = emptyList(),
