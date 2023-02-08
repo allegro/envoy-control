@@ -13,7 +13,7 @@ class ConsulContainer(
     val internalPort: Int = 8500
 ) : GenericContainer<ConsulContainer>(
     ImageFromDockerfile().withDockerfileFromBuilder {
-        it.from("consul:latest")
+        it.from("consul:1.10.12")
             .run("apk", "add", "iproute2")
             .cmd(consulConfig.launchCommand())
             .expose(internalPort)

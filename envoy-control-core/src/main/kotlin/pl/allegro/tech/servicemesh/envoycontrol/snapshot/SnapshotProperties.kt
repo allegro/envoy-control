@@ -94,6 +94,7 @@ class IncomingPermissionsProperties {
     var selectorMatching: MutableMap<Client, SelectorMatching> = mutableMapOf()
     var tlsAuthentication = TlsAuthenticationProperties()
     var clientsAllowedToAllEndpoints = mutableListOf<String>()
+    var clientsLists = ClientsListsProperties()
     var overlappingPathsFix = false // TODO: to be removed when proved it did not mess up anything
 }
 
@@ -116,6 +117,10 @@ class TlsAuthenticationProperties {
     var sanUriFormat: String = "spiffe://{service-name}"
 }
 
+class ClientsListsProperties {
+    var defaultClientsList: List<String> = emptyList()
+    var customClientsLists: Map<String, List<String>> = mapOf()
+}
 class TlsProtocolProperties {
     var cipherSuites: List<String> = listOf("ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-RSA-AES128-GCM-SHA256")
     var minimumVersion = TlsParameters.TlsProtocol.TLSv1_2
@@ -232,6 +237,7 @@ class ServiceTagsProperties {
     var header = "x-service-tag"
     var routingExcludedTags: MutableList<StringMatcher> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
+    var autoServiceTagEnabled = false
 }
 
 class StringMatcher {
@@ -361,11 +367,12 @@ data class RateLimitProperties(
 )
 
 data class RetryPolicyProperties(
+    var enabled: Boolean = true,
     var retryOn: List<String> = emptyList(),
     var numberOfRetries: Int = 1,
     var hostSelectionRetryMaxAttempts: Long = 3,
     var retryHostPredicate: List<RetryHostPredicate> =
-        listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
+        listOf(RetryHostPredicate.PREVIOUS_HOSTS),
     var retryBackOff: RetryBackOffProperties = RetryBackOffProperties(
         baseInterval = Duration.ofMillis(25)
     ),

@@ -144,14 +144,14 @@ internal class SnapshotsVersionsTest {
                                 path = endpointPath,
                                 pathMatchingType = PathMatchingType.PATH,
                                 methods = setOf("GET", "PUT"),
-                                clients = setOf(ClientWithSelector("client1"), ClientWithSelector("role1"))
+                                clients = setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("role1"))
                             )
                         ),
                         permissionsEnabled = true,
                         roles = listOf(
                             Role(
                                 name = "role1",
-                                clients = setOf(ClientWithSelector("client2"), ClientWithSelector("client3"))
+                                clients = setOf(ClientWithSelector.create("client2"), ClientWithSelector.create("client3"))
                             )
                         )
                     ),

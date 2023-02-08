@@ -3,10 +3,38 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.20.0]
 
 ### Changed
 - Remove xds support
+
+## [0.19.29]
+
+### Changed
+- add mechanism to store custom data in group
+
+## [0.19.28]
+
+### Changed
+- update envoy version to 1.24.0
+
+## [0.19.27]
+
+### Changed
+- flaky test fixed
+- Auto service tags (proxy settings outgoing.routingPolicy
+- remove duplicated routes
+
+## [0.19.26]
+
+### Changed
+- Bump consul recipes to fix index handling behavior in edge cases
+
+## [0.19.25]
+
+### Changed
+- Prefix for negating values from jwt token used in rbac
+- Configurable default clients lists
 
 ## [0.19.24]
 

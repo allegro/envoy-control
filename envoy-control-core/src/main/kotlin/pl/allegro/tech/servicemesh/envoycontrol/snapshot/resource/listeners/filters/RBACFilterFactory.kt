@@ -48,7 +48,7 @@ class RBACFilterFactory(
     private val anyPrincipal = Principal.newBuilder().setAny(true).build()
     private val denyForAllPrincipal = Principal.newBuilder().setNotId(anyPrincipal).build()
     private val fullAccessClients = incomingPermissionsProperties.clientsAllowedToAllEndpoints.map {
-        ClientWithSelector(name = it)
+        ClientWithSelector.create(name = it)
     }
     private val sanUriMatcherFactory = SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
 
@@ -59,6 +59,13 @@ class RBACFilterFactory(
             }
         }
     }
+
+    private val defaultClientsList = incomingPermissionsProperties.clientsLists
+        .defaultClientsList.map { ClientWithSelector.decomposeClient(it) }
+    private val customClientsLists = incomingPermissionsProperties.clientsLists
+        .customClientsLists.mapValues {
+            it.value.map(ClientWithSelector::decomposeClient)
+        }
 
     companion object {
         private val logger by logger()
@@ -82,9 +89,9 @@ class RBACFilterFactory(
     ): List<EndpointWithPolicy> {
         val principalCache = mutableMapOf<ClientWithSelector, List<Principal>>()
         return incomingPermissions.endpoints.map { incomingEndpoint ->
-            val clientsWithSelectors = resolveClientsWithSelectors(incomingEndpoint, roles)
-
-            val principals = clientsWithSelectors
+            val (clientsWithNegatedSelectors, clientsWithNotNegatedSelectors) =
+                resolveClientsWithSelectors(incomingEndpoint, roles).partition { it.negated }
+            val notNegatedPrincipals = clientsWithNotNegatedSelectors
                 .flatMap { client ->
                     getPrincipals(
                         principalCache,
@@ -95,7 +102,22 @@ class RBACFilterFactory(
                     ).map { mergeWithOAuthPolicy(client, it, incomingEndpoint.oauth?.policy) }
                 }
                 .toSet()
-                .ifEmpty {
+            val negatedPrincipals = clientsWithNegatedSelectors.flatMap { client ->
+                getPrincipals(
+                    principalCache,
+                    client,
+                    snapshot,
+                    incomingEndpoint.unlistedClientsPolicy,
+                    incomingEndpoint.oauth
+                )
+            }
+
+            val principals = if (negatedPrincipals.isNotEmpty()) {
+                val mergedNegatedPrincipals = mergePrincipals(negatedPrincipals)
+                notNegatedPrincipals.map { principal -> mergePrincipals(listOf(principal, mergedNegatedPrincipals)) }
+                    .ifEmpty { negatedPrincipals }
+            } else {
+                notNegatedPrincipals.ifEmpty {
                     setOf(
                         oAuthPolicyForEmptyClients(
                             incomingEndpoint.oauth?.policy,
@@ -103,6 +125,7 @@ class RBACFilterFactory(
                         )
                     )
                 }
+            }
 
             val policy = Policy.newBuilder().addAllPrincipals(principals)
             val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
@@ -275,8 +298,21 @@ class RBACFilterFactory(
         val clients = incomingEndpoint.clients.flatMap { clientOrRole ->
             roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
         }
+        val clientsWithPredefinedList = mutableListOf<ClientWithSelector>()
+        var anyCustomListApplied = false
+        for (client in clients) {
+            if (customClientsLists.containsKey(client.compositeName())) {
+                clientsWithPredefinedList.addAll(customClientsLists.getOrDefault(client.compositeName(), emptyList()))
+                anyCustomListApplied = true
+            } else {
+                clientsWithPredefinedList.add(client)
+            }
+        }
+        if (!anyCustomListApplied) {
+            clientsWithPredefinedList.addAll(defaultClientsList)
+        }
         // sorted order ensures that we do not duplicate rules
-        return clients.toSortedSet()
+        return clientsWithPredefinedList.toSortedSet()
     }
 
     private fun mapClientWithSelectorToPrincipals(
@@ -326,26 +362,18 @@ class RBACFilterFactory(
             return principal // don't merge if client has OAuth selector
         } else {
             return when (policy) {
-                OAuth.Policy.ALLOW_MISSING -> {
-                    Principal.newBuilder().setAndIds(
-                        Principal.Set.newBuilder().addAllIds(
-                            listOf(
-                                allowMissingPolicyPrincipal,
-                                principal
-                            )
-                        )
-                    ).build()
-                }
-                OAuth.Policy.STRICT -> {
-                    Principal.newBuilder().setAndIds(
-                        Principal.Set.newBuilder().addAllIds(
-                            listOf(
-                                strictPolicyPrincipal,
-                                principal
-                            )
-                        )
-                    ).build()
-                }
+                OAuth.Policy.ALLOW_MISSING -> mergePrincipals(
+                    listOf(
+                        allowMissingPolicyPrincipal,
+                        principal
+                    )
+                )
+                OAuth.Policy.STRICT -> mergePrincipals(
+                    listOf(
+                        strictPolicyPrincipal,
+                        principal
+                    )
+                )
                 OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
                     principal
                 }
@@ -354,6 +382,15 @@ class RBACFilterFactory(
                 }
             }
         }
+    }
+
+    private fun mergePrincipals(principals: Collection<Principal>) = if (principals.size > 1) {
+        Principal.newBuilder()
+            .setAndIds(
+                Principal.Set.newBuilder().addAllIds(principals)
+            ).build()
+    } else {
+        principals.firstOrNull() ?: Principal.getDefaultInstance()
     }
 
     private val strictPolicyPrincipal = Principal.newBuilder().setAndIds(
@@ -426,7 +463,8 @@ class RBACFilterFactory(
                             )
                         )
                     )
-                ).build()
+                ).setInvert(client.negated)
+                .build()
         ).build()
     }
 
@@ -464,13 +502,14 @@ class RBACFilterFactory(
             ).build()
         )
     }
+
     private fun tlsPrincipals(client: String): Principal {
         val stringMatcher = sanUriMatcherFactory.createSanUriMatcher(client)
 
         return Principal.newBuilder().setAuthenticated(
-                Principal.Authenticated.newBuilder()
-                    .setPrincipalName(stringMatcher)
-            ).build()
+            Principal.Authenticated.newBuilder()
+                .setPrincipalName(stringMatcher)
+        ).build()
     }
 
     private fun originalDestinationPrincipals(client: String) = Principal.newBuilder()

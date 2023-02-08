@@ -27,6 +27,7 @@ import io.envoyproxy.envoy.extensions.clusters.dynamic_forward_proxy.v3.ClusterC
 import io.envoyproxy.envoy.extensions.common.dynamic_forward_proxy.v3.DnsCacheConfig
 import io.envoyproxy.envoy.extensions.common.tap.v3.AdminConfig
 import io.envoyproxy.envoy.extensions.common.tap.v3.CommonExtensionConfig
+import io.envoyproxy.envoy.extensions.transport_sockets.raw_buffer.v3.RawBuffer
 import io.envoyproxy.envoy.extensions.transport_sockets.tap.v3.Tap
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CertificateValidationContext
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.CommonTlsContext
@@ -580,7 +581,10 @@ class EnvoyClustersFactory(
         .setName("plaintext_match")
         .setTransportSocket(
             wrapTransportSocket(clusterName) {
-                TransportSocket.newBuilder().setName("envoy.transport_sockets.raw_buffer").build()
+                TransportSocket.newBuilder()
+                    .setName("envoy.transport_sockets.raw_buffer")
+                    .setTypedConfig(Any.pack(RawBuffer.newBuilder().build()))
+                    .build()
             }
         )
         .build()

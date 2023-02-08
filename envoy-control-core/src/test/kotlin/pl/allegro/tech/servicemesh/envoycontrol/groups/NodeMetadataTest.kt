@@ -1,5 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.google.protobuf.ListValue
+import com.google.protobuf.NullValue
+import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
@@ -51,6 +54,40 @@ class NodeMetadataTest {
             arguments("/path", null, "/regex"),
             arguments(null, "/prefix", "/regex"),
             arguments("/path", "/prefix", "/regex")
+        )
+
+        @JvmStatic
+        fun parsingCustomData() = listOf(
+            arguments("bool", Value.newBuilder().setBoolValue(true).build(), true),
+            arguments("string", Value.newBuilder().setStringValue("string").build(), "string"),
+            arguments("number", Value.newBuilder().setNumberValue(1.0).build(), 1.0),
+            arguments("not_set", Value.newBuilder().build(), null),
+            arguments("null", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(), null),
+            arguments("list", Value.newBuilder().setListValue(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setBoolValue(true).build()).build())
+                .build(), listOf(true)
+            ),
+            arguments("struct", Value.newBuilder().setStructValue(
+                    Struct.newBuilder()
+                        .putFields("string", Value.newBuilder().setBoolValue(true).build())
+                        .build()
+                ).build(), mapOf("string" to true)
+            )
+        )
+
+        @JvmStatic
+        fun parsingNotStructInCustomData() = listOf(
+            arguments(Value.newBuilder().setBoolValue(true).build(), true),
+            arguments(Value.newBuilder().setStringValue("string").build(), "string"),
+            arguments(Value.newBuilder().setNumberValue(1.0).build(), 1.0),
+            arguments(Value.newBuilder().build(), null),
+            arguments(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(), null),
+            arguments(Value.newBuilder().setListValue(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setBoolValue(true).build()).build())
+                .build(), listOf(true)
+            )
         )
     }
 
@@ -360,7 +397,7 @@ class NodeMetadataTest {
                 baseInterval = "7s",
                 maxInterval = "8s"
             ),
-            retryHostPredicate = listOf(RetryHostPredicateInput(name = "givenHost")),
+            retryHostPredicate = listOf(RetryHostPredicateInput(name = "previous_hosts")),
             methods = setOf("GET", "POST", "PUT")
         )
         val expectedRetryPolicy = RetryPolicy(
@@ -374,7 +411,7 @@ class NodeMetadataTest {
                 baseInterval = Durations.fromSeconds(7),
                 maxInterval = Durations.fromSeconds(8)
             ),
-            retryHostPredicate = listOf(RetryHostPredicate(name = "givenHost")),
+            retryHostPredicate = listOf(RetryHostPredicate.PREVIOUS_HOSTS),
             methods = setOf("GET", "POST", "PUT"),
             rateLimitedRetryBackOff = RateLimitedRetryBackOff(
                 listOf(ResetHeader("Retry-After", "SECONDS"))
@@ -416,7 +453,7 @@ class NodeMetadataTest {
                 baseInterval = Durations.fromMillis(25),
                 maxInterval = Durations.fromMillis(250)
             ),
-            retryHostPredicate = listOf(RetryHostPredicate(name = "envoy.retry_host_predicates.previous_hosts")),
+            retryHostPredicate = listOf(RetryHostPredicate.PREVIOUS_HOSTS),
             methods = setOf("GET", "POST", "PUT"),
             rateLimitedRetryBackOff = RateLimitedRetryBackOff(
                 listOf(ResetHeader("Retry-After", "SECONDS"))
@@ -1149,6 +1186,115 @@ class NodeMetadataTest {
         assertThat(exception.status.description)
             .isEqualTo("Invalid access log response flag filter. Expected valid values separated by comma")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should use default routing policy`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService("lorem")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val loremDependency = outgoing.getServiceDependencies().single()
+        assertThat(loremDependency.service).isEqualTo("lorem")
+        assertThat(loremDependency.settings.routingPolicy.autoServiceTag).isFalse
+    }
+
+    @Test
+    fun `should use global and overriden routing policy`() {
+        // given
+        val proto = outgoingDependenciesProto {
+            routingPolicy = RoutingPolicyInput(
+                autoServiceTag = true,
+                serviceTagPreference = listOf("preferredGlobalTag", "fallbackGlobalTag"),
+                fallbackToAnyInstance = true
+            )
+            withService("lorem")
+            withService("ipsum", routingPolicy = RoutingPolicyInput(autoServiceTag = false))
+            withService("dolom", routingPolicy = RoutingPolicyInput(fallbackToAnyInstance = false))
+            withService("est", routingPolicy = RoutingPolicyInput(serviceTagPreference = listOf("estTag"))
+            )
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties())
+
+        // expects
+        val dependencies = outgoing.getServiceDependencies()
+        assertThat(dependencies).hasSize(4)
+        val loremDependency = dependencies[0]
+        assertThat(loremDependency.service).isEqualTo("lorem")
+        assertThat(loremDependency.settings.routingPolicy).satisfies { policy ->
+            assertThat(policy.autoServiceTag).isTrue
+            assertThat(policy.serviceTagPreference).isEqualTo(listOf("preferredGlobalTag", "fallbackGlobalTag"))
+            assertThat(policy.fallbackToAnyInstance).isTrue
+        }
+        val ipsumDependency = dependencies[1]
+        assertThat(ipsumDependency.service).isEqualTo("ipsum")
+        assertThat(ipsumDependency.settings.routingPolicy).satisfies { policy ->
+            assertThat(policy.autoServiceTag).isFalse
+        }
+        val dolomDependency = dependencies[2]
+        assertThat(dolomDependency.service).isEqualTo("dolom")
+        assertThat(dolomDependency.settings.routingPolicy).satisfies { policy ->
+            assertThat(policy.autoServiceTag).isTrue
+            assertThat(policy.serviceTagPreference).isEqualTo(listOf("preferredGlobalTag", "fallbackGlobalTag"))
+            assertThat(policy.fallbackToAnyInstance).isFalse
+        }
+        val estDependency = dependencies[3]
+        assertThat(estDependency.service).isEqualTo("est")
+        assertThat(estDependency.settings.routingPolicy).satisfies { policy ->
+            assertThat(policy.autoServiceTag).isTrue
+            assertThat(policy.serviceTagPreference).isEqualTo(listOf("estTag"))
+            assertThat(policy.fallbackToAnyInstance).isTrue
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("parsingNotStructInCustomData")
+    fun `should return empty custom data if is not a struct`(value: Value) {
+        // when
+        val customData = value.toCustomData()
+
+        // then
+        assertThat(customData).isEmpty()
+    }
+
+    @ParameterizedTest
+    @MethodSource("parsingCustomData")
+    fun `should parse custom data if it is a struct with value`(name: String, field: Value, expected: Any?) {
+        // given
+        val value = Value.newBuilder()
+            .setStructValue(Struct.newBuilder()
+                .putFields(name, field)
+                .build())
+            .build()
+
+        // when
+        val customData = value.toCustomData()
+
+        // then
+        assertThat(customData).isEqualTo(mapOf(name to expected))
+    }
+
+    @Test
+    fun `should parse custom data if is a struct`() {
+        // given
+        val value = Value.newBuilder().setStructValue(
+            Struct.newBuilder()
+                .putFields("abc", Value.newBuilder().setBoolValue(true).build())
+                .build()
+        ).build()
+
+        // when
+        val customData = value.toCustomData()
+
+        // then
+        assertThat(customData).isEqualTo(mapOf("abc" to true))
     }
 
     fun ObjectAssert<DependencySettings>.hasTimeouts(

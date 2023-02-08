@@ -85,6 +85,8 @@ static_resources:
               ads: {}
           http_filters:
           - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
   - name: ingress_listener
     address:
       socket_address:
@@ -102,3 +104,5 @@ static_resources:
                   ads: {}
               http_filters:
                 - name: envoy.filters.http.router
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router

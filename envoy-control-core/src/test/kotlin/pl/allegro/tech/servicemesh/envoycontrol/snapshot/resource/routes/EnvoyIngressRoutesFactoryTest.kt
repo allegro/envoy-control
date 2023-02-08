@@ -107,11 +107,11 @@ internal class EnvoyIngressRoutesFactoryTest {
                 timeoutPolicy = TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout),
                 rateLimitEndpoints = listOf(
                     IncomingRateLimitEndpoint("/hello", PathMatchingType.PATH_PREFIX, setOf("GET", "POST"),
-                        setOf(ClientWithSelector("client-1", "selector")), "100/s"),
+                        setOf(ClientWithSelector.create("client-1", "selector")), "100/s"),
                     IncomingRateLimitEndpoint("/banned", PathMatchingType.PATH, setOf("GET"),
-                        setOf(ClientWithSelector("*")), "0/m"),
+                        setOf(ClientWithSelector.create("*")), "0/m"),
                     IncomingRateLimitEndpoint("/a/.*", PathMatchingType.PATH_REGEX, emptySet(),
-                        setOf(ClientWithSelector("client-2")), "0/m")
+                        setOf(ClientWithSelector.create("client-2")), "0/m")
                 )
             )
         )

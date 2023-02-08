@@ -60,7 +60,7 @@ val addedProxySettings = ProxySettings(
         endpoints = listOf(
             IncomingEndpoint(
                 path = "/endpoint",
-                clients = setOf(ClientWithSelector("client1"))
+                clients = setOf(ClientWithSelector.create("client1"))
             )
         ),
         permissionsEnabled = true
@@ -79,7 +79,7 @@ fun ProxySettings.with(
         ),
         retryPolicy = RetryPolicy(
             hostSelectionRetryMaxAttempts = 3,
-            retryHostPredicate = listOf(RetryHostPredicate("envoy.retry_host_predicates.previous_hosts")),
+            retryHostPredicate = listOf(RetryHostPredicate.PREVIOUS_HOSTS),
             numberRetries = 1,
             retryBackOff = RetryBackOff(Durations.fromMillis(25), Durations.fromMillis(250)),
             rateLimitedRetryBackOff = RateLimitedRetryBackOff(listOf(ResetHeader("Retry-After", "SECONDS")))
@@ -185,6 +185,12 @@ data class RetryHostPredicateInput(
     val name: String?
 )
 
+data class RoutingPolicyInput(
+    val autoServiceTag: Boolean? = null,
+    val serviceTagPreference: List<String>? = null,
+    val fallbackToAnyInstance: Boolean? = null
+)
+
 class OutgoingDependenciesProtoScope {
     class Dependency(
         val service: String? = null,
@@ -194,16 +200,18 @@ class OutgoingDependenciesProtoScope {
         val connectionIdleTimeout: String? = null,
         val requestTimeout: String? = null,
         val handleInternalRedirect: Boolean? = null,
-        val retryPolicy: RetryPolicyInput? = null
+        val retryPolicy: RetryPolicyInput? = null,
+        val routingPolicy: RoutingPolicyInput? = null
     )
 
     val dependencies = mutableListOf<Dependency>()
+    var routingPolicy: RoutingPolicyInput? = null
 
     fun withServices(
         serviceDependencies: List<String> = emptyList(),
         idleTimeout: String? = null,
         responseTimeout: String? = null
-    ) = serviceDependencies.forEach { withService(it, idleTimeout, responseTimeout) }
+    ) = serviceDependencies.forEach { withService(it, idleTimeout, responseTimeout) } // TODO: responseTimeout as connectionIdleTimeout, is this correct?
 
     fun withService(
         serviceName: String,
@@ -211,7 +219,8 @@ class OutgoingDependenciesProtoScope {
         connectionIdleTimeout: String? = null,
         requestTimeout: String? = null,
         handleInternalRedirect: Boolean? = null,
-        retryPolicy: RetryPolicyInput? = null
+        retryPolicy: RetryPolicyInput? = null,
+        routingPolicy: RoutingPolicyInput? = null
     ) = dependencies.add(
         Dependency(
             service = serviceName,
@@ -219,7 +228,8 @@ class OutgoingDependenciesProtoScope {
             connectionIdleTimeout = connectionIdleTimeout,
             requestTimeout = requestTimeout,
             handleInternalRedirect = handleInternalRedirect,
-            retryPolicy = retryPolicy
+            retryPolicy = retryPolicy,
+            routingPolicy = routingPolicy
         )
     )
 
@@ -275,11 +285,15 @@ fun outgoingDependenciesProto(
                         connectionIdleTimeout = it.connectionIdleTimeout,
                         requestTimeout = it.requestTimeout,
                         handleInternalRedirect = it.handleInternalRedirect,
-                        retryPolicy = it.retryPolicy
+                        retryPolicy = it.retryPolicy,
+                        routingPolicy = it.routingPolicy
                     )
                 )
             }
         })
+        scope.routingPolicy?.let {
+            putFields("routingPolicy", routingPolicyProto(it))
+        }
     }
 }
 
@@ -291,7 +305,8 @@ fun outgoingDependencyProto(
     idleTimeout: String? = null,
     connectionIdleTimeout: String? = null,
     requestTimeout: String? = null,
-    retryPolicy: RetryPolicyInput? = null
+    retryPolicy: RetryPolicyInput? = null,
+    routingPolicy: RoutingPolicyInput? = null
 ) = struct {
     service?.also { putFields("service", string(service)) }
     domain?.also { putFields("domain", string(domain)) }
@@ -301,6 +316,7 @@ fun outgoingDependencyProto(
     if (idleTimeout != null || requestTimeout != null || connectionIdleTimeout != null) {
         putFields("timeoutPolicy", outgoingTimeoutPolicy(idleTimeout, connectionIdleTimeout, requestTimeout))
     }
+    routingPolicy?.let { putFields("routingPolicy", routingPolicyProto(it)) }
 }
 
 private fun retryPolicyProto(retryPolicy: RetryPolicyInput) = struct {
@@ -340,6 +356,14 @@ private fun retryHostPredicateListProto(retryHostPredicateList: List<RetryHostPr
     retryHostPredicateList.forEach {
         addValues(it.name?.let { element -> struct { putFields("name", string(element)) } })
     }
+}
+
+private fun routingPolicyProto(routingPolicy: RoutingPolicyInput) = struct {
+    routingPolicy.autoServiceTag?.let { putFields("autoServiceTag", boolean(it)) }
+    routingPolicy.serviceTagPreference?.let { serviceTagList ->
+        putFields("serviceTagPreference", list { serviceTagList.forEach { addValues(string(it)) } })
+    }
+    routingPolicy.fallbackToAnyInstance?.let { putFields("fallbackToAnyInstance", boolean(it)) }
 }
 
 fun outgoingTimeoutPolicy(

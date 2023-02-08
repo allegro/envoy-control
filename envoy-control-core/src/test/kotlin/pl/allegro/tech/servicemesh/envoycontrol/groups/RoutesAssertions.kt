@@ -22,6 +22,11 @@ fun RouteConfiguration.hasSingleVirtualHostThat(condition: VirtualHost.() -> Uni
     return this
 }
 
+fun RouteConfiguration.hasVirtualHostThat(name: String, condition: VirtualHost.() -> Unit): RouteConfiguration {
+    condition(this.virtualHostsList.find { it.name == name }!!)
+    return this
+}
+
 fun RouteConfiguration.hasRequestHeaderToAdd(key: String, value: String): RouteConfiguration {
     assertThat(this.requestHeadersToAddList).anySatisfy {
         assertThat(it.header.key).isEqualTo(key)
@@ -136,15 +141,22 @@ fun Route.matchingOnPath(path: String): Route {
     return this
 }
 
-fun Route.matchingOnHeader(name: String, value: String): Route {
+fun Route.matchingOnHeader(name: String, value: String, isRegex: Boolean = false): Route {
+    val matcher = RegexMatcher.newBuilder().setRegex(value)
+        .setGoogleRe2(RegexMatcher.GoogleRE2.getDefaultInstance())
+        .build()
     assertThat(this.match.headersList).anyMatch {
-        it.name == name && it.exactMatch == value
+        if (isRegex) {
+            it.name == name && it.safeRegexMatch == matcher
+        } else {
+            it.name == name && it.exactMatch == value
+        }
     }
     return this
 }
 
-fun Route.matchingOnMethod(method: String): Route {
-    return this.matchingOnHeader(":method", method)
+fun Route.matchingOnMethod(method: String, isRegex: Boolean = false): Route {
+    return this.matchingOnHeader(":method", method, isRegex)
 }
 
 fun Route.matchingOnAnyMethod(): Route {
@@ -169,6 +181,8 @@ fun Route.toCluster(cluster: String): Route {
     return this
 }
 
+// TODO: all below assertions that use ".satisfies { condition(it) }" doesn't work, because condition should throw
+//   assertion exception, not return true/false
 fun Route.directResponse(condition: (DirectResponseAction) -> Boolean) {
     assertThat(this.directResponse).satisfies { condition(it) }
 }
@@ -205,6 +219,10 @@ fun Route.matchingOnIdleTimeout(idleTimeout: Duration): Route {
 
 fun Route.hasNoRetryPolicy() {
     assertThat(this.route.retryPolicy).isEqualTo(RetryPolicy.newBuilder().build())
+}
+
+fun Route.hasRetryPolicy() {
+    assertThat(this.route.hasRetryPolicy()).isTrue()
 }
 
 fun Route.ingressRoute() {

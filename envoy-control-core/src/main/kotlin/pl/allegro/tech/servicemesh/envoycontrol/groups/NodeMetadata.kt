@@ -6,7 +6,10 @@ import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
 import io.envoyproxy.controlplane.server.exception.RequestException
 import io.grpc.Status
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector.Companion.decomposeClient
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFiltersProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CommonHttpProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ComparisonFilterSettings
@@ -45,11 +48,13 @@ data class AccessLogFilterSettings(val proto: Value?, val properties: AccessLogF
 
 data class ProxySettings(
     val incoming: Incoming = Incoming(),
-    val outgoing: Outgoing = Outgoing()
+    val outgoing: Outgoing = Outgoing(),
+    val customData: Map<String, Any?> = emptyMap()
 ) {
     constructor(proto: Value?, properties: SnapshotProperties) : this(
         incoming = proto?.field("incoming").toIncoming(properties),
-        outgoing = proto?.field("outgoing").toOutgoing(properties)
+        outgoing = proto?.field("outgoing").toOutgoing(properties),
+        customData = proto?.field("customData").toCustomData()
     )
 
     fun withIncomingPermissionsDisabled(): ProxySettings = copy(
@@ -78,33 +83,45 @@ fun Value?.toHeaderFilter(default: String? = null): HeaderFilterSettings? {
         AccessLogFilterParser.parseHeaderFilter(it)
     }
 }
+
 private class RawDependency(val service: String?, val domain: String?, val domainPattern: String?, val value: Value)
+
+private fun defaultRetryPolicy(retryPolicy: RetryPolicyProperties) = if (retryPolicy.enabled) {
+    RetryPolicy(
+        retryOn = retryPolicy.retryOn,
+        numberRetries = retryPolicy.numberOfRetries,
+        retryHostPredicate = retryPolicy.retryHostPredicate,
+        hostSelectionRetryMaxAttempts = retryPolicy.hostSelectionRetryMaxAttempts,
+        rateLimitedRetryBackOff = RateLimitedRetryBackOff(
+            retryPolicy.rateLimitedRetryBackOff.resetHeaders.map { ResetHeader(it.name, it.format) }
+        ),
+        retryBackOff = RetryBackOff(
+            Durations.fromMillis(retryPolicy.retryBackOff.baseInterval.toMillis())
+        ),
+    )
+} else {
+    null
+}
+
+private fun defaultTimeoutPolicy(commonHttpProperties: CommonHttpProperties) = Outgoing.TimeoutPolicy(
+    idleTimeout = Durations.fromMillis(commonHttpProperties.idleTimeout.toMillis()),
+    connectionIdleTimeout = Durations.fromMillis(commonHttpProperties.connectionIdleTimeout.toMillis()),
+    requestTimeout = Durations.fromMillis(commonHttpProperties.requestTimeout.toMillis())
+)
+
+private fun defaultDependencySettings(properties: SnapshotProperties) = DependencySettings(
+    handleInternalRedirect = properties.egress.handleInternalRedirect,
+    timeoutPolicy = defaultTimeoutPolicy(properties.egress.commonHttp),
+    retryPolicy = defaultRetryPolicy(properties.retryPolicy)
+)
 
 fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val allServiceDependenciesIdentifier = properties.outgoingPermissions.allServicesDependencies.identifier
     val rawDependencies = this?.field("dependencies")?.list().orEmpty().map(::toRawDependency)
     val allServicesDependencies = toAllServiceDependencies(rawDependencies, allServiceDependenciesIdentifier)
-    val defaultSettingsFromProperties = DependencySettings(
-        handleInternalRedirect = properties.egress.handleInternalRedirect,
-        timeoutPolicy = Outgoing.TimeoutPolicy(
-            idleTimeout = Durations.fromMillis(properties.egress.commonHttp.idleTimeout.toMillis()),
-            connectionIdleTimeout = Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis()),
-            requestTimeout = Durations.fromMillis(properties.egress.commonHttp.requestTimeout.toMillis())
-        ),
-        retryPolicy = RetryPolicy(
-            retryOn = properties.retryPolicy.retryOn,
-            numberRetries = properties.retryPolicy.numberOfRetries,
-            retryHostPredicate = properties.retryPolicy.retryHostPredicate,
-            hostSelectionRetryMaxAttempts = properties.retryPolicy.hostSelectionRetryMaxAttempts,
-            rateLimitedRetryBackOff = RateLimitedRetryBackOff(
-                properties.retryPolicy.rateLimitedRetryBackOff.resetHeaders.map { ResetHeader(it.name, it.format) }
-            ),
-            retryBackOff = RetryBackOff(
-                Durations.fromMillis(properties.retryPolicy.retryBackOff.baseInterval.toMillis())
-            ),
-        )
-    )
-    val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettingsFromProperties)
+    val defaultSettingsFromProperties = defaultDependencySettings(properties)
+    val defaultSettings = this.toSettings(defaultSettingsFromProperties)
+    val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettings)
     val services = rawDependencies.filter { it.service != null && it.service != allServiceDependenciesIdentifier }
         .map {
             ServiceDependency(
@@ -114,10 +131,10 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
         }
     val domains = rawDependencies.filter { it.domain != null }
         .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
-        .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
+        .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettings)) }
     val domainPatterns = rawDependencies.filter { it.domainPattern != null }
         .onEach { validateDomainPatternFormat(it) }
-        .map { DomainPatternDependency(it.domainPattern.orEmpty(), it.value.toSettings(defaultSettingsFromProperties)) }
+        .map { DomainPatternDependency(it.domainPattern.orEmpty(), it.value.toSettings(defaultSettings)) }
     return Outgoing(
         serviceDependencies = services,
         domainDependencies = domains,
@@ -200,17 +217,14 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
     val handleInternalRedirect = this?.field("handleInternalRedirect")?.boolValue
     val timeoutPolicy = this?.field("timeoutPolicy")?.toOutgoingTimeoutPolicy(defaultSettings.timeoutPolicy)
     val rewriteHostHeader = this?.field("rewriteHostHeader")?.boolValue
-    val retryPolicy = this?.field("retryPolicy")?.let { retryPolicy ->
-        mapProtoToRetryPolicy(
-            retryPolicy,
-            defaultSettings.retryPolicy
-        )
-    }
+    val retryPolicy = this?.field("retryPolicy")?.toRetryPolicy(defaultSettings.retryPolicy)
+    val routingPolicy = this?.field("routingPolicy")?.toRoutingPolicy(defaultSettings.routingPolicy)
 
     val shouldAllBeDefault = handleInternalRedirect == null &&
-            rewriteHostHeader == null &&
-            timeoutPolicy == null &&
-            retryPolicy == null
+        rewriteHostHeader == null &&
+        timeoutPolicy == null &&
+        retryPolicy == null &&
+        routingPolicy == null
 
     return if (shouldAllBeDefault) {
         defaultSettings
@@ -219,39 +233,51 @@ private fun Value?.toSettings(defaultSettings: DependencySettings): DependencySe
             handleInternalRedirect = handleInternalRedirect ?: defaultSettings.handleInternalRedirect,
             timeoutPolicy = timeoutPolicy ?: defaultSettings.timeoutPolicy,
             rewriteHostHeader = rewriteHostHeader ?: defaultSettings.rewriteHostHeader,
-            retryPolicy = retryPolicy ?: defaultSettings.retryPolicy
+            retryPolicy = retryPolicy ?: defaultSettings.retryPolicy,
+            routingPolicy = routingPolicy ?: defaultSettings.routingPolicy
         )
     }
 }
 
-private fun mapProtoToRetryPolicy(value: Value, defaultRetryPolicy: RetryPolicy): RetryPolicy {
+private fun Value.toRetryPolicy(defaultRetryPolicy: RetryPolicy?): RetryPolicy {
     return RetryPolicy(
-        retryOn = value.field("retryOn")?.listValue?.valuesList?.map { it.stringValue } ?: defaultRetryPolicy.retryOn,
-        hostSelectionRetryMaxAttempts = value.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
-            ?: defaultRetryPolicy.hostSelectionRetryMaxAttempts,
-        numberRetries = value.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy.numberRetries,
-        retryHostPredicate = value.field("retryHostPredicate")?.listValue?.valuesList?.map {
-            RetryHostPredicate(it.field("name")!!.stringValue)
-        }?.toList() ?: defaultRetryPolicy.retryHostPredicate,
-        perTryTimeoutMs = value.field("perTryTimeoutMs")?.numberValue?.toLong(),
-        retryBackOff = value.field("retryBackOff")?.structValue?.let {
+        retryOn = this.field("retryOn")?.listValue?.valuesList?.map { it.stringValue } ?: defaultRetryPolicy?.retryOn,
+        hostSelectionRetryMaxAttempts = this.field("hostSelectionRetryMaxAttempts")?.numberValue?.toLong()
+            ?: defaultRetryPolicy?.hostSelectionRetryMaxAttempts,
+        numberRetries = this.field("numberRetries")?.numberValue?.toInt() ?: defaultRetryPolicy?.numberRetries,
+        retryHostPredicate = this.field("retryHostPredicate")?.listValue?.valuesList?.mapNotNull {
+            RetryHostPredicate.parse(it.field("name")!!.stringValue)
+        }?.toList() ?: defaultRetryPolicy?.retryHostPredicate,
+        perTryTimeoutMs = this.field("perTryTimeoutMs")?.numberValue?.toLong(),
+        retryBackOff = this.field("retryBackOff")?.structValue?.let {
             RetryBackOff(
                 baseInterval = it.fieldsMap["baseInterval"]?.toDuration(),
                 maxInterval = it.fieldsMap["maxInterval"]?.toDuration()
             )
-        } ?: defaultRetryPolicy.retryBackOff,
-        rateLimitedRetryBackOff = value.field("rateLimitedRetryBackOff")?.structValue?.let {
+        } ?: defaultRetryPolicy?.retryBackOff,
+        rateLimitedRetryBackOff = this.field("rateLimitedRetryBackOff")?.structValue?.let {
             RateLimitedRetryBackOff(
                 it.fieldsMap["resetHeaders"]?.listValue?.valuesList?.mapNotNull(::mapProtoToResetHeader)
             )
-        } ?: defaultRetryPolicy.rateLimitedRetryBackOff,
-        retryableStatusCodes = value.field("retryableStatusCodes")?.listValue?.valuesList?.map {
+        } ?: defaultRetryPolicy?.rateLimitedRetryBackOff,
+        retryableStatusCodes = this.field("retryableStatusCodes")?.listValue?.valuesList?.map {
             it.numberValue.toInt()
         },
-        retryableHeaders = value.field("retryableHeaders")?.listValue?.valuesList?.map {
+        retryableHeaders = this.field("retryableHeaders")?.listValue?.valuesList?.map {
             it.stringValue
         },
-        methods = mapProtoToMethods(value)
+        methods = mapProtoToMethods(this)
+    )
+}
+
+private fun Value.toRoutingPolicy(defaultRoutingPolicy: RoutingPolicy): RoutingPolicy {
+    return RoutingPolicy(
+        autoServiceTag = this.field("autoServiceTag")?.boolValue
+            ?: defaultRoutingPolicy.autoServiceTag,
+        serviceTagPreference = this.field("serviceTagPreference")?.list()?.map { it.stringValue }
+            ?: defaultRoutingPolicy.serviceTagPreference,
+        fallbackToAnyInstance = this.field("fallbackToAnyInstance")?.boolValue
+            ?: defaultRoutingPolicy.fallbackToAnyInstance
     )
 }
 
@@ -361,15 +387,6 @@ fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
 
 fun isMoreThanOnePropertyDefined(vararg properties: String?): Boolean = properties.filterNotNull().count() > 1
 
-private fun decomposeClient(client: ClientComposite): ClientWithSelector {
-    val parts = client.split(":", ignoreCase = false, limit = 2)
-    return if (parts.size == 2) {
-        ClientWithSelector(parts[0], parts[1])
-    } else {
-        ClientWithSelector(client, null)
-    }
-}
-
 private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
     val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
     val responseTimeout: Duration? = this?.field("responseTimeout")?.toDuration()
@@ -441,7 +458,7 @@ fun Value.toDuration(): Duration? {
     return when (this.kindCase) {
         Value.KindCase.NUMBER_VALUE -> throw NodeMetadataValidationException(
             "Timeout definition has number format" +
-                    " but should be in string format and ends with 's'"
+                " but should be in string format and ends with 's'"
         )
         Value.KindCase.STRING_VALUE -> {
             try {
@@ -450,6 +467,28 @@ fun Value.toDuration(): Duration? {
                 throw NodeMetadataValidationException("Timeout definition has incorrect format: ${ex.message}")
             }
         }
+        else -> null
+    }
+}
+
+fun Value?.toCustomData(): Map<String, Any?> {
+    return when (this?.kindCase) {
+        Value.KindCase.STRUCT_VALUE -> this.toMap()
+        else -> emptyMap()
+    }
+}
+
+private fun Value.toMap(): Map<String, Any?> {
+    return this.structValue.fieldsMap.map { it.key to it.value.toCustomDataValue() }.toMap()
+}
+
+private fun Value?.toCustomDataValue(): Any? {
+    return when (this?.kindCase) {
+        Value.KindCase.BOOL_VALUE -> this.boolValue
+        Value.KindCase.LIST_VALUE -> this.listValue.valuesList.map { it.toCustomDataValue() }
+        Value.KindCase.STRING_VALUE -> this.stringValue
+        Value.KindCase.NUMBER_VALUE -> this.numberValue
+        Value.KindCase.STRUCT_VALUE -> this.toMap()
         else -> null
     }
 }
@@ -567,11 +606,12 @@ data class DependencySettings(
     val handleInternalRedirect: Boolean = false,
     val timeoutPolicy: Outgoing.TimeoutPolicy = Outgoing.TimeoutPolicy(),
     val rewriteHostHeader: Boolean = false,
-    val retryPolicy: RetryPolicy = RetryPolicy()
+    val retryPolicy: RetryPolicy? = RetryPolicy(),
+    val routingPolicy: RoutingPolicy = RoutingPolicy()
 )
 
 data class RetryPolicy(
-    val retryOn: List<String> = emptyList(),
+    val retryOn: List<String>? = emptyList(),
     val hostSelectionRetryMaxAttempts: Long? = null,
     val numberRetries: Int? = null,
     val retryHostPredicate: List<RetryHostPredicate>? = null,
@@ -581,6 +621,12 @@ data class RetryPolicy(
     val retryableStatusCodes: List<Int>? = null,
     val retryableHeaders: List<String>? = null,
     val methods: Set<String>? = null
+)
+
+data class RoutingPolicy(
+    val autoServiceTag: Boolean = false,
+    val serviceTagPreference: List<String> = emptyList(),
+    val fallbackToAnyInstance: Boolean = false
 )
 
 data class RetryBackOff(
@@ -599,9 +645,17 @@ data class RateLimitedRetryBackOff(
 
 data class ResetHeader(val name: String, val format: String)
 
-data class RetryHostPredicate(
-    val name: String
-)
+enum class RetryHostPredicate(val predicateName: String) {
+    OMIT_CANARY_HOST("envoy.retry_host_predicates.omit_canary_hosts"),
+    OMIT_HOST_METADATA("envoy.retry_host_predicates.omit_host_metadata"),
+    PREVIOUS_HOSTS("envoy.retry_host_predicates.previous_hosts");
+
+    companion object {
+        fun parse(value: String): RetryHostPredicate? {
+            return values().find { it.predicateName.equals(value, true) || it.name.equals(value, true) }
+        }
+    }
+}
 
 data class Role(
     val name: String?,
@@ -622,13 +676,39 @@ data class HealthCheck(
 
 typealias ClientComposite = String
 
-data class ClientWithSelector(
+data class ClientWithSelector private constructor(
     val name: String,
-    val selector: String? = null
+    val selector: String? = null,
+    val negated: Boolean = false
 ) : Comparable<ClientWithSelector> {
+
+    companion object {
+        const val NEGATION_PREFIX = "!"
+        fun create(name: String, selector: String? = null): ClientWithSelector {
+            return ClientWithSelector(
+                name, selector?.removePrefix(NEGATION_PREFIX), selector?.startsWith(
+                    NEGATION_PREFIX
+                ) ?: false
+            )
+        }
+
+        fun decomposeClient(client: ClientComposite): ClientWithSelector {
+            val parts = client.split(":", ignoreCase = false, limit = 2)
+            return if (parts.size == 2) {
+                ClientWithSelector.create(parts[0], parts[1])
+            } else {
+                ClientWithSelector.create(client, null)
+            }
+        }
+    }
+
     fun compositeName(): ClientComposite {
         return if (selector != null) {
-            "$name:$selector"
+            if (negated) {
+                "$name:$NEGATION_PREFIX$selector"
+            } else {
+                "$name:$selector"
+            }
         } else {
             name
         }
