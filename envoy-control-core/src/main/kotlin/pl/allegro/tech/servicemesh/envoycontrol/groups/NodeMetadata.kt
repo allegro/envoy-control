@@ -50,11 +50,13 @@ data class AccessLogFilterSettings(val proto: Value?, val properties: AccessLogF
 
 data class ProxySettings(
     val incoming: Incoming = Incoming(),
-    val outgoing: Outgoing = Outgoing()
+    val outgoing: Outgoing = Outgoing(),
+    val customData: Map<String, Any?> = emptyMap()
 ) {
     constructor(proto: Value?, properties: SnapshotProperties) : this(
         incoming = proto?.field("incoming").toIncoming(properties),
-        outgoing = proto?.field("outgoing").toOutgoing(properties)
+        outgoing = proto?.field("outgoing").toOutgoing(properties),
+        customData = proto?.field("customData").toCustomData()
     )
 
     fun withIncomingPermissionsDisabled(): ProxySettings = copy(
@@ -478,6 +480,28 @@ fun Value.toDuration(): Duration? {
                 throw NodeMetadataValidationException("Timeout definition has incorrect format: ${ex.message}")
             }
         }
+        else -> null
+    }
+}
+
+fun Value?.toCustomData(): Map<String, Any?> {
+    return when (this?.kindCase) {
+        Value.KindCase.STRUCT_VALUE -> this.toMap()
+        else -> emptyMap()
+    }
+}
+
+private fun Value.toMap(): Map<String, Any?> {
+    return this.structValue.fieldsMap.map { it.key to it.value.toCustomDataValue() }.toMap()
+}
+
+private fun Value?.toCustomDataValue(): Any? {
+    return when (this?.kindCase) {
+        Value.KindCase.BOOL_VALUE -> this.boolValue
+        Value.KindCase.LIST_VALUE -> this.listValue.valuesList.map { it.toCustomDataValue() }
+        Value.KindCase.STRING_VALUE -> this.stringValue
+        Value.KindCase.NUMBER_VALUE -> this.numberValue
+        Value.KindCase.STRUCT_VALUE -> this.toMap()
         else -> null
     }
 }
