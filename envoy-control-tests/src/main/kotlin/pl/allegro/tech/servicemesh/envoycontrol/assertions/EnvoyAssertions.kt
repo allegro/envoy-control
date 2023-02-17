@@ -18,7 +18,8 @@ private class RbacLog(
     val clientIp: String? = null,
     val statusCode: String? = null,
     val requestId: String? = null,
-    val rbacAction: String? = null
+    val rbacAction: String? = null,
+    val jwtTokenStatus: String? = null,
 )
 
 private const val RBAC_LOG_PREFIX = "INCOMING_PERMISSIONS"
@@ -190,6 +191,7 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLo
     assertEqualProperty(parsed, logPredicate, RbacLog::requestId)
     assertEqualProperty(parsed, logPredicate, RbacLog::rbacAction)
     assertEqualProperty(parsed, logPredicate, RbacLog::statusCode)
+    assertEqualProperty(parsed, logPredicate, RbacLog::jwtTokenStatus)
 }
 
 private fun <T> assertEqualProperty(actual: RbacLog, expected: RbacLog, supplier: RbacLog.() -> T) {
