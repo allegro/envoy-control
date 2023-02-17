@@ -3,6 +3,12 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.19.30]
+
+### Changed
+- add possibility to log custom header in RBAC
+- add token information to RBAC logs
+
 ## [0.19.29]
 
 ### Changed
