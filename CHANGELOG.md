@@ -3,6 +3,12 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.19.30]
+
+### Changed
+- specify min and max supported envoy version
+- add option to run tests on specific envoy version, including min and max supported version
+
 ## [0.19.29]
 
 ### Changed
