@@ -76,6 +76,20 @@ class EnvoyEgressRoutesFactory(
             .setValue("%UPSTREAM_REMOTE_ADDRESS%").build()
     )
 
+    private val upstreamTagsHeader = HeaderValueOption.newBuilder().apply {
+        val metadataKey = properties.routing.serviceTags.metadataKey
+        header = HeaderValue.newBuilder()
+            .setKey("x-envoy-upstream-service-tags") // TODO: header name to properties
+            // doesn't work in <= v1.23.x. Envoy crashes. Works as expected in v1.24.x
+            .setValue("%UPSTREAM_METADATA(envoy.lb:${metadataKey})%")
+            // theoretically works in v1.22.x/v1.23.x, but can't handle a list as value - doesn't add header
+            // works as expected in v1.24.x
+            //.setValue("""%UPSTREAM_METADATA(["envoy.lb", "${metadataKey}"])%""")
+            .build()
+        appendAction = HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD
+        keepEmptyValue = false
+    }.build()
+
     private val defaultRouteMatch = RouteMatch
         .newBuilder()
         .setPrefix("/")
@@ -118,8 +132,10 @@ class EnvoyEgressRoutesFactory(
         }
 
         if (addUpstreamAddressHeader) {
-            routeConfiguration = routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
+            routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
         }
+
+        routeConfiguration.addResponseHeadersToAdd(upstreamTagsHeader)
 
         return routeConfiguration.build()
     }

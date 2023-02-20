@@ -105,6 +105,7 @@ class MetadataNodeGroup(
             ?: ListenersConfig.defaultAccessLogPath
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
+        // TODO: flag to add service-tags headers in response
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
         val useTransparentProxy = metadata.fieldsMap["use_transparent_proxy"]?.boolValue
