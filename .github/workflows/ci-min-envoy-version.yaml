@@ -1,0 +1,11 @@
+name: CI - min envoy version
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yaml
+    with:
+      envoyVersion: min
+    secrets: inherit
