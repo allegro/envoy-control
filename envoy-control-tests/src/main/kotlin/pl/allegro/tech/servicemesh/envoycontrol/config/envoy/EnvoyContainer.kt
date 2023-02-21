@@ -36,8 +36,13 @@ class EnvoyContainer(
         const val ENVOY_UID_ENV_NAME = "ENVOY_UID"
         const val EGRESS_LISTENER_CONTAINER_PORT = 5000
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
-        const val DEFAULT_IMAGE = "envoyproxy/envoy:v1.24.0"
         private const val ADMIN_PORT = 10000
+
+        val DEFAULT_IMAGE = run {
+            val key = "pl.allegro.tech.servicemesh.envoyVersion"
+            val version = System.getProperty(key) ?: throw IllegalStateException("Missing '$key' system property")
+            "envoyproxy/envoy:$version"
+        }
     }
 
     override fun configure() {
