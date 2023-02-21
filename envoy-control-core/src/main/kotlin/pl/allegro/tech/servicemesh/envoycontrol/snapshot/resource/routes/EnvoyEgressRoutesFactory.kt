@@ -4,9 +4,12 @@ import com.google.protobuf.Any
 import com.google.protobuf.BoolValue
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
+import com.google.protobuf.util.Structs
+import com.google.protobuf.util.Values
 import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
 import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
+import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
@@ -149,13 +152,39 @@ class EnvoyEgressRoutesFactory(
             buildEgressRouteWithRetryPolicy(virtualHost, retryPolicy, routeSpecification)
         } else {
             virtualHost.addRoutes(
-                Route.newBuilder()
-                    .setMatch(defaultRouteMatch)
-                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = false))
-                    .build()
+                buildRoute(
+                    routeSpecification = routeSpecification,
+                    match = defaultRouteMatch,
+                    shouldAddRetryPolicy = false
+                )
             )
         }
         return virtualHost.build()
+    }
+
+    private fun buildRoute(
+        routeSpecification: RouteSpecification, match: RouteMatch, shouldAddRetryPolicy: Boolean
+    ): Route {
+        val routeBuilder = Route.newBuilder()
+            .setMatch(match)
+            .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy))
+
+        if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
+            val routingPolicy = routeSpecification.settings.routingPolicy
+            if (routingPolicy.autoServiceTag) {
+                val serviceTagsListProto = Values.of(routingPolicy.serviceTagPreference.map { Values.of(it) })
+                routeBuilder.metadata = Metadata.newBuilder()
+                    .putFilterMetadata(
+                        "envoy.filters.http.lua",
+                        Structs.of(
+                            "auto_service_tag_preference", serviceTagsListProto
+                        )
+                    )
+                    .build()
+            }
+        }
+
+        return routeBuilder.build()
     }
 
     private fun buildEgressRouteWithRetryPolicy(
@@ -171,22 +200,25 @@ class EnvoyEgressRoutesFactory(
                 .addHeaders(buildMethodHeaderMatcher(regexAsAString))
                 .build()
             virtualHost.addRoutes(
-                Route.newBuilder()
-                    .setMatch(retryRouteMatch)
-                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = true))
-                    .build()
+                buildRoute(
+                    routeSpecification = routeSpecification,
+                    match = retryRouteMatch,
+                    shouldAddRetryPolicy = true
+                )
             ).addRoutes(
-                Route.newBuilder()
-                    .setMatch(defaultRouteMatch)
-                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = false))
-                    .build()
+                buildRoute(
+                    routeSpecification = routeSpecification,
+                    match = defaultRouteMatch,
+                    shouldAddRetryPolicy = false
+                )
             )
         } else {
             virtualHost.addRoutes(
-                Route.newBuilder()
-                    .setMatch(defaultRouteMatch)
-                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = true))
-                    .build()
+                buildRoute(
+                    routeSpecification = routeSpecification,
+                    match = defaultRouteMatch,
+                    shouldAddRetryPolicy = true
+                )
             )
         }
     }
