@@ -29,6 +29,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.ServiceTagFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 class EnvoyEgressRoutesFactory(
@@ -110,7 +111,7 @@ class EnvoyEgressRoutesFactory(
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
             .map { routeSpecification ->
-                buildEgressRoute(routeSpecification)
+                buildEgressVirtualHost(routeSpecification)
             }
 
         var routeConfiguration = RouteConfiguration.newBuilder()
@@ -143,7 +144,7 @@ class EnvoyEgressRoutesFactory(
         return routeConfiguration.build()
     }
 
-    private fun buildEgressRoute(routeSpecification: RouteSpecification): VirtualHost {
+    private fun buildEgressVirtualHost(routeSpecification: RouteSpecification): VirtualHost {
         val virtualHost = VirtualHost.newBuilder()
             .setName(routeSpecification.clusterName)
             .addAllDomains(routeSpecification.routeDomains)
@@ -173,11 +174,13 @@ class EnvoyEgressRoutesFactory(
             val routingPolicy = routeSpecification.settings.routingPolicy
             if (routingPolicy.autoServiceTag) {
                 val serviceTagsListProto = Values.of(routingPolicy.serviceTagPreference.map { Values.of(it) })
+                val serviceTagMetadataKeyProto = Values.of(properties.routing.serviceTags.metadataKey)
                 routeBuilder.metadata = Metadata.newBuilder()
                     .putFilterMetadata(
                         "envoy.filters.http.lua",
                         Structs.of(
-                            "auto_service_tag_preference", serviceTagsListProto
+                            ServiceTagFilterFactory.AUTO_SERVICE_TAG_PREFERENCE_METADATA, serviceTagsListProto,
+                            ServiceTagFilterFactory.SERVICE_TAG_METADATA_KEY_METADATA, serviceTagMetadataKeyProto
                         )
                     )
                     .build()

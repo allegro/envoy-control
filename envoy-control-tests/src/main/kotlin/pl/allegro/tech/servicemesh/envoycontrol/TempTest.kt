@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -10,7 +9,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 
 class TempTest {
 
@@ -84,5 +82,132 @@ class TempTest {
         }
 
 
+    }
+}
+
+
+class AutoServiceTagTempTest {
+
+    companion object {
+        private val properties = mapOf(
+            "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
+            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true
+        )
+
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, properties)
+
+
+        // language=yaml
+        private var autoServiceTagEnabledSettings = """
+            node:
+              metadata:
+                proxy_settings:
+                  outgoing:
+                    routingPolicy:
+                      autoServiceTag: true
+                      serviceTagPreference: ["ipsum", "lorem"]
+                    dependencies:
+                      - service: "echo" 
+                      - service: "echo-disabled"
+                        routingPolicy:
+                          autoServiceTag: false
+                      - service: "echo-one-tag"  
+                        routingPolicy:
+                          serviceTagPreference: ["one"]
+                      - service: "echo-no-tag"  
+                        routingPolicy:
+                          serviceTagPreference: []
+                      
+        """.trimIndent()
+
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, config = Ads.copy(configOverride = autoServiceTagEnabledSettings))
+    }
+
+    @Test
+    fun `apps not registered in consul`() {
+
+        val adminAddress = envoy.container.adminUrl()
+
+        run {
+            val response = envoy.egressOperations.callService(service = "echo")
+            val body = response.body?.string()
+
+            assertThat(response.code).isEqualTo(503)
+        }
+
+        run {
+            val response = envoy.egressOperations.callService(service = "echo", headers = mapOf("x-service-tag" to "client-side-tag"))
+            val body = response.body?.string()
+
+            assertThat(response.code).isEqualTo(503)
+        }
+
+        run {
+            val response = envoy.egressOperations.callService(
+                service = "echo-disabled",
+                headers = mapOf("x-service-tag" to "echo-disabled-client-side-tag")
+            )
+            val body = response.body?.string()
+
+            assertThat(response.code).isEqualTo(503)
+        }
+
+        run {
+            val response = envoy.egressOperations.callService(
+                service = "echo-one-tag",
+                headers = mapOf("x-service-tag" to "echo-one-tag-client-side-tag")
+            )
+            val body = response.body?.string()
+
+            assertThat(response.code).isEqualTo(503)
+        }
+
+        run {
+            val response = envoy.egressOperations.callService(
+                service = "echo-no-tag",
+                headers = mapOf("x-service-tag" to "echo-no-tag-client-side-tag")
+            )
+            val body = response.body?.string()
+
+            assertThat(response.code).isEqualTo(503)
+        }
+
+        /**
+
+        auto_service_tag_preference is not empty!: ipsum,lorem
+        request x-service-tag is nil
+        serviceTagMetadataKey: tag
+        metadata service tag is nil
+
+        auto_service_tag_preference is not empty!: ipsum,lorem
+        request x-service-tag: client-side-tag
+        serviceTagMetadataKey: tag
+        metadata service tag: client-side-tag
+
+        auto_service_tag_preference is empty!
+        request x-service-tag: echo-disabled-client-side-tag
+        serviceTagMetadataKey is nil
+
+        auto_service_tag_preference is not empty!: one
+        request x-service-tag: echo-one-tag-client-side-tag
+        serviceTagMetadataKey: tag
+        metadata service tag: echo-one-tag-client-side-tag
+
+        auto_service_tag_preference is empty!
+        request x-service-tag: echo-no-tag-client-side-tag
+        serviceTagMetadataKey: tag
+        metadata service tag: echo-no-tag-client-side-tag
+
+         */
     }
 }
