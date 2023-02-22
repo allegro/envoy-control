@@ -2,10 +2,21 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      envoyVersion:
+        type: string
+        description: "envoy version to run tests on, e.g. 'v1.24.0'. Special values: 'max' - max supported version, 'min' - min supported version"
+        default: max
 
   push:
     paths-ignore:
       - 'readme.md'
+
+  workflow_call:
+    inputs:
+      envoyVersion:
+        type: string
+        default: max
 
 jobs:
   ci:
@@ -38,7 +49,7 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Test with Gradle
-        run: ./gradlew clean check
+        run: ./gradlew clean check -PenvoyVersion=${{ inputs.envoyVersion }}
 
       - name: Junit report
         uses: mikepenz/action-junit-report@v2

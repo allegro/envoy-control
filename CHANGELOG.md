@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Changed
 - add possibility to log custom header in RBAC
 - add token information to RBAC logs
+- specify min and max supported envoy version
+- add option to run tests on specific envoy version, including min and max supported version
 
 ## [0.19.29]
 

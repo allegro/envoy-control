@@ -1,3 +1,6 @@
+def MIN_SUPPORTED_ENVOY_VERSION = "v1.22.7"
+def MAX_SUPPORTED_ENVOY_VERSION = "v1.24.0"
+
 dependencies {
     implementation project(':envoy-control-runner')
 
@@ -19,6 +22,19 @@ dependencies {
     implementation group: 'org.testcontainers', name: 'testcontainers', version: versions.testcontainers
 }
 
+String envoyVersion = { ->
+    String versionArg =  project.findProperty("envoyVersion") ?: "max"
+    if (versionArg == "max") {
+        return MAX_SUPPORTED_ENVOY_VERSION
+    } else if (versionArg == "min") {
+        return MIN_SUPPORTED_ENVOY_VERSION
+    } else {
+        return versionArg
+    }
+}()
+
+println("Using envoy version: $envoyVersion")
+
 test {
     useJUnitPlatform {
         excludeTags 'reliability'
@@ -39,3 +55,8 @@ task reliabilityTest(type: Test) {
     }
     testClassesDirs = project.sourceSets.main.output.classesDirs
 }
+
+tasks.withType(Test).configureEach {
+    systemProperty("pl.allegro.tech.servicemesh.envoyVersion", envoyVersion)
+}
+
