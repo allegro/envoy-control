@@ -48,7 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Test with Gradle
+      - name: Test with Gradle (envoyVersion=${{ inputs.envoyVersion }})
         run: ./gradlew clean check -PenvoyVersion=${{ inputs.envoyVersion }}
 
       - name: Junit report
