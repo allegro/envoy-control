@@ -64,7 +64,9 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
             ),
             "service_name" to StringPropertyLua(group.serviceName),
             "discovery_service_name" to StringPropertyLua(group.discoveryServiceName ?: ""),
-
+            "rbac_headers_to_log" to ListPropertyLua(
+                incomingPermissionsProperties.headersToLogInRbac.map(::StringPropertyLua)
+            ),
             ) + customLuaMetadata
         return Metadata.newBuilder()
             .putFilterMetadata("envoy.filters.http.lua", metadata.toValue().structValue)
