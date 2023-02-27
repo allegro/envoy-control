@@ -38,9 +38,17 @@ class EnvoyContainer(
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
         private const val ADMIN_PORT = 10000
 
+        private const val MIN_SUPPORTED_ENVOY_VERSION = "v1.22.7"
+        private const val MAX_SUPPORTED_ENVOY_VERSION = "v1.24.0"
+
         val DEFAULT_IMAGE = run {
-            val key = "pl.allegro.tech.servicemesh.envoyVersion"
-            val version = System.getProperty(key) ?: throw IllegalStateException("Missing '$key' system property")
+            val version =
+                when (val versionArg = System.getProperty("pl.allegro.tech.servicemesh.envoyVersion").orEmpty()) {
+                    "max", "" -> MAX_SUPPORTED_ENVOY_VERSION
+                    "min" -> MIN_SUPPORTED_ENVOY_VERSION
+                    else -> versionArg
+                }
+            logger.info("Using envoy version: $version")
             "envoyproxy/envoy:$version"
         }
     }
