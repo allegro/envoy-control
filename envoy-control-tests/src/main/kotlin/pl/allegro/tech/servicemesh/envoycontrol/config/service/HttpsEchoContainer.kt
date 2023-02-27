@@ -21,7 +21,6 @@ class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http
         super.configure()
         withEnv("HTTP_PORT", "$PORT")
         withNetwork(Network.SHARED)
-        withCommand()
     }
 
     override fun port() = PORT

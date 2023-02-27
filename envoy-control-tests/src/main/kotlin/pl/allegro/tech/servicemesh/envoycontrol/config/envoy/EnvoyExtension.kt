@@ -14,6 +14,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtensionBase
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import java.time.Duration
 
 class EnvoyExtension(
     private val envoyControl: EnvoyControlExtensionBase,
@@ -79,6 +80,39 @@ class EnvoyExtension(
             untilAsserted {
                 assertThat(admin.numOfEndpoints(it)).isEqualTo(0)
             }
+        }
+    }
+
+    fun waitForClusterEndpointHealthy(
+        cluster: String,
+        endpointIp: String
+    ) {
+        untilAsserted(wait = Duration.ofSeconds(5)) {
+            assertThat(container.admin().isEndpointHealthy(cluster, endpointIp))
+                .withFailMessage {
+                    "Expected to see healthy endpoint of cluster '$cluster' with address " +
+                        "'$endpointIp' in envoy ${container.adminUrl()}/clusters, " +
+                        "but it's not present. Found following endpoints: " +
+                        "${container.admin().endpointsAddress(cluster)}"
+                }
+                .isTrue()
+        }
+    }
+
+
+    fun waitForClusterEndpointNotHealthy(
+        cluster: String,
+        endpointIp: String
+    ) {
+        untilAsserted(wait = Duration.ofSeconds(5)) {
+            assertThat(container.admin().isEndpointHealthy(cluster, endpointIp))
+                .withFailMessage {
+                    "Expected to not see endpoint of cluster '$cluster' with address " +
+                        "'$endpointIp' in envoy ${container.adminUrl()}/clusters, " +
+                        "but it's still present. Found following endpoints: " +
+                        "${container.admin().endpointsAddress(cluster)}"
+                }
+                .isFalse()
         }
     }
 

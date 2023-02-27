@@ -143,7 +143,7 @@ class EnvoyEgressRoutesFactory(
         if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
             val routingPolicy = routeSpecification.settings.routingPolicy
             if (routingPolicy.autoServiceTag) {
-                val tagsPreferenceJoined = routingPolicy.serviceTagPreference.joinToString(",")
+                val tagsPreferenceJoined = routingPolicy.serviceTagPreference.joinToString("|")
                 virtualHost.addRequestHeadersToAdd(
                     HeaderValueOption.newBuilder()
                         .setHeader(
@@ -154,32 +154,6 @@ class EnvoyEgressRoutesFactory(
                         .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
                         .setKeepEmptyValue(false)
                 )
-
-                // TODO: this is testing
-                routingPolicy.serviceTagPreference.forEach {tag ->
-                    virtualHost.addRequestHeadersToAdd(
-                        HeaderValueOption.newBuilder()
-                            .setHeader(
-                                HeaderValue.newBuilder()
-                                    .setKey(properties.routing.serviceTags.preferenceHeader + "-overwrite")
-                                    .setValue(tag)
-                            )
-                            .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
-                            .setKeepEmptyValue(false)
-                    )
-                }
-                routingPolicy.serviceTagPreference.forEach { tag ->
-                    virtualHost.addRequestHeadersToAdd(
-                        HeaderValueOption.newBuilder()
-                            .setHeader(
-                                HeaderValue.newBuilder()
-                                    .setKey(properties.routing.serviceTags.preferenceHeader + "-append")
-                                    .setValue(tag)
-                            )
-                            .setAppendAction(HeaderValueOption.HeaderAppendAction.APPEND_IF_EXISTS_OR_ADD)
-                            .setKeepEmptyValue(false)
-                    )
-                }
             }
         }
 

@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol
+package pl.allegro.tech.servicemesh.envoycontrol.routing
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -306,17 +306,7 @@ class RoutingPolicyTest {
         serviceInstance: EchoServiceExtension,
         envoy: EnvoyExtension
     ) {
-        untilAsserted(wait = Duration.ofSeconds(5)) {
-            assertThat(envoy.container.admin().isEndpointHealthy(serviceName, serviceInstance.container().ipAddress()))
-                .withFailMessage {
-                    "Expected to see healthy endpoint of cluster '$serviceName' with address " +
-                        "'${serviceInstance.container().address()}' in envoy " +
-                        "${serviceInstance.container().address()}/clusters, " +
-                        "but it's not present. Found following endpoints: " +
-                        "${envoy.container.admin().endpointsAddress(serviceName)}"
-                }
-                .isTrue()
-        }
+        envoy.waitForClusterEndpointHealthy(cluster = serviceName, endpointIp = serviceInstance.container().ipAddress())
     }
 
     private fun waitForEndpointRemoved(
@@ -324,17 +314,10 @@ class RoutingPolicyTest {
         serviceInstance: EchoServiceExtension,
         envoy: EnvoyExtension
     ) {
-        untilAsserted(wait = Duration.ofSeconds(5)) {
-            assertThat(envoy.container.admin().isEndpointHealthy(serviceName, serviceInstance.container().ipAddress()))
-                .withFailMessage {
-                    "Expected to not see endpoint of cluster '$serviceName' with address " +
-                        "'${serviceInstance.container().address()}' in envoy " +
-                        "${serviceInstance.container().address()}/clusters, " +
-                        "but it's still present. Found following endpoints: " +
-                        "${envoy.container.admin().endpointsAddress(serviceName)}"
-                }
-                .isFalse()
-        }
+        envoy.waitForClusterEndpointNotHealthy(
+            cluster = serviceName,
+            endpointIp = serviceInstance.container().ipAddress()
+        )
     }
 
     private fun callStats() = CallStats(listOf(ipsumEchoService, loremEchoService, otherEchoService))
