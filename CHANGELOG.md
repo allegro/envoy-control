@@ -3,6 +3,11 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.19.31]
+
+### Changed
+- move min & max envoy versions inside artifact to be accessible for dependant projects
+
 ## [0.19.30]
 
 ### Changed
