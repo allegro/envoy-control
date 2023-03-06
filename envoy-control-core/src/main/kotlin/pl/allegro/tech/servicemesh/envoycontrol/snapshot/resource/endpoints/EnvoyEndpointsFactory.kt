@@ -52,7 +52,7 @@ class EnvoyEndpointsFactory(
         clusterLoadAssignment: ClusterLoadAssignment,
         routingPolicy: RoutingPolicy
     ): ClusterLoadAssignment {
-        if (!routingPolicy.autoServiceTag || !isAutoServiceTagEnabled()) {
+        if (!routingPolicy.autoServiceTag || !properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
             return clusterLoadAssignment
         }
 
@@ -66,8 +66,6 @@ class EnvoyEndpointsFactory(
             else -> createEmptyLoadAssignment(clusterLoadAssignment)
         }
     }
-
-    private fun isAutoServiceTagEnabled() = properties.routing.serviceTags.run { enabled && autoServiceTagEnabled }
 
     private fun filterEndpoints(loadAssignment: ClusterLoadAssignment, tag: String): ClusterLoadAssignment? {
         var allEndpointMatched = true

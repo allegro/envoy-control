@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - move min & max envoy versions inside artifact to be accessible for dependant projects
+- add x-service-tag-preference header to upstream request
 
 ## [0.19.30]
 
