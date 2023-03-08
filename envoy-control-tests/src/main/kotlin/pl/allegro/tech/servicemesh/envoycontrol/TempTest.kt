@@ -4,6 +4,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -127,10 +128,17 @@ class AutoServiceTagTempTest {
                       
         """.trimIndent()
 
+        @JvmField
+        @RegisterExtension
+        val service = EchoServiceExtension()
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, config = Ads.copy(configOverride = autoServiceTagEnabledSettings))
+        val envoy = EnvoyExtension(
+            envoyControl,
+            localService = service,
+            config = Ads.copy(configOverride = autoServiceTagEnabledSettings)
+        )
     }
 
     @Test
@@ -209,5 +217,30 @@ class AutoServiceTagTempTest {
         metadata service tag: echo-no-tag-client-side-tag
 
          */
+    }
+
+    @Test
+    fun `should reject request service-tag if it duplicates service-tag-preference`() {
+        // given
+        consul.server.operations.registerService(name = "echo", tags = listOf("lorem", "est"), extension = service)
+        envoy.waitForReadyServices("echo")
+
+        // when
+        val notDuplicatedTagResponse =
+            envoy.egressOperations.callService(service = "echo", headers = mapOf("x-service-tag" to "est"))
+        val duplicatedTagResponse =
+            envoy.egressOperations.callService(service = "echo", headers = mapOf("x-service-tag" to "lorem"))
+
+
+        val body = duplicatedTagResponse.body?.string()
+
+        // then
+        assertThat(notDuplicatedTagResponse).isOk().isFrom(service)
+        assertThat(duplicatedTagResponse.code).isEqualTo(400)
+
+        // lua:respond():
+        //   - literal body
+        //   - content-type: text/plain by default
+
     }
 }

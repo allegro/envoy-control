@@ -10,16 +10,9 @@ import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
 import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
 import io.envoyproxy.envoy.config.core.v3.Metadata
-import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
-import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
-import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
+import io.envoyproxy.envoy.config.route.v3.*
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy.ResetHeaderFormat
-import io.envoyproxy.envoy.config.route.v3.Route
-import io.envoyproxy.envoy.config.route.v3.RouteAction
-import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
-import io.envoyproxy.envoy.config.route.v3.RouteMatch
-import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import io.envoyproxy.envoy.extensions.retry.host.omit_canary_hosts.v3.OmitCanaryHostsPredicate
 import io.envoyproxy.envoy.extensions.retry.host.omit_host_metadata.v3.OmitHostMetadataConfig
 import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
