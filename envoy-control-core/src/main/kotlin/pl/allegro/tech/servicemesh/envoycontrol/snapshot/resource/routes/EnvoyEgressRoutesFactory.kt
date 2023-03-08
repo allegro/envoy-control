@@ -160,6 +160,24 @@ class EnvoyEgressRoutesFactory(
                 )
             )
         }
+
+        if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
+            val routingPolicy = routeSpecification.settings.routingPolicy
+            if (routingPolicy.autoServiceTag) {
+                val tagsPreferenceJoined = routingPolicy.serviceTagPreference.joinToString("|")
+                virtualHost.addRequestHeadersToAdd(
+                    HeaderValueOption.newBuilder()
+                        .setHeader(
+                            HeaderValue.newBuilder()
+                                .setKey(properties.routing.serviceTags.preferenceHeader)
+                                .setValue(tagsPreferenceJoined)
+                        )
+                        .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
+                        .setKeepEmptyValue(false)
+                )
+            }
+        }
+
         return virtualHost.build()
     }
 

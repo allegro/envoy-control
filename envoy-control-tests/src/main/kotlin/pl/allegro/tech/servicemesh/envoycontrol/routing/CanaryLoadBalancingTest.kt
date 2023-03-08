@@ -1,4 +1,4 @@
-package pl.allegro.tech.servicemesh.envoycontrol
+package pl.allegro.tech.servicemesh.envoycontrol.routing
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
