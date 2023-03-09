@@ -240,7 +240,7 @@ class AutoServiceTagTempTest {
         assertThat(duplicatedTagResponse.response.code).isEqualTo(400)
         assertThat(duplicatedTagResponse.response.headers("content-type")).isEqualTo(listOf("application/json"))
         assertThat(duplicatedTagResponse.bodyJsonField("/message").asText())
-            .isEqualTo("Service tag request parameter 'lorem' duplicates auto service-tag preference. Remove service-tag parameter from the request")
+            .isEqualTo("Request service-tag 'lorem' duplicates auto service-tag preference. Remove service-tag parameter from the request")
 
         // lua:respond():
         //   - literal body

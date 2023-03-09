@@ -1,26 +1,34 @@
 function envoy_on_request(handle)
+    rejectServiceTagDuplicatingAutoServiceTag(handle)
+end
+
+function rejectServiceTagDuplicatingAutoServiceTag(handle)
     local autoServiceTagPreference = handle:metadata():get("auto_service_tag_preference")
-    if autoServiceTagPreference ~= nil then
-        local serviceTagMetadataKey = handle:metadata():get("service_tag_metadata_key")
-        if serviceTagMetadataKey ~= nil then
-            local requestServiceTag = (handle:streamInfo():dynamicMetadata():get("envoy.lb") or {})[serviceTagMetadataKey]
-            if (requestServiceTag ~= nil) then
-                for i=1,#autoServiceTagPreference do
-                    if requestServiceTag == autoServiceTagPreference[i] then
-                        respond_error(
-                                handle,
-                                "DUPLICATED_SERVICE_TAG",
-                                "Service tag request parameter '"..requestServiceTag.."' duplicates auto"
-                                        .." service-tag preference. "
-                                        .."Remove service-tag parameter from the request",
-                                400)
-                    end
-                end
-            end
+    if autoServiceTagPreference == nil then
+        return
+    end
+    local serviceTagMetadataKey = handle:metadata():get("service_tag_metadata_key")
+    if serviceTagMetadataKey == nil then
+        handle:logErr("'service_tag_metadata_key' is not present in metadata!")
+        return
+    end
+    local requestServiceTag = (handle:streamInfo():dynamicMetadata():get("envoy.lb") or {})[serviceTagMetadataKey]
+    if (requestServiceTag == nil) then
+        return
+    end
+
+    for i=1,#autoServiceTagPreference do
+        if requestServiceTag == autoServiceTagPreference[i] then
+            respond_error(
+                    handle,
+                    "DUPLICATED_SERVICE_TAG",
+                    "Request service-tag '"..requestServiceTag.."' duplicates auto"
+                            .." service-tag preference. "
+                            .."Remove service-tag parameter from the request",
+                    400)
         end
     end
 end
-
 
 function debug(handle)
     local autoServiceTagPreference = handle:metadata():get("auto_service_tag_preference")
