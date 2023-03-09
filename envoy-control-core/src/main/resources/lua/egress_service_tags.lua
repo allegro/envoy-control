@@ -7,12 +7,13 @@ function envoy_on_request(handle)
             if (requestServiceTag ~= nil) then
                 for i=1,#autoServiceTagPreference do
                     if requestServiceTag == autoServiceTagPreference[i] then
-                        handle:respond(
-                                {
-                                    [":status"] = "400"
-                                },
-                                "nooope"
-                        )
+                        respond_error(
+                                handle,
+                                "DUPLICATED_SERVICE_TAG",
+                                "Service tag request parameter '"..requestServiceTag.."' duplicates auto"
+                                        .." service-tag preference. "
+                                        .."Remove service-tag parameter from the request",
+                                400)
                     end
                 end
             end

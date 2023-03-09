@@ -8,6 +8,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
@@ -230,17 +231,19 @@ class AutoServiceTagTempTest {
             envoy.egressOperations.callService(service = "echo", headers = mapOf("x-service-tag" to "est"))
         val duplicatedTagResponse =
             envoy.egressOperations.callService(service = "echo", headers = mapOf("x-service-tag" to "lorem"))
+                .let { ResponseWithBody(it) }
 
 
-        val body = duplicatedTagResponse.body?.string()
 
         // then
         assertThat(notDuplicatedTagResponse).isOk().isFrom(service)
-        assertThat(duplicatedTagResponse.code).isEqualTo(400)
+        assertThat(duplicatedTagResponse.response.code).isEqualTo(400)
+        assertThat(duplicatedTagResponse.response.headers("content-type")).isEqualTo(listOf("application/json"))
+        assertThat(duplicatedTagResponse.bodyJsonField("/message").asText())
+            .isEqualTo("Service tag request parameter 'lorem' duplicates auto service-tag preference. Remove service-tag parameter from the request")
 
         // lua:respond():
         //   - literal body
         //   - content-type: text/plain by default
-
     }
 }
