@@ -334,7 +334,6 @@ class EnvoySnapshotFactoryTest {
             ingressPort = INGRESS_PORT,
             egressHost = EGRESS_HOST,
             egressPort = EGRESS_PORT,
-            addUpstreamServiceTags = addUpstreamServiceTags,
             accessLogFilterSettings = AccessLogFilterSettings(
                 null,
                 snapshotProperties.dynamicListeners.httpFilters.accessLog.filters
