@@ -99,6 +99,7 @@ class EnvoyEgressRoutesFactory(
         serviceName: String,
         routes: Collection<RouteSpecification>,
         addUpstreamAddressHeader: Boolean,
+        addUpstreamServiceTagsHeader: Boolean = false,
         routeName: String = "default_routes"
     ): RouteConfiguration {
         val virtualHosts = routes
@@ -132,7 +133,9 @@ class EnvoyEgressRoutesFactory(
             routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
         }
 
-        routeConfiguration.addResponseHeadersToAdd(upstreamTagsHeader)
+        if (addUpstreamServiceTagsHeader) {
+            routeConfiguration.addResponseHeadersToAdd(upstreamTagsHeader)
+        }
 
         return routeConfiguration.build()
     }

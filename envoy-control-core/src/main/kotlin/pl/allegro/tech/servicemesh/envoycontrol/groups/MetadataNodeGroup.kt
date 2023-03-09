@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
+import io.envoyproxy.envoy.config.core.v3.BuildVersion
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
@@ -68,7 +69,7 @@ class MetadataNodeGroup(
         return ListenersHostPortConfig(ingressHost, ingressPort, egressHost, egressPort)
     }
 
-    private fun createListenersConfig(id: String, metadata: Struct): ListenersConfig? {
+    private fun createListenersConfig(id: String, metadata: Struct, envoyVersion: BuildVersion): ListenersConfig? {
         val ingressHostValue = metadata.fieldsMap["ingress_host"]
         val ingressPortValue = metadata.fieldsMap["ingress_port"]
         val egressHostValue = metadata.fieldsMap["egress_host"]
@@ -106,6 +107,7 @@ class MetadataNodeGroup(
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
         // TODO: flag to add service-tags headers in response
+        val addUpstreamServiceTags = envoyVersion.version.run { majorNumber >= 1 && minorNumber >= 24 }
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
         val useTransparentProxy = metadata.fieldsMap["use_transparent_proxy"]?.boolValue
@@ -123,6 +125,7 @@ class MetadataNodeGroup(
             enableLuaScript,
             accessLogPath,
             addUpstreamExternalAddressHeader,
+            addUpstreamServiceTags,
             accessLogFilterSettings,
             hasStaticSecretsDefined,
             useTransparentProxy
@@ -134,7 +137,7 @@ class MetadataNodeGroup(
         val serviceName = serviceName(nodeMetadata)
         val discoveryServiceName = nodeMetadata.discoveryServiceName
         val proxySettings = proxySettings(nodeMetadata)
-        val listenersConfig = createListenersConfig(node.id, node.metadata)
+        val listenersConfig = createListenersConfig(node.id, node.metadata, node.userAgentBuildVersion)
 
         return when {
             hasAllServicesDependencies(nodeMetadata) ->

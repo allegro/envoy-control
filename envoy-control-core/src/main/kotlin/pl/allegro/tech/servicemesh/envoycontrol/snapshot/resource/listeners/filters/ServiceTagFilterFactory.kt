@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
-import io.envoyproxy.envoy.config.core.v3.DataSource
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
@@ -9,7 +8,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsProperties
 
 class ServiceTagFilterFactory(
     private val properties: ServiceTagsProperties,
-    private val localReplyLuaScript: String
+    localReplyLuaScript: String
 ) {
 
     companion object {
@@ -41,7 +40,7 @@ class ServiceTagFilterFactory(
         .setTypedConfig(
             Any.pack(
                 Lua.newBuilder()
-                    .setDefaultSourceCode(DataSource.newBuilder().setInlineString(luaEgressScript))
+                    .setInlineCode(luaEgressScript)
                     .build()
             )
         ).build()
