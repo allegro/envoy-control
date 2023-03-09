@@ -805,7 +805,6 @@ class SnapshotUpdaterTest {
                 ingressPort = 1235,
                 egressHost = "0.0.0.0",
                 egressPort = 1234,
-                addUpstreamServiceTags = addUpstreamServiceTags,
                 accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties()),
                 useTransparentProxy = true
             )
@@ -914,7 +913,6 @@ class SnapshotUpdaterTest {
                 ingressPort = 1235,
                 egressHost = "0.0.0.0",
                 egressPort = 1234,
-                addUpstreamServiceTags = addUpstreamServiceTags,
                 accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties()),
                 useTransparentProxy = true
             )
@@ -1007,7 +1005,6 @@ class SnapshotUpdaterTest {
                 ingressPort = 1235,
                 egressHost = "0.0.0.0",
                 egressPort = 1234,
-                addUpstreamServiceTags = addUpstreamServiceTags,
                 accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties()),
                 useTransparentProxy = false
             )

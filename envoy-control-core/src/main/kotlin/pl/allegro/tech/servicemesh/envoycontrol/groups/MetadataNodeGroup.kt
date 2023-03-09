@@ -8,6 +8,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
+const val MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA = 24
+
 class MetadataNodeGroup(
     val properties: SnapshotProperties
 ) : NodeGroup<Group> {
@@ -107,7 +109,8 @@ class MetadataNodeGroup(
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
         // TODO: flag to add service-tags headers in response
-        val addUpstreamServiceTags = envoyVersion.version.run { majorNumber >= 1 && minorNumber >= 24 }
+        val addUpstreamServiceTags =
+            envoyVersion.version.minorNumber >= MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
         val useTransparentProxy = metadata.fieldsMap["use_transparent_proxy"]?.boolValue

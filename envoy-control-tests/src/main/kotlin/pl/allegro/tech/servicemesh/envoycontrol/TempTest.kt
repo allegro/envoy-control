@@ -37,7 +37,6 @@ class TempTest {
         val envoy = EnvoyExtension(envoyControl, service, config = Ads)
     }
 
-
     // TODO: test x-envoy-upstream-remote-address in response
 
     @Test
@@ -48,7 +47,7 @@ class TempTest {
 
         envoy.waitForReadyServices("echo", "service-1", "myhttp.example.com:5678")
 
-        val adminAddress = envoy.container.adminUrl()
+        // val adminAddress = envoy.container.adminUrl()
 
         run {
             // when
@@ -82,11 +81,8 @@ class TempTest {
             assertThat(response).isFrom(service)
             assertThat(serviceTagsResponseHeader).isNull()
         }
-
-
     }
 }
-
 
 class AutoServiceTagTempTest {
 
@@ -104,7 +100,6 @@ class AutoServiceTagTempTest {
         @JvmField
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(consul, properties)
-
 
         // language=yaml
         private var autoServiceTagEnabledSettings = """
@@ -145,7 +140,7 @@ class AutoServiceTagTempTest {
     @Test
     fun `apps not registered in consul`() {
 
-        val adminAddress = envoy.container.adminUrl()
+        // val adminAddress = envoy.container.adminUrl()
 
         run {
             val response = envoy.egressOperations.callService(service = "echo")
@@ -232,8 +227,6 @@ class AutoServiceTagTempTest {
         val duplicatedTagResponse =
             envoy.egressOperations.callService(service = "echo", headers = mapOf("x-service-tag" to "lorem"))
                 .let { ResponseWithBody(it) }
-
-
 
         // then
         assertThat(notDuplicatedTagResponse).isOk().isFrom(service)

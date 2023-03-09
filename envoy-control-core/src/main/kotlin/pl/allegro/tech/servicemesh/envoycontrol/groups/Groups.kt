@@ -36,7 +36,7 @@ data class ListenersConfig(
     val enableLuaScript: Boolean = defaultEnableLuaScript,
     val accessLogPath: String = defaultAccessLogPath,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
-    val addUpstreamServiceTags: Boolean,
+    val addUpstreamServiceTags: Boolean = false,
     val accessLogFilterSettings: AccessLogFilterSettings,
     val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined,
     val useTransparentProxy: Boolean = defaultUseTransparentProxy

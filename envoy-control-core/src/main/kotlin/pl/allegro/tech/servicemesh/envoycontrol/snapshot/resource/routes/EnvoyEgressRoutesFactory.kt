@@ -10,9 +10,16 @@ import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
 import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
 import io.envoyproxy.envoy.config.core.v3.Metadata
-import io.envoyproxy.envoy.config.route.v3.*
+import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
+import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
+import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy.ResetHeaderFormat
+import io.envoyproxy.envoy.config.route.v3.Route
+import io.envoyproxy.envoy.config.route.v3.RouteAction
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
+import io.envoyproxy.envoy.config.route.v3.RouteMatch
+import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import io.envoyproxy.envoy.extensions.retry.host.omit_canary_hosts.v3.OmitCanaryHostsPredicate
 import io.envoyproxy.envoy.extensions.retry.host.omit_host_metadata.v3.OmitHostMetadataConfig
 import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
@@ -78,10 +85,10 @@ class EnvoyEgressRoutesFactory(
         header = HeaderValue.newBuilder()
             .setKey("x-envoy-upstream-service-tags") // TODO: header name to properties
             // doesn't work in <= v1.23.x. Envoy crashes. Works as expected in v1.24.x
-            .setValue("%UPSTREAM_METADATA(envoy.lb:${metadataKey})%")
+            .setValue("%UPSTREAM_METADATA(envoy.lb:$metadataKey)%")
             // theoretically works in v1.22.x/v1.23.x, but can't handle a list as value - doesn't add header
             // works as expected in v1.24.x
-            //.setValue("""%UPSTREAM_METADATA(["envoy.lb", "${metadataKey}"])%""")
+            // .setValue("""%UPSTREAM_METADATA(["envoy.lb", "${metadataKey}"])%""")
             .build()
         appendAction = HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD
         keepEmptyValue = false
@@ -108,7 +115,7 @@ class EnvoyEgressRoutesFactory(
                 buildEgressVirtualHost(routeSpecification)
             }
 
-        var routeConfiguration = RouteConfiguration.newBuilder()
+        val routeConfiguration = RouteConfiguration.newBuilder()
             .setName(routeName)
             .addAllVirtualHosts(
                 virtualHosts + originalDestinationRoute + wildcardRoute
