@@ -102,7 +102,12 @@ class HttpConnectionManagerFactory(
         }
         addHttpFilters(connectionManagerBuilder, filters, group, globalSnapshot)
 
-        return connectionManagerBuilder.build()
+        return connectionManagerBuilder
+            .addUpgradeConfigs(HttpConnectionManager.UpgradeConfig
+                .newBuilder()
+                .setUpgradeType("websocket")
+                .build())
+            .build()
     }
 
     private fun setupRds(
