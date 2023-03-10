@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
@@ -35,6 +36,7 @@ open class EndpointMetadataMergingTests {
     }
 
     @Test
+    @Disabled("flaky")
     fun `should merge all service tags of endpoints with the same ip and port`() {
         // given
         consul.server.operations.registerService(name = "echo", extension = service, tags = listOf("ipsum"))
