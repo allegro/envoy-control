@@ -3,16 +3,30 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
+import io.envoyproxy.envoy.config.core.v3.Node
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
-class MetadataNodeGroup(
-    val properties: SnapshotProperties
-) : NodeGroup<Group> {
+interface CustomGroupDataMapper<T> {
+    fun map(node: NodeV3): T?
+
+}
+
+class EmptyCustomGroupDataMapper<T>: CustomGroupDataMapper<T> {
+    override fun map(node: Node): T? {
+        return null
+    }
+}
+
+
+class MetadataNodeGroup<T>(
+    val properties: SnapshotProperties,
+    val customGroupDataMapper: CustomGroupDataMapper<T>
+) : NodeGroup<Group<T>> {
     private val logger by logger()
 
-    override fun hash(node: NodeV3): Group {
+    override fun hash(node: NodeV3): Group<T> {
         return createV3Group(node)
     }
 
@@ -128,7 +142,7 @@ class MetadataNodeGroup(
         )
     }
 
-    private fun createV3Group(node: NodeV3): Group {
+    private fun createV3Group(node: NodeV3): Group<T> {
         val nodeMetadata = NodeMetadata(node.metadata, properties)
         val serviceName = serviceName(nodeMetadata)
         val discoveryServiceName = nodeMetadata.discoveryServiceName
@@ -142,7 +156,8 @@ class MetadataNodeGroup(
                     serviceName,
                     discoveryServiceName,
                     proxySettings,
-                    listenersConfig
+                    listenersConfig,
+                    customGroupDataMapper.map(node)
                 )
             else ->
                 ServicesGroup(
@@ -150,7 +165,8 @@ class MetadataNodeGroup(
                     serviceName,
                     discoveryServiceName,
                     proxySettings,
-                    listenersConfig
+                    listenersConfig,
+                    customGroupDataMapper.map(node)
                 )
         }
     }
