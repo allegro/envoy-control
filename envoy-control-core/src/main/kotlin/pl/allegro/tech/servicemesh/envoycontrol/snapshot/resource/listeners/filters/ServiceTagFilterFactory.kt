@@ -6,10 +6,7 @@ import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsProperties
 
-class ServiceTagFilterFactory(
-    private val properties: ServiceTagsProperties,
-    localReplyLuaScript: String
-) {
+class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
 
     companion object {
         const val AUTO_SERVICE_TAG_PREFERENCE_METADATA = "auto_service_tag_preference"
@@ -17,7 +14,7 @@ class ServiceTagFilterFactory(
     }
 
     private val luaEgressScript: String = this::class.java.classLoader
-        .getResource("lua/egress_service_tags.lua")!!.readText() + localReplyLuaScript
+        .getResource("lua/egress_service_tags.lua")!!.readText()
 
     fun headerToMetadataFilterRules(): List<Config.Rule> {
         return listOf(

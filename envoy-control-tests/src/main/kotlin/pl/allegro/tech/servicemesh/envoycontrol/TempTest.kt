@@ -121,7 +121,6 @@ class AutoServiceTagTempTest {
                       - service: "echo-no-tag"  
                         routingPolicy:
                           serviceTagPreference: []
-                      
         """.trimIndent()
 
         @JvmField
@@ -231,12 +230,13 @@ class AutoServiceTagTempTest {
         // then
         assertThat(notDuplicatedTagResponse).isOk().isFrom(service)
         assertThat(duplicatedTagResponse.response.code).isEqualTo(400)
-        assertThat(duplicatedTagResponse.response.headers("content-type")).isEqualTo(listOf("application/json"))
-        assertThat(duplicatedTagResponse.bodyJsonField("/message").asText())
+        assertThat(duplicatedTagResponse.body)
             .isEqualTo("Request service-tag 'lorem' duplicates auto service-tag preference. Remove service-tag parameter from the request")
 
         // lua:respond():
         //   - literal body
+        //     UPDATE: NOT TRUE! In AEC response-mapper format is applied to lua response. Lua's response is held in
+        //       "%LOCAL_REPLY_BODY%" field placeholder
         //   - content-type: text/plain by default
     }
 }

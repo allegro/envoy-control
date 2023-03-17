@@ -10,8 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class EnvoyDefaultFilters(
     private val snapshotProperties: SnapshotProperties,
-    private val customLuaMetadata: LuaMetadataProperty.StructPropertyLua,
-    localReplyLuaScript: String = LuaFilterFactory.defaultLocalReplyLuaScript
+    private val customLuaMetadata: LuaMetadataProperty.StructPropertyLua
 ) {
     private val rbacFilterFactory = RBACFilterFactory(
         snapshotProperties.incomingPermissions,
@@ -28,8 +27,7 @@ class EnvoyDefaultFilters(
         snapshotProperties.rateLimit
     )
     private val serviceTagFilterFactory = ServiceTagFilterFactory(
-        properties = snapshotProperties.routing.serviceTags,
-        localReplyLuaScript = localReplyLuaScript
+        properties = snapshotProperties.routing.serviceTags
     )
 
     private val defaultServiceTagHeaderToMetadataFilterRules = serviceTagFilterFactory.headerToMetadataFilterRules()

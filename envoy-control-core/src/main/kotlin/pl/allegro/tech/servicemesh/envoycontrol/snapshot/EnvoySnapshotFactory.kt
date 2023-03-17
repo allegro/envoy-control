@@ -314,11 +314,12 @@ class EnvoySnapshotFactory(
         // routes for listener on port http = 80
         routes.add(
             egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, egressRouteSpecification +
+                serviceName = group.serviceName,
+                routes = egressRouteSpecification +
                     egressDomainRouteSpecifications.getOrDefault(
                         DomainRoutesGrouper(DEFAULT_HTTP_PORT, false), emptyList()
                     ),
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
+                addUpstreamAddressHeader = group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
                 routeName = DEFAULT_HTTP_PORT.toString()
             )
         )
