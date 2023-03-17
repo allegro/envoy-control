@@ -13,13 +13,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtensionBase
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Mode
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.time.Duration
 
 class EnvoyExtension(
     private val envoyControl: EnvoyControlExtensionBase,
     private val localService: ServiceExtension<*>? = null,
-    private val config: EnvoyConfig = RandomConfigFile
+    private val config: EnvoyConfig = RandomConfigFile,
+    mode: Mode = Mode.SERVICE
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     companion object {
@@ -29,7 +31,8 @@ class EnvoyExtension(
     val container: EnvoyContainer = EnvoyContainer(
         config,
         { localService?.container()?.ipAddress() ?: "127.0.0.1" },
-        envoyControl.app.grpcPort
+        envoyControl.app.grpcPort,
+        mode = mode
     ).withNetwork(Network.SHARED)
 
     val ingressOperations: IngressOperations = IngressOperations(container)

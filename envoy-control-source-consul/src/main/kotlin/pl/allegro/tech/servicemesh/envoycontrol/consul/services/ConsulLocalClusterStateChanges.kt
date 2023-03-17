@@ -19,6 +19,7 @@ class ConsulLocalClusterStateChanges(
     private val transformers: List<ServiceInstancesTransformer> = emptyList(),
     override val latestServiceState: AtomicReference<ServicesState> = AtomicReference(ServicesState())
 ) : LocalClusterStateChanges {
+
     override fun stream(): Flux<MultiClusterState> =
         consulChanges
             .watchState()

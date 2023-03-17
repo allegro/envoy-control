@@ -38,12 +38,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.InvalidPor
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.IpAddressFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServiceInstancesFilter
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.IngressGatewayPortMappingsCache
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.synchronization.SyncableLocalServiceStateCreator
 import reactor.core.scheduler.Schedulers
 import java.net.URI
 
 @Configuration
+@Suppress("LongParameterList")
 class ControlPlaneConfig {
     init {
         Schedulers.enableMetrics()
@@ -64,11 +67,13 @@ class ControlPlaneConfig {
         meterRegistry: MeterRegistry,
         globalStateChanges: GlobalStateChanges,
         metrics: EnvoyControlMetrics,
-        envoyHttpFilters: EnvoyHttpFilters
+        envoyHttpFilters: EnvoyHttpFilters,
+        ingressGatewayPortMappingsCache: IngressGatewayPortMappingsCache,
     ): ControlPlane =
         ControlPlane.builder(properties, meterRegistry)
             .withMetrics(metrics)
             .withEnvoyHttpFilters(envoyHttpFilters)
+            .withIngressGatewayPortMappingsCache(ingressGatewayPortMappingsCache)
             .build(globalStateChanges.combined())
 
     @Bean
@@ -114,6 +119,16 @@ class ControlPlaneConfig {
         localDatacenter(consulProperties),
         transformers
     )
+
+    @Bean
+    fun syncableLocalServiceStateCreator(
+        localStateChanges: LocalClusterStateChanges,
+        mappingsCache: IngressGatewayPortMappingsCache
+    ): SyncableLocalServiceStateCreator =
+        SyncableLocalServiceStateCreator(localStateChanges, mappingsCache)
+
+    @Bean
+    fun ingressGatewayPortMappingsCache() = IngressGatewayPortMappingsCache()
 
     @Bean
     fun consulDatacenterReader(consulProperties: ConsulProperties, objectMapper: ObjectMapper): ConsulDatacenterReader =

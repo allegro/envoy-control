@@ -131,27 +131,47 @@ class MetadataNodeGroup(
     private fun createV3Group(node: NodeV3): Group {
         val nodeMetadata = NodeMetadata(node.metadata, properties)
         val serviceName = serviceName(nodeMetadata)
-        val discoveryServiceName = nodeMetadata.discoveryServiceName
+        val discoveryServiceName = nodeMetadata.discoveryServiceName ?: serviceName
         val proxySettings = proxySettings(nodeMetadata)
         val listenersConfig = createListenersConfig(node.id, node.metadata)
 
-        return when {
-            hasAllServicesDependencies(nodeMetadata) ->
-                AllServicesGroup(
-                    nodeMetadata.communicationMode,
-                    serviceName,
-                    discoveryServiceName,
-                    proxySettings,
-                    listenersConfig
-                )
-            else ->
-                ServicesGroup(
-                    nodeMetadata.communicationMode,
-                    serviceName,
-                    discoveryServiceName,
-                    proxySettings,
-                    listenersConfig
-                )
+        return when (nodeMetadata.mode) {
+            Mode.SERVICE -> when {
+                hasAllServicesDependencies(nodeMetadata) ->
+                    AllServicesGroup(
+                        nodeMetadata.communicationMode,
+                        serviceName,
+                        discoveryServiceName,
+                        proxySettings,
+                        listenersConfig
+                    )
+                else ->
+                    ServicesGroup(
+                        nodeMetadata.communicationMode,
+                        serviceName,
+                        discoveryServiceName,
+                        proxySettings,
+                        listenersConfig
+                    )
+            }
+            Mode.INGRESS_GATEWAY -> when {
+                hasAllServicesDependencies(nodeMetadata) ->
+                    AllServicesIngressGatewayGroup(
+                        nodeMetadata.communicationMode,
+                        serviceName,
+                        discoveryServiceName,
+                        proxySettings,
+                        listenersConfig
+                    )
+                else ->
+                    ServicesIngressGatewayGroup(
+                        nodeMetadata.communicationMode,
+                        serviceName,
+                        discoveryServiceName,
+                        proxySettings,
+                        listenersConfig
+                    )
+            }
         }
     }
 

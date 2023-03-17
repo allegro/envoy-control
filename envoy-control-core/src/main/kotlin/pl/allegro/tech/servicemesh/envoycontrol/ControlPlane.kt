@@ -29,8 +29,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.NoopSnapshotChangeAudit
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotChangeAuditor
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotUpdater
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotsVersions
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.IngressGatewayPortMappingsCache
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyIngressGatewayListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
@@ -97,6 +99,7 @@ class ControlPlane private constructor(
         var groupSnapshotParallelExecutorSupplier: () -> Executor? = { null }
         var metrics: EnvoyControlMetrics = DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
         var envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
+        var ingressGatewayPortMappingsCache: IngressGatewayPortMappingsCache? = null
         var snapshotChangeAuditor: SnapshotChangeAuditor = NoopSnapshotChangeAuditor
 
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
@@ -138,6 +141,10 @@ class ControlPlane private constructor(
                 )
             }
 
+            if (ingressGatewayPortMappingsCache == null) {
+                ingressGatewayPortMappingsCache = IngressGatewayPortMappingsCache()
+            }
+
             val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
 
             val groupSnapshotScheduler = buildGroupSnapshotScheduler(groupSnapshotProperties)
@@ -175,6 +182,9 @@ class ControlPlane private constructor(
                 listenersFactory = EnvoyListenersFactory(
                     snapshotProperties,
                     envoyHttpFilters
+                ),
+                ingressGatewayListenersFactory = EnvoyIngressGatewayListenersFactory(
+                  mappingsCache = ingressGatewayPortMappingsCache!!
                 ),
                 // Remember when LDS change we have to send RDS again
                 snapshotsVersions = snapshotsVersions,
@@ -350,6 +360,10 @@ class ControlPlane private constructor(
 
         fun withEnvoyHttpFilters(envoyHttpFilters: EnvoyHttpFilters): ControlPlaneBuilder {
             this.envoyHttpFilters = envoyHttpFilters
+            return this
+        }
+        fun withIngressGatewayPortMappingsCache(mappingsCache: IngressGatewayPortMappingsCache): ControlPlaneBuilder {
+            this.ingressGatewayPortMappingsCache = mappingsCache
             return this
         }
 

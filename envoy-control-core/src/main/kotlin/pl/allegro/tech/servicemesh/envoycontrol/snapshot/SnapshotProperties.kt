@@ -36,6 +36,7 @@ class SnapshotProperties {
     var deltaXdsEnabled = false
     var retryPolicy = RetryPolicyProperties()
     var tcpDumpsEnabled: Boolean = true
+    var dcIngressGatewayService = "envoy-ingress-gateway"
 }
 
 class MetricsProperties {
