@@ -39,3 +39,7 @@ task reliabilityTest(type: Test) {
     }
     testClassesDirs = project.sourceSets.main.output.classesDirs
 }
+
+tasks.withType(Test).configureEach {
+    project.findProperty("envoyVersion")?.with { systemProperty("pl.allegro.tech.servicemesh.envoyVersion", it) }
+}

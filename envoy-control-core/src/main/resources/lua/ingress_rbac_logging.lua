@@ -128,7 +128,7 @@ function log_request(handle, lua_metadata, jwt_status, rbac_action)
             table.insert(message, ',"')
             table.insert(message, header)
             table.insert(message, '":"')
-            table.insert(message, value)
+            table.insert(message, tostring(escape(value)))
             table.insert(message, '"')
         end
     end

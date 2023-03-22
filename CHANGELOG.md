@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Remove xds support
 
+## [0.19.31]
+
+### Changed
+- move min & max envoy versions inside artifact to be accessible for dependant projects
+- add x-service-tag-preference header to upstream request
+
+## [0.19.30]
+
+### Changed
+- add possibility to log custom header in RBAC
+- add token information to RBAC logs
+- specify min and max supported envoy version
+- add option to run tests on specific envoy version, including min and max supported version
+
 ## [0.19.29]
 
 ### Changed

@@ -96,6 +96,7 @@ class IncomingPermissionsProperties {
     var clientsAllowedToAllEndpoints = mutableListOf<String>()
     var clientsLists = ClientsListsProperties()
     var overlappingPathsFix = false // TODO: to be removed when proved it did not mess up anything
+    var headersToLogInRbac: List<String> = emptyList()
 }
 
 class SelectorMatching {
@@ -235,9 +236,12 @@ class ServiceTagsProperties {
     var enabled = false
     var metadataKey = "tag"
     var header = "x-service-tag"
+    var preferenceHeader = "x-service-tag-preference"
     var routingExcludedTags: MutableList<StringMatcher> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
     var autoServiceTagEnabled = false
+
+    fun isAutoServiceTagEffectivelyEnabled() = enabled && autoServiceTagEnabled
 }
 
 class StringMatcher {
