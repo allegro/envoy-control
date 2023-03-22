@@ -4,7 +4,6 @@ import com.google.protobuf.Any
 import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
@@ -131,7 +130,6 @@ interface RBACFilterFactoryTestUtils {
         incomingPermission: Incoming? = null,
         serviceName: String = "some-service"
     ) = ServicesGroup(
-        communicationMode = CommunicationMode.ADS,
         serviceName = serviceName,
         proxySettings = ProxySettings(
             incoming = incomingPermission ?: Incoming()

@@ -1,8 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -84,7 +82,6 @@ class NodeMetadataValidator(
         validateDependencies(metadata)
         validateIncomingEndpoints(metadata)
         validateIncomingRateLimitEndpoints(metadata)
-        validateConfigurationMode(metadata)
     }
 
     private fun validateServiceName(metadata: NodeMetadata) {
@@ -170,13 +167,4 @@ class NodeMetadataValidator(
 
     private fun isAllowedToHaveAllServiceDependencies(metadata: NodeMetadata) = properties
         .outgoingPermissions.servicesAllowedToUseWildcard.contains(metadata.serviceName)
-
-    private fun validateConfigurationMode(metadata: NodeMetadata) {
-        if (metadata.communicationMode == ADS && !properties.enabledCommunicationModes.ads) {
-            throw ConfigurationModeNotSupportedException(metadata.serviceName, "ADS")
-        }
-        if (metadata.communicationMode == XDS && !properties.enabledCommunicationModes.xds) {
-            throw ConfigurationModeNotSupportedException(metadata.serviceName, "XDS")
-        }
-    }
 }

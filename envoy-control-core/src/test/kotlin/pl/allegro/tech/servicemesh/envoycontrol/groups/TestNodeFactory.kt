@@ -11,7 +11,6 @@ import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 fun nodeV3(
     serviceDependencies: Set<String> = emptySet(),
-    ads: Boolean? = null,
     serviceName: String? = null,
     discoveryServiceName: String? = null,
     incomingSettings: Boolean = false,
@@ -31,10 +30,6 @@ fun nodeV3(
 
     discoveryServiceName?.let {
         meta.putFields("discovery_service_name", string(discoveryServiceName))
-    }
-
-    ads?.let {
-        meta.putFields("ads", Value.newBuilder().setBoolValue(ads).build())
     }
 
     if (incomingSettings || serviceDependencies.isNotEmpty()) {

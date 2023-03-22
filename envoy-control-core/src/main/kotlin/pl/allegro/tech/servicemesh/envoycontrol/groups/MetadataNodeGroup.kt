@@ -138,7 +138,6 @@ class MetadataNodeGroup(
         return when {
             hasAllServicesDependencies(nodeMetadata) ->
                 AllServicesGroup(
-                    nodeMetadata.communicationMode,
                     serviceName,
                     discoveryServiceName,
                     proxySettings,
@@ -146,7 +145,6 @@ class MetadataNodeGroup(
                 )
             else ->
                 ServicesGroup(
-                    nodeMetadata.communicationMode,
                     serviceName,
                     discoveryServiceName,
                     proxySettings,

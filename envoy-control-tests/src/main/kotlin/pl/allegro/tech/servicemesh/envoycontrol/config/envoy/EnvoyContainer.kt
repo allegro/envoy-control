@@ -13,8 +13,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger as loggerDelegate
 class EnvoyContainer(
     private val config: EnvoyConfig,
     private val localServiceIp: () -> String,
-    private val envoyControl1XdsPort: Int,
-    private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
+    private val envoyControl1Port: Int,
+    private val envoyControl2Port: Int = envoyControl1Port,
     private val logLevel: String = "info",
     image: String = DEFAULT_IMAGE
 ) : SSLGenericContainer<EnvoyContainer>(
@@ -72,8 +72,8 @@ class EnvoyContainer(
 
         withCommand(
             "/bin/sh", "/usr/local/bin/launch_envoy.sh",
-            Integer.toString(envoyControl1XdsPort),
-            Integer.toString(envoyControl2XdsPort),
+            envoyControl1Port.toString(),
+            envoyControl2Port.toString(),
             CONFIG_DEST,
             localServiceIp(),
             config.trustedCa,

@@ -16,7 +16,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
@@ -279,7 +278,6 @@ class EnvoySnapshotFactoryTest {
         ), "v1").resources())
 
     private fun createServicesGroup(
-        mode: CommunicationMode = CommunicationMode.XDS,
         serviceName: String = DEFAULT_SERVICE_NAME,
         discoveryServiceName: String = DEFAULT_DISCOVERY_SERVICE_NAME,
         dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
@@ -292,7 +290,6 @@ class EnvoySnapshotFactoryTest {
             false -> null
         }
         return ServicesGroup(
-            mode,
             serviceName,
             discoveryServiceName,
             ProxySettings().with(
@@ -304,7 +301,6 @@ class EnvoySnapshotFactoryTest {
     }
 
     private fun createAllServicesGroup(
-        mode: CommunicationMode = CommunicationMode.XDS,
         serviceName: String = DEFAULT_SERVICE_NAME,
         discoveryServiceName: String = DEFAULT_DISCOVERY_SERVICE_NAME,
         dependencies: Array<Pair<String, Outgoing.TimeoutPolicy?>> = emptyArray(),
@@ -317,7 +313,6 @@ class EnvoySnapshotFactoryTest {
             false -> null
         }
         return AllServicesGroup(
-            mode,
             serviceName,
             discoveryServiceName,
             ProxySettings().with(

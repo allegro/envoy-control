@@ -30,30 +30,18 @@ class SnapshotDebugService(
         }
     }
 
-    fun globalSnapshot(xds: Boolean): SnapshotDebugInfo {
+    fun globalSnapshot(): SnapshotDebugInfo {
         val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
-        if (xds) {
-            return if (globalSnapshot?.xdsSnapshot == null) {
-                throw GlobalSnapshotNotFoundException("Xds global snapshot missing")
-            } else {
-                SnapshotDebugInfo(globalSnapshot.xdsSnapshot!!)
-            }
-        }
-        return if (globalSnapshot?.adsSnapshot == null) {
-            throw GlobalSnapshotNotFoundException("Ads global snapshot missing")
+        return if (globalSnapshot?.snapshot == null) {
+            throw GlobalSnapshotNotFoundException("Global snapshot missing")
         } else {
-            SnapshotDebugInfo(globalSnapshot.adsSnapshot!!)
+            SnapshotDebugInfo(globalSnapshot.snapshot!!)
         }
     }
 
-    fun globalSnapshot(service: String, dc: String?, xds: Boolean): EndpointInfoList {
+    fun globalSnapshot(service: String, dc: String?): EndpointInfoList {
         val updateResult = snapshotUpdater.getGlobalSnapshot()
-        val globalSnapshot = if (xds) {
-            updateResult?.xdsSnapshot
-        } else {
-            updateResult?.adsSnapshot
-        }
-        val endpoints = extractEndpoints(globalSnapshot, service)
+        val endpoints = extractEndpoints(updateResult?.snapshot, service)
         val endpointInfos = getEndpointsInfo(endpoints, dc)
         return EndpointInfoList(endpointInfos)
     }

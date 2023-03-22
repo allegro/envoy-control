@@ -58,9 +58,9 @@ class SnapshotDebugController(val debugService: SnapshotDebugService) {
     }
 
     @GetMapping("/snapshot-global")
-    fun globalSnapshot(@RequestParam(defaultValue = "false") xds: Boolean): ResponseEntity<SnapshotDebugInfo> {
+    fun globalSnapshot(): ResponseEntity<SnapshotDebugInfo> {
         return ResponseEntity(
-            debugService.globalSnapshot(xds),
+            debugService.globalSnapshot(),
             HttpStatus.OK
         )
     }
@@ -69,17 +69,16 @@ class SnapshotDebugController(val debugService: SnapshotDebugService) {
     fun globalSnapshot(
         @PathVariable service: String,
         @RequestParam dc: String?,
-        @RequestParam(defaultValue = "false") xds: Boolean
     ): ResponseEntity<EndpointInfoList> {
         return ResponseEntity(
-            debugService.globalSnapshot(service, dc, xds),
+            debugService.globalSnapshot(service, dc),
             HttpStatus.OK
         )
     }
 
     @JsonComponent
     class ProtoSerializer : JsonSerializer<Message>() {
-        final val typeRegistry: TypeRegistry = TypeRegistry.newBuilder()
+        private final val typeRegistry: TypeRegistry = TypeRegistry.newBuilder()
             .add(HttpConnectionManager.getDescriptor())
             .add(Config.getDescriptor())
             .add(BoolValue.getDescriptor())

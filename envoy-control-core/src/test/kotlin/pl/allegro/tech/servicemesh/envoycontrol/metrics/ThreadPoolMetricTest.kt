@@ -15,6 +15,7 @@ class ThreadPoolMetricTest {
         // given
         val meterRegistry = SimpleMeterRegistry()
         val envoyControlProperties = EnvoyControlProperties().also {
+            it.server.port = 50050
             it.server.executorGroup.type = ExecutorType.PARALLEL
             it.server.groupSnapshotUpdateScheduler.type = ExecutorType.PARALLEL
         }

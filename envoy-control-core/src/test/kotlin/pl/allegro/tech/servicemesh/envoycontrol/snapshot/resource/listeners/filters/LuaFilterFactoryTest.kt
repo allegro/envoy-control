@@ -2,7 +2,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
@@ -20,7 +19,6 @@ internal class LuaFilterFactoryTest {
         val expectedServiceName = "service-1"
         val expectedDiscoveryServiceName = "consul-service-1"
         val group: Group = ServicesGroup(
-            communicationMode = CommunicationMode.XDS,
             serviceName = expectedServiceName,
             discoveryServiceName = expectedDiscoveryServiceName
         )
@@ -58,7 +56,6 @@ internal class LuaFilterFactoryTest {
         val expectedServiceName = "service-1"
         val expectedDiscoveryServiceName = "consul-service-1"
         val group: Group = ServicesGroup(
-            communicationMode = CommunicationMode.XDS,
             serviceName = expectedServiceName,
             discoveryServiceName = expectedDiscoveryServiceName
         )

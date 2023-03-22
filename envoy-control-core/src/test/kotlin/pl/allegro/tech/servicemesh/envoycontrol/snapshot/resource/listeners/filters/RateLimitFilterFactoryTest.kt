@@ -4,7 +4,6 @@ import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.http.ratelimit.v3.RateLimit
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
@@ -96,7 +95,7 @@ class RateLimitFilterFactoryTest {
     }
 
     private fun createGroupWithIncomingRateLimits(serviceName: String, vararg rateLimitEndpoints: IncomingRateLimitEndpoint): Group =
-        ServicesGroup(CommunicationMode.ADS,
+        ServicesGroup(
             serviceName = serviceName,
             proxySettings = ProxySettings(incoming = Incoming(
                 rateLimitEndpoints = rateLimitEndpoints.toList()

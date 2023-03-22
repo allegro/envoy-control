@@ -4,15 +4,12 @@ import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
-import io.envoyproxy.envoy.config.core.v3.ApiConfigSource
 import io.envoyproxy.envoy.config.core.v3.ApiVersion
 import io.envoyproxy.envoy.config.core.v3.ConfigSource
-import io.envoyproxy.envoy.config.core.v3.GrpcService
 import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
-import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -36,7 +33,6 @@ class HttpConnectionManagerFactory(
         snapshotProperties.dynamicForwardProxy
     ).filter
 
-    private val defaultApiConfigSourceV3: ApiConfigSource = apiConfigSource()
     private val accessLogFilter = AccessLogFilter(snapshotProperties)
 
     @SuppressWarnings("LongParameterList")
@@ -53,7 +49,7 @@ class HttpConnectionManagerFactory(
 
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix(statPrefix)
-            .setRds(setupRds(group.communicationMode, initialFetchTimeout, routeConfigName))
+            .setRds(setupRds(initialFetchTimeout, routeConfigName))
             .setGenerateRequestId(BoolValue.newBuilder().setValue(listenersConfig.generateRequestId).build())
             .setPreserveExternalRequestId(listenersConfig.preserveExternalRequestId)
 
@@ -95,7 +91,7 @@ class HttpConnectionManagerFactory(
             connectionManagerBuilder.addAccessLog(
                 accessLogFilter.createFilter(
                     listenersConfig.accessLogPath,
-                    direction.name.toLowerCase(),
+                    direction.name.lowercase(),
                     listenersConfig.accessLogFilterSettings
                 )
             )
@@ -106,51 +102,24 @@ class HttpConnectionManagerFactory(
     }
 
     private fun setupRds(
-        communicationMode: CommunicationMode,
         rdsInitialFetchTimeout: Duration,
         routeConfigName: String
-    ): Rds {
-        val configSource = ConfigSource.newBuilder()
-            .setInitialFetchTimeout(rdsInitialFetchTimeout)
-        configSource.resourceApiVersion = ApiVersion.V3
-
-        when (communicationMode) {
-            CommunicationMode.ADS -> configSource.ads = AggregatedConfigSource.getDefaultInstance()
-            CommunicationMode.XDS -> configSource.apiConfigSource = defaultApiConfigSourceV3
-        }
-
-        return Rds.newBuilder()
+    ): Rds = Rds.newBuilder()
             .setRouteConfigName(routeConfigName)
             .setConfigSource(
-                configSource.build()
+                ConfigSource.newBuilder()
+                    .setInitialFetchTimeout(rdsInitialFetchTimeout)
+                    .setResourceApiVersion(ApiVersion.V3)
+                    .setAds(AggregatedConfigSource.getDefaultInstance())
+                    .build()
             )
             .build()
-    }
 
     private fun ingressHttp1ProtocolOptions(serviceName: String): Http1ProtocolOptions? {
         return Http1ProtocolOptions.newBuilder()
             .setAcceptHttp10(true)
             .setDefaultHostForHttp10(serviceName)
             .build()
-    }
-
-    private fun apiConfigSource(): ApiConfigSource {
-        return ApiConfigSource.newBuilder()
-            .setApiType(
-                if (snapshotProperties.deltaXdsEnabled) {
-                    ApiConfigSource.ApiType.DELTA_GRPC
-                } else {
-                    ApiConfigSource.ApiType.GRPC
-                }
-            )
-            .setTransportApiVersion(ApiVersion.V3)
-            .addGrpcServices(
-                GrpcService.newBuilder()
-                    .setEnvoyGrpc(
-                        GrpcService.EnvoyGrpc.newBuilder()
-                            .setClusterName("envoy-control-xds")
-                    )
-            ).build()
     }
 
     private fun addHttpFilters(

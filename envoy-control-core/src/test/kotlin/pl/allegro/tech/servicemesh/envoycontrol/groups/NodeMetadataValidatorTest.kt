@@ -6,9 +6,6 @@ import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.assertj.core.api.Assertions.catchThrowable
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.CsvSource
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnabledCommunicationModes
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OutgoingPermissionsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -140,72 +137,6 @@ class NodeMetadataValidatorTest {
         assertDoesNotThrow { permissionsDisabledValidator.onV3StreamRequest(123, request = request) }
     }
 
-    @ParameterizedTest
-    @CsvSource(
-        "false, true, true, ADS",
-        "true, false, false, XDS",
-        "false, false, false, XDS",
-        "false, false, true, ADS"
-    )
-    fun `should fail if service wants to use mode which server doesn't support`(
-        adsSupported: Boolean,
-        xdsSupported: Boolean,
-        ads: Boolean,
-        modeNotSupportedName: String
-    ) {
-        // given
-        val configurationModeValidator = NodeMetadataValidator(SnapshotProperties().apply {
-            enabledCommunicationModes = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
-        })
-
-        val node = nodeV3(
-            ads = ads,
-            serviceDependencies = setOf("a", "b", "c"),
-            serviceName = "regular-1"
-        )
-        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
-
-        // when
-        val exception =
-            catchThrowable { configurationModeValidator.onV3StreamRequest(streamId = 123, request = request) }
-
-        // expects
-        assertThat(exception).isInstanceOf(ConfigurationModeNotSupportedException::class.java)
-        val validationException = exception as ConfigurationModeNotSupportedException
-        assertThat(validationException.status.description)
-            .isEqualTo("Blocked service regular-1 from receiving updates. $modeNotSupportedName is not supported by server.")
-        assertThat(validationException.status.code)
-            .isEqualTo(Status.Code.INVALID_ARGUMENT)
-    }
-
-    @ParameterizedTest
-    @CsvSource(
-        "true, true, true",
-        "true, false, true",
-        "false, true, false",
-        "true, true, false"
-    )
-    fun `should do nothing if service wants to use mode supported by the server`(
-        adsSupported: Boolean,
-        xdsSupported: Boolean,
-        ads: Boolean
-    ) {
-        // given
-        val configurationModeValidator = NodeMetadataValidator(SnapshotProperties().apply {
-            enabledCommunicationModes = createCommunicationMode(ads = adsSupported, xds = xdsSupported)
-        })
-
-        val node = nodeV3(
-            ads = ads,
-            serviceDependencies = setOf("a", "b", "c"),
-            serviceName = "regular-1"
-        )
-        val request = DiscoveryRequestV3.newBuilder().setNode(node).build()
-
-        // then
-        assertDoesNotThrow { configurationModeValidator.onV3StreamRequest(123, request = request) }
-    }
-
     @Test
     fun `should fail when service name is empty`() {
         // given
@@ -221,12 +152,8 @@ class NodeMetadataValidatorTest {
         // expects
         assertThatExceptionOfType(ServiceNameNotProvidedException::class.java)
             .isThrownBy { requireServiceNameValidator.onV3StreamRequest(streamId = 123, request = request) }
-            .satisfies {
-                assertThat(it.status.description).isEqualTo(
-                    "Service name has not been provided."
-                )
-                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-            }
+            .matches { it.status.description == "Service name has not been provided." }
+            .matches { it.status.code == Status.Code.INVALID_ARGUMENT }
     }
 
     @Test
@@ -256,12 +183,8 @@ class NodeMetadataValidatorTest {
         // then
         assertThatExceptionOfType(RateLimitIncorrectValidationException::class.java)
             .isThrownBy { validator.onV3StreamRequest(123, request = request) }
-            .satisfies {
-                assertThat(it.status.description).isEqualTo(
-                    "Rate limit value: 0/j is incorrect."
-                )
-                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
-            }
+            .matches { it.status.description == "Rate limit value: 0/j is incorrect." }
+            .matches { it.status.code == Status.Code.INVALID_ARGUMENT }
     }
 
     private fun createIncomingPermissions(
@@ -282,12 +205,5 @@ class NodeMetadataValidatorTest {
         outgoingPermissions.enabled = enabled
         outgoingPermissions.servicesAllowedToUseWildcard = servicesAllowedToUseWildcard
         return outgoingPermissions
-    }
-
-    private fun createCommunicationMode(ads: Boolean = true, xds: Boolean = true): EnabledCommunicationModes {
-        val enabledCommunicationModes = EnabledCommunicationModes()
-        enabledCommunicationModes.ads = ads
-        enabledCommunicationModes.xds = xds
-        return enabledCommunicationModes
     }
 }

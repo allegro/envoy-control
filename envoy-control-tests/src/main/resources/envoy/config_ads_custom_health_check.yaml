@@ -4,10 +4,8 @@ admin:
     socket_address: { address: 0.0.0.0, port_value: 10000 }
 dynamic_resources:
   lds_config:
-    resource_api_version: V3
     ads: {}
   cds_config:
-    resource_api_version: V3
     ads: {}
   ads_config:
     transport_api_version: V3
@@ -19,7 +17,6 @@ node:
   cluster: test-cluster
   id: test-id
   metadata:
-    ads: true
     proxy_settings:
       incoming:
         healthCheck:
@@ -100,7 +97,6 @@ static_resources:
           rds:
             route_config_name: default_routes
             config_source:
-              resource_api_version: V3
               ads: {}
           http_filters:
           - name: envoy.filters.http.router
@@ -120,7 +116,6 @@ static_resources:
               rds:
                 route_config_name: ingress_secured_routes
                 config_source:
-                  resource_api_version: V3
                   ads: {}
               http_filters:
                 - name: envoy.filters.http.router

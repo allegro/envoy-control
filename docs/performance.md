@@ -20,15 +20,6 @@ Additionally, the network usage is significantly higher. With 1,000 clusters, we
 Assuming that a new snapshot is generated every second. 1,000 Envoys with 1,000 clusters can generate a load of
 300 MB/s. When following only a few services, the snapshot is about 5 KB and it's sent much less frequently.
 
-### Use ADS
-
-With xDS, Envoy set up a gRPC stream to Envoy Control per cluster. Let's say there are 1,000 Envoys and 1,000 clusters.
-Envoy Control will have to handle 1,000,000 open gRPC streams. This puts pressure on memory, which converts to more
-frequent GC runs and higher CPU usage.
-
-With ADS, each Envoy sets up a single gRPC stream for all clusters. With 1,000 Envoys, there are 1,000 streams which
-reduces memory usage dramatically.
-
 ### Sampling
 
 Envoy Control by default follows changes from the discovery service, batches them and sends to Envoys at most once every second.

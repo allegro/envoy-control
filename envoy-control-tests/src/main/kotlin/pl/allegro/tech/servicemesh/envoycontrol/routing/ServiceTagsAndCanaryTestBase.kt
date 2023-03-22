@@ -11,7 +11,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-interface ServiceTagsAndCanaryTestBase {
+class ServiceTagsAndCanaryTestBase {
     companion object {
 
         @JvmField
@@ -25,18 +25,30 @@ interface ServiceTagsAndCanaryTestBase {
         @JvmField
         @RegisterExtension
         val ipsumRegularService = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, mapOf(
+            "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
+            "envoy-control.envoy.snapshot.load-balancing.canary.enabled" to true,
+            "envoy-control.envoy.snapshot.load-balancing.canary.metadata-key" to "canary",
+            "envoy-control.envoy.snapshot.load-balancing.canary.metadata-value" to "1"
+        ))
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl)
     }
 
-    fun consul(): ConsulExtension
-
-    fun envoyControl(): EnvoyControlExtension
-
-    fun envoy(): EnvoyExtension
-
-    fun registerServices() {
-        consul().server.operations.registerService(loremRegularService, name = "echo", tags = listOf("lorem"))
-        consul().server.operations.registerService(loremCanaryService, name = "echo", tags = listOf("lorem", "canary"))
-        consul().server.operations.registerService(ipsumRegularService, name = "echo", tags = listOf("ipsum"))
+    private fun registerServices() {
+        consul.server.operations.registerService(loremRegularService, name = "echo", tags = listOf("lorem"))
+        consul.server.operations.registerService(loremCanaryService, name = "echo", tags = listOf("lorem", "canary"))
+        consul.server.operations.registerService(ipsumRegularService, name = "echo", tags = listOf("ipsum"))
     }
 
     @Test
@@ -104,19 +116,19 @@ interface ServiceTagsAndCanaryTestBase {
         assertThat(stats.ipsumRegularHits).isEqualTo(0)
     }
 
-    fun waitForReadyServices(vararg serviceNames: String) {
+    private fun waitForReadyServices(vararg serviceNames: String) {
         serviceNames.forEach {
             untilAsserted {
-                envoy().egressOperations.callService(it).also {
+                envoy.egressOperations.callService(it).also {
                     assertThat(it).isOk()
                 }
             }
         }
     }
 
-    fun callStats() = CallStats(listOf(loremCanaryService, loremRegularService, ipsumRegularService))
+    private fun callStats() = CallStats(listOf(loremCanaryService, loremRegularService, ipsumRegularService))
 
-    fun callEchoServiceRepeatedly(
+    private fun callEchoServiceRepeatedly(
         repeat: Int,
         tag: String? = null,
         canary: Boolean,
@@ -126,7 +138,7 @@ interface ServiceTagsAndCanaryTestBase {
         val tagHeader = tag?.let { mapOf("x-service-tag" to it) } ?: emptyMap()
         val canaryHeader = if (canary) mapOf("x-canary" to "1") else emptyMap()
 
-        envoy().egressOperations.callServiceRepeatedly(
+        envoy.egressOperations.callServiceRepeatedly(
             service = "echo",
             stats = stats,
             minRepeat = repeat,
@@ -137,10 +149,10 @@ interface ServiceTagsAndCanaryTestBase {
         return stats
     }
 
-    val CallStats.loremCanaryHits: Int
+    private val CallStats.loremCanaryHits: Int
         get() = this.hits(loremCanaryService)
-    val CallStats.loremRegularHits: Int
+    private val CallStats.loremRegularHits: Int
         get() = this.hits(loremRegularService)
-    val CallStats.ipsumRegularHits: Int
+    private val CallStats.ipsumRegularHits: Int
         get() = this.hits(ipsumRegularService)
 }
