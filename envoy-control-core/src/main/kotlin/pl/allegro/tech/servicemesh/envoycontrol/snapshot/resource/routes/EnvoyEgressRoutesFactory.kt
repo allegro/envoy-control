@@ -24,6 +24,7 @@ import io.envoyproxy.envoy.extensions.retry.host.omit_canary_hosts.v3.OmitCanary
 import io.envoyproxy.envoy.extensions.retry.host.omit_host_metadata.v3.OmitHostMetadataConfig
 import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagCondition
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RateLimitedRetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
@@ -106,13 +107,13 @@ class EnvoyEgressRoutesFactory(
         serviceName: String,
         routes: Collection<RouteSpecification>,
         addUpstreamAddressHeader: Boolean,
-        addUpstreamServiceTagsHeader: Boolean = false,
+        addUpstreamServiceTagsHeader: AddUpstreamServiceTagCondition = AddUpstreamServiceTagCondition.NEVER,
         routeName: String = "default_routes"
     ): RouteConfiguration {
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
             .map { routeSpecification ->
-                buildEgressVirtualHost(routeSpecification)
+                buildEgressVirtualHost(routeSpecification, addUpstreamServiceTagsHeader)
             }
 
         val routeConfiguration = RouteConfiguration.newBuilder()
@@ -140,14 +141,17 @@ class EnvoyEgressRoutesFactory(
             routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
         }
 
-        if (addUpstreamServiceTagsHeader) {
+        if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagCondition.ALWAYS) {
             routeConfiguration.addResponseHeadersToAdd(upstreamTagsHeader)
         }
 
         return routeConfiguration.build()
     }
 
-    private fun buildEgressVirtualHost(routeSpecification: RouteSpecification): VirtualHost {
+    private fun buildEgressVirtualHost(
+        routeSpecification: RouteSpecification,
+        addUpstreamServiceTagsHeader: AddUpstreamServiceTagCondition
+    ): VirtualHost {
         val virtualHost = VirtualHost.newBuilder()
             .setName(routeSpecification.clusterName)
             .addAllDomains(routeSpecification.routeDomains)
@@ -178,6 +182,9 @@ class EnvoyEgressRoutesFactory(
                         .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
                         .setKeepEmptyValue(false)
                 )
+                if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED) {
+                    virtualHost.addResponseHeadersToAdd(upstreamTagsHeader)
+                }
             }
         }
 

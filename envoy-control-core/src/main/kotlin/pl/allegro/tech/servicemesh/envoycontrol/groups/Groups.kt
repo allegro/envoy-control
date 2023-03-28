@@ -1,5 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFiltersProperties
+
 sealed class Group {
     abstract val communicationMode: CommunicationMode
     abstract val serviceName: String
@@ -36,7 +38,7 @@ data class ListenersConfig(
     val enableLuaScript: Boolean = defaultEnableLuaScript,
     val accessLogPath: String = defaultAccessLogPath,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
-    val addUpstreamServiceTags: Boolean = false,
+    val addUpstreamServiceTags: AddUpstreamServiceTagCondition = AddUpstreamServiceTagCondition.NEVER,
     val accessLogFilterSettings: AccessLogFilterSettings,
     val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined,
     val useTransparentProxy: Boolean = defaultUseTransparentProxy
@@ -50,7 +52,23 @@ data class ListenersConfig(
         const val defaultAccessLogEnabled = false
         const val defaultEnableLuaScript = false
         const val defaultAddUpstreamExternalAddressHeader = false
+        val defaultAddUpstreamServiceTagsIfSupported =
+            AddUpstreamServiceTagCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED
         const val defaultHasStaticSecretsDefined: Boolean = false
         const val defaultUseTransparentProxy: Boolean = false
+
+        val DEFAULT = ListenersConfig(
+            "",
+            0,
+            "",
+            0,
+            accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties())
+        )
+    }
+
+    enum class AddUpstreamServiceTagCondition {
+        NEVER, WHEN_SERVICE_TAG_PREFERENCE_IS_USED, ALWAYS
     }
 }
+
+fun ListenersConfig?.orDefault() = this ?: ListenersConfig.DEFAULT

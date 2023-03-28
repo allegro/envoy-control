@@ -4,11 +4,14 @@ import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.envoy.config.core.v3.BuildVersion
+import io.envoyproxy.envoy.type.v3.SemanticVersion
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagCondition
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
-const val MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA = 24
+@Suppress("MagicNumber")
+val MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA = envoyVersion(1, 24)
 
 class MetadataNodeGroup(
     val properties: SnapshotProperties
@@ -108,9 +111,12 @@ class MetadataNodeGroup(
             ?: ListenersConfig.defaultAccessLogPath
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
-        // TODO: flag to add service-tags headers in response
-        val addUpstreamServiceTags =
-            envoyVersion.version.minorNumber >= MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA
+
+        val addUpstreamServiceTags = mapAddUpstreamServiceTags(
+            addUpstreamServiceTagsFlag = metadata.fieldsMap["add_upstream_service_tags"]?.boolValue,
+            envoyVersion = envoyVersion
+        )
+
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
         val useTransparentProxy = metadata.fieldsMap["use_transparent_proxy"]?.boolValue
@@ -133,6 +139,20 @@ class MetadataNodeGroup(
             hasStaticSecretsDefined,
             useTransparentProxy
         )
+    }
+
+    private fun mapAddUpstreamServiceTags(
+        addUpstreamServiceTagsFlag: Boolean?,
+        envoyVersion: BuildVersion
+    ): AddUpstreamServiceTagCondition {
+        if (envoyVersion.version < MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA) {
+            return AddUpstreamServiceTagCondition.NEVER
+        }
+        return when (addUpstreamServiceTagsFlag) {
+            true -> AddUpstreamServiceTagCondition.ALWAYS
+            false -> AddUpstreamServiceTagCondition.NEVER
+            null -> ListenersConfig.defaultAddUpstreamServiceTagsIfSupported
+        }
     }
 
     private fun createV3Group(node: NodeV3): Group {
@@ -189,3 +209,9 @@ data class ListenersHostPortConfig(
     val egressHost: String,
     val egressPort: Int
 )
+
+fun envoyVersion(major: Int, minor: Int): SemanticVersion =
+    SemanticVersion.newBuilder().setMajorNumber(major).setMinorNumber(minor).build()
+
+private val semanticVersionComparator = compareBy<SemanticVersion>({ it.majorNumber }, { it.minorNumber })
+operator fun SemanticVersion.compareTo(other: SemanticVersion): Int = semanticVersionComparator.compare(this, other)

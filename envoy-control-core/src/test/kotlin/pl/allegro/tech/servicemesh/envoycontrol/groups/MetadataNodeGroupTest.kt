@@ -6,6 +6,8 @@ import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
@@ -301,6 +303,21 @@ class MetadataNodeGroupTest {
 
         // then
         assertThat(group.listenersConfig!!.accessLogFilterSettings.statusCodeFilterSettings).isNull()
+    }
+
+    @Test
+    fun `should correctly compare envoy version`() {
+        // given
+        val v1dot21 = envoyVersion(1, 21)
+        val v1dot24 = envoyVersion(1, 24)
+        val v1dot26 = envoyVersion(1, 26)
+        val v2dot21 = envoyVersion(2, 21)
+
+        // expect
+        assertTrue(v1dot21 < v1dot24)
+        assertFalse(v1dot24 < v1dot24)
+        assertFalse(v1dot26 < v1dot24)
+        assertFalse(v2dot21 < v1dot24)
     }
 
     private fun createMetadataBuilderWithDefaults(): Struct.Builder? {
