@@ -3,7 +3,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import com.google.protobuf.util.Durations
+import com.google.protobuf.util.Values
 import io.envoyproxy.envoy.config.accesslog.v3.ComparisonFilter
+import io.envoyproxy.envoy.config.core.v3.BuildVersion
+import io.envoyproxy.envoy.config.core.v3.Node
+import io.envoyproxy.envoy.type.v3.SemanticVersion
 import io.grpc.Status
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -14,6 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagsCondition
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
@@ -259,7 +264,10 @@ class MetadataNodeGroupTest {
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
 
-        metadata!!.putFields("access_log_filter", accessLogFilterProto(value = "EQ:400", fieldName = "status_code_filter"))
+        metadata!!.putFields(
+            "access_log_filter",
+            accessLogFilterProto(value = "EQ:400", fieldName = "status_code_filter")
+        )
 
         // when
         val group = nodeGroup.hash(NodeV3.newBuilder().setMetadata(metadata.build()).build())
@@ -281,7 +289,10 @@ class MetadataNodeGroupTest {
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
         val metadata = createMetadataBuilderWithDefaults()
 
-        metadata!!.putFields("access_log_filter", accessLogFilterProto(value = config, fieldName = "status_code_filter"))
+        metadata!!.putFields(
+            "access_log_filter",
+            accessLogFilterProto(value = config, fieldName = "status_code_filter")
+        )
 
         // expect
         val exception = assertThrows<NodeMetadataValidationException> {
@@ -320,6 +331,39 @@ class MetadataNodeGroupTest {
         assertFalse(v2dot21 < v1dot24)
     }
 
+    @Test
+    fun `should set addUpstreamServiceTag condition according to client flag and envoy version`() {
+        // given
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties())
+
+        fun assertThat(node: Node, has: AddUpstreamServiceTagsCondition) {
+            // when
+            val group = nodeGroup.hash(node)
+
+            // then
+            assertThat(group.listenersConfig.orDefault().addUpstreamServiceTags).isEqualTo(has)
+        }
+
+        val emptyNode = NodeV3.newBuilder().build()
+        val basicNode = NodeV3.newBuilder().setMetadata(createMetadataBuilderWithDefaults()).build()
+        val newEnvoyNode = basicNode.with(envoyVersion(1, 24))
+        val oldEnvoyNode = basicNode.with(envoyVersion(1, 23))
+        val enabledNewEnvoyNode = newEnvoyNode.withMetadata("add_upstream_service_tags", Values.of(true))
+        val enabledOldEnvoyNode = oldEnvoyNode.withMetadata("add_upstream_service_tags", Values.of(true))
+        val disabledNewEnvoyNode = newEnvoyNode.withMetadata("add_upstream_service_tags", Values.of(false))
+        val disabledOldEnvoyNode = oldEnvoyNode.withMetadata("add_upstream_service_tags", Values.of(false))
+
+        // expect
+        assertThat(node = emptyNode, has = AddUpstreamServiceTagsCondition.NEVER)
+        assertThat(node = basicNode, has = AddUpstreamServiceTagsCondition.NEVER)
+        assertThat(node = newEnvoyNode, has = AddUpstreamServiceTagsCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED)
+        assertThat(node = oldEnvoyNode, has = AddUpstreamServiceTagsCondition.NEVER)
+        assertThat(node = enabledNewEnvoyNode, has = AddUpstreamServiceTagsCondition.ALWAYS)
+        assertThat(node = enabledOldEnvoyNode, has = AddUpstreamServiceTagsCondition.NEVER)
+        assertThat(node = disabledNewEnvoyNode, has = AddUpstreamServiceTagsCondition.NEVER)
+        assertThat(node = disabledOldEnvoyNode, has = AddUpstreamServiceTagsCondition.NEVER)
+    }
+
     private fun createMetadataBuilderWithDefaults(): Struct.Builder? {
         val metadata = NodeV3.newBuilder().metadataBuilder
         metadata.putFields("ingress_host", Value.newBuilder().setStringValue("127.0.0.1").build())
@@ -340,4 +384,12 @@ class MetadataNodeGroupTest {
         snapshotProperties.incomingPermissions.enabled = incomingPermissions
         return snapshotProperties
     }
+
+    private fun NodeV3.with(version: SemanticVersion) = toBuilder()
+        .setUserAgentBuildVersion(BuildVersion.newBuilder().setVersion(version))
+        .build()
+
+    private fun NodeV3.withMetadata(key: String, value: Value) = toBuilder()
+        .apply { metadataBuilder.putFields(key, value) }
+        .build()
 }
