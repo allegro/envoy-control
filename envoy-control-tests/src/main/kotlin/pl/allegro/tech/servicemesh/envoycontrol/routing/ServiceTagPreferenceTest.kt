@@ -94,6 +94,25 @@ class ServiceTagPreferenceTest {
         assertThat(echoNoTagResponse.requestHeaders).doesNotContainKey("x-service-tag-preference")
     }
 
+    @Test
+    fun `should return upstream service tags in response if service-tag preference was used`() {
+        // given
+        listOf("echo", "echo-disabled").forEach { service ->
+            consul.server.operations.registerService(name = service, extension = echoService, tags = allTags)
+        }
+        listOf("echo", "echo-disabled").forEach { service ->
+            waitForEndpointReady(service, echoService, envoy)
+        }
+
+        // when
+        val echoResponse = envoy.egressOperations.callService("echo")
+        val echoDisabledResponse = envoy.egressOperations.callService("echo-disabled")
+
+        // then
+        assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEqualTo(listOf("""["ipsum","lorem","one"]"""))
+        assertThat(echoDisabledResponse.headers("x-envoy-upstream-service-tags")).isEmpty()
+    }
+
     private fun waitForEndpointReady(
         serviceName: String,
         serviceInstance: ServiceExtension<*>,

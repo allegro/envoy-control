@@ -84,7 +84,7 @@ class EnvoyEgressRoutesFactory(
     private val upstreamTagsHeader = HeaderValueOption.newBuilder().apply {
         val metadataKey = properties.routing.serviceTags.metadataKey
         header = HeaderValue.newBuilder()
-            .setKey("x-envoy-upstream-service-tags") // TODO: header name to properties
+            .setKey("x-envoy-upstream-service-tags")
             // doesn't work in <= v1.23.x. Envoy crashes. Works as expected in v1.24.x
             .setValue("%UPSTREAM_METADATA(envoy.lb:$metadataKey)%")
             // theoretically works in v1.22.x/v1.23.x, but can't handle a list as value - doesn't add header
@@ -169,26 +169,34 @@ class EnvoyEgressRoutesFactory(
         }
 
         if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
-            val routingPolicy = routeSpecification.settings.routingPolicy
-            if (routingPolicy.autoServiceTag) {
-                val tagsPreferenceJoined = routingPolicy.serviceTagPreference.joinToString("|")
-                virtualHost.addRequestHeadersToAdd(
-                    HeaderValueOption.newBuilder()
-                        .setHeader(
-                            HeaderValue.newBuilder()
-                                .setKey(properties.routing.serviceTags.preferenceHeader)
-                                .setValue(tagsPreferenceJoined)
-                        )
-                        .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
-                        .setKeepEmptyValue(false)
-                )
-                if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED) {
-                    virtualHost.addResponseHeadersToAdd(upstreamTagsHeader)
-                }
-            }
+            addServiceTagHeaders(routeSpecification, virtualHost, addUpstreamServiceTagsHeader)
         }
 
         return virtualHost.build()
+    }
+
+    private fun addServiceTagHeaders(
+        routeSpecification: RouteSpecification,
+        virtualHost: VirtualHost.Builder,
+        addUpstreamServiceTagsHeader: AddUpstreamServiceTagCondition
+    ) {
+        val routingPolicy = routeSpecification.settings.routingPolicy
+        if (routingPolicy.autoServiceTag) {
+            val tagsPreferenceJoined = routingPolicy.serviceTagPreference.joinToString("|")
+            virtualHost.addRequestHeadersToAdd(
+                HeaderValueOption.newBuilder()
+                    .setHeader(
+                        HeaderValue.newBuilder()
+                            .setKey(properties.routing.serviceTags.preferenceHeader)
+                            .setValue(tagsPreferenceJoined)
+                    )
+                    .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
+                    .setKeepEmptyValue(false)
+            )
+            if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED) {
+                virtualHost.addResponseHeadersToAdd(upstreamTagsHeader)
+            }
+        }
     }
 
     private fun buildRoute(
@@ -199,23 +207,27 @@ class EnvoyEgressRoutesFactory(
             .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy))
 
         if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
-            val routingPolicy = routeSpecification.settings.routingPolicy
-            if (routingPolicy.autoServiceTag) {
-                val serviceTagsListProto = Values.of(routingPolicy.serviceTagPreference.map { Values.of(it) })
-                val serviceTagMetadataKeyProto = Values.of(properties.routing.serviceTags.metadataKey)
-                routeBuilder.metadata = Metadata.newBuilder()
-                    .putFilterMetadata(
-                        "envoy.filters.http.lua",
-                        Structs.of(
-                            ServiceTagFilterFactory.AUTO_SERVICE_TAG_PREFERENCE_METADATA, serviceTagsListProto,
-                            ServiceTagFilterFactory.SERVICE_TAG_METADATA_KEY_METADATA, serviceTagMetadataKeyProto
-                        )
-                    )
-                    .build()
-            }
+            addServiceTagMetadata(routeSpecification, routeBuilder)
         }
 
         return routeBuilder.build()
+    }
+
+    private fun addServiceTagMetadata(routeSpecification: RouteSpecification, routeBuilder: Route.Builder) {
+        val routingPolicy = routeSpecification.settings.routingPolicy
+        if (routingPolicy.autoServiceTag) {
+            val serviceTagsListProto = Values.of(routingPolicy.serviceTagPreference.map { Values.of(it) })
+            val serviceTagMetadataKeyProto = Values.of(properties.routing.serviceTags.metadataKey)
+            routeBuilder.metadata = Metadata.newBuilder()
+                .putFilterMetadata(
+                    "envoy.filters.http.lua",
+                    Structs.of(
+                        ServiceTagFilterFactory.AUTO_SERVICE_TAG_PREFERENCE_METADATA, serviceTagsListProto,
+                        ServiceTagFilterFactory.SERVICE_TAG_METADATA_KEY_METADATA, serviceTagMetadataKeyProto
+                    )
+                )
+                .build()
+        }
     }
 
     private fun buildEgressRouteWithRetryPolicy(
