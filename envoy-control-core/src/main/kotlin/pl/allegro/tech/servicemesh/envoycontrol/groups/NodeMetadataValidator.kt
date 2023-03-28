@@ -114,7 +114,7 @@ class NodeMetadataValidator(
             val clients = incomingEndpoint.clients.map { it.name }
 
             if (clients.isEmpty() && incomingEndpoint.unlistedClientsPolicy != Incoming.UnlistedPolicy.LOG) {
-                logger.warn(
+                logger.debug(
                     "An incoming endpoint definition for service: ${metadata.serviceName}" +
                         ", path: ${incomingEndpoint.path} does not have any clients defined." +
                         "It means that no one will be able to contact that endpoint"
