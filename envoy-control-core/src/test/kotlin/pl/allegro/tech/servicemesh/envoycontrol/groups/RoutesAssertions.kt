@@ -2,7 +2,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import com.google.protobuf.BoolValue
 import com.google.protobuf.Duration
-import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.RateLimit
@@ -10,6 +9,7 @@ import io.envoyproxy.envoy.config.route.v3.RedirectAction
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.Route
 import io.envoyproxy.envoy.config.route.v3.RouteAction
+import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.VirtualCluster
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
@@ -181,14 +181,12 @@ fun Route.toCluster(cluster: String): Route {
     return this
 }
 
-// TODO: all below assertions that use ".satisfies { condition(it) }" doesn't work, because condition should throw
-//   assertion exception, not return true/false
 fun Route.directResponse(condition: (DirectResponseAction) -> Boolean) {
-    assertThat(this.directResponse).satisfies { condition(it) }
+    assertThat(this.directResponse).matches { condition(it) }
 }
 
 fun Route.redirect(condition: (RedirectAction) -> Boolean) {
-    assertThat(this.redirect).satisfies { condition(it) }
+    assertThat(this.redirect).matches { condition(it) }
 }
 
 fun Route.matchingRetryPolicy(properties: LocalRetryPolicyProperties) {
