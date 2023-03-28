@@ -5,7 +5,7 @@ import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.envoy.config.core.v3.BuildVersion
 import io.envoyproxy.envoy.type.v3.SemanticVersion
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagCondition
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagsCondition
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
@@ -144,13 +144,13 @@ class MetadataNodeGroup(
     private fun mapAddUpstreamServiceTags(
         addUpstreamServiceTagsFlag: Boolean?,
         envoyVersion: BuildVersion
-    ): AddUpstreamServiceTagCondition {
+    ): AddUpstreamServiceTagsCondition {
         if (envoyVersion.version < MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA) {
-            return AddUpstreamServiceTagCondition.NEVER
+            return AddUpstreamServiceTagsCondition.NEVER
         }
         return when (addUpstreamServiceTagsFlag) {
-            true -> AddUpstreamServiceTagCondition.ALWAYS
-            false -> AddUpstreamServiceTagCondition.NEVER
+            true -> AddUpstreamServiceTagsCondition.ALWAYS
+            false -> AddUpstreamServiceTagsCondition.NEVER
             null -> ListenersConfig.defaultAddUpstreamServiceTagsIfSupported
         }
     }

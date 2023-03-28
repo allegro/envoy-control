@@ -38,7 +38,7 @@ data class ListenersConfig(
     val enableLuaScript: Boolean = defaultEnableLuaScript,
     val accessLogPath: String = defaultAccessLogPath,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
-    val addUpstreamServiceTags: AddUpstreamServiceTagCondition = AddUpstreamServiceTagCondition.NEVER,
+    val addUpstreamServiceTags: AddUpstreamServiceTagsCondition = AddUpstreamServiceTagsCondition.NEVER,
     val accessLogFilterSettings: AccessLogFilterSettings,
     val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined,
     val useTransparentProxy: Boolean = defaultUseTransparentProxy
@@ -53,7 +53,7 @@ data class ListenersConfig(
         const val defaultEnableLuaScript = false
         const val defaultAddUpstreamExternalAddressHeader = false
         val defaultAddUpstreamServiceTagsIfSupported =
-            AddUpstreamServiceTagCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED
+            AddUpstreamServiceTagsCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED
         const val defaultHasStaticSecretsDefined: Boolean = false
         const val defaultUseTransparentProxy: Boolean = false
 
@@ -66,7 +66,7 @@ data class ListenersConfig(
         )
     }
 
-    enum class AddUpstreamServiceTagCondition {
+    enum class AddUpstreamServiceTagsCondition {
         NEVER, WHEN_SERVICE_TAG_PREFERENCE_IS_USED, ALWAYS
     }
 }

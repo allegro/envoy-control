@@ -24,7 +24,7 @@ import io.envoyproxy.envoy.extensions.retry.host.omit_canary_hosts.v3.OmitCanary
 import io.envoyproxy.envoy.extensions.retry.host.omit_host_metadata.v3.OmitHostMetadataConfig
 import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagCondition
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagsCondition
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RateLimitedRetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
@@ -85,11 +85,8 @@ class EnvoyEgressRoutesFactory(
         val metadataKey = properties.routing.serviceTags.metadataKey
         header = HeaderValue.newBuilder()
             .setKey("x-envoy-upstream-service-tags")
-            // doesn't work in <= v1.23.x. Envoy crashes. Works as expected in v1.24.x
+            // doesn't work in envoy <= v1.23.x. Envoy crashes. Works as expected in v1.24.x
             .setValue("%UPSTREAM_METADATA(envoy.lb:$metadataKey)%")
-            // theoretically works in v1.22.x/v1.23.x, but can't handle a list as value - doesn't add header
-            // works as expected in v1.24.x
-            // .setValue("""%UPSTREAM_METADATA(["envoy.lb", "${metadataKey}"])%""")
             .build()
         appendAction = HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD
         keepEmptyValue = false
@@ -107,7 +104,7 @@ class EnvoyEgressRoutesFactory(
         serviceName: String,
         routes: Collection<RouteSpecification>,
         addUpstreamAddressHeader: Boolean,
-        addUpstreamServiceTagsHeader: AddUpstreamServiceTagCondition = AddUpstreamServiceTagCondition.NEVER,
+        addUpstreamServiceTagsHeader: AddUpstreamServiceTagsCondition = AddUpstreamServiceTagsCondition.NEVER,
         routeName: String = "default_routes"
     ): RouteConfiguration {
         val virtualHosts = routes
@@ -141,7 +138,7 @@ class EnvoyEgressRoutesFactory(
             routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
         }
 
-        if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagCondition.ALWAYS) {
+        if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagsCondition.ALWAYS) {
             routeConfiguration.addResponseHeadersToAdd(upstreamTagsHeader)
         }
 
@@ -150,7 +147,7 @@ class EnvoyEgressRoutesFactory(
 
     private fun buildEgressVirtualHost(
         routeSpecification: RouteSpecification,
-        addUpstreamServiceTagsHeader: AddUpstreamServiceTagCondition
+        addUpstreamServiceTagsHeader: AddUpstreamServiceTagsCondition
     ): VirtualHost {
         val virtualHost = VirtualHost.newBuilder()
             .setName(routeSpecification.clusterName)
@@ -178,7 +175,7 @@ class EnvoyEgressRoutesFactory(
     private fun addServiceTagHeaders(
         routeSpecification: RouteSpecification,
         virtualHost: VirtualHost.Builder,
-        addUpstreamServiceTagsHeader: AddUpstreamServiceTagCondition
+        addUpstreamServiceTagsHeader: AddUpstreamServiceTagsCondition
     ) {
         val routingPolicy = routeSpecification.settings.routingPolicy
         if (routingPolicy.autoServiceTag) {
@@ -193,7 +190,7 @@ class EnvoyEgressRoutesFactory(
                     .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
                     .setKeepEmptyValue(false)
             )
-            if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED) {
+            if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagsCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED) {
                 virtualHost.addResponseHeadersToAdd(upstreamTagsHeader)
             }
         }
