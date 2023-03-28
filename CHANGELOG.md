@@ -7,8 +7,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - reject request service-tag if it duplicates auto service-tag preference
-- add debug information to an egress response: upstream service-tags. 
+- add debug information to an egress response: upstream service-tags.
   Especially important if auto service-tags feature is used
+- decrease log level for no clients in incoming-endpoint
 
 ## [0.19.31]
 
