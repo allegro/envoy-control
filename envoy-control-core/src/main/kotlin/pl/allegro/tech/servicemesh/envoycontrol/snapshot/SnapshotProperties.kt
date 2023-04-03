@@ -241,6 +241,7 @@ class ServiceTagsProperties {
     var routingExcludedTags: MutableList<StringMatcher> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
     var autoServiceTagEnabled = false
+    var rejectRequestsWithDuplicatedAutoServiceTag = true
 
     fun isAutoServiceTagEffectivelyEnabled() = enabled && autoServiceTagEnabled
 }

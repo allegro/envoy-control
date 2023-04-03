@@ -1,5 +1,9 @@
 function envoy_on_request(handle)
-    rejectServiceTagDuplicatingAutoServiceTag(handle)
+    local rejectRequestServiceTagDuplicate = handle:metadata():get("reject_request_service_tag_duplicate") or false
+
+    if rejectRequestServiceTagDuplicate then
+        rejectServiceTagDuplicatingAutoServiceTag(handle)
+    end
 end
 
 function rejectServiceTagDuplicatingAutoServiceTag(handle)

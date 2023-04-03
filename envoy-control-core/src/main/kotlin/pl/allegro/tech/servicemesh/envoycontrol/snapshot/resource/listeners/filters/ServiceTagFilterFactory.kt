@@ -11,6 +11,7 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
     companion object {
         const val AUTO_SERVICE_TAG_PREFERENCE_METADATA = "auto_service_tag_preference"
         const val SERVICE_TAG_METADATA_KEY_METADATA = "service_tag_metadata_key"
+        const val REJECT_REQUEST_SERVICE_TAG_DUPLICATE = "reject_request_service_tag_duplicate"
     }
 
     private val luaEgressScript: String = this::class.java.classLoader
