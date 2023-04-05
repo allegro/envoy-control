@@ -14,6 +14,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
+import pl.allegro.tech.servicemesh.envoycontrol.groups.orDefault
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
@@ -264,8 +265,10 @@ class EnvoySnapshotFactory(
         } else {
             routes.add(
                 egressRoutesFactory.createEgressRouteConfig(
-                    group.serviceName, egressRouteSpecification,
-                    group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
+                    serviceName = group.serviceName,
+                    routes = egressRouteSpecification,
+                    addUpstreamAddressHeader = group.listenersConfig.orDefault().addUpstreamExternalAddressHeader,
+                    addUpstreamServiceTagsHeader = group.listenersConfig.orDefault().addUpstreamServiceTags
                 )
             )
         }
@@ -306,18 +309,19 @@ class EnvoySnapshotFactory(
         routes.add(
             egressRoutesFactory.createEgressRouteConfig(
                 group.serviceName, emptyList(),
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false
+                group.listenersConfig.orDefault().addUpstreamExternalAddressHeader
             )
         )
         // routes for listener on port http = 80
         routes.add(
             egressRoutesFactory.createEgressRouteConfig(
-                group.serviceName, egressRouteSpecification +
+                serviceName = group.serviceName,
+                routes = egressRouteSpecification +
                     egressDomainRouteSpecifications.getOrDefault(
                         DomainRoutesGrouper(DEFAULT_HTTP_PORT, false), emptyList()
                     ),
-                group.listenersConfig?.addUpstreamExternalAddressHeader ?: false,
-                DEFAULT_HTTP_PORT.toString()
+                addUpstreamAddressHeader = group.listenersConfig.orDefault().addUpstreamExternalAddressHeader,
+                routeName = DEFAULT_HTTP_PORT.toString()
             )
         )
 

@@ -3,10 +3,12 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
-
-## [Unreleased]
+## [0.19.32]
 
 ### Changed
+- reject request service-tag if it duplicates auto service-tag preference
+- add debug information to an egress response: upstream service-tags.
+  Enabled by default if auto service-tags feature is used
 - decrease log level for no clients in incoming-endpoint
 
 ## [0.19.31]

@@ -3,11 +3,14 @@ package pl.allegro.tech.servicemesh.envoycontrol.routing
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import java.time.Duration
@@ -18,7 +21,8 @@ class RoutingPolicyTest {
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
-            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true
+            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.reject-requests-with-duplicated-auto-service-tag" to true
         )
 
         @JvmField
@@ -287,6 +291,40 @@ class RoutingPolicyTest {
             assertThat(stats.hits(ipsumBetaEchoService)).isEqualTo(5)
             assertThat(stats.hits(loremBetaEchoService)).isEqualTo(5)
         }
+    }
+
+    @Test
+    fun `should reject request service-tag if it duplicates service-tag-preference`() {
+        // given
+        consul.server.operations.registerService(
+            name = "echo",
+            tags = listOf("lorem", "est"),
+            extension = loremEchoService
+        )
+        waitForEndpointReady("echo", loremEchoService, autoServiceTagEnabledEnvoy)
+
+        // when
+        val notDuplicatedTagResponse = autoServiceTagEnabledEnvoy.egressOperations.callService(
+            service = "echo",
+            headers = mapOf("x-service-tag" to "est")
+        )
+        val duplicatedTagResponseLorem = autoServiceTagEnabledEnvoy.egressOperations.callService(
+            service = "echo",
+            headers = mapOf("x-service-tag" to "lorem")
+        ).let { ResponseWithBody(it) }
+        val duplicatedTagResponseIpsum = autoServiceTagEnabledEnvoy.egressOperations.callService(
+            service = "echo",
+            headers = mapOf("x-service-tag" to "ipsum")
+        ).let { ResponseWithBody(it) }
+
+        // then
+        assertThat(notDuplicatedTagResponse).isOk().isFrom(loremEchoService)
+        assertThat(duplicatedTagResponseLorem.response.code).isEqualTo(400)
+        assertThat(duplicatedTagResponseLorem.body)
+            .isEqualTo("Request service-tag 'lorem' duplicates auto service-tag preference. Remove service-tag parameter from the request")
+        assertThat(duplicatedTagResponseIpsum.response.code).isEqualTo(400)
+        assertThat(duplicatedTagResponseIpsum.body)
+            .isEqualTo("Request service-tag 'ipsum' duplicates auto service-tag preference. Remove service-tag parameter from the request")
     }
 
     private fun waitForEcConsulStateSynchronized(expectedInstancesIds: Collection<String>) {

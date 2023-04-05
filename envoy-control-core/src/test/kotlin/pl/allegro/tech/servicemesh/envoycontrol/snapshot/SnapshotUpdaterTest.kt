@@ -801,10 +801,10 @@ class SnapshotUpdaterTest {
                 "https://service2-https-1338.com:1338"
             ),
             listenerConfig = ListenersConfig(
-                egressHost = "0.0.0.0",
-                egressPort = 1234,
                 ingressHost = "0.0.0.0",
                 ingressPort = 1235,
+                egressHost = "0.0.0.0",
+                egressPort = 1234,
                 accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties()),
                 useTransparentProxy = true
             )
@@ -909,10 +909,10 @@ class SnapshotUpdaterTest {
                 "https://service2-https-1338.com:1338"
             ),
             listenerConfig = ListenersConfig(
-                egressHost = "0.0.0.0",
-                egressPort = 1234,
                 ingressHost = "0.0.0.0",
                 ingressPort = 1235,
+                egressHost = "0.0.0.0",
+                egressPort = 1234,
                 accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties()),
                 useTransparentProxy = true
             )
@@ -1001,10 +1001,10 @@ class SnapshotUpdaterTest {
                 "https://service2-https-1338.com:1338"
             ),
             listenerConfig = ListenersConfig(
-                egressHost = "0.0.0.0",
-                egressPort = 1234,
                 ingressHost = "0.0.0.0",
                 ingressPort = 1235,
+                egressHost = "0.0.0.0",
+                egressPort = 1234,
                 accessLogFilterSettings = AccessLogFilterSettings(null, AccessLogFiltersProperties()),
                 useTransparentProxy = false
             )

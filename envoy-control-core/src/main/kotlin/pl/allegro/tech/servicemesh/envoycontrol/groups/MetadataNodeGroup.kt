@@ -3,9 +3,15 @@ package pl.allegro.tech.servicemesh.envoycontrol.groups
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
+import io.envoyproxy.envoy.config.core.v3.BuildVersion
+import io.envoyproxy.envoy.type.v3.SemanticVersion
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagsCondition
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
+
+@Suppress("MagicNumber")
+val MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA = envoyVersion(1, 24)
 
 class MetadataNodeGroup(
     val properties: SnapshotProperties
@@ -68,7 +74,7 @@ class MetadataNodeGroup(
         return ListenersHostPortConfig(ingressHost, ingressPort, egressHost, egressPort)
     }
 
-    private fun createListenersConfig(id: String, metadata: Struct): ListenersConfig? {
+    private fun createListenersConfig(id: String, metadata: Struct, envoyVersion: BuildVersion): ListenersConfig? {
         val ingressHostValue = metadata.fieldsMap["ingress_host"]
         val ingressPortValue = metadata.fieldsMap["ingress_port"]
         val egressHostValue = metadata.fieldsMap["egress_host"]
@@ -105,6 +111,12 @@ class MetadataNodeGroup(
             ?: ListenersConfig.defaultAccessLogPath
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
+
+        val addUpstreamServiceTags = mapAddUpstreamServiceTags(
+            addUpstreamServiceTagsFlag = metadata.fieldsMap["add_upstream_service_tags"]?.boolValue,
+            envoyVersion = envoyVersion
+        )
+
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
         val useTransparentProxy = metadata.fieldsMap["use_transparent_proxy"]?.boolValue
@@ -122,10 +134,25 @@ class MetadataNodeGroup(
             enableLuaScript,
             accessLogPath,
             addUpstreamExternalAddressHeader,
+            addUpstreamServiceTags,
             accessLogFilterSettings,
             hasStaticSecretsDefined,
             useTransparentProxy
         )
+    }
+
+    private fun mapAddUpstreamServiceTags(
+        addUpstreamServiceTagsFlag: Boolean?,
+        envoyVersion: BuildVersion
+    ): AddUpstreamServiceTagsCondition {
+        if (envoyVersion.version < MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA) {
+            return AddUpstreamServiceTagsCondition.NEVER
+        }
+        return when (addUpstreamServiceTagsFlag) {
+            true -> AddUpstreamServiceTagsCondition.ALWAYS
+            false -> AddUpstreamServiceTagsCondition.NEVER
+            null -> ListenersConfig.defaultAddUpstreamServiceTagsIfSupported
+        }
     }
 
     private fun createV3Group(node: NodeV3): Group {
@@ -133,7 +160,7 @@ class MetadataNodeGroup(
         val serviceName = serviceName(nodeMetadata)
         val discoveryServiceName = nodeMetadata.discoveryServiceName
         val proxySettings = proxySettings(nodeMetadata)
-        val listenersConfig = createListenersConfig(node.id, node.metadata)
+        val listenersConfig = createListenersConfig(node.id, node.metadata, node.userAgentBuildVersion)
 
         return when {
             hasAllServicesDependencies(nodeMetadata) ->
@@ -182,3 +209,9 @@ data class ListenersHostPortConfig(
     val egressHost: String,
     val egressPort: Int
 )
+
+fun envoyVersion(major: Int, minor: Int): SemanticVersion =
+    SemanticVersion.newBuilder().setMajorNumber(major).setMinorNumber(minor).build()
+
+private val semanticVersionComparator = compareBy<SemanticVersion>({ it.majorNumber }, { it.minorNumber })
+operator fun SemanticVersion.compareTo(other: SemanticVersion): Int = semanticVersionComparator.compare(this, other)

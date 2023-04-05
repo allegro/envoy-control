@@ -4,9 +4,12 @@ import com.google.protobuf.Any
 import com.google.protobuf.BoolValue
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.util.Durations
+import com.google.protobuf.util.Structs
+import com.google.protobuf.util.Values
 import io.envoyproxy.controlplane.cache.TestResources
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
 import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
+import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.config.route.v3.DirectResponseAction
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.InternalRedirectPolicy
@@ -21,11 +24,13 @@ import io.envoyproxy.envoy.extensions.retry.host.omit_canary_hosts.v3.OmitCanary
 import io.envoyproxy.envoy.extensions.retry.host.omit_host_metadata.v3.OmitHostMetadataConfig
 import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagsCondition
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RateLimitedRetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.ServiceTagFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 class EnvoyEgressRoutesFactory(
@@ -76,6 +81,17 @@ class EnvoyEgressRoutesFactory(
             .setValue("%UPSTREAM_REMOTE_ADDRESS%").build()
     )
 
+    private val upstreamTagsHeader = HeaderValueOption.newBuilder().apply {
+        val metadataKey = properties.routing.serviceTags.metadataKey
+        header = HeaderValue.newBuilder()
+            .setKey("x-envoy-upstream-service-tags")
+            // doesn't work in envoy <= v1.23.x. Envoy crashes. Works as expected in v1.24.x
+            .setValue("%UPSTREAM_METADATA(envoy.lb:$metadataKey)%")
+            .build()
+        appendAction = HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD
+        keepEmptyValue = false
+    }.build()
+
     private val defaultRouteMatch = RouteMatch
         .newBuilder()
         .setPrefix("/")
@@ -88,15 +104,16 @@ class EnvoyEgressRoutesFactory(
         serviceName: String,
         routes: Collection<RouteSpecification>,
         addUpstreamAddressHeader: Boolean,
+        addUpstreamServiceTagsHeader: AddUpstreamServiceTagsCondition = AddUpstreamServiceTagsCondition.NEVER,
         routeName: String = "default_routes"
     ): RouteConfiguration {
         val virtualHosts = routes
             .filter { it.routeDomains.isNotEmpty() }
             .map { routeSpecification ->
-                buildEgressRoute(routeSpecification)
+                buildEgressVirtualHost(routeSpecification, addUpstreamServiceTagsHeader)
             }
 
-        var routeConfiguration = RouteConfiguration.newBuilder()
+        val routeConfiguration = RouteConfiguration.newBuilder()
             .setName(routeName)
             .addAllVirtualHosts(
                 virtualHosts + originalDestinationRoute + wildcardRoute
@@ -118,13 +135,20 @@ class EnvoyEgressRoutesFactory(
         }
 
         if (addUpstreamAddressHeader) {
-            routeConfiguration = routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
+            routeConfiguration.addResponseHeadersToAdd(upstreamAddressHeader)
+        }
+
+        if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagsCondition.ALWAYS) {
+            routeConfiguration.addResponseHeadersToAdd(upstreamTagsHeader)
         }
 
         return routeConfiguration.build()
     }
 
-    private fun buildEgressRoute(routeSpecification: RouteSpecification): VirtualHost {
+    private fun buildEgressVirtualHost(
+        routeSpecification: RouteSpecification,
+        addUpstreamServiceTagsHeader: AddUpstreamServiceTagsCondition
+    ): VirtualHost {
         val virtualHost = VirtualHost.newBuilder()
             .setName(routeSpecification.clusterName)
             .addAllDomains(routeSpecification.routeDomains)
@@ -133,31 +157,78 @@ class EnvoyEgressRoutesFactory(
             buildEgressRouteWithRetryPolicy(virtualHost, retryPolicy, routeSpecification)
         } else {
             virtualHost.addRoutes(
-                Route.newBuilder()
-                    .setMatch(defaultRouteMatch)
-                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = false))
-                    .build()
+                buildRoute(
+                    routeSpecification = routeSpecification,
+                    match = defaultRouteMatch,
+                    shouldAddRetryPolicy = false
+                )
             )
         }
 
         if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
-            val routingPolicy = routeSpecification.settings.routingPolicy
-            if (routingPolicy.autoServiceTag) {
-                val tagsPreferenceJoined = routingPolicy.serviceTagPreference.joinToString("|")
-                virtualHost.addRequestHeadersToAdd(
-                    HeaderValueOption.newBuilder()
-                        .setHeader(
-                            HeaderValue.newBuilder()
-                                .setKey(properties.routing.serviceTags.preferenceHeader)
-                                .setValue(tagsPreferenceJoined)
-                        )
-                        .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
-                        .setKeepEmptyValue(false)
-                )
-            }
+            addServiceTagHeaders(routeSpecification, virtualHost, addUpstreamServiceTagsHeader)
         }
 
         return virtualHost.build()
+    }
+
+    private fun addServiceTagHeaders(
+        routeSpecification: RouteSpecification,
+        virtualHost: VirtualHost.Builder,
+        addUpstreamServiceTagsHeader: AddUpstreamServiceTagsCondition
+    ) {
+        val routingPolicy = routeSpecification.settings.routingPolicy
+        if (routingPolicy.autoServiceTag) {
+            val tagsPreferenceJoined = routingPolicy.serviceTagPreference.joinToString("|")
+            virtualHost.addRequestHeadersToAdd(
+                HeaderValueOption.newBuilder()
+                    .setHeader(
+                        HeaderValue.newBuilder()
+                            .setKey(properties.routing.serviceTags.preferenceHeader)
+                            .setValue(tagsPreferenceJoined)
+                    )
+                    .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
+                    .setKeepEmptyValue(false)
+            )
+            if (addUpstreamServiceTagsHeader == AddUpstreamServiceTagsCondition.WHEN_SERVICE_TAG_PREFERENCE_IS_USED) {
+                virtualHost.addResponseHeadersToAdd(upstreamTagsHeader)
+            }
+        }
+    }
+
+    private fun buildRoute(
+        routeSpecification: RouteSpecification, match: RouteMatch, shouldAddRetryPolicy: Boolean
+    ): Route {
+        val routeBuilder = Route.newBuilder()
+            .setMatch(match)
+            .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy))
+
+        if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
+            addServiceTagMetadata(routeSpecification, routeBuilder)
+        }
+
+        return routeBuilder.build()
+    }
+
+    private fun addServiceTagMetadata(routeSpecification: RouteSpecification, routeBuilder: Route.Builder) {
+        val routingPolicy = routeSpecification.settings.routingPolicy
+        if (routingPolicy.autoServiceTag) {
+            val serviceTagsListProto = Values.of(routingPolicy.serviceTagPreference.map { Values.of(it) })
+            val serviceTagMetadataKeyProto = Values.of(properties.routing.serviceTags.metadataKey)
+            val rejectServiceTagDuplicateProto = Values.of(
+                properties.routing.serviceTags.rejectRequestsWithDuplicatedAutoServiceTag
+            )
+            routeBuilder.metadata = Metadata.newBuilder()
+                .putFilterMetadata(
+                    "envoy.filters.http.lua",
+                    Structs.of(
+                        ServiceTagFilterFactory.AUTO_SERVICE_TAG_PREFERENCE_METADATA, serviceTagsListProto,
+                        ServiceTagFilterFactory.SERVICE_TAG_METADATA_KEY_METADATA, serviceTagMetadataKeyProto,
+                        ServiceTagFilterFactory.REJECT_REQUEST_SERVICE_TAG_DUPLICATE, rejectServiceTagDuplicateProto
+                    )
+                )
+                .build()
+        }
     }
 
     private fun buildEgressRouteWithRetryPolicy(
@@ -173,22 +244,25 @@ class EnvoyEgressRoutesFactory(
                 .addHeaders(buildMethodHeaderMatcher(regexAsAString))
                 .build()
             virtualHost.addRoutes(
-                Route.newBuilder()
-                    .setMatch(retryRouteMatch)
-                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = true))
-                    .build()
+                buildRoute(
+                    routeSpecification = routeSpecification,
+                    match = retryRouteMatch,
+                    shouldAddRetryPolicy = true
+                )
             ).addRoutes(
-                Route.newBuilder()
-                    .setMatch(defaultRouteMatch)
-                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = false))
-                    .build()
+                buildRoute(
+                    routeSpecification = routeSpecification,
+                    match = defaultRouteMatch,
+                    shouldAddRetryPolicy = false
+                )
             )
         } else {
             virtualHost.addRoutes(
-                Route.newBuilder()
-                    .setMatch(defaultRouteMatch)
-                    .setRoute(createRouteAction(routeSpecification, shouldAddRetryPolicy = true))
-                    .build()
+                buildRoute(
+                    routeSpecification = routeSpecification,
+                    match = defaultRouteMatch,
+                    shouldAddRetryPolicy = true
+                )
             )
         }
     }

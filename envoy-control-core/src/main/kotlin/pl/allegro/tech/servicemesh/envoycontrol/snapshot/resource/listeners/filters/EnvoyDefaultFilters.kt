@@ -26,14 +26,15 @@ class EnvoyDefaultFilters(
     private val rateLimitFilterFactory = RateLimitFilterFactory(
         snapshotProperties.rateLimit
     )
-
-    private val defaultServiceTagFilterRules = ServiceTagFilter.serviceTagFilterRules(
-        snapshotProperties.routing.serviceTags.header,
-        snapshotProperties.routing.serviceTags.metadataKey
+    private val serviceTagFilterFactory = ServiceTagFilterFactory(
+        properties = snapshotProperties.routing.serviceTags
     )
-    private val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagFilterRules)
+
+    private val defaultServiceTagHeaderToMetadataFilterRules = serviceTagFilterFactory.headerToMetadataFilterRules()
+    private val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagHeaderToMetadataFilterRules)
     private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
     private val defaultHeaderToMetadataFilter = { _: Group, _: GlobalSnapshot -> headerToMetadataHttpFilter }
+    private val defaultServiceTagFilter = { _: Group, _: GlobalSnapshot -> serviceTagFilterFactory.luaEgressFilter() }
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
 
     /**
@@ -63,7 +64,9 @@ class EnvoyDefaultFilters(
     val defaultAuthorizationHeaderFilter = { _: Group, _: GlobalSnapshot ->
         authorizationHeaderToMetadataFilter()
     }
-    val defaultEgressFilters = listOf(defaultHeaderToMetadataFilter, defaultEnvoyRouterHttpFilter)
+    val defaultEgressFilters = listOf(
+        defaultHeaderToMetadataFilter, defaultServiceTagFilter, defaultEnvoyRouterHttpFilter
+    )
 
     /**
      * Order matters:

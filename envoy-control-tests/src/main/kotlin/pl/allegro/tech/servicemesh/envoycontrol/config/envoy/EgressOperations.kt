@@ -41,7 +41,7 @@ class EgressOperations(val envoy: EnvoyContainer) {
                     }
                 }
             }
-            .map { ResponseWithBody(it, it.body?.string() ?: "") }
+            .map { ResponseWithBody(it) }
             .onEach { conditionFulfilled = conditionFulfilled || repeatUntil(it) }
             .withIndex()
             .takeWhile { (i, _) -> i < minRepeat || !conditionFulfilled }
