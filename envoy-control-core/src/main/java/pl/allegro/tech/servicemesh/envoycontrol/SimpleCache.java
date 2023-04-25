@@ -411,6 +411,10 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 deltaStatus.watchesRemoveIf((id, watch) -> {
                     String version = snapshot.version(watch.request().getResourceType(), Collections.emptyList());
 
+                    if (!watch.request().getResourceType().equals(resourceType)) {
+                        return false;
+                    }
+
                     if (!watch.version().equals(version)) {
                         if (LOGGER.isDebugEnabled()) {
                             LOGGER.debug("responding to open watch {}[{}] with new version {}",
@@ -432,7 +436,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                             group);
                         // Discard the watch if it was responded or cancelled.
                         // A new watch will be created for future snapshots once envoy ACKs the response.
-                        return responseState.isFinished();
+                        return true;
                     }
 
                     // Do not discard the watch. The request version is the same as the snapshot version, so we wait to respond.
