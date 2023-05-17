@@ -32,7 +32,9 @@ class StateControllerTest {
         )
 
         private val gzipEnabledProperties = mapOf(
-            "envoy-control.sync.gzip.enabled" to true,
+            "server.compression.enabled" to true,
+            "server.compression.mime-types" to
+                "application/json,application/xml,text/html,text/xml,text/plain,application/javascript,text/css",
             "envoy-control.sync.enabled" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
