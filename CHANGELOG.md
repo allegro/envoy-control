@@ -3,6 +3,12 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.19.33]
+
+### Changed
+- added switch by flag between default StateController and GzipStateController which produces compressed state response
+- added switch by flag between default and gzip RestTemplateControlPlaneClient 
+
 ## [0.19.32]
 
 ### Changed

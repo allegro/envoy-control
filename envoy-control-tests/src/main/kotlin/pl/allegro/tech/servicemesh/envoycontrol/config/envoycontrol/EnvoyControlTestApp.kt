@@ -7,7 +7,6 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.pszymczyk.consul.infrastructure.Ports
 import io.micrometer.core.instrument.MeterRegistry
 import okhttp3.Credentials
-
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -106,7 +105,12 @@ class EnvoyControlRunnerTestApp(
                     .build()
             )
             .execute().addToCloseableResponses()
-        return objectMapper.readValue(response.body?.use { it.string() }, ServicesState::class.java)
+
+        return response.body?.use {
+            if ("application/octet-stream".toMediaType() == it.contentType()) {
+                objectMapper.convertValue(it.byteStream(), ServicesState::class.java)
+            } else objectMapper.readValue(it.string(), ServicesState::class.java)
+        }!!
     }
 
     override fun getSnapshot(nodeJson: String): SnapshotDebugResponse {

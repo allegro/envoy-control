@@ -6,14 +6,14 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
 import pl.allegro.tech.servicemesh.envoycontrol.services.LocalClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
-import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.utils.GzipUtils
 
 @RestController
-@ConditionalOnProperty(name = ["envoy-control.sync.gzip.enabled"], havingValue = "false", matchIfMissing = true)
-class StateController(val localClusterStateChanges: LocalClusterStateChanges) {
+@ConditionalOnProperty(name = ["envoy-control.sync.gzip.enabled"], havingValue = "true", matchIfMissing = false)
+class GzipStateController(val localClusterStateChanges: LocalClusterStateChanges, val gzipUtils: GzipUtils) {
 
     @GetMapping("/state")
-    fun getState(): ServicesState = localClusterStateChanges.latestServiceState.get()
+    fun getState(): ByteArray = gzipUtils.gzip(localClusterStateChanges.latestServiceState.get())
 
     @GetMapping("/state/{serviceName}")
     fun getStateByServiceName(@PathVariable("serviceName") serviceName: String): ServiceInstances? =
