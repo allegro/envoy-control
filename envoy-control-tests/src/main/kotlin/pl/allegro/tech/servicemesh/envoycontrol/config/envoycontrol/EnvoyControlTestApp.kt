@@ -105,12 +105,7 @@ class EnvoyControlRunnerTestApp(
                     .build()
             )
             .execute().addToCloseableResponses()
-
-        return response.body?.use {
-            if ("application/octet-stream".toMediaType() == it.contentType()) {
-                objectMapper.convertValue(it.byteStream(), ServicesState::class.java)
-            } else objectMapper.readValue(it.string(), ServicesState::class.java)
-        }!!
+        return objectMapper.readValue(response.body?.use { it.string() }, ServicesState::class.java)
     }
 
     override fun getSnapshot(nodeJson: String): SnapshotDebugResponse {

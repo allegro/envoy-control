@@ -11,6 +11,4 @@ class SyncProperties {
     var readTimeout: Duration = Duration.ofMillis(500)
     var envoyControlAppName = "envoy-control"
     var combineServiceChangesExperimentalFlow = false
-    var poolManagerMaxTotal: Int = 50
-    var poolManagerDefaultMaxPerRoute: Int = 10
 }

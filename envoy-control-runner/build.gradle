@@ -17,8 +17,6 @@ dependencies {
 
     implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: versions.jackson
     implementation group: 'net.openhft', name: 'zero-allocation-hashing', version: versions.xxhash
-
-    implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: versions.apache_httpclient
 }
 
 test {
