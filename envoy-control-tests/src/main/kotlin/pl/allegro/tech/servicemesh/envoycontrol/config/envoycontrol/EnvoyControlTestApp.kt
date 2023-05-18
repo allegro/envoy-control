@@ -7,6 +7,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.pszymczyk.consul.infrastructure.Ports
 import io.micrometer.core.instrument.MeterRegistry
 import okhttp3.Credentials
+
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
