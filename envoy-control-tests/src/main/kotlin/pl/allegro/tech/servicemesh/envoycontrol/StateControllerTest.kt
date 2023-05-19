@@ -1,7 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import okhttp3.Request
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
@@ -24,10 +22,6 @@ import java.util.zip.GZIPInputStream
 
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 class StateControllerTest {
-    private val logger by logger()
-
-    private val objectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build())
-
     companion object {
         @JvmField
         @RegisterExtension
@@ -63,13 +57,14 @@ class StateControllerTest {
             consulPort = consul.server.port
         )
         app.run()
+
         waitUntilHealthy(app)
         untilAsserted(wait = Duration.ofSeconds(5)) {
             val stateResponse = getState(app.appPort)
             assertThat(stateResponse.body)
                 .hasFieldOrPropertyWithValue("contentTypeString", APPLICATION_JSON_VALUE)
             val converted =
-                objectMapper.convertValue(stateResponse.body?.byteStream(), ServicesState::class.java)
+                app.objectMapper.convertValue(stateResponse.body?.byteStream(), ServicesState::class.java)
             assertThat(converted)
                 .isNotNull()
                 .hasNoNullFieldsOrProperties()
@@ -87,7 +82,7 @@ class StateControllerTest {
             val unGzippedStr = GZIPInputStream(stateResponse.body?.byteStream())
                 .bufferedReader(Charsets.UTF_8)
                 .use { it.readText() }
-            val converted = objectMapper.readValue(unGzippedStr, ServicesState::class.java)
+            val converted = app.objectMapper.readValue(unGzippedStr, ServicesState::class.java)
             assertThat(converted)
                 .isNotNull()
                 .hasNoNullFieldsOrProperties()
@@ -108,7 +103,7 @@ class StateControllerTest {
                 Request.Builder()
                     .get()
                     .url("http://localhost:$appPort/state")
-                    .addHeader(HttpHeaders.ACCEPT_ENCODING, "gzip") //todo optional header
+                    .addHeader(HttpHeaders.ACCEPT_ENCODING, "gzip")
                     .build()
             )
             .execute().addToCloseableResponses()
