@@ -22,7 +22,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.debug.Versions
-import pl.allegro.tech.servicemesh.envoycontrol.synchronization.ControlPlaneClient
 import java.time.Duration
 
 interface EnvoyControlTestApp {
@@ -54,8 +53,6 @@ interface EnvoyControlTestApp {
     ): Response
 
     fun meterRegistry(): MeterRegistry
-
-    fun controlPlaneClient() :ControlPlaneClient
 }
 
 class EnvoyControlRunnerTestApp(
@@ -225,9 +222,6 @@ class EnvoyControlRunnerTestApp(
 
     override fun meterRegistry() = app.context().getBean(MeterRegistry::class.java)
         ?: throw IllegalStateException("MeterRegistry bean not found in the context")
-
-    override fun controlPlaneClient(): ControlPlaneClient = app.context().getBean(ControlPlaneClient::class.java)
-        ?: throw IllegalStateException("ControlPlaneClient bean not found in the context")
 
     companion object {
         val logger by logger()
