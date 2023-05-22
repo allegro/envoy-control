@@ -3,6 +3,11 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.19.33]
+
+### Changed
+- Added compression support for State controller and client
+
 ## [0.19.32]
 
 ### Changed

@@ -25,7 +25,9 @@ import java.util.concurrent.Executors
 class SynchronizationConfig {
 
     @Bean
-    fun restTemplate(envoyControlProperties: EnvoyControlProperties): RestTemplate {
+    fun restTemplate(
+        envoyControlProperties: EnvoyControlProperties
+    ): RestTemplate {
         val requestFactory = SimpleClientHttpRequestFactory()
         requestFactory.setTaskExecutor(SimpleAsyncTaskExecutor())
         requestFactory.setConnectTimeout(envoyControlProperties.sync.connectionTimeout.toMillis().toInt())
