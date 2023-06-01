@@ -29,9 +29,11 @@ class RemoteServices(
     fun getChanges(interval: Long): Flux<MultiClusterState> {
         val aclFlux: Flux<MultiClusterState> = Flux.create({ sink ->
             scheduler.scheduleWithFixedDelay({
+                logger.info("Starting synchronization cross DC")
                 meterRegistry.timer("sync-dc.get-multi-cluster-states.time").record {
                     getChanges(sink::next, interval)
                 }
+                logger.info("End synchronization cross DC")
             }, 0, interval, TimeUnit.SECONDS)
         }, FluxSink.OverflowStrategy.LATEST)
         return aclFlux.doOnCancel {
