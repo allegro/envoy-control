@@ -19,10 +19,16 @@ class ConsulMultiClusterExtension : BeforeAllCallback, AfterAllCallback, AfterEa
             ConsulSetup(Network.SHARED, ConsulServerConfig(2, "dc2")),
             ConsulSetup(Network.SHARED, ConsulServerConfig(3, "dc2")))
         )
+        private val THIRD_CLUSTER = ConsulClusterSetup(listOf(
+            ConsulSetup(Network.SHARED, ConsulServerConfig(1, "dc3")),
+            ConsulSetup(Network.SHARED, ConsulServerConfig(2, "dc3")),
+            ConsulSetup(Network.SHARED, ConsulServerConfig(3, "dc3")))
+        )
     }
 
     val serverFirst = FIRST_CLUSTER
     val serverSecond = SECOND_CLUSTER
+    val serverThird = THIRD_CLUSTER
     private var started = false
 
     override fun beforeAll(context: ExtensionContext?) {
@@ -31,7 +37,9 @@ class ConsulMultiClusterExtension : BeforeAllCallback, AfterAllCallback, AfterEa
         }
         serverFirst.start()
         serverSecond.start()
+        serverThird.start()
         serverFirst.joinWith(serverSecond)
+        serverFirst.joinWith(serverThird)
 
         started = true
     }
@@ -42,5 +50,6 @@ class ConsulMultiClusterExtension : BeforeAllCallback, AfterAllCallback, AfterEa
     override fun afterEach(context: ExtensionContext?) {
         FIRST_CLUSTER.operations.deregisterAll()
         SECOND_CLUSTER.operations.deregisterAll()
+        THIRD_CLUSTER.operations.deregisterAll()
     }
 }
