@@ -32,7 +32,6 @@ class EnvoyEndpointsFactoryTest {
             loadBalancing = LoadBalancingProperties()
                 .apply {
                     priorities = LoadBalancingPriorityProperties().apply {
-                        enabled = true
                         zonePriorities = mapOf(
                             "DC1" to 0,
                             "DC2" to 1,
@@ -62,7 +61,7 @@ class EnvoyEndpointsFactoryTest {
         val snapshotProperties = SnapshotProperties().apply {
             loadBalancing = LoadBalancingProperties().apply {
                 priorities = LoadBalancingPriorityProperties().apply {
-                    enabled = false
+                    zonePriorities = mapOf()
                 }
             }
         }
@@ -88,8 +87,7 @@ class EnvoyEndpointsFactoryTest {
             loadBalancing = LoadBalancingProperties()
                 .apply {
                     priorities = LoadBalancingPriorityProperties().apply {
-                        enabled = true
-                        zonePriorities = mapOf()
+                        zonePriorities = mapOf("DC2" to 1)
                     }
                 }
         }

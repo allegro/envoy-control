@@ -225,7 +225,7 @@ class EnvoyEndpointsFactory(
 
     private fun toEnvoyPriority(zone: String, locality: Locality): Int {
         val prioritiesProps = properties.loadBalancing.priorities
-        return when (prioritiesProps.enabled) {
+        return when (prioritiesProps.zonePriorities.isNotEmpty()) {
             true -> prioritiesProps.zonePriorities[zone] ?: toEnvoyPriority(locality)
             false -> toEnvoyPriority(locality)
         }.also {

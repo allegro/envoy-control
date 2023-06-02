@@ -159,7 +159,6 @@ class LoadBalancingWeightsProperties {
 }
 
 class LoadBalancingPriorityProperties {
-    var enabled = false
     var zonePriorities: Map<String, Int> = mapOf()
 }
 

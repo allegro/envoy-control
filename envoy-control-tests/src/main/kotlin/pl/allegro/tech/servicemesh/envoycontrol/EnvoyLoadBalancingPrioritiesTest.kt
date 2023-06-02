@@ -23,7 +23,6 @@ class EnvoyLoadBalancingPrioritiesTest {
             "envoy-control.envoy.snapshot.stateSampleDuration" to stateSampleDuration,
             "envoy-control.sync.enabled" to true,
             "envoy-control.sync.polling-interval" to pollingInterval.seconds,
-            "envoy-control.envoy.snapshot.loadBalancing.priorities.enabled" to true,
             "envoy-control.envoy.snapshot.loadBalancing.priorities.dcPriorityProperties.dc1" to 0,
             "envoy-control.envoy.snapshot.loadBalancing.priorities.dcPriorityProperties.dc2" to 1,
             "envoy-control.envoy.snapshot.loadBalancing.priorities.dcPriorityProperties.dc3" to 2
