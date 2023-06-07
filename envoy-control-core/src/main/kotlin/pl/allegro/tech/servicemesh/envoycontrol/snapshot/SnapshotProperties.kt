@@ -145,6 +145,7 @@ class LoadBalancingProperties {
     var weights = LoadBalancingWeightsProperties()
     var policy = Cluster.LbPolicy.LEAST_REQUEST
     var useKeysSubsetFallbackPolicy = true
+    var priorities = LoadBalancingPriorityProperties()
 }
 
 class CanaryProperties {
@@ -155,6 +156,10 @@ class CanaryProperties {
 
 class LoadBalancingWeightsProperties {
     var enabled = false
+}
+
+class LoadBalancingPriorityProperties {
+    var zonePriorities: Map<String, Int> = mapOf()
 }
 
 class RoutesProperties {
