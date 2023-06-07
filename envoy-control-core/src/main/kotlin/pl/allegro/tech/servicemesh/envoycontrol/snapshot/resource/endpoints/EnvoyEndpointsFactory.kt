@@ -229,7 +229,9 @@ class EnvoyEndpointsFactory(
             true -> prioritiesProps.zonePriorities[zone] ?: toEnvoyPriority(locality)
             false -> toEnvoyPriority(locality)
         }.also {
-            logger.debug("Resolved lb priority to {} with zone={}, priority props={}", it, zone, prioritiesProps)
+            logger.debug(
+                "Resolved lb priority to {} with zone={}, priority props={}", it, zone, prioritiesProps.zonePriorities
+            )
         }
     }
 
