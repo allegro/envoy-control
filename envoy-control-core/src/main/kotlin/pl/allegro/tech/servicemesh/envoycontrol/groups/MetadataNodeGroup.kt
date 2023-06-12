@@ -112,6 +112,17 @@ class MetadataNodeGroup(
         val addUpstreamExternalAddressHeader = metadata.fieldsMap["add_upstream_external_address_header"]?.boolValue
             ?: ListenersConfig.defaultAddUpstreamExternalAddressHeader
 
+        val filtersEnabled = listOf(
+            accessLogFilterSettings.statusCodeFilterSettings,
+            accessLogFilterSettings.durationFilterSettings,
+            accessLogFilterSettings.headerFilter,
+            accessLogFilterSettings.responseFlagFilter
+            ).any { it != null }
+
+        if (accessLogEnabled && !filtersEnabled) {
+            logger.warn("Node $id has access log enabled without filters configurations.")
+        }
+
         val addUpstreamServiceTags = mapAddUpstreamServiceTags(
             addUpstreamServiceTagsFlag = metadata.fieldsMap["add_upstream_service_tags"]?.boolValue,
             envoyVersion = envoyVersion
