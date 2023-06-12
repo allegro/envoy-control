@@ -24,7 +24,7 @@ class EnvoyLoadBalancingPrioritiesTest {
             "envoy-control.sync.enabled" to true,
             "envoy-control.sync.polling-interval" to pollingInterval.seconds,
             "envoy-control.envoy.snapshot.loadBalancing.priorities.zonePriorities" to mapOf(
-                "dc1" to 0,
+                "dc1" to 1,
                 "dc2" to 1,
                 "dc3" to 2
             )
@@ -51,7 +51,15 @@ class EnvoyLoadBalancingPrioritiesTest {
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl)
+        val envoyDC1 = EnvoyExtension(envoyControl)
+
+        @JvmField
+        @RegisterExtension
+        val envoyDC2 = EnvoyExtension(envoyControl2)
+
+        @JvmField
+        @RegisterExtension
+        val envoyDC3 = EnvoyExtension(envoyControl3)
 
         @JvmField
         @RegisterExtension
@@ -73,8 +81,14 @@ class EnvoyLoadBalancingPrioritiesTest {
         consulClusters.serverThird.registerService(serviceDC3_1)
         waitServiceOkAndFrom(serviceDC1_1)
 
-        callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC2_1, serviceDC3_1)
+
+        envoyDC2.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+            .verifyNoCallsRoutedTo(serviceDC1_1, serviceDC3_1)
+
+        envoyDC3.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+            .verifyNoCallsRoutedTo(serviceDC1_1, serviceDC2_1)
     }
 
     @Test
@@ -82,11 +96,11 @@ class EnvoyLoadBalancingPrioritiesTest {
         consulClusters.serverSecond.registerServiceAndVerifyCall(serviceDC2_1)
         consulClusters.serverThird.registerService(serviceDC3_1)
 
-        callEchoServiceRepeatedly(serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC3_1)
 
         consulClusters.serverFirst.registerServiceAndVerifyCall(serviceDC1_1)
-        callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC2_1, serviceDC3_1)
     }
 
@@ -95,31 +109,31 @@ class EnvoyLoadBalancingPrioritiesTest {
         consulClusters.serverThird.registerServiceAndVerifyCall(serviceDC3_1)
 
         consulClusters.serverFirst.registerServiceAndVerifyCall(serviceDC2_1)
-        callEchoServiceRepeatedly(serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC3_1)
 
         consulClusters.serverFirst.registerServiceAndVerifyCall(serviceDC1_1)
-        callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC3_1)
     }
 
     private fun waitServiceOkAndFrom(echoServiceExtension: EchoServiceExtension) {
         untilAsserted {
-            envoy.egressOperations.callService(serviceName).also {
+            envoyDC1.egressOperations.callService(serviceName).also {
                 assertThat(it).isOk().isFrom(echoServiceExtension)
             }
         }
     }
 
-    private fun callEchoServiceRepeatedly(
+    private fun EnvoyExtension.callEchoServiceRepeatedly(
         vararg services: EchoServiceExtension
     ): CallStats {
         val stats = CallStats(services.asList())
-        envoy.egressOperations.callServiceRepeatedly(
+        this.egressOperations.callServiceRepeatedly(
             service = serviceName,
             stats = stats,
-            minRepeat = 30,
-            maxRepeat = 30,
+            minRepeat = 50,
+            maxRepeat = 50,
             repeatUntil = { true },
             headers = mapOf()
         )

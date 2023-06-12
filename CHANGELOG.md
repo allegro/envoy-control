@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [0.19.35]
 
 ### Changed
+- Adjusted load balancing priorities logic to stick traffic to local DC
 - Added warning log for access logs/filter configuration
 
 ## [0.19.34]
