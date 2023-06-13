@@ -32,8 +32,9 @@ class ConsulServiceChanges(
     private val readinessStateHandler: ReadinessStateHandler,
     private val serviceWatchPolicy: ServiceWatchPolicy = NoOpServiceWatchPolicy,
 ) {
-    private val logger by logger()
-
+    companion object {
+        private val logger by logger()
+    }
     fun watchState(): Flux<ServicesState> {
         val watcher =
             StateWatcher(
@@ -225,6 +226,7 @@ class ConsulServiceChanges(
                     ready = remaining.isEmpty()
                     if (ready) {
                         val stopTimer = System.currentTimeMillis()
+                        logger.info("control-plane finished loading data")
                         readinessStateHandler.ready()
                         metrics.meterRegistry.timer("envoy-control.warmup.time")
                             .record(
