@@ -30,12 +30,14 @@ class CompositeDiscoveryServerCallbacks(
     }
 
     override fun onStreamOpen(streamId: Long, typeUrl: String?) {
+        logger.info("Stream open")
         runCallbacks {
             it.onStreamOpen(streamId, typeUrl)
         }
     }
 
     override fun onV3StreamRequest(streamId: Long, request: v3DiscoveryRequest?) {
+        logger.info("Stream request")
         runCallbacks {
             it.onV3StreamRequest(streamId, request)
         }
