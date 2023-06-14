@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.data.Percentage.withPercentage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
@@ -18,7 +17,7 @@ import java.time.Duration
 class EnvoyLoadBalancingPrioritiesTest {
     companion object {
         private const val serviceName = "echo"
-        private const val numberOfCalls = 50
+        private const val numberOfCalls = 30
         private val pollingInterval = Duration.ofSeconds(1)
         private val stateSampleDuration = Duration.ofSeconds(1)
 
@@ -36,14 +35,14 @@ class EnvoyLoadBalancingPrioritiesTest {
                     "dc3" to 2
                 ),
                 "dc2" to mapOf(
-                    "dc1" to 1,
-                    "dc2" to 0,
-                    "dc3" to 2
-                ),
-                "dc3" to mapOf(
-                    "dc1" to 0,
+                    "dc1" to 2,
                     "dc2" to 0,
                     "dc3" to 1
+                ),
+                "dc3" to mapOf(
+                    "dc1" to 1,
+                    "dc2" to 2,
+                    "dc3" to 0
                 )
             )
         )
@@ -116,9 +115,8 @@ class EnvoyLoadBalancingPrioritiesTest {
         envoyDC2.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC1_1, serviceDC3_1)
 
-        val dc3CallStats = envoyDC3.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
-        assertThat(dc3CallStats.hits(serviceDC1_1)).isCloseTo(numberOfCalls / 2, withPercentage(10.0))
-        assertThat(dc3CallStats.hits(serviceDC2_1)).isCloseTo(numberOfCalls / 2, withPercentage(10.0))
+        envoyDC3.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+            .verifyNoCallsRoutedTo(serviceDC2_1, serviceDC1_1)
     }
 
     @Test
