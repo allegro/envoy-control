@@ -307,7 +307,6 @@ internal class EnvoyEndpointsFactoryTest {
             currentZone = "DC2"
         )
         val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC2Local)
-
         loadAssignments.assertHasLoadAssignment(
             mapOf(
                 "DC1" to 1,
@@ -326,7 +325,6 @@ internal class EnvoyEndpointsFactoryTest {
             currentZone = "DC2"
         )
         val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC2Local)
-
         loadAssignments.assertHasLoadAssignment(
             mapOf(
                 "DC1" to 1,
@@ -345,7 +343,6 @@ internal class EnvoyEndpointsFactoryTest {
             currentZone = "DC1"
         )
         val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC1Local)
-
         loadAssignments.assertHasLoadAssignment(
             mapOf(
                 "DC1" to 0,
