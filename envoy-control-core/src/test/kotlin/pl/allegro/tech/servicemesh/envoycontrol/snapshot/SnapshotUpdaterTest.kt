@@ -1313,7 +1313,7 @@ class SnapshotUpdaterTest {
             egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
             clustersFactory = EnvoyClustersFactory(snapshotProperties),
             endpointsFactory = EnvoyEndpointsFactory(
-                snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags)
+                snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags), "dc1"
             ),
             listenersFactory = EnvoyListenersFactory(
                 snapshotProperties,

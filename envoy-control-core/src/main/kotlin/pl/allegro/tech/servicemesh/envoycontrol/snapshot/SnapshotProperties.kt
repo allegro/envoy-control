@@ -159,7 +159,7 @@ class LoadBalancingWeightsProperties {
 }
 
 class LoadBalancingPriorityProperties {
-    var zonePriorities: Map<String, Int> = mapOf()
+    var zonePriorities: Map<String, Map<String, Int>> = mapOf()
 }
 
 class RoutesProperties {

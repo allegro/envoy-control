@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.data.Percentage.withPercentage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
@@ -17,18 +18,37 @@ import java.time.Duration
 class EnvoyLoadBalancingPrioritiesTest {
     companion object {
         private const val serviceName = "echo"
+        private const val numberOfCalls = 50
         private val pollingInterval = Duration.ofSeconds(1)
         private val stateSampleDuration = Duration.ofSeconds(1)
-        private val properties = mapOf(
+
+        private val syncProps = mapOf(
             "envoy-control.envoy.snapshot.stateSampleDuration" to stateSampleDuration,
             "envoy-control.sync.enabled" to true,
-            "envoy-control.sync.polling-interval" to pollingInterval.seconds,
+            "envoy-control.sync.polling-interval" to pollingInterval.seconds
+        )
+
+        private val priorityProps = mapOf(
             "envoy-control.envoy.snapshot.loadBalancing.priorities.zonePriorities" to mapOf(
-                "dc1" to 1,
-                "dc2" to 1,
-                "dc3" to 2
+                "dc1" to mapOf(
+                    "dc1" to 0,
+                    "dc2" to 1,
+                    "dc3" to 2
+                ),
+                "dc2" to mapOf(
+                    "dc1" to 1,
+                    "dc2" to 0,
+                    "dc3" to 2
+                ),
+                "dc3" to mapOf(
+                    "dc1" to 0,
+                    "dc2" to 0,
+                    "dc3" to 1
+                )
             )
         )
+
+        private val properties = syncProps + priorityProps
 
         @JvmField
         @RegisterExtension
@@ -51,6 +71,11 @@ class EnvoyLoadBalancingPrioritiesTest {
 
         @JvmField
         @RegisterExtension
+        val envoyControlNoPriorities =
+            EnvoyControlClusteredExtension(consulClusters.serverThird, { syncProps }, listOf(consulClusters))
+
+        @JvmField
+        @RegisterExtension
         val envoyDC1 = EnvoyExtension(envoyControl)
 
         @JvmField
@@ -60,6 +85,10 @@ class EnvoyLoadBalancingPrioritiesTest {
         @JvmField
         @RegisterExtension
         val envoyDC3 = EnvoyExtension(envoyControl3)
+
+        @JvmField
+        @RegisterExtension
+        val envoyNoPriorities = EnvoyExtension(envoyControlNoPriorities)
 
         @JvmField
         @RegisterExtension
@@ -75,7 +104,7 @@ class EnvoyLoadBalancingPrioritiesTest {
     }
 
     @Test
-    fun `should route traffic to local dc when all instances are healthy`() {
+    fun `should route traffic according to priorities when all instances are healthy`() {
         consulClusters.serverFirst.registerService(serviceDC1_1)
         consulClusters.serverSecond.registerService(serviceDC2_1)
         consulClusters.serverThird.registerService(serviceDC3_1)
@@ -87,7 +116,22 @@ class EnvoyLoadBalancingPrioritiesTest {
         envoyDC2.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC1_1, serviceDC3_1)
 
-        envoyDC3.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+        val dc3CallStats = envoyDC3.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+        assertThat(dc3CallStats.hits(serviceDC1_1)).isCloseTo(numberOfCalls / 2, withPercentage(10.0))
+        assertThat(dc3CallStats.hits(serviceDC2_1)).isCloseTo(numberOfCalls / 2, withPercentage(10.0))
+    }
+
+    @Test
+    fun `should prioritize local dc having no priorities properties`() {
+        consulClusters.serverFirst.registerService(serviceDC1_1)
+        consulClusters.serverSecond.registerService(serviceDC2_1)
+        consulClusters.serverThird.registerService(serviceDC3_1)
+        untilAsserted {
+            envoyNoPriorities.egressOperations.callService(serviceName).also {
+                assertThat(it).isOk().isFrom(serviceDC3_1)
+            }
+        }
+        envoyNoPriorities.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC1_1, serviceDC2_1)
     }
 
@@ -132,8 +176,8 @@ class EnvoyLoadBalancingPrioritiesTest {
         this.egressOperations.callServiceRepeatedly(
             service = serviceName,
             stats = stats,
-            minRepeat = 50,
-            maxRepeat = 50,
+            minRepeat = numberOfCalls,
+            maxRepeat = numberOfCalls,
             repeatUntil = { true },
             headers = mapOf()
         )

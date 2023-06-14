@@ -49,6 +49,7 @@ class EnvoySnapshotFactoryTest {
         const val DEFAULT_SERVICE_NAME = "service-name"
         const val DEFAULT_DISCOVERY_SERVICE_NAME = "discovery-service-name"
         const val DEFAULT_IDLE_TIMEOUT = 100L
+        const val currentZone = "dc1"
     }
 
     @Test
@@ -350,7 +351,7 @@ class EnvoySnapshotFactoryTest {
         )
         val egressRoutesFactory = EnvoyEgressRoutesFactory(properties)
         val clustersFactory = EnvoyClustersFactory(properties)
-        val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator())
+        val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator(), currentZone)
         val envoyHttpFilters = EnvoyHttpFilters.defaultFilters(properties)
         val listenersFactory = EnvoyListenersFactory(properties, envoyHttpFilters)
         val snapshotsVersions = SnapshotsVersions()

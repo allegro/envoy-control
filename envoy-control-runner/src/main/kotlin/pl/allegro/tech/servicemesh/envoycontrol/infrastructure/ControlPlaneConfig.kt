@@ -59,15 +59,18 @@ class ControlPlaneConfig {
 
     @Bean
     @ConditionalOnMissingBean(ControlPlane::class)
+    @Suppress("LongParameterList")
     fun controlPlane(
         properties: EnvoyControlProperties,
         meterRegistry: MeterRegistry,
         globalStateChanges: GlobalStateChanges,
         metrics: EnvoyControlMetrics,
-        envoyHttpFilters: EnvoyHttpFilters
+        envoyHttpFilters: EnvoyHttpFilters,
+        consulProperties: ConsulProperties
     ): ControlPlane =
         ControlPlane.builder(properties, meterRegistry)
             .withMetrics(metrics)
+            .withCurrentZone(localDatacenter(consulProperties))
             .withEnvoyHttpFilters(envoyHttpFilters)
             .build(globalStateChanges.combined())
 

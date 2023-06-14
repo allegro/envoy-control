@@ -102,6 +102,7 @@ class ControlPlane private constructor(
         var nodeGroup: NodeGroup<Group> = MetadataNodeGroup(
             properties = properties.envoy.snapshot
         )
+        var currentZone: String = "local"
 
         fun build(changes: Flux<MultiClusterState>): ControlPlane {
             if (grpcServerExecutor == null) {
@@ -170,7 +171,9 @@ class ControlPlane private constructor(
                 egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
                 clustersFactory = EnvoyClustersFactory(snapshotProperties),
                 endpointsFactory = EnvoyEndpointsFactory(
-                    snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags)
+                    snapshotProperties,
+                    ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags),
+                    currentZone
                 ),
                 listenersFactory = EnvoyListenersFactory(
                     snapshotProperties,
@@ -350,6 +353,11 @@ class ControlPlane private constructor(
 
         fun withEnvoyHttpFilters(envoyHttpFilters: EnvoyHttpFilters): ControlPlaneBuilder {
             this.envoyHttpFilters = envoyHttpFilters
+            return this
+        }
+
+        fun withCurrentZone(zone: String): ControlPlaneBuilder {
+            this.currentZone = zone
             return this
         }
 
