@@ -2,17 +2,78 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints
 
 import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
+import org.junit.jupiter.params.provider.MethodSource
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceName
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingPriorityProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import java.util.concurrent.ConcurrentHashMap
+import java.util.stream.Stream
 
 internal class EnvoyEndpointsFactoryTest {
 
-    private val endpointsFactory = EnvoyEndpointsFactory(SnapshotProperties().apply {
-        routing.serviceTags.enabled = true
-        routing.serviceTags.autoServiceTagEnabled = true
-    })
+    companion object {
+        private val dcPriorityProperties = mapOf(
+            "DC1" to mapOf(
+                "DC1" to 0,
+                "DC2" to 1,
+                "DC3" to 2
+            ),
+            "DC2" to mapOf(
+                "DC1" to 1,
+                "DC2" to 2,
+                "DC3" to 3
+            ),
+            "DC3" to mapOf(
+                "DC1" to 2,
+                "DC2" to 3,
+                "DC3" to 4
+            )
+        )
+
+        @JvmStatic
+        fun dcToPriorities(): Stream<Arguments> = dcPriorityProperties.entries
+            .stream()
+            .map { Arguments.of(it.key, it.value) }
+    }
+
+    private val serviceName = "service-one"
+
+    private val endpointsFactory = EnvoyEndpointsFactory(
+        SnapshotProperties().apply {
+            routing.serviceTags.enabled = true
+            routing.serviceTags.autoServiceTagEnabled = true
+        },
+        currentZone = "DC1"
+    )
+
+    private val multiClusterStateDC1Local = MultiClusterState(
+        listOf(
+            clusterState(Locality.LOCAL, "DC1"),
+            clusterState(Locality.REMOTE, "DC2"),
+            clusterState(Locality.REMOTE, "DC3")
+        )
+    )
+
+    private val multiClusterStateDC2Local = MultiClusterState(
+        listOf(
+            clusterState(Locality.REMOTE, "DC1"),
+            clusterState(Locality.LOCAL, "DC2"),
+            clusterState(Locality.REMOTE, "DC3")
+        )
+    )
 
     // language=json
     private val globalLoadAssignmentJson = """{
@@ -225,6 +286,124 @@ internal class EnvoyEndpointsFactoryTest {
             .isNotEqualTo(globalLoadAssignmentJson.toClusterLoadAssignment())
             .isEqualTo(expectedLoadAssignmentJson.toClusterLoadAssignment())
     }
+
+    @ParameterizedTest
+    @MethodSource("dcToPriorities")
+    fun `should create load assignment according to properties having lb priorities enabled`(
+        dcName: String, expectedConfig: Map<String, Int>
+    ) {
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithPriorities(dcPriorityProperties),
+            currentZone = dcName
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC1Local)
+        loadAssignments.assertHasLoadAssignment(expectedConfig)
+    }
+
+    @Test
+    fun `should create default load assignment having lb priorities disabled`() {
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithPriorities(mapOf()),
+            currentZone = "DC2"
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC2Local)
+        loadAssignments.assertHasLoadAssignment(
+            mapOf(
+                "DC1" to 1,
+                "DC2" to 0,
+                "DC3" to 1
+            )
+        )
+    }
+
+    @Test
+    fun `should create default load assignment having misconfigured lb priorities for current zone`() {
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithPriorities(
+                mapOf("DC2" to mapOf())
+            ),
+            currentZone = "DC2"
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC2Local)
+        loadAssignments.assertHasLoadAssignment(
+            mapOf(
+                "DC1" to 1,
+                "DC2" to 0,
+                "DC3" to 1
+            )
+        )
+    }
+
+    @Test
+    fun `should create load assignment having partially configured lb priorities for current zone`() {
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithPriorities(
+                mapOf("DC1" to mapOf("DC3" to 2))
+            ),
+            currentZone = "DC1"
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC1Local)
+        loadAssignments.assertHasLoadAssignment(
+            mapOf(
+                "DC1" to 0,
+                "DC2" to 1,
+                "DC3" to 2
+            )
+        )
+    }
+
+    private fun List<ClusterLoadAssignment>.assertHasLoadAssignment(map: Map<String, Int>) {
+        assertThat(this)
+            .isNotEmpty()
+            .anySatisfy { loadAssignment ->
+                assertThat(loadAssignment.endpointsList).isNotNull()
+                map.entries.forEach {
+                    assertThat(loadAssignment.endpointsList)
+                        .anySatisfy { x -> x.hasZoneWithPriority(it.key, it.value) }
+                }
+            }
+    }
+
+    private fun clusterState(locality: Locality, cluster: String): ClusterState {
+        return ClusterState(
+            ServicesState(
+                serviceNameToInstances = concurrentMapOf(
+                    serviceName to ServiceInstances(
+                        serviceName, setOf(
+                            ServiceInstance(
+                                id = "id",
+                                tags = setOf("envoy"),
+                                address = "127.0.0.3",
+                                port = 4444
+                            )
+                        )
+                    )
+                )
+            ),
+            locality, cluster
+        )
+    }
+
+    private fun concurrentMapOf(vararg elements: Pair<ServiceName, ServiceInstances>): ConcurrentHashMap<ServiceName, ServiceInstances> {
+        val state = ConcurrentHashMap<ServiceName, ServiceInstances>()
+        elements.forEach { (name, instance) -> state[name] = instance }
+        return state
+    }
+
+    private fun LocalityLbEndpoints.hasZoneWithPriority(zone: String, priority: Int) {
+        assertThat(this.priority).isEqualTo(priority)
+        assertThat(this.locality.zone).isEqualTo(zone)
+    }
+
+    private fun snapshotPropertiesWithPriorities(priorities: Map<String, Map<String, Int>>) =
+        SnapshotProperties().apply {
+            loadBalancing = LoadBalancingProperties()
+                .apply {
+                    this.priorities = LoadBalancingPriorityProperties().apply {
+                        zonePriorities = priorities
+                    }
+                }
+        }
 
     private fun String.toClusterLoadAssignment(): ClusterLoadAssignment = ClusterLoadAssignment.newBuilder()
         .also { builder -> JsonFormat.parser().merge(this, builder) }

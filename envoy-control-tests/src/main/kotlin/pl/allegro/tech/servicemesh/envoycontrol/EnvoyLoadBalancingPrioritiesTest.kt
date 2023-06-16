@@ -17,18 +17,37 @@ import java.time.Duration
 class EnvoyLoadBalancingPrioritiesTest {
     companion object {
         private const val serviceName = "echo"
+        private const val numberOfCalls = 30
         private val pollingInterval = Duration.ofSeconds(1)
         private val stateSampleDuration = Duration.ofSeconds(1)
-        private val properties = mapOf(
+
+        private val syncProps = mapOf(
             "envoy-control.envoy.snapshot.stateSampleDuration" to stateSampleDuration,
             "envoy-control.sync.enabled" to true,
-            "envoy-control.sync.polling-interval" to pollingInterval.seconds,
+            "envoy-control.sync.polling-interval" to pollingInterval.seconds
+        )
+
+        private val priorityProps = mapOf(
             "envoy-control.envoy.snapshot.loadBalancing.priorities.zonePriorities" to mapOf(
-                "dc1" to 0,
-                "dc2" to 1,
-                "dc3" to 2
+                "dc1" to mapOf(
+                    "dc1" to 0,
+                    "dc2" to 1,
+                    "dc3" to 2
+                ),
+                "dc2" to mapOf(
+                    "dc1" to 2,
+                    "dc2" to 0,
+                    "dc3" to 1
+                ),
+                "dc3" to mapOf(
+                    "dc1" to 1,
+                    "dc2" to 2,
+                    "dc3" to 0
+                )
             )
         )
+
+        private val properties = syncProps + priorityProps
 
         @JvmField
         @RegisterExtension
@@ -51,7 +70,24 @@ class EnvoyLoadBalancingPrioritiesTest {
 
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl)
+        val envoyControlNoPriorities =
+            EnvoyControlClusteredExtension(consulClusters.serverThird, { syncProps }, listOf(consulClusters))
+
+        @JvmField
+        @RegisterExtension
+        val envoyDC1 = EnvoyExtension(envoyControl)
+
+        @JvmField
+        @RegisterExtension
+        val envoyDC2 = EnvoyExtension(envoyControl2)
+
+        @JvmField
+        @RegisterExtension
+        val envoyDC3 = EnvoyExtension(envoyControl3)
+
+        @JvmField
+        @RegisterExtension
+        val envoyNoPriorities = EnvoyExtension(envoyControlNoPriorities)
 
         @JvmField
         @RegisterExtension
@@ -67,14 +103,34 @@ class EnvoyLoadBalancingPrioritiesTest {
     }
 
     @Test
-    fun `should route traffic to local dc when all instances are healthy`() {
+    fun `should route traffic according to priorities when all instances are healthy`() {
         consulClusters.serverFirst.registerService(serviceDC1_1)
         consulClusters.serverSecond.registerService(serviceDC2_1)
         consulClusters.serverThird.registerService(serviceDC3_1)
         waitServiceOkAndFrom(serviceDC1_1)
 
-        callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC2_1, serviceDC3_1)
+
+        envoyDC2.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+            .verifyNoCallsRoutedTo(serviceDC1_1, serviceDC3_1)
+
+        envoyDC3.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+            .verifyNoCallsRoutedTo(serviceDC2_1, serviceDC1_1)
+    }
+
+    @Test
+    fun `should prioritize local dc having no priorities properties`() {
+        consulClusters.serverFirst.registerService(serviceDC1_1)
+        consulClusters.serverSecond.registerService(serviceDC2_1)
+        consulClusters.serverThird.registerService(serviceDC3_1)
+        untilAsserted {
+            envoyNoPriorities.egressOperations.callService(serviceName).also {
+                assertThat(it).isOk().isFrom(serviceDC3_1)
+            }
+        }
+        envoyNoPriorities.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+            .verifyNoCallsRoutedTo(serviceDC1_1, serviceDC2_1)
     }
 
     @Test
@@ -82,11 +138,11 @@ class EnvoyLoadBalancingPrioritiesTest {
         consulClusters.serverSecond.registerServiceAndVerifyCall(serviceDC2_1)
         consulClusters.serverThird.registerService(serviceDC3_1)
 
-        callEchoServiceRepeatedly(serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC3_1)
 
         consulClusters.serverFirst.registerServiceAndVerifyCall(serviceDC1_1)
-        callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC2_1, serviceDC3_1)
     }
 
@@ -95,31 +151,31 @@ class EnvoyLoadBalancingPrioritiesTest {
         consulClusters.serverThird.registerServiceAndVerifyCall(serviceDC3_1)
 
         consulClusters.serverFirst.registerServiceAndVerifyCall(serviceDC2_1)
-        callEchoServiceRepeatedly(serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC3_1)
 
         consulClusters.serverFirst.registerServiceAndVerifyCall(serviceDC1_1)
-        callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
+        envoyDC1.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC3_1)
     }
 
     private fun waitServiceOkAndFrom(echoServiceExtension: EchoServiceExtension) {
         untilAsserted {
-            envoy.egressOperations.callService(serviceName).also {
+            envoyDC1.egressOperations.callService(serviceName).also {
                 assertThat(it).isOk().isFrom(echoServiceExtension)
             }
         }
     }
 
-    private fun callEchoServiceRepeatedly(
+    private fun EnvoyExtension.callEchoServiceRepeatedly(
         vararg services: EchoServiceExtension
     ): CallStats {
         val stats = CallStats(services.asList())
-        envoy.egressOperations.callServiceRepeatedly(
+        this.egressOperations.callServiceRepeatedly(
             service = serviceName,
             stats = stats,
-            minRepeat = 30,
-            maxRepeat = 30,
+            minRepeat = numberOfCalls,
+            maxRepeat = numberOfCalls,
             repeatUntil = { true },
             headers = mapOf()
         )

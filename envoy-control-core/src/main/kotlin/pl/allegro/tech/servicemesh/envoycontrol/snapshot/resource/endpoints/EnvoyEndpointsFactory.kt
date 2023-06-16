@@ -26,7 +26,8 @@ class EnvoyEndpointsFactory(
     private val properties: SnapshotProperties,
     private val serviceTagFilter: ServiceTagMetadataGenerator = ServiceTagMetadataGenerator(
         properties.routing.serviceTags
-    )
+    ),
+    private val currentZone: String
 ) {
     companion object {
         private val logger by logger()
@@ -87,9 +88,11 @@ class EnvoyEndpointsFactory(
                         .addAllLbEndpoints(matchedEndpoints)
                         .build()
                 }
+
                 matchedEndpoints.isNotEmpty() -> { // ALL
                     localityLbEndpoint
                 }
+
                 else -> { // NONE
                     allEndpointMatched = false
                     null
@@ -102,6 +105,7 @@ class EnvoyEndpointsFactory(
                 .clearEndpoints()
                 .addAllEndpoints(filteredEndpoints)
                 .build()
+
             else -> null // NONE
         }
     }
@@ -224,13 +228,14 @@ class EnvoyEndpointsFactory(
         }
 
     private fun toEnvoyPriority(zone: String, locality: Locality): Int {
-        val prioritiesProps = properties.loadBalancing.priorities
-        return when (prioritiesProps.zonePriorities.isNotEmpty()) {
-            true -> prioritiesProps.zonePriorities[zone] ?: toEnvoyPriority(locality)
+        val zonePriorities = properties.loadBalancing.priorities.zonePriorities
+        return when (zonePriorities.isNotEmpty()) {
+            true -> zonePriorities[currentZone]?.get(zone) ?: toEnvoyPriority(locality)
             false -> toEnvoyPriority(locality)
         }.also {
             logger.debug(
-                "Resolved lb priority to {} with zone={}, priority props={}", it, zone, prioritiesProps.zonePriorities
+                "Resolved lb priority to {} with zone={}, currentZone={}, priority props={}",
+                it, zone, currentZone, zonePriorities
             )
         }
     }
