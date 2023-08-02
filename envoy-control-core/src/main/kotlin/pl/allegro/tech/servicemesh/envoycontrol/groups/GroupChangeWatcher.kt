@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.cache.ConfigWatcher
@@ -55,7 +57,14 @@ internal class GroupChangeWatcher(
         val groups = cache.groups()
         metrics.setCacheGroupsCount(groups.size)
         if (oldGroups != groups) {
-            emitNewGroupsEvent(groups - oldGroups)
+            val difference = groups - oldGroups.toSet()
+            if (groups.size > 1000) {
+                logger.error("Too many groups (${groups.size}), ${difference.map { it.serviceName }}")
+                val map = groups.groupBy { it.serviceName }.mapValues { it.value.size }
+                logger.error("Count of groups per service - $map")
+                logger.error("Details of groups: $difference")
+            }
+            emitNewGroupsEvent(difference)
         }
         return watch
     }
@@ -83,7 +92,14 @@ internal class GroupChangeWatcher(
         val groups = cache.groups()
         metrics.setCacheGroupsCount(groups.size)
         if (oldGroups != groups) {
-            emitNewGroupsEvent(groups - oldGroups)
+            val difference = groups - oldGroups.toSet()
+            if (groups.size > 1000) {
+                logger.error("Too many (delta) groups (${groups.size}), ${difference.map { it.serviceName }}")
+                val map = groups.groupBy { it.serviceName }.mapValues { it.value.size }
+                logger.error("Count of (delta) groups per service - $map")
+                logger.error("Details of (delta) groups: $difference")
+            }
+            emitNewGroupsEvent(difference)
         }
         return watch
     }
