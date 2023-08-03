@@ -30,6 +30,10 @@ class SnapshotDebugService(
         }
     }
 
+    fun groups(): Collection<Group> {
+        return cache.groups()
+    }
+
     fun globalSnapshot(xds: Boolean): SnapshotDebugInfo {
         val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
         if (xds) {

@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseBody
 import org.springframework.web.bind.annotation.RestController
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 
@@ -53,6 +54,14 @@ class SnapshotDebugController(val debugService: SnapshotDebugService) {
     fun snapshot(@RequestBody node: NodeV3): ResponseEntity<SnapshotDebugInfo> {
         return ResponseEntity(
             debugService.snapshot(node),
+            HttpStatus.OK
+        )
+    }
+
+    @GetMapping("/groups")
+    fun globalSnapshot(): ResponseEntity<Collection<Group>> {
+        return ResponseEntity(
+            debugService.groups(),
             HttpStatus.OK
         )
     }
