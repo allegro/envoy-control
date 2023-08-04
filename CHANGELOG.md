@@ -3,6 +3,11 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.19.36]
+
+### Changed
+- Added debug endpoint, which returns current groups
+
 ## [0.19.35]
 
 ### Changed
