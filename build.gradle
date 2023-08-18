@@ -91,7 +91,6 @@ subprojects {
     apply plugin: 'io.gitlab.arturbosch.detekt'
     apply plugin: 'signing'
 
-    sourceCompatibility = JavaVersion.VERSION_11
     [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 
     ktlint {
@@ -167,18 +166,17 @@ subprojects {
         compile.exclude group: 'log4j', module: 'log4j'
     }
 
-    compileKotlin {
-        kotlinOptions {
-            jvmTarget = '11'
+    java {
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(17))
         }
     }
 
-    compileTestKotlin {
-        kotlinOptions {
-            jvmTarget = '11'
+    kotlin {
+        jvmToolchain {
+            languageVersion.set(JavaLanguageVersion.of(17))
         }
     }
-
     dependencies {
         testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: versions.junit
         testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit

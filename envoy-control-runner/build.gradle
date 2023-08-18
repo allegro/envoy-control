@@ -13,8 +13,6 @@ dependencies {
     api group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: versions.spring_boot
     implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus', version: versions.micrometer
 
-    api group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: versions.kotlin
-
     implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: versions.jackson
     implementation group: 'net.openhft', name: 'zero-allocation-hashing', version: versions.xxhash
 }

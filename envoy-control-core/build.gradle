@@ -2,7 +2,6 @@ dependencies {
     api project(':envoy-control-services')
 
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
-    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib-jdk8', version: versions.kotlin
     api group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner', version: versions.jackson
     api group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: versions.jackson
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: versions.kotlin
