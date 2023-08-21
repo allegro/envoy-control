@@ -5,9 +5,6 @@ dependencies {
     implementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: versions.junit
     implementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit
     implementation group: 'org.awaitility', name: 'awaitility', version: versions.awaitility
-    implementation(group: 'com.pszymczyk.consul', name: 'embedded-consul', version: versions.embedded_consul) {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
     implementation group: 'com.squareup.okhttp3', name: 'okhttp', version: versions.okhttp
 
     implementation "org.apache.httpcomponents:httpcore:4.4.15"

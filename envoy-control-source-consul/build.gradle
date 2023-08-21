@@ -9,9 +9,7 @@ dependencies {
     testImplementation group: 'org.mockito', name: 'mockito-core', version: versions.mockito
     testImplementation group: 'cglib', name: 'cglib-nodep', version: versions.cglib
 
-    testImplementation(group: 'com.pszymczyk.consul', name: 'embedded-consul', version: versions.embedded_consul) {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
-
     testImplementation group: 'io.projectreactor', name: 'reactor-test', version: versions.reactor
+    testImplementation group: 'org.testcontainers', name: 'testcontainers', version: versions.testcontainers
+    testImplementation project(path: ':envoy-control-tests')
 }
