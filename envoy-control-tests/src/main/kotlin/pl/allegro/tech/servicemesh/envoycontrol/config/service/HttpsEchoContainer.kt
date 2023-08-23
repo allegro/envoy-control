@@ -7,13 +7,10 @@ import okhttp3.Response
 import org.testcontainers.containers.Network
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
 
-class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http-https-echo@$hash"),
+class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http-https-echo:30"),
     ServiceContainer {
 
     companion object {
-        // We need to use hash because the image doesn't use tags and the tests will fail if there is an older version
-        // of the image pulled locally
-        const val hash = "sha256:cd9025b7cdb6b2e8dd6e4a403d50b2dea074835948411167fc86566cb4ae77b6"
         const val PORT = 5678
     }
 
