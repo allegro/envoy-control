@@ -88,6 +88,7 @@ class EnvoyControlRunnerTestApp(
 
     override fun stop() {
         app.context().close()
+        Ports.freePorts(appPort, grpcPort, consulPort)
     }
 
     override fun isHealthy(): Boolean = getApplicationStatusResponse().use { it.isSuccessful }
