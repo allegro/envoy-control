@@ -6,7 +6,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericCon
 import java.util.UUID
 import java.util.Locale
 
-class EchoContainer : GenericContainer<EchoContainer>("hashicorp/http-echo:latest"), ServiceContainer {
+class EchoContainer : GenericContainer<EchoContainer>("larstobi/http-echo:0.2.4"), ServiceContainer {
 
     val response = UUID.randomUUID().toString()
 

@@ -8,7 +8,7 @@ COPY --chown=gradle:gradle envoy-control-source-consul/ /home/gradle/src/envoy-c
 WORKDIR /home/gradle/src
 RUN gradle :envoy-control-runner:assemble --parallel --no-daemon
 
-FROM adoptopenjdk/openjdk11:alpine-jre
+FROM adoptopenjdk/openjdk11:ubuntu-jre
 
 RUN mkdir /tmp/envoy-control-dist /tmp/envoy-control /bin/envoy-control /etc/envoy-control /var/tmp/config
 COPY --from=builder /home/gradle/src/envoy-control-runner/build/distributions/ /tmp/envoy-control-dist
