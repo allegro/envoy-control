@@ -267,7 +267,8 @@ class EnvoyClustersFactory(
         return cluster?.let {
             if (enableTrafficSplitting(serviceName, cluster.name, dependencies, clusterLoadAssignment)) {
                 logger.debug(
-                    "Creating traffic splitting egress cluster config for ${cluster.name}, service: $serviceName")
+                    "Creating traffic splitting egress cluster config for ${cluster.name}, service: $serviceName"
+                )
                 createSetOfClustersForGroup(dependencySettings, cluster)
             } else {
                 listOf(createClusterForGroup(dependencySettings, cluster))
