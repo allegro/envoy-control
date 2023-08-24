@@ -1,9 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.utils
 
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ClusterConstants.AGGREGATE_CLUSTER_POSTFIX
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ClusterConstants.SECONDARY_CLUSTER_POSTFIX
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ClusterNames.AGGREGATE_CLUSTER_POSTFIX
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ClusterNames.SECONDARY_CLUSTER_POSTFIX
 
-object ClusterConstants {
+object ClusterNames {
     const val SECONDARY_CLUSTER_POSTFIX= "secondary"
     const val AGGREGATE_CLUSTER_POSTFIX= "aggregate"
 }

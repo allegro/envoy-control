@@ -27,12 +27,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
-import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
-import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
-import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
-import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
@@ -47,7 +41,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEg
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
-import java.util.concurrent.ConcurrentHashMap
 
 class EnvoySnapshotFactoryTest {
     companion object {
@@ -507,25 +500,6 @@ class EnvoySnapshotFactoryTest {
                 .addAllEndpoints(createEndpoints())
                 .build()
         }
-    }
-
-    private fun createMultiClusterState(services: List<String>): List<MultiClusterState> {
-        return services
-            .map {
-                ClusterState(
-                    ServicesState(
-                        ConcurrentHashMap(
-                            mutableMapOf(
-                                it to ServiceInstances(
-                                    it,
-                                    setOf(ServiceInstance("id", setOf(), "localhost", 8080))
-                                )
-                            )
-                        )
-                    ), Locality.LOCAL, it
-                )
-            }
-            .map { MultiClusterState(it) }
     }
 
     private fun createCluster(
