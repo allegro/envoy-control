@@ -9,10 +9,13 @@ import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
+import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
+import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
 import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.Ignore
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
@@ -25,6 +28,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
+import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -38,6 +48,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEg
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
+import java.util.concurrent.ConcurrentHashMap
 
 class EnvoySnapshotFactoryTest {
     companion object {
@@ -46,10 +57,26 @@ class EnvoySnapshotFactoryTest {
         const val EGRESS_HOST = "egress-host"
         const val EGRESS_PORT = 3380
         const val CLUSTER_NAME = "cluster-name"
+        const val MAIN_CLUSTER_NAME = "service-name-2"
+        const val SECONDARY_CLUSTER_NAME = "service-name-2-secondary"
+        const val AGGREGATE_CLUSTER_NAME = "service-name-2-aggr"
+        const val CLUSTER_NAME_2 = "cluster-name-2"
         const val DEFAULT_SERVICE_NAME = "service-name"
+        const val SERVICE_NAME_2 = "service-name-2"
         const val DEFAULT_DISCOVERY_SERVICE_NAME = "discovery-service-name"
         const val DEFAULT_IDLE_TIMEOUT = 100L
-        const val currentZone = "dc1"
+        const val CURRENT_ZONE = "dc1"
+        const val FORCE_TRAFFIC_ZONE = "dc2"
+    }
+
+    private val defaultClusterWeights = mapOf("main" to 50, "secondary" to 50)
+
+    private val snapshotPropertiesWithWeights = SnapshotProperties().also {
+        it.dynamicListeners.enabled = false
+        it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
+            DEFAULT_SERVICE_NAME to defaultClusterWeights
+        )
+        it.loadBalancing.trafficSplitting.zoneName = FORCE_TRAFFIC_ZONE
     }
 
     @Test
@@ -194,7 +221,7 @@ class EnvoySnapshotFactoryTest {
 
         val wildcardTimeoutPolicy = outgoingTimeoutPolicy(connectionIdleTimeout = 12)
         val cluster1 = createCluster(defaultProperties)
-        val cluster2 = createCluster(defaultProperties, clusterName = "cluster-name-2")
+        val cluster2 = createCluster(defaultProperties, clusterName = CLUSTER_NAME_2)
         val group: Group = createAllServicesGroup(
             dependencies = arrayOf(
                 cluster1.name to outgoingTimeoutPolicy(connectionIdleTimeout = 1),
@@ -215,6 +242,112 @@ class EnvoySnapshotFactoryTest {
 
         assertThat(actualCluster1.commonHttpProtocolOptions.idleTimeout.seconds).isEqualTo(1)
         assertThat(actualCluster2.commonHttpProtocolOptions.idleTimeout.seconds).isEqualTo(12)
+    }
+
+    @Test
+    fun `should create weighted snapshot clusters`() {
+        // given
+        val envoySnapshotFactory = createSnapshotFactory(snapshotPropertiesWithWeights)
+        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = DEFAULT_SERVICE_NAME)
+        val cluster2 =
+            createCluster(snapshotPropertiesWithWeights, serviceName = SERVICE_NAME_2, clusterName = SERVICE_NAME_2)
+        val group: Group = createServicesGroup(
+            dependencies = arrayOf(cluster2.name to outgoingTimeoutPolicy(connectionIdleTimeout = 10)),
+            snapshotProperties = snapshotPropertiesWithWeights
+        )
+        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        assertThat(snapshot.clusters().resources())
+            .containsKey(MAIN_CLUSTER_NAME)
+            .containsKey(SECONDARY_CLUSTER_NAME)
+            .containsKey(AGGREGATE_CLUSTER_NAME)
+        assertThat(snapshot.endpoints().resources().values)
+            .anySatisfy {
+                assertThat(it.clusterName).isEqualTo(MAIN_CLUSTER_NAME)
+                assertThat(it.endpointsList)
+                    .anyMatch { e -> e.locality.zone == CURRENT_ZONE }
+                    .anyMatch { e -> e.locality.zone == FORCE_TRAFFIC_ZONE }
+            }
+            .anySatisfy {
+                assertThat(it.clusterName).isEqualTo(SECONDARY_CLUSTER_NAME)
+                assertThat(it.endpointsList)
+                    .allMatch { e -> e.locality.zone == FORCE_TRAFFIC_ZONE }
+            }
+    }
+
+    @Test
+    fun `should get regular snapshot clusters when traffic splitting zone condition isn't complied`() {
+        // given
+        val defaultProperties = SnapshotProperties().also {
+            it.dynamicListeners.enabled = false
+            it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
+                DEFAULT_SERVICE_NAME to defaultClusterWeights
+            )
+            it.loadBalancing.trafficSplitting.zoneName = "not-matching-dc"
+        }
+        val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
+        val cluster1 = createCluster(defaultProperties, clusterName = DEFAULT_SERVICE_NAME)
+        val cluster2 = createCluster(defaultProperties, serviceName = SERVICE_NAME_2, clusterName = SERVICE_NAME_2)
+        val group: Group = createServicesGroup(
+            dependencies = arrayOf(cluster2.name to null),
+            snapshotProperties = defaultProperties
+        )
+        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        assertThat(snapshot.clusters().resources())
+            .containsKey(MAIN_CLUSTER_NAME)
+            .doesNotContainKey(SECONDARY_CLUSTER_NAME)
+            .doesNotContainKey(AGGREGATE_CLUSTER_NAME)
+    }
+
+    @Test
+    @Ignore // todo AD
+    fun `should create weighted snapshot clusters for wildcard dependencies`() {
+        // given
+        val envoySnapshotFactory = createSnapshotFactory(snapshotPropertiesWithWeights)
+        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = DEFAULT_SERVICE_NAME)
+        val cluster2 =
+            createCluster(snapshotPropertiesWithWeights, serviceName = SERVICE_NAME_2, clusterName = SERVICE_NAME_2)
+        val wildcardTimeoutPolicy = outgoingTimeoutPolicy(connectionIdleTimeout = 12)
+
+        val group: Group = createServicesGroup(
+            dependencies = arrayOf("*" to wildcardTimeoutPolicy),
+            snapshotProperties = snapshotPropertiesWithWeights
+        )
+        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        assertThat(snapshot.clusters().resources())
+            .containsKey(MAIN_CLUSTER_NAME)
+            .containsKey(SECONDARY_CLUSTER_NAME)
+            .containsKey(AGGREGATE_CLUSTER_NAME)
+    }
+
+    @Test
+    fun `should create weighted secondary snapshot cluster with filtered endpoints`() {
+    }
+
+    @Test
+    fun `should create weighted main snapshot cluster with default endpoints`() {
+    }
+
+    @Test
+    fun `should create weighted main snapshot cluster with custom connection idle timeout`() {
+    }
+
+    @Test
+    fun `should create weighted secondary snapshot cluster with custom connection idle timeout`() {
     }
 
     @Test
@@ -274,10 +407,14 @@ class EnvoySnapshotFactoryTest {
     }
 
     private fun GlobalSnapshot.withEndpoint(clusterName: String): GlobalSnapshot = copy(
-        endpoints = SnapshotResources.create<ClusterLoadAssignment>(listOf(ClusterLoadAssignment.newBuilder()
+        endpoints = SnapshotResources.create<ClusterLoadAssignment>(
+            listOf(
+                ClusterLoadAssignment.newBuilder()
                     .setClusterName(clusterName)
                     .build()
-        ), "v1").resources())
+            ), "v1"
+        ).resources()
+    )
 
     private fun createServicesGroup(
         mode: CommunicationMode = CommunicationMode.XDS,
@@ -351,7 +488,7 @@ class EnvoySnapshotFactoryTest {
         )
         val egressRoutesFactory = EnvoyEgressRoutesFactory(properties)
         val clustersFactory = EnvoyClustersFactory(properties)
-        val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator(), currentZone)
+        val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator(), CURRENT_ZONE)
         val envoyHttpFilters = EnvoyHttpFilters.defaultFilters(properties)
         val listenersFactory = EnvoyListenersFactory(properties, envoyHttpFilters)
         val snapshotsVersions = SnapshotsVersions()
@@ -371,12 +508,41 @@ class EnvoySnapshotFactoryTest {
 
     private fun createGlobalSnapshot(vararg clusters: Cluster): GlobalSnapshot {
         return GlobalSnapshot(
-            SnapshotResources.create<Cluster>(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3").resources(),
+            SnapshotResources.create<Cluster>(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
+                .resources(),
             clusters.map { it.name }.toSet(),
-            SnapshotResources.create<ClusterLoadAssignment>(emptyList<ClusterLoadAssignment>(), "v1").resources(),
-            emptyMap(),
+            SnapshotResources.create<ClusterLoadAssignment>(createLoadAssignments(clusters.toList()), "v1").resources(),
+            createClusterConfigurations(),
             SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources()
         )
+    }
+
+    private fun createLoadAssignments(clusters: List<Cluster>): List<ClusterLoadAssignment> {
+        return clusters.map {
+            ClusterLoadAssignment.newBuilder()
+                .setClusterName(it.name)
+                .addAllEndpoints(createEndpoints())
+                .build()
+        }
+    }
+
+    private fun createMultiClusterState(services: List<String>): List<MultiClusterState> {
+        return services
+            .map {
+                ClusterState(
+                    ServicesState(
+                        ConcurrentHashMap(
+                            mutableMapOf(
+                                it to ServiceInstances(
+                                    it,
+                                    setOf(ServiceInstance("id", setOf(), "localhost", 8080))
+                                )
+                            )
+                        )
+                    ), Locality.LOCAL, it
+                )
+            }
+            .map { MultiClusterState(it) }
     }
 
     private fun createCluster(
@@ -398,6 +564,25 @@ class EnvoySnapshotFactoryTest {
                 HttpProtocolOptions.newBuilder()
                     .setIdleTimeout(Duration.newBuilder().setSeconds(idleTimeout).build())
             )
+            .build()
+    }
+
+    private fun createClusterConfigurations(vararg clusters: Cluster): Map<String, ClusterConfiguration> {
+        return clusters.associate { it.name to ClusterConfiguration(it.name, false) }
+    }
+
+    private fun createEndpoints(): List<LocalityLbEndpoints> =
+        listOf(createEndpoint(CURRENT_ZONE), createEndpoint(FORCE_TRAFFIC_ZONE))
+
+    private fun createEndpoint(zone: String): LocalityLbEndpoints {
+        return LocalityLbEndpoints.newBuilder()
+            .setLocality(
+                io.envoyproxy.envoy.config.core.v3.Locality
+                    .newBuilder()
+                    .setZone(zone)
+                    .build()
+            )
+            .addAllLbEndpoints(listOf(LbEndpoint.getDefaultInstance()))
             .build()
     }
 }

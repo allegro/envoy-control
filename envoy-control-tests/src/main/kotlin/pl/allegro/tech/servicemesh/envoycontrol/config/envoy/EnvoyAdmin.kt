@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -70,8 +69,8 @@ class EnvoyAdmin(
         }
     }
 
-    private fun configDump(): String {
-        val response = get("config_dump")
+    fun configDump(): String {
+        val response = get("config_dump", mapOf("include_eds" to "on"))
         return response.body.use { it!!.string() }
     }
 
@@ -109,14 +108,19 @@ class EnvoyAdmin(
     private val client = OkHttpClient.Builder()
         .build()
 
-    private fun get(path: String): Response =
-        client.newCall(
+    private fun get(path: String, queryParams: Map<String, String> = mapOf()): Response {
+        val params = queryParams.entries
+            .joinToString(prefix = "?", separator = "&") {
+                "${it.key}=${it.value}"
+            }
+        return client.newCall(
             Request.Builder()
                 .get()
-                .url("$address/$path")
+                .url("$address/$path$params")
                 .build()
         )
             .execute().addToCloseableResponses()
+    }
 
     private fun post(path: String): Response =
         client.newCall(

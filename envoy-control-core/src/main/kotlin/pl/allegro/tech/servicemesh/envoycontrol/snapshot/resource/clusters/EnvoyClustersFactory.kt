@@ -52,6 +52,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.SanUriMatcherFactory
+import pl.allegro.tech.servicemesh.envoycontrol.utils.getAggregateClusterName
+import pl.allegro.tech.servicemesh.envoycontrol.utils.getSecondaryClusterName
+
+typealias EnvoyClusterConfig = io.envoyproxy.envoy.extensions.clusters.aggregate.v3.ClusterConfig
 
 class EnvoyClustersFactory(
     private val properties: SnapshotProperties
@@ -184,6 +188,7 @@ class EnvoyClustersFactory(
         return emptyList()
     }
 
+    // todo AD refactor
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
             globalSnapshot.securedClusters
@@ -191,20 +196,33 @@ class EnvoyClustersFactory(
             globalSnapshot.clusters
         }
 
-        val serviceDependencies = group.proxySettings.outgoing.getServiceDependencies().associateBy { it.service }
-
+        val dependencies = group.proxySettings.outgoing.getServiceDependencies().associateBy { it.service }
         val clustersForGroup = when (group) {
-            is ServicesGroup -> serviceDependencies.mapNotNull {
-                createClusterForGroup(it.value.settings, clusters[it.key])
+            is ServicesGroup -> dependencies.flatMap {
+                createClusters(
+                    group.serviceName,
+                    dependencies.keys,
+                    it.value.settings,
+                    clusters[it.key],
+                    globalSnapshot.endpoints[it.key]
+                )
             }
+
             is AllServicesGroup -> {
-                globalSnapshot.allServicesNames.mapNotNull {
-                    val dependency = serviceDependencies[it]
-                    if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
-                        createClusterForGroup(dependency.settings, clusters[it])
-                    } else {
-                        createClusterForGroup(group.proxySettings.outgoing.defaultServiceSettings, clusters[it])
-                    }
+                globalSnapshot.allServicesNames.flatMap {
+                    val dependency = dependencies[it]
+                    val dependencySettings =
+                        if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
+                            dependency.settings
+                        } else group.proxySettings.outgoing.defaultServiceSettings
+                    createClusters(
+                        group.serviceName,
+                        dependencies.keys,
+                        dependencySettings,
+                        clusters[it],
+                        globalSnapshot.endpoints[it]
+                    )
+
                 }
             }
         }
@@ -215,15 +233,60 @@ class EnvoyClustersFactory(
         return clustersForGroup
     }
 
-    private fun createClusterForGroup(dependencySettings: DependencySettings, cluster: Cluster?): Cluster? {
+    private fun createClusterForGroup(dependencySettings: DependencySettings, cluster: Cluster): Cluster {
+        val idleTimeoutPolicy =
+            dependencySettings.timeoutPolicy.connectionIdleTimeout ?: cluster.commonHttpProtocolOptions.idleTimeout
+        return Cluster.newBuilder(cluster)
+            .setCommonHttpProtocolOptions(
+                HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy)
+            ).build()
+    }
+
+    private fun createSetOfClustersForGroup(
+        dependencySettings: DependencySettings,
+        cluster: Cluster
+    ): Collection<Cluster> {
+        val mainCluster = createClusterForGroup(dependencySettings, cluster)
+        val secondaryCluster = createClusterForGroup(dependencySettings, cluster)
+            .toBuilder()
+            .setName(getSecondaryClusterName(cluster.name))
+            .build()
+        val aggregateCluster =
+            createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
+        return linkedSetOf(mainCluster, secondaryCluster, aggregateCluster)
+            .also { logger.debug("Created traffic splitting clusters: {}", it) }
+    }
+
+    private fun createClusters(
+        serviceName: String,
+        dependencies: Set<String>,
+        dependencySettings: DependencySettings,
+        cluster: Cluster?,
+        clusterLoadAssignment: ClusterLoadAssignment?
+    ): Collection<Cluster> {
         return cluster?.let {
-            val idleTimeoutPolicy =
-                dependencySettings.timeoutPolicy.connectionIdleTimeout ?: cluster.commonHttpProtocolOptions.idleTimeout
-            Cluster.newBuilder(cluster)
-                .setCommonHttpProtocolOptions(
-                    HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy)
-                ).build()
-        }
+            if (enableTrafficSplitting(serviceName, cluster.name, dependencies, clusterLoadAssignment)) {
+                logger.debug("Creating traffic splitting egress cluster config for ${cluster.name}, service: $serviceName")
+                createSetOfClustersForGroup(dependencySettings, cluster)
+            } else {
+                listOf(createClusterForGroup(dependencySettings, cluster))
+            }
+        } ?: listOf()
+    }
+
+    private fun enableTrafficSplitting(
+        serviceName: String,
+        clusterName: String,
+        dependencies: Set<String>,
+        clusterLoadAssignment: ClusterLoadAssignment?
+    ): Boolean {
+        val trafficSplitting = properties.loadBalancing.trafficSplitting
+        val trafficSplitEnabled = trafficSplitting.serviceByWeightsProperties.keys.contains(serviceName)
+            && dependencies.contains(clusterName)
+        val hasEndpointsInZone = clusterLoadAssignment
+            ?.endpointsList
+            ?.any { e -> trafficSplitting.zoneName == e.locality.zone } ?: false
+        return trafficSplitEnabled && hasEndpointsInZone
     }
 
     private fun shouldAddDynamicForwardProxyCluster(group: Group) =
@@ -267,6 +330,7 @@ class EnvoyClustersFactory(
             .build()
     }
 
+    // TODO ??? todo AD
     private fun getStrictDnsClustersForGroup(group: Group): List<Cluster> {
         val useTransparentProxy = group.listenersConfig?.useTransparentProxy ?: false
         return group.proxySettings.outgoing.getDomainDependencies().map {
@@ -275,6 +339,25 @@ class EnvoyClustersFactory(
                 useTransparentProxy
             )
         }
+    }
+
+    private fun createAggregateCluster(clusterName: String, aggregatedClusters: Collection<String>): Cluster {
+        return Cluster.newBuilder()
+            .setName(getAggregateClusterName(clusterName))
+            .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
+            .setLbPolicy(Cluster.LbPolicy.CLUSTER_PROVIDED)
+            .setClusterType(
+                Cluster.CustomClusterType.newBuilder()
+                    .setName("envoy.clusters.aggregate")
+                    .setTypedConfig(
+                        Any.pack(
+                            EnvoyClusterConfig.newBuilder()
+                                .addAllClusters(aggregatedClusters)
+                                .build()
+                        )
+                    )
+            )
+            .build()
     }
 
     private fun strictDnsCluster(
@@ -372,6 +455,7 @@ class EnvoyClustersFactory(
                         ADS -> ConfigSource.newBuilder()
                             .setResourceApiVersion(ApiVersion.V3)
                             .setAds(AggregatedConfigSource.newBuilder())
+
                         XDS ->
                             ConfigSource.newBuilder()
                                 .setResourceApiVersion(ApiVersion.V3)
@@ -393,7 +477,7 @@ class EnvoyClustersFactory(
                                         )
                                 )
                     }
-                ).setServiceName(clusterConfiguration.serviceName)
+                )
             )
             .setLbPolicy(properties.loadBalancing.policy)
             // TODO: if we want to have multiple memory-backend instances of ratelimit
