@@ -3,13 +3,15 @@ package pl.allegro.tech.servicemesh.envoycontrol.trafficsplitting
 import TrafficSplittingConstants.serviceName
 import TrafficSplittingConstants.upstreamServiceName
 import callUpstreamServiceRepeatedly
+import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulClusterSetup
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulMultiClusterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlClusteredExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import verifyCallsCountCloseTo
 import verifyIsReachable
@@ -18,7 +20,6 @@ import java.time.Duration
 
 class AggregateClusterFallbackTest {
     companion object {
-        private const val numberOfCalls = 100
         private const val forceTrafficZone = "dc3"
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.stateSampleDuration" to Duration.ofSeconds(0),
@@ -45,17 +46,6 @@ class AggregateClusterFallbackTest {
             )
         )
 
-        private val echo2Config = """
-            node:
-              metadata:
-                proxy_settings:
-                  outgoing:
-                    dependencies:
-                      - service: "service-1"
-        """.trimIndent()
-
-        private val config = Xds.copy(configOverride = echo2Config, serviceName = "echo2")
-
         @JvmField
         @RegisterExtension
         val consul = ConsulMultiClusterExtension()
@@ -74,7 +64,6 @@ class AggregateClusterFallbackTest {
         @RegisterExtension
         val envoyControl3 =
             EnvoyControlClusteredExtension(consul.serverThird, { properties }, listOf(consul))
-
 
         @JvmField
         @RegisterExtension
@@ -129,6 +118,17 @@ class AggregateClusterFallbackTest {
                 name = upstreamServiceName,
                 id = "$upstreamServiceName-$i"
             )
+        }
+    }
+
+    private fun EnvoyExtension.assertInstancesUp(vararg containers: EchoContainer) {
+        untilAsserted {
+            val addresses = this.container.admin()
+                .endpointsAddress(clusterName = upstreamServiceName)
+                .map { "${it.address}:${it.portValue}" }
+            Assertions.assertThat(addresses)
+                .hasSize(containers.size)
+                .containsExactlyInAnyOrderElementsOf(containers.map { it.address() })
         }
     }
 

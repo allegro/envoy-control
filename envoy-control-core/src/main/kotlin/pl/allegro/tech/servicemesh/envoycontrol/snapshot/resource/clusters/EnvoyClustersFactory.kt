@@ -188,7 +188,7 @@ class EnvoyClustersFactory(
         return emptyList()
     }
 
-    // todo AD refactor
+    // todo refactor
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
             globalSnapshot.securedClusters
@@ -217,7 +217,7 @@ class EnvoyClustersFactory(
                         } else group.proxySettings.outgoing.defaultServiceSettings
                     createClusters(
                         group.serviceName,
-                        dependencies.keys,
+                        globalSnapshot.allServicesNames,
                         dependencySettings,
                         clusters[it],
                         globalSnapshot.endpoints[it]

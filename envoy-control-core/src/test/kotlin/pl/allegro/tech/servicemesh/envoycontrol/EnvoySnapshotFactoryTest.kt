@@ -15,7 +15,6 @@ import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Ignore
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
@@ -59,7 +58,7 @@ class EnvoySnapshotFactoryTest {
         const val CLUSTER_NAME = "cluster-name"
         const val MAIN_CLUSTER_NAME = "service-name-2"
         const val SECONDARY_CLUSTER_NAME = "service-name-2-secondary"
-        const val AGGREGATE_CLUSTER_NAME = "service-name-2-aggr"
+        const val AGGREGATE_CLUSTER_NAME = "service-name-2-aggregate"
         const val CLUSTER_NAME_2 = "cluster-name-2"
         const val DEFAULT_SERVICE_NAME = "service-name"
         const val SERVICE_NAME_2 = "service-name-2"
@@ -252,7 +251,7 @@ class EnvoySnapshotFactoryTest {
         val cluster2 =
             createCluster(snapshotPropertiesWithWeights, serviceName = SERVICE_NAME_2, clusterName = SERVICE_NAME_2)
         val group: Group = createServicesGroup(
-            dependencies = arrayOf(cluster2.name to outgoingTimeoutPolicy(connectionIdleTimeout = 10)),
+            dependencies = arrayOf(cluster2.name to null),
             snapshotProperties = snapshotPropertiesWithWeights
         )
         val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
@@ -309,7 +308,6 @@ class EnvoySnapshotFactoryTest {
     }
 
     @Test
-    @Ignore // todo AD
     fun `should create weighted snapshot clusters for wildcard dependencies`() {
         // given
         val envoySnapshotFactory = createSnapshotFactory(snapshotPropertiesWithWeights)
@@ -318,9 +316,10 @@ class EnvoySnapshotFactoryTest {
             createCluster(snapshotPropertiesWithWeights, serviceName = SERVICE_NAME_2, clusterName = SERVICE_NAME_2)
         val wildcardTimeoutPolicy = outgoingTimeoutPolicy(connectionIdleTimeout = 12)
 
-        val group: Group = createServicesGroup(
+        val group: Group = createAllServicesGroup(
             dependencies = arrayOf("*" to wildcardTimeoutPolicy),
-            snapshotProperties = snapshotPropertiesWithWeights
+            snapshotProperties = snapshotPropertiesWithWeights,
+            defaultServiceSettings = DependencySettings(),
         )
         val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
 
@@ -332,22 +331,6 @@ class EnvoySnapshotFactoryTest {
             .containsKey(MAIN_CLUSTER_NAME)
             .containsKey(SECONDARY_CLUSTER_NAME)
             .containsKey(AGGREGATE_CLUSTER_NAME)
-    }
-
-    @Test
-    fun `should create weighted secondary snapshot cluster with filtered endpoints`() {
-    }
-
-    @Test
-    fun `should create weighted main snapshot cluster with default endpoints`() {
-    }
-
-    @Test
-    fun `should create weighted main snapshot cluster with custom connection idle timeout`() {
-    }
-
-    @Test
-    fun `should create weighted secondary snapshot cluster with custom connection idle timeout`() {
     }
 
     @Test
