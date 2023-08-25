@@ -59,11 +59,6 @@ class WeightedClustersRoutingTest {
 
         @JvmField
         @RegisterExtension
-        val envoyControl2 =
-            EnvoyControlClusteredExtension(consul.serverSecond, { properties }, listOf(consul))
-
-        @JvmField
-        @RegisterExtension
         val echoServiceDC1 = EchoServiceExtension()
 
         @JvmField
@@ -78,9 +73,6 @@ class WeightedClustersRoutingTest {
         @RegisterExtension
         val echoEnvoyDC1 = EnvoyExtension(envoyControl, localService = echoServiceDC1, config)
 
-        @JvmField
-        @RegisterExtension
-        val envoyDC2 = EnvoyExtension(envoyControl2)
     }
 
     @Test
@@ -91,7 +83,7 @@ class WeightedClustersRoutingTest {
         echoEnvoyDC1.verifyIsReachable(upstreamServiceDC1, upstreamServiceName)
 
         consul.serverSecond.operations.registerService(upstreamServiceDC2, name = upstreamServiceName)
-        envoyDC2.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
+        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
 
         echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2)
             .verifyCallsCountCloseTo(upstreamServiceDC1, 90)
