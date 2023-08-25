@@ -1,4 +1,5 @@
-import TrafficSplittingConstants.upstreamServiceName
+import TrafficSplitting.deltaPercentage
+import TrafficSplitting.upstreamServiceName
 import org.assertj.core.api.Assertions
 import org.assertj.core.data.Percentage
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
@@ -8,9 +9,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-internal object TrafficSplittingConstants {
+internal object TrafficSplitting {
     const val upstreamServiceName = "service-1"
     const val serviceName = "echo2"
+    const val deltaPercentage = 20.0
 }
 
 fun EnvoyExtension.verifyIsReachable(echoServiceExtension: EchoServiceExtension, service: String) {
@@ -22,19 +24,12 @@ fun EnvoyExtension.verifyIsReachable(echoServiceExtension: EchoServiceExtension,
 }
 
 fun CallStats.verifyCallsCountCloseTo(service: EchoServiceExtension, expectedCount: Int): CallStats {
-    Assertions.assertThat(this.hits(service)).isCloseTo(expectedCount, Percentage.withPercentage(20.0))
+    Assertions.assertThat(this.hits(service)).isCloseTo(expectedCount, Percentage.withPercentage(deltaPercentage))
     return this
 }
 
 fun CallStats.verifyCallsCountGreaterThan(service: EchoServiceExtension, hits: Int): CallStats {
     Assertions.assertThat(this.hits(service)).isGreaterThan(hits)
-    return this
-}
-
-fun CallStats.verifyNoCalls(vararg services: EchoServiceExtension): CallStats {
-    services.forEach {
-        Assertions.assertThat(this.hits(it)).isEqualTo(0)
-    }
     return this
 }
 

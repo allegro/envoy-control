@@ -1,7 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.trafficsplitting
 
-import TrafficSplittingConstants.serviceName
-import TrafficSplittingConstants.upstreamServiceName
+import TrafficSplitting.serviceName
+import TrafficSplitting.upstreamServiceName
 import callUpstreamServiceRepeatedly
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -97,6 +97,4 @@ class WeightedClustersRoutingTest {
             .verifyCallsCountCloseTo(upstreamServiceDC1, 90)
             .verifyCallsCountGreaterThan(upstreamServiceDC2, 1)
     }
-
 }
-

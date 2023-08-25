@@ -222,7 +222,6 @@ class EnvoyClustersFactory(
                         clusters[it],
                         globalSnapshot.endpoints[it]
                     )
-
                 }
             }
         }
@@ -283,10 +282,9 @@ class EnvoyClustersFactory(
         clusterLoadAssignment: ClusterLoadAssignment?
     ): Boolean {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
-        val trafficSplitEnabled = trafficSplitting.serviceByWeightsProperties.keys.contains(serviceName)
-            && dependencies.contains(clusterName)
-        val hasEndpointsInZone = clusterLoadAssignment
-            ?.endpointsList
+        val trafficSplitEnabled = trafficSplitting.serviceByWeightsProperties.keys.contains(serviceName) &&
+            dependencies.contains(clusterName)
+        val hasEndpointsInZone = clusterLoadAssignment?.endpointsList
             ?.any { e -> trafficSplitting.zoneName == e.locality.zone } ?: false
         return trafficSplitEnabled && hasEndpointsInZone
     }
