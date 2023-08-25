@@ -368,8 +368,8 @@ internal class EnvoyEndpointsFactoryTest {
             listOf(
                 clusterState(cluster = "DC1"),
                 clusterState(cluster = "DC2"),
-                clusterState(cluster = "DC1", sName = serviceName2),
-                clusterState(cluster = "DC2", sName = serviceName2),
+                clusterState(cluster = "DC1", serviceName = serviceName2),
+                clusterState(cluster = "DC2", serviceName = serviceName2),
             )
         )
 
@@ -398,7 +398,7 @@ internal class EnvoyEndpointsFactoryTest {
         val multiClusterState = MultiClusterState(
             listOf(
                 clusterState(cluster = defaultZone),
-                clusterState(cluster = defaultZone, sName = serviceName2),
+                clusterState(cluster = defaultZone, serviceName = serviceName2),
             )
         )
         val services = setOf(serviceName, serviceName2)
@@ -428,7 +428,7 @@ internal class EnvoyEndpointsFactoryTest {
         val multiClusterState = MultiClusterState(
             listOf(
                 clusterState(cluster = defaultZone),
-                clusterState(cluster = defaultZone, sName = serviceName2),
+                clusterState(cluster = defaultZone, serviceName = serviceName2),
             )
         )
         val services = setOf(serviceName, serviceName2)
@@ -455,7 +455,7 @@ internal class EnvoyEndpointsFactoryTest {
         val multiClusterState = MultiClusterState(
             listOf(
                 clusterState(cluster = defaultZone),
-                clusterState(cluster = defaultZone, sName = serviceName2),
+                clusterState(cluster = defaultZone, serviceName = serviceName2),
             )
         )
         val services = setOf(serviceName, serviceName2)
@@ -493,13 +493,13 @@ internal class EnvoyEndpointsFactoryTest {
     private fun clusterState(
         locality: Locality = Locality.LOCAL,
         cluster: String,
-        sName: String = serviceName
+        serviceName: String = this.serviceName
     ): ClusterState {
         return ClusterState(
             ServicesState(
                 serviceNameToInstances = concurrentMapOf(
-                    sName to ServiceInstances(
-                        sName, setOf(
+                    serviceName to ServiceInstances(
+                        serviceName, setOf(
                             ServiceInstance(
                                 id = "id",
                                 tags = setOf("envoy"),

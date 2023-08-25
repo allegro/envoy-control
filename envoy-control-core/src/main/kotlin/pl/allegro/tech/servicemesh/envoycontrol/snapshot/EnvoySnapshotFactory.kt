@@ -270,7 +270,6 @@ class EnvoySnapshotFactory(
         group: Group,
         globalSnapshot: GlobalSnapshot
     ): Snapshot {
-        logger.debug("Creating new snapshot for group ${group.serviceName}")
         // TODO(dj): This is where serious refactoring needs to be done
         val egressDomainRouteSpecifications = getDomainRouteSpecifications(group, globalSnapshot)
         val egressServiceRouteSpecification = getServiceRouteSpecifications(group, globalSnapshot)
@@ -314,7 +313,6 @@ class EnvoySnapshotFactory(
             group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot,
             egressRouteSpecification
         )
-            // .also { logger.debug("Result endpoints: ${it.toString()}") }
 
         val version = snapshotsVersions.version(group, clusters, endpoints, listeners, routes)
         return createSnapshot(
@@ -327,9 +325,7 @@ class EnvoySnapshotFactory(
             listenersVersion = version.listeners,
             routes = routes,
             routesVersion = version.routes
-        ).also {
-            logger.debug("Snapshot endpoints: ${it.endpoints()}")
-        }
+        )
     }
 
     private fun createRoutesWhenUsingTransparentProxy(
