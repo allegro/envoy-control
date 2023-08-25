@@ -72,7 +72,6 @@ class WeightedClustersRoutingTest {
         @JvmField
         @RegisterExtension
         val echoEnvoyDC1 = EnvoyExtension(envoyControl, localService = echoServiceDC1, config)
-
     }
 
     @Test

@@ -17,12 +17,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceName
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterWeights
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingPriorityProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TrafficSplittingProperties
-import pl.allegro.tech.servicemesh.envoycontrol.utils.getSecondaryClusterName
 import java.util.concurrent.ConcurrentHashMap
 import java.util.stream.Stream
 
@@ -57,7 +57,12 @@ internal class EnvoyEndpointsFactoryTest {
 
     private val serviceName2 = "service-two"
 
-    private val defaultWeights = mapOf("main" to 50, "secondary" to 50)
+    private val secondaryClusterName = "service-one-secondary"
+
+    private val defaultWeights = ClusterWeights().apply {
+        mainClusterWeight = 50
+        secondaryClusterWeight = 50
+    }
 
     private val defaultZone = "DC1"
 
@@ -389,7 +394,7 @@ internal class EnvoyEndpointsFactoryTest {
             services.map { it.toRouteSpecification() }
         )
         assertThat(result).hasSize(2)
-            .anySatisfy { x -> assertThat(x.clusterName).isEqualTo(getSecondaryClusterName(serviceName)) }
+            .anySatisfy { x -> assertThat(x.clusterName).isEqualTo(secondaryClusterName) }
             .allSatisfy { x -> assertThat(x.endpointsList).allMatch { it.locality.zone == defaultZone } }
     }
 
@@ -419,7 +424,7 @@ internal class EnvoyEndpointsFactoryTest {
         )
         assertThat(result).allSatisfy { x ->
             assertThat(x.clusterName)
-                .isEqualTo(getSecondaryClusterName(serviceName))
+                .isEqualTo(secondaryClusterName)
         }
     }
 
@@ -536,7 +541,7 @@ internal class EnvoyEndpointsFactoryTest {
         }
 
     private fun snapshotPropertiesWithTrafficSplitting(
-        serviceByWeights: Map<String, Map<String, Int>>,
+        serviceByWeights: Map<String, ClusterWeights>,
         zone: String = defaultZone
     ) =
         SnapshotProperties().apply {
@@ -546,7 +551,7 @@ internal class EnvoyEndpointsFactoryTest {
             }
         }
 
-    private fun String.toRouteSpecification(weights: Map<String, Int> = defaultWeights): RouteSpecification {
+    private fun String.toRouteSpecification(weights: ClusterWeights = defaultWeights): RouteSpecification {
         return RouteSpecification(this, listOf(), DependencySettings(), weights)
     }
 

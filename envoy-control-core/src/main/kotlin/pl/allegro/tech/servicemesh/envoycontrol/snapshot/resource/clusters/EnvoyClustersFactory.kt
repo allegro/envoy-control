@@ -43,6 +43,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.containsGlobalRateLimits
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -52,8 +53,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.SanUriMatcherFactory
-import pl.allegro.tech.servicemesh.envoycontrol.utils.getAggregateClusterName
-import pl.allegro.tech.servicemesh.envoycontrol.utils.getSecondaryClusterName
 
 typealias EnvoyClusterConfig = io.envoyproxy.envoy.extensions.clusters.aggregate.v3.ClusterConfig
 
@@ -79,6 +78,16 @@ class EnvoyClustersFactory(
 
     companion object {
         private val logger by logger()
+        const val SECONDARY_CLUSTER_POSTFIX = "secondary"
+        const val AGGREGATE_CLUSTER_POSTFIX = "aggregate"
+
+        fun getSecondaryClusterName(serviceName: String): String {
+            return "$serviceName-$SECONDARY_CLUSTER_POSTFIX"
+        }
+
+        fun getAggregateClusterName(serviceName: String): String {
+            return "$serviceName-$AGGREGATE_CLUSTER_POSTFIX"
+        }
     }
 
     fun getClustersForServices(
@@ -188,7 +197,6 @@ class EnvoyClustersFactory(
         return emptyList()
     }
 
-    // todo refactor
     private fun getEdsClustersForGroup(group: Group, globalSnapshot: GlobalSnapshot): List<Cluster> {
         val clusters: Map<String, Cluster> = if (enableTlsForGroup(group)) {
             globalSnapshot.securedClusters
@@ -211,14 +219,10 @@ class EnvoyClustersFactory(
             is AllServicesGroup -> {
                 globalSnapshot.allServicesNames.flatMap {
                     val dependency = dependencies[it]
-                    val dependencySettings =
-                        if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
-                            dependency.settings
-                        } else group.proxySettings.outgoing.defaultServiceSettings
                     createClusters(
                         group.serviceName,
                         globalSnapshot.allServicesNames,
-                        dependencySettings,
+                        getDependencySettings(dependency, group),
                         clusters[it],
                         globalSnapshot.endpoints[it]
                     )
@@ -230,6 +234,12 @@ class EnvoyClustersFactory(
             return listOf(dynamicForwardProxyCluster) + clustersForGroup
         }
         return clustersForGroup
+    }
+
+    private fun getDependencySettings(dependency: ServiceDependency?, group: Group): DependencySettings {
+        return if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
+                dependency.settings
+            } else group.proxySettings.outgoing.defaultServiceSettings
     }
 
     private fun createClusterForGroup(dependencySettings: DependencySettings, cluster: Cluster): Cluster {
@@ -251,8 +261,8 @@ class EnvoyClustersFactory(
             .setName(getSecondaryClusterName(cluster.name))
             .build()
         val aggregateCluster =
-            createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
-        return linkedSetOf(mainCluster, secondaryCluster, aggregateCluster)
+            createAggregateCluster(mainCluster.name, listOf(secondaryCluster.name, mainCluster.name))
+        return listOf(mainCluster, secondaryCluster, aggregateCluster)
             .also { logger.debug("Created traffic splitting clusters: {}", it) }
     }
 
@@ -282,7 +292,7 @@ class EnvoyClustersFactory(
         clusterLoadAssignment: ClusterLoadAssignment?
     ): Boolean {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
-        val trafficSplitEnabled = trafficSplitting.serviceByWeightsProperties.keys.contains(serviceName) &&
+        val trafficSplitEnabled = trafficSplitting.serviceByWeightsProperties.containsKey(serviceName) &&
             dependencies.contains(clusterName)
         val hasEndpointsInZone = clusterLoadAssignment?.endpointsList
             ?.any { e -> trafficSplitting.zoneName == e.locality.zone } ?: false
@@ -330,7 +340,6 @@ class EnvoyClustersFactory(
             .build()
     }
 
-    // TODO ??? todo AD
     private fun getStrictDnsClustersForGroup(group: Group): List<Cluster> {
         val useTransparentProxy = group.listenersConfig?.useTransparentProxy ?: false
         return group.proxySettings.outgoing.getDomainDependencies().map {
