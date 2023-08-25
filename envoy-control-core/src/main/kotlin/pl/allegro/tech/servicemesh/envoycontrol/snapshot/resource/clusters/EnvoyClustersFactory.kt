@@ -242,13 +242,17 @@ class EnvoyClustersFactory(
             } else group.proxySettings.outgoing.defaultServiceSettings
     }
 
-    private fun createClusterForGroup(dependencySettings: DependencySettings, cluster: Cluster): Cluster {
+    private fun createClusterForGroup(
+        dependencySettings: DependencySettings,
+        cluster: Cluster,
+        clusterName: String? = cluster.name
+    ): Cluster {
         val idleTimeoutPolicy =
             dependencySettings.timeoutPolicy.connectionIdleTimeout ?: cluster.commonHttpProtocolOptions.idleTimeout
         return Cluster.newBuilder(cluster)
-            .setCommonHttpProtocolOptions(
-                HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy)
-            ).build()
+            .setCommonHttpProtocolOptions(HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy))
+            .setName(clusterName)
+            .build()
     }
 
     private fun createSetOfClustersForGroup(
@@ -256,10 +260,11 @@ class EnvoyClustersFactory(
         cluster: Cluster
     ): Collection<Cluster> {
         val mainCluster = createClusterForGroup(dependencySettings, cluster)
-        val secondaryCluster = createClusterForGroup(dependencySettings, cluster)
-            .toBuilder()
-            .setName(getSecondaryClusterName(cluster.name))
-            .build()
+        val secondaryCluster = createClusterForGroup(
+            dependencySettings,
+            cluster,
+            getSecondaryClusterName(cluster.name)
+        )
         val aggregateCluster =
             createAggregateCluster(mainCluster.name, listOf(secondaryCluster.name, mainCluster.name))
         return listOf(mainCluster, secondaryCluster, aggregateCluster)
