@@ -1,16 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.AGGREGATE_CLUSTER_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME1
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME2
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_DISCOVERY_SERVICE_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_SERVICE_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_HOST
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_PORT
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_HOST
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_PORT
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.MAIN_CLUSTER_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.SECONDARY_CLUSTER_NAME
 import io.envoyproxy.controlplane.cache.SnapshotResources
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.core.v3.Metadata
@@ -31,7 +20,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterWeights
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -45,6 +33,18 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEg
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.AGGREGATE_CLUSTER_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME1
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME2
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_CLUSTER_WEIGHTS
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_DISCOVERY_SERVICE_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_SERVICE_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_HOST
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_PORT
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_HOST
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_PORT
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.MAIN_CLUSTER_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.SECONDARY_CLUSTER_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createCluster
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createClusterConfigurations
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createLoadAssignments
@@ -57,15 +57,9 @@ class EnvoySnapshotFactoryTest {
         const val FORCE_TRAFFIC_ZONE = "dc2"
     }
 
-    private val defaultClusterWeights = ClusterWeights().apply {
-        mainClusterWeight = 50
-        secondaryClusterWeight = 50
-    }
-
     private val snapshotPropertiesWithWeights = SnapshotProperties().also {
-        it.dynamicListeners.enabled = false
         it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
-            DEFAULT_SERVICE_NAME to defaultClusterWeights
+            DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
         )
         it.loadBalancing.trafficSplitting.zoneName = FORCE_TRAFFIC_ZONE
     }
@@ -273,9 +267,8 @@ class EnvoySnapshotFactoryTest {
     fun `should not create traffic splitting configuration when zone condition isn't complied`() {
         // given
         val defaultProperties = SnapshotProperties().also {
-            it.dynamicListeners.enabled = false
             it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
-                DEFAULT_SERVICE_NAME to defaultClusterWeights
+                DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
             )
             it.loadBalancing.trafficSplitting.zoneName = "not-matching-dc"
         }
@@ -318,7 +311,8 @@ class EnvoySnapshotFactoryTest {
 
         // then
         assertThat(snapshot.clusters().resources())
-            .containsKeys(MAIN_CLUSTER_NAME,
+            .containsKeys(
+                MAIN_CLUSTER_NAME,
                 SECONDARY_CLUSTER_NAME,
                 AGGREGATE_CLUSTER_NAME,
                 CLUSTER_NAME2,

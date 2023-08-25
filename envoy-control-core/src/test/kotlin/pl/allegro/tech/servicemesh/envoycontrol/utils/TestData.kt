@@ -1,6 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.utils
 
-object TestData {
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterWeights
+
+internal object TestData {
     const val INGRESS_HOST = "ingress-host"
     const val INGRESS_PORT = 3380
     const val EGRESS_HOST = "egress-host"
@@ -13,4 +15,9 @@ object TestData {
     const val SECONDARY_CLUSTER_NAME = "cluster-1-secondary"
     const val AGGREGATE_CLUSTER_NAME = "cluster-1-aggregate"
     const val TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE = "dc2"
+
+    val DEFAULT_CLUSTER_WEIGHTS = ClusterWeights().apply {
+        mainClusterWeight = 50
+        secondaryClusterWeight = 50
+    }
 }
