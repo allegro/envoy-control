@@ -59,6 +59,11 @@ class WeightedClustersRoutingTest {
 
         @JvmField
         @RegisterExtension
+        val envoyControl2 =
+            EnvoyControlClusteredExtension(consul.serverSecond, { properties }, listOf(consul))
+
+        @JvmField
+        @RegisterExtension
         val echoServiceDC1 = EchoServiceExtension()
 
         @JvmField
@@ -72,6 +77,9 @@ class WeightedClustersRoutingTest {
         @JvmField
         @RegisterExtension
         val echoEnvoyDC1 = EnvoyExtension(envoyControl, localService = echoServiceDC1, config)
+        @JvmField
+        @RegisterExtension
+        val echoEnvoyDC2 = EnvoyExtension(envoyControl2)
     }
 
     @Test

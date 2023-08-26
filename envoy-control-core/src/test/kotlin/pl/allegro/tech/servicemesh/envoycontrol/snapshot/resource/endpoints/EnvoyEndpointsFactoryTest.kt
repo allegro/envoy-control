@@ -17,7 +17,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceName
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterWeights
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingPriorityProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
@@ -55,14 +54,11 @@ internal class EnvoyEndpointsFactoryTest {
 
     private val serviceName = "service-one"
 
-    private val serviceName2 = "service-two"
-
     private val secondaryClusterName = "service-one-secondary"
 
-    private val defaultWeights = ClusterWeights().apply {
-        mainClusterWeight = 50
-        secondaryClusterWeight = 50
-    }
+    private val serviceName2 = "service-two"
+
+    private val defaultWeights = mapOf("main" to 50, "secondary" to 50)
 
     private val defaultZone = "DC1"
 
@@ -541,7 +537,7 @@ internal class EnvoyEndpointsFactoryTest {
         }
 
     private fun snapshotPropertiesWithTrafficSplitting(
-        serviceByWeights: Map<String, ClusterWeights>,
+        serviceByWeights: Map<String, Map<String, Int>>,
         zone: String = defaultZone
     ) =
         SnapshotProperties().apply {
@@ -551,7 +547,7 @@ internal class EnvoyEndpointsFactoryTest {
             }
         }
 
-    private fun String.toRouteSpecification(weights: ClusterWeights = defaultWeights): RouteSpecification {
+    private fun String.toRouteSpecification(weights: Map<String, Int> = defaultWeights): RouteSpecification {
         return RouteSpecification(this, listOf(), DependencySettings(), weights)
     }
 

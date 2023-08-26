@@ -33,35 +33,35 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEg
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.AGGREGATE_CLUSTER_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME1
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME2
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CURRENT_ZONE
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_CLUSTER_WEIGHTS
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_DISCOVERY_SERVICE_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_IDLE_TIMEOUT
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_SERVICE_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_HOST
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_PORT
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_HOST
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_PORT
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.MAIN_CLUSTER_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.SECONDARY_CLUSTER_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createCluster
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createClusterConfigurations
-import pl.allegro.tech.servicemesh.envoycontrol.utils.createLoadAssignments
+import pl.allegro.tech.servicemesh.envoycontrol.utils.createEndpoints
 
 class EnvoySnapshotFactoryTest {
     companion object {
-        const val CLUSTER_NAME = "cluster-name"
-        const val DEFAULT_IDLE_TIMEOUT = 100L
-        const val CURRENT_ZONE = "dc1"
-        const val FORCE_TRAFFIC_ZONE = "dc2"
+        const val MAIN_CLUSTER_NAME = "service-name-2"
+        const val SECONDARY_CLUSTER_NAME = "service-name-2-secondary"
+        const val AGGREGATE_CLUSTER_NAME = "service-name-2-aggregate"
+        const val SERVICE_NAME_2 = "service-name-2"
     }
 
+    private val defaultClusterWeights = mapOf("main" to 50, "secondary" to 50)
     private val snapshotPropertiesWithWeights = SnapshotProperties().also {
         it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
             DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
         )
-        it.loadBalancing.trafficSplitting.zoneName = FORCE_TRAFFIC_ZONE
+        it.loadBalancing.trafficSplitting.zoneName = TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
     }
 
     @Test
@@ -230,13 +230,14 @@ class EnvoySnapshotFactoryTest {
     }
 
     @Test
-    fun `should create traffic splitting configuration`() {
+    fun `should create weighted snapshot clusters`() {
         // given
         val envoySnapshotFactory = createSnapshotFactory(snapshotPropertiesWithWeights)
-        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = CLUSTER_NAME1)
-        val cluster2 = createCluster(snapshotPropertiesWithWeights, clusterName = CLUSTER_NAME2)
+        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = DEFAULT_SERVICE_NAME)
+        val cluster2 =
+            createCluster(snapshotPropertiesWithWeights, clusterName = SERVICE_NAME_2)
         val group: Group = createServicesGroup(
-            dependencies = arrayOf(cluster1.name to null),
+            dependencies = arrayOf(cluster2.name to null),
             snapshotProperties = snapshotPropertiesWithWeights
         )
         val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
@@ -254,29 +255,30 @@ class EnvoySnapshotFactoryTest {
                 assertThat(it.clusterName).isEqualTo(MAIN_CLUSTER_NAME)
                 assertThat(it.endpointsList)
                     .anyMatch { e -> e.locality.zone == CURRENT_ZONE }
-                    .anyMatch { e -> e.locality.zone == FORCE_TRAFFIC_ZONE }
+                    .anyMatch { e -> e.locality.zone == TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE }
             }
             .anySatisfy {
                 assertThat(it.clusterName).isEqualTo(SECONDARY_CLUSTER_NAME)
                 assertThat(it.endpointsList)
-                    .allMatch { e -> e.locality.zone == FORCE_TRAFFIC_ZONE }
+                    .allMatch { e -> e.locality.zone == TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE }
             }
     }
 
     @Test
-    fun `should not create traffic splitting configuration when zone condition isn't complied`() {
+    fun `should get regular snapshot clusters when traffic splitting zone condition isn't complied`() {
         // given
         val defaultProperties = SnapshotProperties().also {
+            it.dynamicListeners.enabled = false
             it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
-                DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
+                DEFAULT_SERVICE_NAME to defaultClusterWeights
             )
             it.loadBalancing.trafficSplitting.zoneName = "not-matching-dc"
         }
         val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
-        val cluster1 = createCluster(defaultProperties, clusterName = CLUSTER_NAME1)
-        val cluster2 = createCluster(defaultProperties, clusterName = CLUSTER_NAME2)
+        val cluster1 = createCluster(defaultProperties, clusterName = DEFAULT_SERVICE_NAME)
+        val cluster2 = createCluster(defaultProperties, clusterName = SERVICE_NAME_2)
         val group: Group = createServicesGroup(
-            dependencies = arrayOf(cluster1.name to null),
+            dependencies = arrayOf(cluster2.name to null),
             snapshotProperties = defaultProperties
         )
         val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
@@ -292,11 +294,11 @@ class EnvoySnapshotFactoryTest {
     }
 
     @Test
-    fun `should create traffic splitting configuration for wildcard dependencies`() {
+    fun `should create weighted snapshot clusters for wildcard dependencies`() {
         // given
         val envoySnapshotFactory = createSnapshotFactory(snapshotPropertiesWithWeights)
-        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = CLUSTER_NAME1)
-        val cluster2 = createCluster(snapshotPropertiesWithWeights, clusterName = CLUSTER_NAME2)
+        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = DEFAULT_SERVICE_NAME)
+        val cluster2 = createCluster(snapshotPropertiesWithWeights, clusterName = SERVICE_NAME_2)
         val wildcardTimeoutPolicy = outgoingTimeoutPolicy(connectionIdleTimeout = 12)
 
         val group: Group = createAllServicesGroup(
@@ -311,14 +313,9 @@ class EnvoySnapshotFactoryTest {
 
         // then
         assertThat(snapshot.clusters().resources())
-            .containsKeys(
-                MAIN_CLUSTER_NAME,
-                SECONDARY_CLUSTER_NAME,
-                AGGREGATE_CLUSTER_NAME,
-                CLUSTER_NAME2,
-                "cluster-2-secondary",
-                "cluster-2-aggregate"
-            )
+            .containsKey(MAIN_CLUSTER_NAME)
+            .containsKey(SECONDARY_CLUSTER_NAME)
+            .containsKey(AGGREGATE_CLUSTER_NAME)
     }
 
     @Test
@@ -477,17 +474,23 @@ class EnvoySnapshotFactoryTest {
         )
     }
 
-    private fun createGlobalSnapshot(
-        vararg clusters: Cluster,
-        securedClusters: List<Cluster> = clusters.asList()
-    ): GlobalSnapshot {
+    private fun createGlobalSnapshot(vararg clusters: Cluster): GlobalSnapshot {
         return GlobalSnapshot(
             SnapshotResources.create<Cluster>(clusters.toList(), "pl/allegro/tech/servicemesh/envoycontrol/v3")
                 .resources(),
             clusters.map { it.name }.toSet(),
             SnapshotResources.create<ClusterLoadAssignment>(createLoadAssignments(clusters.toList()), "v1").resources(),
             createClusterConfigurations(),
-            SnapshotResources.create<Cluster>(securedClusters, "v3").resources()
+            SnapshotResources.create<Cluster>(clusters.toList(), "v3").resources()
         )
+    }
+
+    private fun createLoadAssignments(clusters: List<Cluster>): List<ClusterLoadAssignment> {
+        return clusters.map {
+            ClusterLoadAssignment.newBuilder()
+                .setClusterName(it.name)
+                .addAllEndpoints(createEndpoints())
+                .build()
+        }
     }
 }

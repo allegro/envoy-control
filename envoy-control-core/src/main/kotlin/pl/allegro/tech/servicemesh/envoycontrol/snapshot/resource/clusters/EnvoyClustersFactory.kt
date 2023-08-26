@@ -81,10 +81,12 @@ class EnvoyClustersFactory(
         const val SECONDARY_CLUSTER_POSTFIX = "secondary"
         const val AGGREGATE_CLUSTER_POSTFIX = "aggregate"
 
+        @JvmStatic
         fun getSecondaryClusterName(serviceName: String): String {
             return "$serviceName-$SECONDARY_CLUSTER_POSTFIX"
         }
 
+        @JvmStatic
         fun getAggregateClusterName(serviceName: String): String {
             return "$serviceName-$AGGREGATE_CLUSTER_POSTFIX"
         }
@@ -266,7 +268,7 @@ class EnvoyClustersFactory(
             getSecondaryClusterName(cluster.name)
         )
         val aggregateCluster =
-            createAggregateCluster(mainCluster.name, listOf(secondaryCluster.name, mainCluster.name))
+            createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
         return listOf(mainCluster, secondaryCluster, aggregateCluster)
             .also { logger.debug("Created traffic splitting clusters: {}", it) }
     }

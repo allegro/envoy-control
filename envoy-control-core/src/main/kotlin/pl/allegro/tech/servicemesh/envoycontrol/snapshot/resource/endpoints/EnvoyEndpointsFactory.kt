@@ -81,7 +81,7 @@ class EnvoyEndpointsFactory(
         egressRouteSpecifications: Collection<RouteSpecification>
     ): List<ClusterLoadAssignment> {
         return egressRouteSpecifications
-            .filter { it.clusterWeights.mainClusterWeight > 0 && it.clusterWeights.secondaryClusterWeight > 0 }
+            .filter { it.clusterWeights.isNotEmpty() }
             .onEach { logger.debug("Traffic splitting is enabled for cluster: ${it.clusterName}") }
             .mapNotNull { routeSpec ->
                 clusterLoadAssignments[routeSpec.clusterName]?.let { assignment ->

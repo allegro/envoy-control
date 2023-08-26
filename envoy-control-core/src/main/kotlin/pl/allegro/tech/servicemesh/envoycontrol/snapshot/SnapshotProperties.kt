@@ -157,12 +157,7 @@ class CanaryProperties {
 
 class TrafficSplittingProperties {
     var zoneName = ""
-    var serviceByWeightsProperties: Map<String, ClusterWeights> = mapOf()
-}
-
-class ClusterWeights {
-    var mainClusterWeight: Int = 0
-    var secondaryClusterWeight: Int = 0
+    var serviceByWeightsProperties: Map<String, Map<String, Int>> = mapOf()
 }
 
 class LoadBalancingWeightsProperties {

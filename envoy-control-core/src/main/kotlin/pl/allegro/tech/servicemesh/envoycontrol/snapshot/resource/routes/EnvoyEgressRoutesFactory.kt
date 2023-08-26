@@ -345,23 +345,21 @@ class EnvoyEgressRoutesFactory(
     }
 
     private fun RouteAction.Builder.setCluster(routeSpec: RouteSpecification): RouteAction.Builder {
-        val clusterWeights = routeSpec.clusterWeights
-        val hasWeightsConfig = clusterWeights.mainClusterWeight > 0 &&
-            clusterWeights.secondaryClusterWeight > 0
+        val hasWeightsConfig = routeSpec.clusterWeights.keys.containsAll(listOf("main", "secondary"))
         return if (!hasWeightsConfig) {
             this.setCluster(routeSpec.clusterName)
         } else {
             logger.debug(
                 "Creating weighted cluster configuration for route spec {}, {}",
                 routeSpec.clusterName,
-                clusterWeights
+                routeSpec.clusterWeights
             )
             this.setWeightedClusters(
                 WeightedCluster.newBuilder()
-                    .withClusterWeight(routeSpec.clusterName, clusterWeights.mainClusterWeight)
+                    .withClusterWeight(routeSpec.clusterName, routeSpec.clusterWeights["main"]!!)
                     .withClusterWeight(
                         getSecondaryClusterName(routeSpec.clusterName),
-                        clusterWeights.secondaryClusterWeight
+                        routeSpec.clusterWeights["secondary"]!!
                     )
             )
         }

@@ -8,10 +8,10 @@ import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.AGGREGATE_CLUSTER_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME1
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME2
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_CLUSTER_WEIGHTS
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_SERVICE_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.MAIN_CLUSTER_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.SECONDARY_CLUSTER_NAME
@@ -29,7 +29,7 @@ internal class EnvoyClustersFactoryTest {
         private val factory = EnvoyClustersFactory(SnapshotProperties())
         private val snapshotPropertiesWithWeights = SnapshotProperties().apply {
             loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
-                DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
+                DEFAULT_SERVICE_NAME to TestData.DEFAULT_CLUSTER_WEIGHTS
             )
             loadBalancing.trafficSplitting.zoneName = TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
         }
