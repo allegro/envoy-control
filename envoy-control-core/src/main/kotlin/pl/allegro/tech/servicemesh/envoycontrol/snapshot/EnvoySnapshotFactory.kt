@@ -13,6 +13,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.orDefault
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -164,22 +166,20 @@ class EnvoySnapshotFactory(
         return group.proxySettings.outgoing.getDomainDependencies().groupBy(
             { DomainRoutesGrouper(it.getPort(), it.useSsl()) },
             {
-                RouteSpecification(
+                StandardRouteSpecification(
                     clusterName = it.getClusterName(),
                     routeDomains = listOf(it.getRouteDomain()),
                     settings = it.settings,
-                    clusterWeights = mapOf()
                 )
             }
         )
     }
 
     private fun getDomainPatternRouteSpecifications(group: Group): RouteSpecification {
-        return RouteSpecification(
+        return StandardRouteSpecification(
             clusterName = properties.dynamicForwardProxy.clusterName,
             routeDomains = group.proxySettings.outgoing.getDomainPatternDependencies().map { it.domainPattern },
             settings = group.proxySettings.outgoing.defaultServiceSettings,
-            clusterWeights = mapOf()
         )
     }
 
@@ -188,11 +188,12 @@ class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot
     ): Collection<RouteSpecification> {
         val definedServicesRoutes = group.proxySettings.outgoing.getServiceDependencies().map {
-            RouteSpecification(
+            getTrafficSplittingRouteSpecification(
                 clusterName = it.service,
                 routeDomains = listOf(it.service) + getServiceWithCustomDomain(it.service),
                 settings = it.settings,
-                clusterWeights = getTrafficSplittingWeights(group.serviceName, globalSnapshot, it.service)
+                group.serviceName,
+                globalSnapshot
             )
         }
         return when (group) {
@@ -202,11 +203,12 @@ class EnvoySnapshotFactory(
             is AllServicesGroup -> {
                 val servicesNames = group.proxySettings.outgoing.getServiceDependencies().map { it.service }.toSet()
                 val allServicesRoutes = globalSnapshot.allServicesNames.subtract(servicesNames).map {
-                    RouteSpecification(
+                    getTrafficSplittingRouteSpecification(
                         clusterName = it,
                         routeDomains = listOf(it) + getServiceWithCustomDomain(it),
                         settings = group.proxySettings.outgoing.defaultServiceSettings,
-                        clusterWeights = getTrafficSplittingWeights(group.serviceName, globalSnapshot, it)
+                        group.serviceName,
+                        globalSnapshot
                     )
                 }
                 allServicesRoutes + definedServicesRoutes
@@ -214,17 +216,32 @@ class EnvoySnapshotFactory(
         }
     }
 
-    private fun getTrafficSplittingWeights(
+    private fun getTrafficSplittingRouteSpecification(
+        clusterName: String,
+        routeDomains: List<String>,
+        settings: DependencySettings,
         serviceName: String,
         globalSnapshot: GlobalSnapshot,
-        dependencyServiceName: String
-    ): Map<String, Int> {
+    ): RouteSpecification {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
-        val weights = trafficSplitting.serviceByWeightsProperties[serviceName] ?: mapOf()
-        val enabledForDependency = globalSnapshot.endpoints[dependencyServiceName]?.endpointsList
+        val weights = trafficSplitting.serviceByWeightsProperties[serviceName]
+        val enabledForDependency = globalSnapshot.endpoints[clusterName]?.endpointsList
             ?.any { e -> trafficSplitting.zoneName == e.locality.zone }
             ?: false
-        return if (enabledForDependency) weights else mapOf()
+        return if (weights != null && enabledForDependency) {
+            WeightRouteSpecification(
+                clusterName,
+                routeDomains,
+                settings,
+                weights
+            )
+        } else {
+            StandardRouteSpecification(
+                clusterName,
+                routeDomains,
+                settings
+            )
+        }
     }
 
     private fun getServiceWithCustomDomain(it: String): List<String> {
@@ -238,7 +255,7 @@ class EnvoySnapshotFactory(
     private fun getServicesEndpointsForGroup(
         rateLimitEndpoints: List<IncomingRateLimitEndpoint>,
         globalSnapshot: GlobalSnapshot,
-        egressRouteSpecifications: Collection<RouteSpecification>
+        egressRouteSpecifications: List<RouteSpecification>
     ): List<ClusterLoadAssignment> {
         val egressLoadAssignments = egressRouteSpecifications.mapNotNull { routeSpec ->
             globalSnapshot.endpoints[routeSpec.clusterName]?.let { endpoints ->
@@ -396,9 +413,22 @@ data class ClusterConfiguration(
     val http2Enabled: Boolean
 )
 
-class RouteSpecification(
-    val clusterName: String,
-    val routeDomains: List<String>,
-    val settings: DependencySettings,
-    val clusterWeights: Map<String, Int> = mapOf()
-)
+sealed class RouteSpecification {
+    abstract val clusterName: String
+    abstract val routeDomains: List<String>
+    abstract val settings: DependencySettings
+}
+
+data class StandardRouteSpecification(
+    override val clusterName: String,
+    override val routeDomains: List<String>,
+    override val settings: DependencySettings,
+) : RouteSpecification() {
+}
+
+data class WeightRouteSpecification(
+    override val clusterName: String,
+    override val routeDomains: List<String>,
+    override val settings: DependencySettings,
+    val clusterWeights: ZoneWeights,
+) : RouteSpecification()

@@ -52,6 +52,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TrafficSplittingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.SanUriMatcherFactory
 
 typealias EnvoyClusterConfig = io.envoyproxy.envoy.extensions.clusters.aggregate.v3.ClusterConfig
@@ -211,7 +212,6 @@ class EnvoyClustersFactory(
             is ServicesGroup -> dependencies.flatMap {
                 createClusters(
                     group.serviceName,
-                    dependencies.keys,
                     it.value.settings,
                     clusters[it.key],
                     globalSnapshot.endpoints[it.key]
@@ -223,7 +223,6 @@ class EnvoyClustersFactory(
                     val dependency = dependencies[it]
                     createClusters(
                         group.serviceName,
-                        globalSnapshot.allServicesNames,
                         getDependencySettings(dependency, group),
                         clusters[it],
                         globalSnapshot.endpoints[it]
@@ -275,13 +274,12 @@ class EnvoyClustersFactory(
 
     private fun createClusters(
         serviceName: String,
-        dependencies: Set<String>,
         dependencySettings: DependencySettings,
         cluster: Cluster?,
         clusterLoadAssignment: ClusterLoadAssignment?
     ): Collection<Cluster> {
         return cluster?.let {
-            if (enableTrafficSplitting(serviceName, cluster.name, dependencies, clusterLoadAssignment)) {
+            if (enableTrafficSplitting(serviceName, clusterLoadAssignment)) {
                 logger.debug(
                     "Creating traffic splitting egress cluster config for ${cluster.name}, service: $serviceName"
                 )
@@ -294,17 +292,18 @@ class EnvoyClustersFactory(
 
     private fun enableTrafficSplitting(
         serviceName: String,
-        clusterName: String,
-        dependencies: Set<String>,
         clusterLoadAssignment: ClusterLoadAssignment?
     ): Boolean {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
-        val trafficSplitEnabled = trafficSplitting.serviceByWeightsProperties.containsKey(serviceName) &&
-            dependencies.contains(clusterName)
-        val hasEndpointsInZone = clusterLoadAssignment?.endpointsList
-            ?.any { e -> trafficSplitting.zoneName == e.locality.zone } ?: false
-        return trafficSplitEnabled && hasEndpointsInZone
+        val trafficSplitEnabled = trafficSplitting.serviceByWeightsProperties.containsKey(serviceName)
+        return trafficSplitEnabled && hasEndpointsInZone(clusterLoadAssignment, trafficSplitting)
     }
+
+    private fun hasEndpointsInZone(
+        clusterLoadAssignment: ClusterLoadAssignment?,
+        trafficSplitting: TrafficSplittingProperties
+    ) = clusterLoadAssignment?.endpointsList
+        ?.any { e -> trafficSplitting.zoneName == e.locality.zone } ?: false
 
     private fun shouldAddDynamicForwardProxyCluster(group: Group) =
         group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()

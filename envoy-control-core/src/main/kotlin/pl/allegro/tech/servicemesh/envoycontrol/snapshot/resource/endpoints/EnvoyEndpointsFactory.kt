@@ -19,6 +19,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory.Companion.getSecondaryClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 
@@ -78,10 +79,10 @@ class EnvoyEndpointsFactory(
 
     fun getSecondaryClusterEndpoints(
         clusterLoadAssignments: Map<String, ClusterLoadAssignment>,
-        egressRouteSpecifications: Collection<RouteSpecification>
+        egressRouteSpecifications: List<RouteSpecification>
     ): List<ClusterLoadAssignment> {
         return egressRouteSpecifications
-            .filter { it.clusterWeights.isNotEmpty() }
+            .filterIsInstance<WeightRouteSpecification>()
             .onEach { logger.debug("Traffic splitting is enabled for cluster: ${it.clusterName}") }
             .mapNotNull { routeSpec ->
                 clusterLoadAssignments[routeSpec.clusterName]?.let { assignment ->
