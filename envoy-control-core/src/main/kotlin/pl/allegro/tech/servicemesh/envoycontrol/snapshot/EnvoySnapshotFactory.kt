@@ -423,8 +423,7 @@ data class StandardRouteSpecification(
     override val clusterName: String,
     override val routeDomains: List<String>,
     override val settings: DependencySettings,
-) : RouteSpecification() {
-}
+) : RouteSpecification()
 
 data class WeightRouteSpecification(
     override val clusterName: String,
