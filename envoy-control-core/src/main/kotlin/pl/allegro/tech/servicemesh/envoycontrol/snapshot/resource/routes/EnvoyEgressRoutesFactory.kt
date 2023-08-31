@@ -347,7 +347,7 @@ class EnvoyEgressRoutesFactory(
     }
 
     private fun RouteAction.Builder.setCluster(routeSpec: RouteSpecification): RouteAction.Builder {
-        return when(routeSpec) {
+        return when (routeSpec) {
             is WeightRouteSpecification -> {
                 logger.debug(
                     "Creating weighted cluster configuration for route spec {}, {}",
