@@ -22,6 +22,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TrafficSplittingProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ZoneWeights
+import pl.allegro.tech.servicemesh.envoycontrol.utils.zoneWeights
 import java.util.concurrent.ConcurrentHashMap
 import java.util.stream.Stream
 
@@ -58,7 +61,7 @@ internal class EnvoyEndpointsFactoryTest {
 
     private val serviceName2 = "service-two"
 
-    private val defaultWeights = mapOf("main" to 50, "secondary" to 50)
+    private val defaultWeights = zoneWeights(50, 50)
 
     private val defaultZone = "DC1"
 
@@ -537,7 +540,7 @@ internal class EnvoyEndpointsFactoryTest {
         }
 
     private fun snapshotPropertiesWithTrafficSplitting(
-        serviceByWeights: Map<String, Map<String, Int>>,
+        serviceByWeights: Map<String, ZoneWeights>,
         zone: String = defaultZone
     ) =
         SnapshotProperties().apply {
@@ -547,8 +550,8 @@ internal class EnvoyEndpointsFactoryTest {
             }
         }
 
-    private fun String.toRouteSpecification(weights: Map<String, Int> = defaultWeights): RouteSpecification {
-        return RouteSpecification(this, listOf(), DependencySettings(), weights)
+    private fun String.toRouteSpecification(weights: ZoneWeights = defaultWeights): RouteSpecification {
+        return WeightRouteSpecification(this, listOf(), DependencySettings(), weights)
     }
 
     private fun String.toClusterLoadAssignment(): ClusterLoadAssignment = ClusterLoadAssignment.newBuilder()

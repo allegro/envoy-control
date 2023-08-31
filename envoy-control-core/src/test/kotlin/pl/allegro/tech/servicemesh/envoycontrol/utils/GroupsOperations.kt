@@ -1,11 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.utils
 
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_DISCOVERY_SERVICE_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_SERVICE_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_HOST
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_PORT
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_HOST
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_PORT
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AccessLogFilterSettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode

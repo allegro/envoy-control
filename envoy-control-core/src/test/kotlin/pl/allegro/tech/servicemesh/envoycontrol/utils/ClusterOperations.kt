@@ -8,12 +8,11 @@ import io.envoyproxy.envoy.config.core.v3.ConfigSource
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ClusterConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME
 
 fun createCluster(
     defaultProperties: SnapshotProperties = SnapshotProperties(),
     clusterName: String = CLUSTER_NAME,
-    idleTimeout: Long = TestData.DEFAULT_IDLE_TIMEOUT
+    idleTimeout: Long = DEFAULT_IDLE_TIMEOUT
 ): Cluster {
     return Cluster.newBuilder().setName(clusterName)
         .setType(Cluster.DiscoveryType.EDS)

@@ -33,17 +33,17 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEg
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CLUSTER_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.CURRENT_ZONE
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_CLUSTER_WEIGHTS
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_DISCOVERY_SERVICE_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_IDLE_TIMEOUT
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.DEFAULT_SERVICE_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_HOST
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.EGRESS_PORT
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_HOST
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.INGRESS_PORT
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TestData.TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CURRENT_ZONE
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_CLUSTER_WEIGHTS
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_DISCOVERY_SERVICE_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_IDLE_TIMEOUT
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_SERVICE_NAME
+import pl.allegro.tech.servicemesh.envoycontrol.utils.EGRESS_HOST
+import pl.allegro.tech.servicemesh.envoycontrol.utils.EGRESS_PORT
+import pl.allegro.tech.servicemesh.envoycontrol.utils.INGRESS_HOST
+import pl.allegro.tech.servicemesh.envoycontrol.utils.INGRESS_PORT
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createCluster
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createClusterConfigurations
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createEndpoints
@@ -56,7 +56,6 @@ class EnvoySnapshotFactoryTest {
         const val SERVICE_NAME_2 = "service-name-2"
     }
 
-    private val defaultClusterWeights = mapOf("main" to 50, "secondary" to 50)
     private val snapshotPropertiesWithWeights = SnapshotProperties().also {
         it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
             DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
@@ -270,7 +269,7 @@ class EnvoySnapshotFactoryTest {
         val defaultProperties = SnapshotProperties().also {
             it.dynamicListeners.enabled = false
             it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
-                DEFAULT_SERVICE_NAME to defaultClusterWeights
+                DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
             )
             it.loadBalancing.trafficSplitting.zoneName = "not-matching-dc"
         }
