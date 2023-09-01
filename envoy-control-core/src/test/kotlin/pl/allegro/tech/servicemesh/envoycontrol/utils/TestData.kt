@@ -2,7 +2,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.utils
 
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ZoneWeights
 
-
 const val INGRESS_HOST = "ingress-host"
 const val INGRESS_PORT = 3380
 const val EGRESS_HOST = "egress-host"
@@ -25,4 +24,3 @@ fun zoneWeights(main: Int, secondary: Int) = ZoneWeights().also {
     it.main = main
     it.secondary = secondary
 }
-
