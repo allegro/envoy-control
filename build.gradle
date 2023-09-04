@@ -19,7 +19,7 @@ plugins {
     id "org.jlleitschuh.gradle.ktlint-idea" version "10.2.0"
     id "io.gitlab.arturbosch.detekt" version "1.18.0"
     id 'io.github.gradle-nexus.publish-plugin' version '1.0.0'
-    id 'org.springframework.boot' version '3.1.2'
+    id 'org.springframework.boot' version '3.1.2' apply false
 
 }
 
@@ -29,8 +29,6 @@ scmVersion {
     }
     versionCreator 'versionWithBranch'
 }
-
-project.gradle.startParameter.excludedTaskNames.add("bootJar")
 
 allprojects {
 
@@ -60,6 +58,12 @@ allprojects {
             re2j              : '1.3',
             xxhash            : '0.10.1',
     ]
+
+    dependencyManagement {
+        imports {
+            mavenBom org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES
+        }
+    }
 }
 
 
