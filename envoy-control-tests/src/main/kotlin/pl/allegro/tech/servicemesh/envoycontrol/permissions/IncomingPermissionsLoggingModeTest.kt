@@ -365,7 +365,7 @@ class IncomingPermissionsLoggingModeTest {
     }
 
     @Test
-    @Tag("BAD")
+    @Tag("flaky")
     fun `echo2 should allow echo3 to access 'log-unlisted-clients' endpoint over https`() {
         // when
         val echo2Response = echo3Envoy.egressOperations.callService("echo2", pathAndQuery = "/log-unlisted-clients")
@@ -494,7 +494,7 @@ class IncomingPermissionsLoggingModeTest {
     }
 
     @Test
-    @Tag("BAD")
+    @Tag("flaky")
     fun `echo should NOT allow echo2 to access 'block-unlisted-clients-by-default' endpoint over https`() {
         // when
         val echoResponse =
@@ -591,7 +591,7 @@ class IncomingPermissionsLoggingModeTest {
     }
 
     @Test
-    @Tag("BAD")
+    @Tag("flaky")
     fun `echo2 should allow echo to access unlisted endpoint over https and log it`() {
         // when
         val echo2Response = echoEnvoy.egressOperations.callService("echo2", pathAndQuery = "/unlisted-endpoint")

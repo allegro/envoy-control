@@ -22,7 +22,7 @@ dependencies {
 
 test {
     useJUnitPlatform {
-        excludeTags 'reliability'
+        excludeTags ('reliability', 'flaky')
     }
     maxParallelForks = 1
     testClassesDirs = project.sourceSets.main.output.classesDirs
@@ -32,6 +32,19 @@ task reliabilityTest(type: Test) {
     systemProperty 'RELIABILITY_FAILURE_DURATION_SECONDS', System.getProperty('RELIABILITY_FAILURE_DURATION_SECONDS', '300')
     useJUnitPlatform {
         includeTags 'reliability'
+    }
+
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat = 'full'
+    }
+    testClassesDirs = project.sourceSets.main.output.classesDirs
+}
+
+task flakyTest(type: Test) {
+    systemProperty 'RELIABILITY_FAILURE_DURATION_SECONDS', System.getProperty('RELIABILITY_FAILURE_DURATION_SECONDS', '300')
+    useJUnitPlatform {
+        includeTags 'flaky'
     }
 
     testLogging {

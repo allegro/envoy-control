@@ -16,6 +16,8 @@ Envoy Control is a [Kotlin](https://kotlinlang.org/) application, it requires JD
 ```./gradlew integrationTest```
 * Reliability tests
 ```./gradlew clean -i -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20```
+* Flaky tests
+```./gradlew -Penvironment=integration :envoy-control-tests:flakyTest```
 
 ## Running Lua tests locally (not inside docker) for debugging purposes
 
