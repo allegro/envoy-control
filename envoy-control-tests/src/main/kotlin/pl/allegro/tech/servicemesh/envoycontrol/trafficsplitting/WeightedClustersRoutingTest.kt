@@ -23,8 +23,8 @@ class WeightedClustersRoutingTest {
             "envoy-control.envoy.snapshot.stateSampleDuration" to Duration.ofSeconds(0),
             "envoy-control.sync.enabled" to true,
             "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.zoneName" to forceTrafficZone,
-            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties"
-                to mutableMapOf(serviceName to mutableMapOf("main" to 90, "secondary" to 10)),
+            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.${serviceName}.main" to 90,
+            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.${serviceName}.secondary" to 10,
             "envoy-control.envoy.snapshot.loadBalancing.priorities.zonePriorities" to mapOf(
                 "dc1" to mapOf(
                     "dc1" to 0,
