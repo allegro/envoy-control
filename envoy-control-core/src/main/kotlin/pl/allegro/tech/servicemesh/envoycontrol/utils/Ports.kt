@@ -19,9 +19,4 @@ object Ports {
 
         return randomPort
     }
-
-    fun freePorts(vararg ports: Int) {
-        logger.info("Freed ports: {}", ports)
-        ports.forEach { usedPorts.remove(it) }
-    }
 }
