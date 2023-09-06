@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.chaos.api
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.invoke
@@ -11,7 +10,6 @@ import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.provisioning.InMemoryUserDetailsManager
 import org.springframework.security.web.SecurityFilterChain
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -67,8 +65,8 @@ class ChaosController(val chaosService: ChaosService) {
             http {
                 httpBasic { }
                 authorizeHttpRequests {
-                    authorize(AntPathRequestMatcher("/chaos/fault/**", HttpMethod.POST.name()), hasRole("CHAOS"))
-                    authorize(anyRequest, permitAll) // todo: ???
+                    authorize("/chaos/fault/**", hasRole("CHAOS"))
+                    authorize(anyRequest, permitAll)
                 }
                 csrf { disable() }
                 formLogin { disable() }
