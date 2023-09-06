@@ -3,7 +3,7 @@ version: '3'
 services:
   consul:
     container_name: consul
-    image: consul:1.5.3
+    image: hashicorp/consul:1.11.11
     ports:
       - "18500:8500"
       - "18300:8300"
