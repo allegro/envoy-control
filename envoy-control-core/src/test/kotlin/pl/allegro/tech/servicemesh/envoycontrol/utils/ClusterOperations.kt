@@ -18,9 +18,12 @@ fun createCluster(
         .setType(Cluster.DiscoveryType.EDS)
         .setConnectTimeout(Durations.fromMillis(defaultProperties.edsConnectionTimeout.toMillis()))
         .setEdsClusterConfig(
-            Cluster.EdsClusterConfig.newBuilder().setEdsConfig(
-                ConfigSource.newBuilder().setAds(AggregatedConfigSource.newBuilder())
-            )
+            Cluster.EdsClusterConfig.newBuilder()
+                .setEdsConfig(
+                    ConfigSource.newBuilder().setAds(
+                        AggregatedConfigSource.newBuilder()
+                    )
+                ).setServiceName(clusterName)
         )
         .setLbPolicy(defaultProperties.loadBalancing.policy)
         .setCommonHttpProtocolOptions(

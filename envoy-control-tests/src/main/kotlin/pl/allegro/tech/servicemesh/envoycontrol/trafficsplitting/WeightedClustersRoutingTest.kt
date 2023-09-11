@@ -96,4 +96,19 @@ class WeightedClustersRoutingTest {
             .verifyCallsCountCloseTo(upstreamServiceDC1, 90)
             .verifyCallsCountGreaterThan(upstreamServiceDC2, 1)
     }
+
+    @Test
+    fun `should route traffic according to weights with service tag`() {
+        consul.serverFirst.operations.registerServiceWithEnvoyOnEgress(echoEnvoyDC1, name = serviceName)
+
+        consul.serverFirst.operations.registerService(upstreamServiceDC1, name = upstreamServiceName, tags = listOf("tag"))
+        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC1, upstreamServiceName)
+
+        consul.serverSecond.operations.registerService(upstreamServiceDC2, name = upstreamServiceName, tags = listOf("tag"))
+        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
+
+        echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2, tag = "tag")
+            .verifyCallsCountCloseTo(upstreamServiceDC1, 90)
+            .verifyCallsCountGreaterThan(upstreamServiceDC2, 1)
+    }
 }
