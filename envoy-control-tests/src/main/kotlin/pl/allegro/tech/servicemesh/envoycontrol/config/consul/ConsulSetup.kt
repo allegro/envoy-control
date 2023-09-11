@@ -1,8 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.consul
 
-import com.pszymczyk.consul.infrastructure.Ports
 import org.testcontainers.containers.Network
 import org.testcontainers.junit.jupiter.Testcontainers
+import pl.allegro.tech.servicemesh.envoycontrol.utils.Ports
 
 @Testcontainers
 class ConsulSetup(

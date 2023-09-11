@@ -1,17 +1,19 @@
+plugins {
+    id 'org.springframework.boot' apply false
+}
+
 dependencies {
     api project(':envoy-control-core')
 
-    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: versions.kotlin
-    implementation group: 'io.projectreactor', name: 'reactor-core', version: versions.reactor
+    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib'
+    implementation group: 'io.projectreactor', name: 'reactor-core'
     api group: 'pl.allegro.tech.discovery', name: 'consul-recipes', version: versions.consul_recipes
     api group: 'com.ecwid.consul', name: 'consul-api', version: versions.ecwid_consul
 
-    testImplementation group: 'org.mockito', name: 'mockito-core', version: versions.mockito
+    testImplementation group: 'org.mockito', name: 'mockito-core'
     testImplementation group: 'cglib', name: 'cglib-nodep', version: versions.cglib
 
-    testImplementation(group: 'com.pszymczyk.consul', name: 'embedded-consul', version: versions.embedded_consul) {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
-
-    testImplementation group: 'io.projectreactor', name: 'reactor-test', version: versions.reactor
+    testImplementation group: 'io.projectreactor', name: 'reactor-test'
+    testImplementation group: 'org.testcontainers', name: 'testcontainers'
+    testImplementation project(path: ':envoy-control-tests')
 }

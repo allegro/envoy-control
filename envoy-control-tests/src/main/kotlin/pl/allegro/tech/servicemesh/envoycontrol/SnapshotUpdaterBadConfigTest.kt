@@ -6,6 +6,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.RegisterExtension
 import org.testcontainers.containers.ContainerLaunchException
 import org.testcontainers.containers.Network
+import org.testcontainers.containers.startupcheck.IndefiniteWaitOneShotStartupCheckStrategy
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
@@ -15,7 +16,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import java.time.Duration
 
 class SnapshotUpdaterBadConfigTest {
     companion object {
@@ -72,7 +72,7 @@ class SnapshotUpdaterBadConfigTest {
             envoyControl.app.grpcPort
         )
             .withNetwork(Network.SHARED)
-            .withStartupTimeout(Duration.ofSeconds(10))
+            .withStartupCheckStrategy(IndefiniteWaitOneShotStartupCheckStrategy())
             .start()
     }
 

@@ -1,4 +1,4 @@
-name: Resilence test
+name: Flaky tests
 
 on:
   workflow_dispatch:
@@ -8,8 +8,8 @@ on:
       - 'readme.md'
 
 jobs:
-  resilence_test:
-    name: resilence_test
+  flaky_test:
+    name: flaky_test
     runs-on: ubuntu-latest
     env:
       GRADLE_OPTS: '-Dfile.encoding=utf-8 -Dorg.gradle.daemon=false'
@@ -37,8 +37,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Reliability tests
-        run: ./gradlew clean -Penvironment=integration :envoy-control-tests:reliabilityTest -DRELIABILITY_FAILURE_DURATION_SECONDS=20
+      - name: Flaky tests
+        run: ./gradlew clean -Penvironment=integration :envoy-control-tests:flakyTest
 
       - name: Junit report
         uses: mikepenz/action-junit-report@v2

@@ -19,6 +19,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import java.net.URI
 import java.time.Duration
+import java.util.function.Consumer
 
 @Suppress("LargeClass")
 class NodeMetadataTest {
@@ -63,12 +64,15 @@ class NodeMetadataTest {
             arguments("number", Value.newBuilder().setNumberValue(1.0).build(), 1.0),
             arguments("not_set", Value.newBuilder().build(), null),
             arguments("null", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(), null),
-            arguments("list", Value.newBuilder().setListValue(
-                ListValue.newBuilder()
-                    .addValues(Value.newBuilder().setBoolValue(true).build()).build())
-                .build(), listOf(true)
+            arguments(
+                "list", Value.newBuilder().setListValue(
+                    ListValue.newBuilder()
+                        .addValues(Value.newBuilder().setBoolValue(true).build()).build()
+                )
+                    .build(), listOf(true)
             ),
-            arguments("struct", Value.newBuilder().setStructValue(
+            arguments(
+                "struct", Value.newBuilder().setStructValue(
                     Struct.newBuilder()
                         .putFields("string", Value.newBuilder().setBoolValue(true).build())
                         .build()
@@ -83,10 +87,12 @@ class NodeMetadataTest {
             arguments(Value.newBuilder().setNumberValue(1.0).build(), 1.0),
             arguments(Value.newBuilder().build(), null),
             arguments(Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(), null),
-            arguments(Value.newBuilder().setListValue(
-                ListValue.newBuilder()
-                    .addValues(Value.newBuilder().setBoolValue(true).build()).build())
-                .build(), listOf(true)
+            arguments(
+                Value.newBuilder().setListValue(
+                    ListValue.newBuilder()
+                        .addValues(Value.newBuilder().setBoolValue(true).build()).build()
+                )
+                    .build(), listOf(true)
             )
         )
     }
@@ -965,7 +971,7 @@ class NodeMetadataTest {
         // then
         assertThat(exception.status.description).isEqualTo(
             "Timeout definition has number format" +
-                    " but should be in string format and ends with 's'"
+                " but should be in string format and ends with 's'"
         )
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -981,7 +987,7 @@ class NodeMetadataTest {
         // then
         assertThat(exception.status.description).isEqualTo(
             "Timeout definition has incorrect format: " +
-                    "Invalid duration string: 20"
+                "Invalid duration string: 20"
         )
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
@@ -1216,7 +1222,8 @@ class NodeMetadataTest {
             withService("lorem")
             withService("ipsum", routingPolicy = RoutingPolicyInput(autoServiceTag = false))
             withService("dolom", routingPolicy = RoutingPolicyInput(fallbackToAnyInstance = false))
-            withService("est", routingPolicy = RoutingPolicyInput(serviceTagPreference = listOf("estTag"))
+            withService(
+                "est", routingPolicy = RoutingPolicyInput(serviceTagPreference = listOf("estTag"))
             )
         }
 
@@ -1228,30 +1235,30 @@ class NodeMetadataTest {
         assertThat(dependencies).hasSize(4)
         val loremDependency = dependencies[0]
         assertThat(loremDependency.service).isEqualTo("lorem")
-        assertThat(loremDependency.settings.routingPolicy).satisfies { policy ->
+        assertThat(loremDependency.settings.routingPolicy).satisfies(Consumer { policy ->
             assertThat(policy.autoServiceTag).isTrue
             assertThat(policy.serviceTagPreference).isEqualTo(listOf("preferredGlobalTag", "fallbackGlobalTag"))
             assertThat(policy.fallbackToAnyInstance).isTrue
-        }
+        })
         val ipsumDependency = dependencies[1]
         assertThat(ipsumDependency.service).isEqualTo("ipsum")
-        assertThat(ipsumDependency.settings.routingPolicy).satisfies { policy ->
+        assertThat(ipsumDependency.settings.routingPolicy).satisfies(Consumer { policy ->
             assertThat(policy.autoServiceTag).isFalse
-        }
+        })
         val dolomDependency = dependencies[2]
         assertThat(dolomDependency.service).isEqualTo("dolom")
-        assertThat(dolomDependency.settings.routingPolicy).satisfies { policy ->
+        assertThat(dolomDependency.settings.routingPolicy).satisfies(Consumer { policy ->
             assertThat(policy.autoServiceTag).isTrue
             assertThat(policy.serviceTagPreference).isEqualTo(listOf("preferredGlobalTag", "fallbackGlobalTag"))
             assertThat(policy.fallbackToAnyInstance).isFalse
-        }
+        })
         val estDependency = dependencies[3]
         assertThat(estDependency.service).isEqualTo("est")
-        assertThat(estDependency.settings.routingPolicy).satisfies { policy ->
+        assertThat(estDependency.settings.routingPolicy).satisfies(Consumer { policy ->
             assertThat(policy.autoServiceTag).isTrue
             assertThat(policy.serviceTagPreference).isEqualTo(listOf("estTag"))
             assertThat(policy.fallbackToAnyInstance).isTrue
-        }
+        })
     }
 
     @ParameterizedTest
@@ -1269,9 +1276,11 @@ class NodeMetadataTest {
     fun `should parse custom data if it is a struct with value`(name: String, field: Value, expected: Any?) {
         // given
         val value = Value.newBuilder()
-            .setStructValue(Struct.newBuilder()
-                .putFields(name, field)
-                .build())
+            .setStructValue(
+                Struct.newBuilder()
+                    .putFields(name, field)
+                    .build()
+            )
             .build()
 
         // when
@@ -1331,10 +1340,10 @@ class NodeMetadataTest {
         val jwtFilterProperties = JwtFilterProperties()
         val oauthProviders = mapOf(
             "oauth2-mock" to
-                    OAuthProvider(
-                        jwksUri = URI.create("http://localhost:8080/jwks-address/"),
-                        clusterName = "oauth"
-                    )
+                OAuthProvider(
+                    jwksUri = URI.create("http://localhost:8080/jwks-address/"),
+                    clusterName = "oauth"
+                )
         )
         jwtFilterProperties.providers = oauthProviders
         snapshotProperties.jwt = jwtFilterProperties

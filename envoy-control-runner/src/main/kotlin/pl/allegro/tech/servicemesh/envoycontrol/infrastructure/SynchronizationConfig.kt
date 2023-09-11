@@ -5,7 +5,6 @@ import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.task.SimpleAsyncTaskExecutor
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.web.client.RestTemplate
 import pl.allegro.tech.discovery.consul.recipes.datacenter.ConsulDatacenterReader
@@ -29,7 +28,6 @@ class SynchronizationConfig {
         envoyControlProperties: EnvoyControlProperties
     ): RestTemplate {
         val requestFactory = SimpleClientHttpRequestFactory()
-        requestFactory.setTaskExecutor(SimpleAsyncTaskExecutor())
         requestFactory.setConnectTimeout(envoyControlProperties.sync.connectionTimeout.toMillis().toInt())
         requestFactory.setReadTimeout(envoyControlProperties.sync.readTimeout.toMillis().toInt())
 
