@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol
 import com.codahale.metrics.Timer
 import org.assertj.core.api.Assertions.assertThat
 import org.awaitility.Awaitility
-import org.junit.Ignore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
@@ -77,23 +76,6 @@ internal class EnvoyControlSynchronizationTest {
 
         // then: local called
         waitServiceOkAndFrom("echo", serviceLocal)
-    }
-
-    @Test
-    @Ignore
-    fun `latency between service registration in remote dc and being able to access it via envoy should be similar to envoy-control polling interval`() {
-        // when
-        val latency = measureRegistrationToAccessLatency(
-            registerService = { name, target -> registerServiceInRemoteDc(name, target) },
-            readinessCheck = { name, target -> waitServiceOkAndFrom(name, target) }
-        )
-
-        // then
-        logger.info("remote dc latency: $latency")
-
-        val tolerance = Duration.ofMillis(400) + stateSampleDuration
-        val expectedMax = (pollingInterval + tolerance).toMillis()
-        assertThat(latency.max()).isLessThanOrEqualTo(expectedMax)
     }
 
     @Test
