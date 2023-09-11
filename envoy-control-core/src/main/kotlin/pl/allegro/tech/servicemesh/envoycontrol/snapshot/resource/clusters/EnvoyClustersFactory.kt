@@ -79,18 +79,6 @@ class EnvoyClustersFactory(
 
     companion object {
         private val logger by logger()
-        const val SECONDARY_CLUSTER_POSTFIX = "secondary"
-        const val AGGREGATE_CLUSTER_POSTFIX = "aggregate"
-
-        @JvmStatic
-        fun getSecondaryClusterName(serviceName: String): String {
-            return "$serviceName-$SECONDARY_CLUSTER_POSTFIX"
-        }
-
-        @JvmStatic
-        fun getAggregateClusterName(serviceName: String): String {
-            return "$serviceName-$AGGREGATE_CLUSTER_POSTFIX"
-        }
     }
 
     fun getClustersForServices(
@@ -239,8 +227,8 @@ class EnvoyClustersFactory(
 
     private fun getDependencySettings(dependency: ServiceDependency?, group: Group): DependencySettings {
         return if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
-                dependency.settings
-            } else group.proxySettings.outgoing.defaultServiceSettings
+            dependency.settings
+        } else group.proxySettings.outgoing.defaultServiceSettings
     }
 
     private fun createClusterForGroup(
@@ -253,6 +241,10 @@ class EnvoyClustersFactory(
         return Cluster.newBuilder(cluster)
             .setCommonHttpProtocolOptions(HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy))
             .setName(clusterName)
+            .setEdsClusterConfig(
+                Cluster.EdsClusterConfig.newBuilder(cluster.edsClusterConfig)
+                    .setServiceName(clusterName)
+            )
             .build()
     }
 
@@ -264,12 +256,14 @@ class EnvoyClustersFactory(
         val secondaryCluster = createClusterForGroup(
             dependencySettings,
             cluster,
-            getSecondaryClusterName(cluster.name)
+            "${cluster.name}-${properties.loadBalancing.trafficSplitting.secondaryClusterPostfix}"
         )
         val aggregateCluster =
             createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
         return listOf(mainCluster, secondaryCluster, aggregateCluster)
-            .also { logger.debug("Created traffic splitting clusters: {}", it) }
+            .onEach {
+                logger.debug("Created set of cluster configs for traffic splitting: {}", it.toString())
+            }
     }
 
     private fun createClusters(
@@ -280,9 +274,6 @@ class EnvoyClustersFactory(
     ): Collection<Cluster> {
         return cluster?.let {
             if (enableTrafficSplitting(serviceName, clusterLoadAssignment)) {
-                logger.debug(
-                    "Creating traffic splitting egress cluster config for ${cluster.name}, service: $serviceName"
-                )
                 createSetOfClustersForGroup(dependencySettings, cluster)
             } else {
                 listOf(createClusterForGroup(dependencySettings, cluster))
@@ -358,7 +349,7 @@ class EnvoyClustersFactory(
 
     private fun createAggregateCluster(clusterName: String, aggregatedClusters: Collection<String>): Cluster {
         return Cluster.newBuilder()
-            .setName(getAggregateClusterName(clusterName))
+            .setName("$clusterName-${properties.loadBalancing.trafficSplitting.aggregateClusterPostfix}")
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
             .setLbPolicy(Cluster.LbPolicy.CLUSTER_PROVIDED)
             .setClusterType(
@@ -492,7 +483,7 @@ class EnvoyClustersFactory(
                                         )
                                 )
                     }
-                )
+                ).setServiceName(clusterConfiguration.serviceName)
             )
             .setLbPolicy(properties.loadBalancing.policy)
             // TODO: if we want to have multiple memory-backend instances of ratelimit

@@ -115,7 +115,6 @@ internal class EnvoyClustersFactoryTest {
             }
             .anySatisfy {
                 assertThat(it.name).isEqualTo(SECONDARY_CLUSTER_NAME)
-                assertThat(it.edsClusterConfig).isEqualTo(cluster1.edsClusterConfig)
             }
             .anySatisfy {
                 assertThat(it.name).isEqualTo(AGGREGATE_CLUSTER_NAME)

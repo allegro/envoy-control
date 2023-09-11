@@ -51,8 +51,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.createEndpoints
 class EnvoySnapshotFactoryTest {
     companion object {
         const val MAIN_CLUSTER_NAME = "service-name-2"
-        const val SECONDARY_CLUSTER_NAME = "service-name-2-secondary"
-        const val AGGREGATE_CLUSTER_NAME = "service-name-2-aggregate"
+        const val SECONDARY_CLUSTER_NAME = "service-name-2-sec"
+        const val AGGREGATE_CLUSTER_NAME = "service-name-2-agg"
         const val SERVICE_NAME_2 = "service-name-2"
     }
 

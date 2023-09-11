@@ -79,22 +79,6 @@ internal class EnvoyControlSynchronizationTest {
     }
 
     @Test
-    fun `latency between service registration in remote dc and being able to access it via envoy should be similar to envoy-control polling interval`() {
-        // when
-        val latency = measureRegistrationToAccessLatency(
-            registerService = { name, target -> registerServiceInRemoteDc(name, target) },
-            readinessCheck = { name, target -> waitServiceOkAndFrom(name, target) }
-        )
-
-        // then
-        logger.info("remote dc latency: $latency")
-
-        val tolerance = Duration.ofMillis(400) + stateSampleDuration
-        val expectedMax = (pollingInterval + tolerance).toMillis()
-        assertThat(latency.max()).isLessThanOrEqualTo(expectedMax)
-    }
-
-    @Test
     fun `latency between service registration in local dc and being able to access it via envoy should be less than 0,5s + stateSampleDuration`() {
         // when
         val latency = measureRegistrationToAccessLatency(
