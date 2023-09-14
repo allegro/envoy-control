@@ -113,6 +113,7 @@ class EnvoySnapshotFactory(
                 val removedClusters = previous - current.keys
                 current + removedClusters
             }
+
             false -> current
         }
     }
@@ -198,6 +199,7 @@ class EnvoySnapshotFactory(
             is ServicesGroup -> {
                 definedServicesRoutes
             }
+
             is AllServicesGroup -> {
                 val servicesNames = group.proxySettings.outgoing.getServiceDependencies().map { it.service }.toSet()
                 val allServicesRoutes = globalSnapshot.allServicesNames.subtract(servicesNames).map {
@@ -226,6 +228,10 @@ class EnvoySnapshotFactory(
         val enabledForDependency = globalSnapshot.endpoints[clusterName]?.endpointsList
             ?.any { e -> trafficSplitting.zoneName == e.locality.zone }
             ?: false
+        logger.debug(
+            "Traffic splitting route spec, enabled: $trafficSplitting, " +
+                "weights: $weights, enabledForDependency: $enabledForDependency"
+        )
         return if (weights != null && enabledForDependency) {
             WeightRouteSpecification(
                 clusterName,
