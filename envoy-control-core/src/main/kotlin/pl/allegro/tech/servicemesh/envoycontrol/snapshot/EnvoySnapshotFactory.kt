@@ -229,8 +229,8 @@ class EnvoySnapshotFactory(
             ?.any { e -> trafficSplitting.zoneName == e.locality.zone }
             ?: false
         logger.debug(
-            "Traffic splitting route spec, enabled: $trafficSplitting, " +
-                "weights: $weights, enabledForDependency: $enabledForDependency"
+            "Building route spec weights: $weights, enabledForDependency: $enabledForDependency, " +
+                "serviceName: $serviceName, clusterName: $clusterName"
         )
         return if (weights != null && enabledForDependency) {
             WeightRouteSpecification(
