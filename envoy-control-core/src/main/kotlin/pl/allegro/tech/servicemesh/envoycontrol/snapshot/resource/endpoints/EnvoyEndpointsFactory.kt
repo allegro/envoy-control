@@ -20,7 +20,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory.Companion.getSecondaryClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 
 typealias EnvoyProxyLocality = io.envoyproxy.envoy.config.core.v3.Locality
@@ -91,7 +90,10 @@ class EnvoyEndpointsFactory(
                         .addAllEndpoints(assignment.endpointsList?.filter { e ->
                             e.locality.zone == properties.loadBalancing.trafficSplitting.zoneName
                         })
-                        .setClusterName(getSecondaryClusterName(routeSpec.clusterName))
+                        .setClusterName(
+                            "${routeSpec.clusterName}-" +
+                                properties.loadBalancing.trafficSplitting.secondaryClusterPostfix
+                        )
                         .build()
                 }
             }

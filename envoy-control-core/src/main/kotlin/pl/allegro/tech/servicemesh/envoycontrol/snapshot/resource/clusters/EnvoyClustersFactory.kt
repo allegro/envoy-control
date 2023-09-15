@@ -79,18 +79,6 @@ class EnvoyClustersFactory(
 
     companion object {
         private val logger by logger()
-        const val SECONDARY_CLUSTER_POSTFIX = "secondary"
-        const val AGGREGATE_CLUSTER_POSTFIX = "aggregate"
-
-        @JvmStatic
-        fun getSecondaryClusterName(serviceName: String): String {
-            return "$serviceName-$SECONDARY_CLUSTER_POSTFIX"
-        }
-
-        @JvmStatic
-        fun getAggregateClusterName(serviceName: String): String {
-            return "$serviceName-$AGGREGATE_CLUSTER_POSTFIX"
-        }
     }
 
     fun getClustersForServices(
@@ -98,6 +86,11 @@ class EnvoyClustersFactory(
         communicationMode: CommunicationMode
     ): List<Cluster> {
         return services.map { edsCluster(it, communicationMode) }
+            .also {
+                it.forEach { cluster ->
+                    logger.debug(" Created cluster config for services: ${cluster.name}")
+                }
+            }
     }
 
     fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
@@ -264,7 +257,7 @@ class EnvoyClustersFactory(
         val secondaryCluster = createClusterForGroup(
             dependencySettings,
             cluster,
-            getSecondaryClusterName(cluster.name)
+            "${cluster.name}-${properties.loadBalancing.trafficSplitting.secondaryClusterPostfix}"
         )
         val aggregateCluster =
             createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
@@ -363,7 +356,7 @@ class EnvoyClustersFactory(
 
     private fun createAggregateCluster(clusterName: String, aggregatedClusters: Collection<String>): Cluster {
         return Cluster.newBuilder()
-            .setName(getAggregateClusterName(clusterName))
+            .setName("$clusterName-${properties.loadBalancing.trafficSplitting.aggregateClusterPostfix}")
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
             .setLbPolicy(Cluster.LbPolicy.CLUSTER_PROVIDED)
             .setClusterType(
