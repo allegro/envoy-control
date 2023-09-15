@@ -239,8 +239,8 @@ class EnvoyClustersFactory(
 
     private fun getDependencySettings(dependency: ServiceDependency?, group: Group): DependencySettings {
         return if (dependency != null && dependency.settings.timeoutPolicy.connectionIdleTimeout != null) {
-                dependency.settings
-            } else group.proxySettings.outgoing.defaultServiceSettings
+            dependency.settings
+        } else group.proxySettings.outgoing.defaultServiceSettings
     }
 
     private fun createClusterForGroup(
@@ -269,7 +269,11 @@ class EnvoyClustersFactory(
         val aggregateCluster =
             createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
         return listOf(mainCluster, secondaryCluster, aggregateCluster)
-            .also { logger.debug("Created traffic splitting clusters: {}", it) }
+            .also {
+                it.forEach { cl ->
+                    logger.debug("Created traffic splitting cluster config with cluster name: {}", cl.name)
+                }
+            }
     }
 
     private fun createClusters(
