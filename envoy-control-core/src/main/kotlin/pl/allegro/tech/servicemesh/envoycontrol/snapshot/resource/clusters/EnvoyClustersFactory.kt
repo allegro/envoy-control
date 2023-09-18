@@ -86,7 +86,7 @@ class EnvoyClustersFactory(
         communicationMode: CommunicationMode
     ): List<Cluster> {
         return services.map { edsCluster(it, communicationMode) }
-            .onEach { logger.debug("Created cluster config for services: ${it.toString()}") }
+            .onEach { logger.debug("Created cluster config for services {}", it.toString()) }
     }
 
     fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
