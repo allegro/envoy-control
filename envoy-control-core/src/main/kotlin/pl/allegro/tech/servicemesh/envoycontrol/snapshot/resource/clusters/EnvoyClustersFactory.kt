@@ -86,11 +86,7 @@ class EnvoyClustersFactory(
         communicationMode: CommunicationMode
     ): List<Cluster> {
         return services.map { edsCluster(it, communicationMode) }
-            .also {
-                it.forEach { cluster ->
-                    logger.debug(" Created cluster config for services: ${cluster.name}")
-                }
-            }
+            .onEach { logger.debug("Created cluster config for services: ${it.toString()}") }
     }
 
     fun getSecuredClusters(insecureClusters: List<Cluster>): List<Cluster> {
@@ -247,6 +243,7 @@ class EnvoyClustersFactory(
             .setCommonHttpProtocolOptions(HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy))
             .setName(clusterName)
             .build()
+            .also { logger.debug("Created regular cluster config ${it.toString()}") }
     }
 
     private fun createSetOfClustersForGroup(
@@ -262,10 +259,8 @@ class EnvoyClustersFactory(
         val aggregateCluster =
             createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
         return listOf(mainCluster, secondaryCluster, aggregateCluster)
-            .also {
-                it.forEach { cl ->
-                    logger.debug("Created traffic splitting cluster config with cluster name: {}", cl.name)
-                }
+            .onEach {
+                logger.debug("Created set of cluster configs for traffic splitting: {}", it.toString())
             }
     }
 
@@ -277,12 +272,8 @@ class EnvoyClustersFactory(
     ): Collection<Cluster> {
         return cluster?.let {
             if (enableTrafficSplitting(serviceName, clusterLoadAssignment)) {
-                logger.debug(
-                    "Creating traffic splitting cluster config for ${cluster.name}, service: $serviceName"
-                )
                 createSetOfClustersForGroup(dependencySettings, cluster)
             } else {
-                logger.debug("Creating cluster config for ${cluster.name}, service: $serviceName")
                 listOf(createClusterForGroup(dependencySettings, cluster))
             }
         } ?: listOf()

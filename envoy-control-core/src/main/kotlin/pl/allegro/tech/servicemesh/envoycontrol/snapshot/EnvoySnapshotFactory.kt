@@ -341,7 +341,9 @@ class EnvoySnapshotFactory(
             listenersVersion = version.listeners,
             routes = routes,
             routesVersion = version.routes
-        )
+        ).also {
+            logger.info("Snapshot for group: $it")
+        }
     }
 
     private fun createRoutesWhenUsingTransparentProxy(

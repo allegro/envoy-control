@@ -48,3 +48,20 @@ fun EnvoyExtension.callUpstreamServiceRepeatedly(
     )
     return stats
 }
+
+fun EnvoyExtension.callUpstreamServiceRepeatedly(
+    vararg services: EchoServiceExtension,
+    numberOfCalls: Int = 100,
+    tag: String?
+): CallStats {
+    val stats = CallStats(services.asList())
+    this.egressOperations.callServiceRepeatedly(
+        service = upstreamServiceName,
+        stats = stats,
+        minRepeat = numberOfCalls,
+        maxRepeat = numberOfCalls,
+        repeatUntil = { true },
+        headers = tag?.let { mapOf("x-service-tag" to it) } ?: emptyMap(),
+        )
+    return stats
+}

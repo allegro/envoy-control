@@ -16,12 +16,19 @@ import verifyCallsCountGreaterThan
 import verifyIsReachable
 import java.time.Duration
 
-class WeightedClustersRoutingTest {
+class WeightedClustersServiceTagRoutingTest {
     companion object {
         val logger by logger()
         private const val forceTrafficZone = "dc2"
 
         private val properties = mapOf(
+            "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.metadata-key" to "tag",
+            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true,
+            "envoy-control.envoy.snapshot.outgoing-permissions.services-allowed-to-use-wildcard" to setOf("echo2", "test-service"),
+            "logging.level.pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory" to "DEBUG",
+            "logging.level.pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory" to "DEBUG",
+            "logging.level.pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory" to "DEBUG",
             "envoy-control.envoy.snapshot.stateSampleDuration" to Duration.ofSeconds(0),
             "envoy-control.sync.enabled" to true,
             "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.zoneName" to forceTrafficZone,
@@ -85,28 +92,13 @@ class WeightedClustersRoutingTest {
     }
 
     @Test
-    fun `should route traffic according to weights`() {
-        consul.serverFirst.operations.registerServiceWithEnvoyOnEgress(echoEnvoyDC1, name = serviceName)
-
-        consul.serverFirst.operations.registerService(upstreamServiceDC1, name = upstreamServiceName)
-        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC1, upstreamServiceName)
-
-        consul.serverSecond.operations.registerService(upstreamServiceDC2, name = upstreamServiceName)
-        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
-
-        echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2)
-            .verifyCallsCountCloseTo(upstreamServiceDC1, 90)
-            .verifyCallsCountGreaterThan(upstreamServiceDC2, 1)
-    }
-
-    @Test
     fun `should route traffic according to weights with service tag`() {
         consul.serverFirst.operations.registerServiceWithEnvoyOnEgress(echoEnvoyDC1, name = serviceName)
 
-        consul.serverFirst.operations.registerService(upstreamServiceDC1, name = upstreamServiceName, tags = listOf("tag"))
+        consul.serverFirst.operations.registerService(upstreamServiceDC1, name = upstreamServiceName, tags = listOf("global", "tag"))
         echoEnvoyDC1.verifyIsReachable(upstreamServiceDC1, upstreamServiceName)
 
-        consul.serverSecond.operations.registerService(upstreamServiceDC2, name = upstreamServiceName, tags = listOf("tag"))
+        consul.serverSecond.operations.registerService(upstreamServiceDC2, name = upstreamServiceName, tags = listOf("global", "tag"))
         echoEnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
 
         echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2, tag = "tag")
