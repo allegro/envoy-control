@@ -243,7 +243,7 @@ class EnvoyClustersFactory(
             .setCommonHttpProtocolOptions(HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy))
             .setName(clusterName)
             .build()
-            .also { logger.debug("Created regular cluster config ${it.toString()}") }
+            .also { logger.debug("Created regular cluster config {}", it.toString()) }
     }
 
     private fun createSetOfClustersForGroup(
