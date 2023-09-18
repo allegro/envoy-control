@@ -342,7 +342,7 @@ class EnvoySnapshotFactory(
             routes = routes,
             routesVersion = version.routes
         ).also {
-            logger.info("Snapshot for group: $it")
+            logger.debug("Snapshot for group: $it")
         }
     }
 

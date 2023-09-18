@@ -242,6 +242,10 @@ class EnvoyClustersFactory(
         return Cluster.newBuilder(cluster)
             .setCommonHttpProtocolOptions(HttpProtocolOptions.newBuilder().setIdleTimeout(idleTimeoutPolicy))
             .setName(clusterName)
+            .setEdsClusterConfig(
+                Cluster.EdsClusterConfig.newBuilder(cluster.edsClusterConfig)
+                    .setServiceName(clusterName)
+            )
             .build()
             .also { logger.debug("Created regular cluster config {}", it.toString()) }
     }
@@ -481,7 +485,7 @@ class EnvoyClustersFactory(
                                         )
                                 )
                     }
-                )
+                ).setServiceName(clusterConfiguration.serviceName)
             )
             .setLbPolicy(properties.loadBalancing.policy)
             // TODO: if we want to have multiple memory-backend instances of ratelimit
