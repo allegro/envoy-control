@@ -358,7 +358,7 @@ class EnvoyEgressRoutesFactory(
                         .withClusterWeight(routeSpec.clusterName, routeSpec.clusterWeights.main)
                         .withClusterWeight(
                             "${routeSpec.clusterName}-" +
-                                properties.loadBalancing.trafficSplitting.secondaryClusterPostfix,
+                                properties.loadBalancing.trafficSplitting.aggregateClusterPostfix,
                             routeSpec.clusterWeights.secondary
                         )
                 )
