@@ -256,6 +256,7 @@ class EnvoySnapshotFactoryTest {
                     .anyMatch { e -> e.locality.zone == CURRENT_ZONE }
                     .anyMatch { e -> e.locality.zone == TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE }
             }
+        assertThat(snapshot.endpoints().resources().values)
             .anySatisfy {
                 assertThat(it.clusterName).isEqualTo(SECONDARY_CLUSTER_NAME)
                 assertThat(it.endpointsList)
