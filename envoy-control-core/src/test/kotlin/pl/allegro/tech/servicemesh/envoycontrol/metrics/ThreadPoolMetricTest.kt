@@ -8,7 +8,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlProperties
 import pl.allegro.tech.servicemesh.envoycontrol.server.ExecutorType
 import reactor.core.publisher.Flux
 
-
 class ThreadPoolMetricTest {
 
     @Test
@@ -27,9 +26,10 @@ class ThreadPoolMetricTest {
 
         // then
         val allMeterNames = meterRegistry.meters.map { it.id.name }
-        val requiredMeterNames = listOf("grpc-server-worker", "grpc-worker-event-loop", "snapshot-update", "group-snapshot").flatMap {
-            listOf("$it.executor.completed", "$it.executor.active", "$it.executor.queued", "$it.executor.pool.size")
-        }
+        val requiredMeterNames =
+            listOf("grpc-server-worker", "grpc-worker-event-loop", "snapshot-update", "group-snapshot").flatMap {
+                listOf("$it.executor.completed", "$it.executor.active", "$it.executor.queued", "$it.executor.pool.size")
+            }
 
         assertThat(allMeterNames).containsAll(requiredMeterNames)
 
