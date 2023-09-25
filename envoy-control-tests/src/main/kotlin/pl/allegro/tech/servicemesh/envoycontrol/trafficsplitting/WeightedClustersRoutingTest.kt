@@ -10,7 +10,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulMultiCluster
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlClusteredExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import pl.allegro.tech.servicemesh.envoycontrol.logger
 import verifyCallsCountCloseTo
 import verifyCallsCountGreaterThan
 import verifyIsReachable
@@ -18,7 +17,6 @@ import java.time.Duration
 
 class WeightedClustersRoutingTest {
     companion object {
-        val logger by logger()
         private const val forceTrafficZone = "dc2"
 
         private val properties = mapOf(

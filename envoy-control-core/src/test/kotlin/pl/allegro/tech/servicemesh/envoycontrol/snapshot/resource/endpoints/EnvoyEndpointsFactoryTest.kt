@@ -57,7 +57,7 @@ internal class EnvoyEndpointsFactoryTest {
 
     private val serviceName = "service-one"
 
-    private val secondaryClusterName = "service-one-sec"
+    private val secondaryClusterName = "service-one-secondary"
 
     private val serviceName2 = "service-two"
 

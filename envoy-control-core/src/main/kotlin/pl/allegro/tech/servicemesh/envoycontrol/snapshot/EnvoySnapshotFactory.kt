@@ -187,7 +187,7 @@ class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot
     ): Collection<RouteSpecification> {
         val definedServicesRoutes = group.proxySettings.outgoing.getServiceDependencies().map {
-            getTrafficSplittingRouteSpecification(
+            buildRouteSpecification(
                 clusterName = it.service,
                 routeDomains = listOf(it.service) + getServiceWithCustomDomain(it.service),
                 settings = it.settings,
@@ -199,11 +199,10 @@ class EnvoySnapshotFactory(
             is ServicesGroup -> {
                 definedServicesRoutes
             }
-
             is AllServicesGroup -> {
                 val servicesNames = group.proxySettings.outgoing.getServiceDependencies().map { it.service }.toSet()
                 val allServicesRoutes = globalSnapshot.allServicesNames.subtract(servicesNames).map {
-                    getTrafficSplittingRouteSpecification(
+                    buildRouteSpecification(
                         clusterName = it,
                         routeDomains = listOf(it) + getServiceWithCustomDomain(it),
                         settings = group.proxySettings.outgoing.defaultServiceSettings,
@@ -216,7 +215,7 @@ class EnvoySnapshotFactory(
         }
     }
 
-    private fun getTrafficSplittingRouteSpecification(
+    private fun buildRouteSpecification(
         clusterName: String,
         routeDomains: List<String>,
         settings: DependencySettings,
@@ -228,11 +227,11 @@ class EnvoySnapshotFactory(
         val enabledForDependency = globalSnapshot.endpoints[clusterName]?.endpointsList
             ?.any { e -> trafficSplitting.zoneName == e.locality.zone }
             ?: false
-        logger.debug(
-            "Building route spec weights: $weights, enabledForDependency: $enabledForDependency, " +
-                "serviceName: $serviceName, clusterName: $clusterName"
-        )
         return if (weights != null && enabledForDependency) {
+            logger.debug(
+                "Building traffic splitting route spec, weights: $weights, " +
+                    "serviceName: $serviceName, clusterName: $clusterName, "
+            )
             WeightRouteSpecification(
                 clusterName,
                 routeDomains,
@@ -341,9 +340,7 @@ class EnvoySnapshotFactory(
             listenersVersion = version.listeners,
             routes = routes,
             routesVersion = version.routes
-        ).also {
-            logger.debug("Snapshot for group: $it")
-        }
+        )
     }
 
     private fun createRoutesWhenUsingTransparentProxy(

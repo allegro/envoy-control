@@ -357,13 +357,12 @@ class EnvoyEgressRoutesFactory(
                     WeightedCluster.newBuilder()
                         .withClusterWeight(routeSpec.clusterName, routeSpec.clusterWeights.main)
                         .withClusterWeight(
-                            "${routeSpec.clusterName}-" +
-                                properties.loadBalancing.trafficSplitting.aggregateClusterPostfix,
+                            "${routeSpec.clusterName}-" + properties.loadBalancing.trafficSplitting
+                                .aggregateClusterPostfix,
                             routeSpec.clusterWeights.secondary
                         )
                 )
             }
-
             is StandardRouteSpecification -> {
                 this.setCluster(routeSpec.clusterName)
             }

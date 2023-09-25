@@ -91,8 +91,8 @@ class EnvoyEndpointsFactory(
                             e.locality.zone == properties.loadBalancing.trafficSplitting.zoneName
                         })
                         .setClusterName(
-                            "${routeSpec.clusterName}-" +
-                                properties.loadBalancing.trafficSplitting.secondaryClusterPostfix
+                            "${routeSpec.clusterName}-" + properties.loadBalancing
+                                .trafficSplitting.secondaryClusterPostfix
                         )
                         .build()
                 }
