@@ -1,9 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config
 
 import okhttp3.OkHttpClient
-import org.apache.http.conn.ssl.NoopHostnameVerifier
-import org.apache.http.conn.ssl.TrustAllStrategy
-import org.apache.http.ssl.SSLContextBuilder
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier
+import org.apache.hc.client5.http.ssl.TrustAllStrategy
+import org.apache.hc.core5.ssl.SSLContextBuilder
 import java.security.KeyStore
 import java.time.Duration
 import javax.net.ssl.SSLSocketFactory

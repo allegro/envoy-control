@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.pszymczyk.consul.infrastructure.Ports
 import io.micrometer.core.instrument.MeterRegistry
 import okhttp3.Credentials
 
@@ -22,6 +21,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.debug.Versions
+import pl.allegro.tech.servicemesh.envoycontrol.utils.Ports
 import java.time.Duration
 
 interface EnvoyControlTestApp {

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
+import java.util.function.Consumer
 
 private class RbacLog(
     val protocol: String,
@@ -27,7 +28,7 @@ private val mapper = jacksonObjectMapper()
 
 fun isRbacAccessLog(log: String) = log.startsWith(RBAC_LOG_PREFIX)
 
-fun ObjectAssert<EnvoyContainer>.hasNoRBACDenials(): ObjectAssert<EnvoyContainer> = satisfies {
+fun ObjectAssert<EnvoyContainer>.hasNoRBACDenials(): ObjectAssert<EnvoyContainer> = satisfies(Consumer {
     val admin = it.admin()
     assertThat(admin.statValue("http.ingress_http.rbac.denied")?.toInt()).isZero()
     assertThat(admin.statValue("http.ingress_https.rbac.denied")?.toInt()).isZero()
@@ -35,7 +36,7 @@ fun ObjectAssert<EnvoyContainer>.hasNoRBACDenials(): ObjectAssert<EnvoyContainer
     assertThat(admin.statValue("http.ingress_https.rbac.shadow_denied")?.toInt()).isZero()
 
     assertThat(it.logRecorder.getRecordedLogs()).filteredOn(::isRbacAccessLog).isEmpty()
-}
+})
 
 @Suppress("LongParameterList")
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
@@ -155,7 +156,7 @@ private fun ObjectAssert<EnvoyContainer>.hasOneAccessDenial(
     protocol: String,
     logPredicate: RbacLog,
     shadowDenied: Boolean = true
-) = satisfies {
+) = satisfies(Consumer {
     val admin = it.admin()
     val blockedRequestsCount = admin.statValue("http.ingress_$protocol.rbac.denied")?.toInt()
     val loggedRequestsCount = admin.statValue("http.ingress_$protocol.rbac.shadow_denied")?.toInt()
@@ -172,9 +173,9 @@ private fun ObjectAssert<EnvoyContainer>.hasOneAccessDenial(
     assertThat(it.logRecorder.getRecordedLogs()).filteredOn(::isRbacAccessLog)
         .hasSize(1).first()
         .matchesRbacAccessDeniedLog(logPredicate)
-}
+})
 
-private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLog) = satisfies {
+private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLog) = satisfies(Consumer {
     val parsed = mapper.readValue<RbacLog>(it.removePrefix(RBAC_LOG_PREFIX))
     // protocol is required because we check metrics
     assertThat(parsed.protocol).isEqualTo(logPredicate.protocol)
@@ -192,7 +193,7 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLo
     assertEqualProperty(parsed, logPredicate, RbacLog::rbacAction)
     assertEqualProperty(parsed, logPredicate, RbacLog::statusCode)
     assertEqualProperty(parsed, logPredicate, RbacLog::jwtTokenStatus)
-}
+})
 
 private fun <T> assertEqualProperty(actual: RbacLog, expected: RbacLog, supplier: RbacLog.() -> T) {
     expected.supplier()?.let {

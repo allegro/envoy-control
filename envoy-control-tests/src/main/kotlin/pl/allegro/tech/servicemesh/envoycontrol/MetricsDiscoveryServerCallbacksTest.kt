@@ -20,6 +20,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.RDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.SDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.UNKNOWN
+import java.util.function.Consumer
 
 class XdsMetricsDiscoveryServerCallbacksTest : MetricsDiscoveryServerCallbacksTest {
     companion object {
@@ -236,7 +237,7 @@ interface MetricsDiscoveryServerCallbacksTest {
             expectedGrpcRequestsCounterValues().forEach { (type, condition) ->
                 val counterValue = meterRegistry.counterValue("grpc.requests.$type")
                 println("$type $counterValue")
-                assertThat(counterValue).satisfies { condition(it) }
+                assertThat(counterValue).satisfies(Consumer { condition(it) })
             }
         }
     }

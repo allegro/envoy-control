@@ -2,9 +2,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.consul.services
 
 import com.ecwid.consul.v1.agent.AgentConsulClient
 import com.ecwid.consul.v1.agent.model.NewService
-import com.pszymczyk.consul.ConsulStarterBuilder
-import com.pszymczyk.consul.infrastructure.Ports
-import com.pszymczyk.consul.junit.ConsulExtension
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -12,6 +9,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import org.mockito.Mockito
 import org.mockito.Mockito.verify
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes
+import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import reactor.test.StepVerifier
 import java.net.URI
@@ -21,23 +19,17 @@ import java.util.concurrent.Executors
 class ConsulClusterStateChangesTest {
 
     companion object {
-        private val consulHttpPort = Ports.nextAvailable()
 
         @JvmField
         @RegisterExtension
-        val consul = ConsulExtension(
-            ConsulStarterBuilder.consulStarter()
-                .withHttpPort(consulHttpPort)
-                .withConsulVersion("1.11.4")
-                .build()
-        )
+        val consulExtension = ConsulExtension()
     }
 
     private val watcher = ConsulRecipes
         .consulRecipes()
         .build()
         .consulWatcher(Executors.newFixedThreadPool(10))
-        .withAgentUri(URI("http://localhost:${consul.httpPort}"))
+        .withAgentUri(URI("http://localhost:${consulExtension.server.port}"))
         .build()
     private val readinessStateHandler = Mockito.spy(ReadinessStateHandler::class.java)
     private val serviceWatchPolicy = Mockito.mock(ServiceWatchPolicy::class.java)
@@ -46,12 +38,11 @@ class ConsulClusterStateChangesTest {
         readinessStateHandler = readinessStateHandler,
         serviceWatchPolicy = serviceWatchPolicy
     )
-    private val client = AgentConsulClient("localhost", consul.httpPort)
+    private val client = AgentConsulClient("localhost", consulExtension.server.port)
 
     @BeforeEach
     fun reset() {
         watcher.close()
-        consul.reset()
         Mockito.`when`(serviceWatchPolicy.shouldBeWatched(Mockito.anyString(), Mockito.anyList())).thenReturn(true)
     }
 

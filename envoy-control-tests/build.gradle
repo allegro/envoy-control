@@ -1,27 +1,28 @@
+plugins {
+    id 'org.springframework.boot' apply false
+}
+
 dependencies {
     implementation project(':envoy-control-runner')
 
-    implementation group: 'org.assertj', name: 'assertj-core', version: versions.assertj
-    implementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: versions.junit
-    implementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: versions.junit
-    implementation group: 'org.awaitility', name: 'awaitility', version: versions.awaitility
-    implementation(group: 'com.pszymczyk.consul', name: 'embedded-consul', version: versions.embedded_consul) {
-        exclude group: 'org.apache.httpcomponents', module: 'httpclient'
-    }
-    implementation group: 'com.squareup.okhttp3', name: 'okhttp', version: versions.okhttp
+    implementation group: 'org.assertj', name: 'assertj-core'
+    implementation group: 'org.junit.jupiter', name: 'junit-jupiter-api'
+    implementation group: 'org.junit.jupiter', name: 'junit-jupiter-params'
+    implementation group: 'org.awaitility', name: 'awaitility'
+    implementation group: 'com.squareup.okhttp3', name: 'okhttp'
 
-    implementation "org.apache.httpcomponents:httpcore:4.4.15"
-    implementation "org.apache.httpcomponents:httpclient:4.5.5"
+    implementation group: 'org.apache.httpcomponents.core5', name: 'httpcore5'
+    implementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5'
 
     implementation group: 'eu.rekawek.toxiproxy', name: 'toxiproxy-java', version: versions.toxiproxy
-    runtimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: versions.junit
-    implementation group: 'org.testcontainers', name: 'junit-jupiter', version: versions.testcontainers
-    implementation group: 'org.testcontainers', name: 'testcontainers', version: versions.testcontainers
+    runtimeOnly group: 'org.junit.jupiter', name: 'junit-jupiter-engine'
+    implementation group: 'org.testcontainers', name: 'junit-jupiter'
+    implementation group: 'org.testcontainers', name: 'testcontainers'
 }
 
 test {
     useJUnitPlatform {
-        excludeTags 'reliability'
+        excludeTags ('reliability', 'flaky')
     }
     maxParallelForks = 1
     testClassesDirs = project.sourceSets.main.output.classesDirs
@@ -31,6 +32,19 @@ task reliabilityTest(type: Test) {
     systemProperty 'RELIABILITY_FAILURE_DURATION_SECONDS', System.getProperty('RELIABILITY_FAILURE_DURATION_SECONDS', '300')
     useJUnitPlatform {
         includeTags 'reliability'
+    }
+
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat = 'full'
+    }
+    testClassesDirs = project.sourceSets.main.output.classesDirs
+}
+
+task flakyTest(type: Test) {
+    systemProperty 'RELIABILITY_FAILURE_DURATION_SECONDS', System.getProperty('RELIABILITY_FAILURE_DURATION_SECONDS', '300')
+    useJUnitPlatform {
+        includeTags 'flaky'
     }
 
     testLogging {

@@ -30,6 +30,14 @@ class SnapshotDebugService(
         }
     }
 
+    fun groups(discoveryServiceName: String?): Collection<Group> {
+        return if (discoveryServiceName != null) {
+            cache.groups().filter { it.discoveryServiceName == discoveryServiceName }
+        } else {
+            cache.groups()
+        }
+    }
+
     fun globalSnapshot(xds: Boolean): SnapshotDebugInfo {
         val globalSnapshot = snapshotUpdater.getGlobalSnapshot()
         if (xds) {

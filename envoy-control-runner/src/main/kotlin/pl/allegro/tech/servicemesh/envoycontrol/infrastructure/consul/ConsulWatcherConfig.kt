@@ -1,12 +1,11 @@
 package pl.allegro.tech.servicemesh.envoycontrol.infrastructure.consul
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import okhttp3.Dispatcher
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
-import okhttp3.internal.Util
+import okhttp3.internal.threadFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes
@@ -86,7 +85,7 @@ open class ConsulWatcherConfig {
             watcherConfig.dispatcherPoolKeepAliveTime.toMillis(),
             TimeUnit.MILLISECONDS,
             SynchronousQueue(),
-            Util.threadFactory("consul-okhttp-dispatcher", false)
+            threadFactory("consul-okhttp-dispatcher", false)
         )
     }
 
@@ -106,7 +105,4 @@ open class ConsulWatcherConfig {
         private val counter = AtomicInteger()
         override fun newThread(r: Runnable) = Thread(r, "consul-watcher-worker-${counter.getAndIncrement()}")
     }
-
-    @Bean
-    fun kotlinModule() = KotlinModule.Builder().build()
 }

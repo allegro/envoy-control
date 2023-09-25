@@ -15,7 +15,9 @@ class GlobalStateChanges(
     private val meterRegistry: MeterRegistry,
     private val properties: SyncProperties
 ) {
-    private val scheduler = Schedulers.newElastic("global-service-changes-combinator")
+    private val scheduler = Schedulers.newBoundedElastic(
+        Int.MAX_VALUE, Int.MAX_VALUE, "global-service-changes-combinator"
+    )
 
     fun combined(): Flux<MultiClusterState> {
         val clusterStatesStreams: List<Flux<MultiClusterState>> = clusterStateChanges.map { it.stream() }
