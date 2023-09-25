@@ -34,6 +34,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StandardRouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory.Companion.getAggregateClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.ServiceTagFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
@@ -357,8 +358,7 @@ class EnvoyEgressRoutesFactory(
                     WeightedCluster.newBuilder()
                         .withClusterWeight(routeSpec.clusterName, routeSpec.clusterWeights.main)
                         .withClusterWeight(
-                            "${routeSpec.clusterName}-" + properties.loadBalancing.trafficSplitting
-                                .aggregateClusterPostfix,
+                            getAggregateClusterName(routeSpec.clusterName, properties),
                             routeSpec.clusterWeights.secondary
                         )
                 )

@@ -79,6 +79,16 @@ class EnvoyClustersFactory(
 
     companion object {
         private val logger by logger()
+
+        @JvmStatic
+        fun getSecondaryClusterName(serviceName: String, snapshotProperties: SnapshotProperties): String {
+            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.secondaryClusterPostfix}"
+        }
+
+        @JvmStatic
+        fun getAggregateClusterName(serviceName: String, snapshotProperties: SnapshotProperties): String {
+            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.aggregateClusterPostfix}"
+        }
     }
 
     fun getClustersForServices(
@@ -256,7 +266,7 @@ class EnvoyClustersFactory(
         val secondaryCluster = createClusterForGroup(
             dependencySettings,
             cluster,
-            "${cluster.name}-${properties.loadBalancing.trafficSplitting.secondaryClusterPostfix}"
+            getSecondaryClusterName(cluster.name, properties)
         )
         val aggregateCluster =
             createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
@@ -349,7 +359,7 @@ class EnvoyClustersFactory(
 
     private fun createAggregateCluster(clusterName: String, aggregatedClusters: Collection<String>): Cluster {
         return Cluster.newBuilder()
-            .setName("$clusterName-${properties.loadBalancing.trafficSplitting.aggregateClusterPostfix}")
+            .setName(getAggregateClusterName(clusterName, properties))
             .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
             .setLbPolicy(Cluster.LbPolicy.CLUSTER_PROVIDED)
             .setClusterType(
