@@ -19,8 +19,8 @@ import io.envoyproxy.envoy.config.route.v3.VirtualHost
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import io.envoyproxy.envoy.type.metadata.v3.MetadataKey
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
-import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
+import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.protocol.HttpMethod

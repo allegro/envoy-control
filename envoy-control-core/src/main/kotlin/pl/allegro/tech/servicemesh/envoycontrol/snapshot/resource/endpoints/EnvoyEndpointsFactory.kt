@@ -17,7 +17,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory.Companion.getSecondaryClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 
 typealias EnvoyProxyLocality = io.envoyproxy.envoy.config.core.v3.Locality
@@ -72,6 +75,27 @@ class EnvoyEndpointsFactory(
             routingPolicy.fallbackToAnyInstance -> clusterLoadAssignment
             else -> createEmptyLoadAssignment(clusterLoadAssignment)
         }
+    }
+
+    fun getSecondaryClusterEndpoints(
+        clusterLoadAssignments: Map<String, ClusterLoadAssignment>,
+        egressRouteSpecifications: List<RouteSpecification>
+    ): List<ClusterLoadAssignment> {
+        return egressRouteSpecifications
+            .filterIsInstance<WeightRouteSpecification>()
+            .onEach { logger.debug("Traffic splitting is enabled for cluster: ${it.clusterName}") }
+            .mapNotNull { routeSpec ->
+                clusterLoadAssignments[routeSpec.clusterName]?.let { assignment ->
+                    ClusterLoadAssignment.newBuilder(assignment)
+                        .clearEndpoints()
+                        .addAllEndpoints(assignment.endpointsList?.filter { e ->
+                            e.locality.zone == properties.loadBalancing.trafficSplitting.zoneName
+                        })
+                        .setClusterName(getSecondaryClusterName(routeSpec.clusterName, properties))
+                        .build()
+                }
+            }
+            .filter { it.endpointsList.isNotEmpty() }
     }
 
     private fun filterEndpoints(loadAssignment: ClusterLoadAssignment, tag: String): ClusterLoadAssignment? {

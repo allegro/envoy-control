@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -109,14 +108,15 @@ class EnvoyAdmin(
     private val client = OkHttpClient.Builder()
         .build()
 
-    private fun get(path: String): Response =
-        client.newCall(
+    private fun get(path: String): Response {
+        return client.newCall(
             Request.Builder()
                 .get()
                 .url("$address/$path")
                 .build()
         )
             .execute().addToCloseableResponses()
+    }
 
     private fun post(path: String): Response =
         client.newCall(

@@ -143,6 +143,7 @@ class LoadBalancingProperties {
     var regularMetadataKey = "lb_regular"
     var localityMetadataKey = "locality"
     var weights = LoadBalancingWeightsProperties()
+    var trafficSplitting = TrafficSplittingProperties()
     var policy = Cluster.LbPolicy.LEAST_REQUEST
     var useKeysSubsetFallbackPolicy = true
     var priorities = LoadBalancingPriorityProperties()
@@ -152,6 +153,18 @@ class CanaryProperties {
     var enabled = false
     var metadataKey = "canary"
     var headerValue = "1"
+}
+
+class TrafficSplittingProperties {
+    var zoneName = ""
+    var serviceByWeightsProperties: Map<String, ZoneWeights> = mapOf()
+    var secondaryClusterPostfix = "secondary"
+    var aggregateClusterPostfix = "aggregate"
+}
+
+class ZoneWeights {
+    var main = 100
+    var secondary = 0
 }
 
 class LoadBalancingWeightsProperties {

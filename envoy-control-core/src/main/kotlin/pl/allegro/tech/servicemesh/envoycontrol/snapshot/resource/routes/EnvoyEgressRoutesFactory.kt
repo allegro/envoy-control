@@ -20,6 +20,7 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import io.envoyproxy.envoy.config.route.v3.WeightedCluster
 import io.envoyproxy.envoy.extensions.retry.host.omit_canary_hosts.v3.OmitCanaryHostsPredicate
 import io.envoyproxy.envoy.extensions.retry.host.omit_host_metadata.v3.OmitHostMetadataConfig
 import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
@@ -28,14 +29,21 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstre
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RateLimitedRetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryBackOff
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StandardRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory.Companion.getAggregateClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.ServiceTagFilterFactory
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 class EnvoyEgressRoutesFactory(
     private val properties: SnapshotProperties
 ) {
+    companion object {
+        private val logger by logger()
+    }
 
     /**
      * By default envoy doesn't proxy requests to provided IP address. We created cluster: envoy-original-destination
@@ -314,7 +322,7 @@ class EnvoyEgressRoutesFactory(
         shouldAddRetryPolicy: Boolean = false
     ): RouteAction.Builder {
         val routeAction = RouteAction.newBuilder()
-            .setCluster(routeSpecification.clusterName)
+            .setCluster(routeSpecification)
 
         routeSpecification.settings.timeoutPolicy.let { timeoutPolicy ->
             timeoutPolicy.idleTimeout?.let { routeAction.setIdleTimeout(it) }
@@ -336,6 +344,39 @@ class EnvoyEgressRoutesFactory(
         }
 
         return routeAction
+    }
+
+    private fun RouteAction.Builder.setCluster(routeSpec: RouteSpecification): RouteAction.Builder {
+        return when (routeSpec) {
+            is WeightRouteSpecification -> {
+                logger.debug(
+                    "Creating weighted cluster configuration for route spec {}, {}",
+                    routeSpec.clusterName,
+                    routeSpec.clusterWeights
+                )
+                this.setWeightedClusters(
+                    WeightedCluster.newBuilder()
+                        .withClusterWeight(routeSpec.clusterName, routeSpec.clusterWeights.main)
+                        .withClusterWeight(
+                            getAggregateClusterName(routeSpec.clusterName, properties),
+                            routeSpec.clusterWeights.secondary
+                        )
+                )
+            }
+            is StandardRouteSpecification -> {
+                this.setCluster(routeSpec.clusterName)
+            }
+        }
+    }
+
+    private fun WeightedCluster.Builder.withClusterWeight(clusterName: String, weight: Int): WeightedCluster.Builder {
+        this.addClusters(
+            WeightedCluster.ClusterWeight.newBuilder()
+                .setName(clusterName)
+                .setWeight(UInt32Value.of(weight))
+                .build()
+        )
+        return this
     }
 }
 

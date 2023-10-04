@@ -21,13 +21,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hostRewriteHeaderIsEmpty
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPrefix
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StandardRouteSpecification
 
 internal class EnvoyEgressRoutesFactoryTest {
 
     val clusters = listOf(
-        RouteSpecification(
+        StandardRouteSpecification(
             clusterName = "srv1",
             routeDomains = listOf("srv1"),
             settings = DependencySettings(
@@ -171,8 +171,8 @@ internal class EnvoyEgressRoutesFactoryTest {
             egress.headersToRemove = mutableListOf("x-special-case-header", "x-custom")
         })
         val routesSpecifications = listOf(
-            RouteSpecification("example_pl_1553", listOf("example.pl:1553"), DependencySettings()),
-            RouteSpecification("example_com_1553", listOf("example.com:1553"), DependencySettings())
+            StandardRouteSpecification("example_pl_1553", listOf("example.pl:1553"), DependencySettings()),
+            StandardRouteSpecification("example_com_1553", listOf("example.com:1553"), DependencySettings())
         )
 
         // when
@@ -203,7 +203,7 @@ internal class EnvoyEgressRoutesFactoryTest {
         val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
         val retryPolicy = RetryPolicy(methods = setOf("GET", "POST"))
         val routesSpecifications = listOf(
-            RouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
+            StandardRouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
         )
 
         val routeConfig = routesFactory.createEgressRouteConfig(
@@ -234,7 +234,7 @@ internal class EnvoyEgressRoutesFactoryTest {
         val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
         val retryPolicy = RetryPolicy(numberRetries = 3)
         val routesSpecifications = listOf(
-            RouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
+            StandardRouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
         )
 
         val routeConfig = routesFactory.createEgressRouteConfig(
@@ -259,7 +259,7 @@ internal class EnvoyEgressRoutesFactoryTest {
         // given
         val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
         val routesSpecifications = listOf(
-            RouteSpecification("example", listOf("example.pl:1553"), DependencySettings()),
+            StandardRouteSpecification("example", listOf("example.pl:1553"), DependencySettings()),
         )
 
         val routeConfig = routesFactory.createEgressRouteConfig(
