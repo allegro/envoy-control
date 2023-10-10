@@ -33,6 +33,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 - Updated property names:  secondaryClusterPostfix is changed to secondaryClusterSuffix, 
 - aggregateClusterPostfix is changed to aggregateClusterSuffix
 
+## [0.20.2]
+
+### Changed
+- Updated property names:  secondaryClusterPostfix is changed to secondaryClusterSuffix, 
+- aggregateClusterPostfix is changed to aggregateClusterSuffix
+
 ## [0.20.1]
 
 ### Changed
