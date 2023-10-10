@@ -82,12 +82,12 @@ class EnvoyClustersFactory(
 
         @JvmStatic
         fun getSecondaryClusterName(serviceName: String, snapshotProperties: SnapshotProperties): String {
-            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.secondaryClusterPostfix}"
+            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.secondaryClusterSuffix}"
         }
 
         @JvmStatic
         fun getAggregateClusterName(serviceName: String, snapshotProperties: SnapshotProperties): String {
-            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.aggregateClusterPostfix}"
+            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.aggregateClusterSuffix}"
         }
     }
 

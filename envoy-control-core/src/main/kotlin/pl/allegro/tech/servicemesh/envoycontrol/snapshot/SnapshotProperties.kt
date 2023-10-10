@@ -158,8 +158,8 @@ class CanaryProperties {
 class TrafficSplittingProperties {
     var zoneName = ""
     var serviceByWeightsProperties: Map<String, ZoneWeights> = mapOf()
-    var secondaryClusterPostfix = "secondary"
-    var aggregateClusterPostfix = "aggregate"
+    var secondaryClusterSuffix = "secondary"
+    var aggregateClusterSuffix = "aggregate"
 }
 
 class ZoneWeights {
