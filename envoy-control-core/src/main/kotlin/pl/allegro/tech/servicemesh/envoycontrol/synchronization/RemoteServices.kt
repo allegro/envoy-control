@@ -57,7 +57,6 @@ class RemoteServices(
     ): CompletableFuture<ClusterState?> {
         return controlPlaneClient.getState(chooseInstance(instances))
             .thenApply { servicesStateFromCluster(cluster, it) }
-            .orTimeout(interval, TimeUnit.SECONDS)
             .exceptionally {
                 meterRegistry.counter("cross-dc-synchronization.$cluster.state-fetcher.errors").increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
