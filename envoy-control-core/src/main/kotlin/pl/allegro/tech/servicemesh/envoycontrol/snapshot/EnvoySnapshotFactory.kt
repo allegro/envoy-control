@@ -318,7 +318,7 @@ class EnvoySnapshotFactory(
             )
         }
         val listeners = if (properties.dynamicListeners.enabled) {
-            listenersFactory.createListeners(group, globalSnapshot)
+            listenersFactory.createListeners(group, globalSnapshot, egressServiceRouteSpecification)
         } else {
             emptyList()
         }

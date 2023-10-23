@@ -26,9 +26,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Dependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DomainDependency
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ServiceDependency
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EnvoySnapshotFactory.Companion.DEFAULT_HTTP_PORT
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.HttpConnectionManagerFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.TcpProxyFilterFactory
@@ -120,7 +124,11 @@ class EnvoyListenersFactory(
         TLS("tls")
     }
 
-    fun createListeners(group: Group, globalSnapshot: GlobalSnapshot): List<Listener> {
+    fun createListeners(
+        group: Group,
+        globalSnapshot: GlobalSnapshot,
+        routes: Collection<RouteSpecification>
+    ): List<Listener> {
         if (group.listenersConfig == null) {
             return listOf()
         }
@@ -130,7 +138,7 @@ class EnvoyListenersFactory(
             createEgressListener(group, listenersConfig, globalSnapshot)
         )
         return if (group.listenersConfig?.useTransparentProxy == true) {
-            listeners + createEgressVirtualListeners(group, globalSnapshot)
+            listeners + createEgressVirtualListeners(group, globalSnapshot, routes)
         } else {
             listeners
         }
@@ -196,19 +204,26 @@ class EnvoyListenersFactory(
         return listener.build()
     }
 
-    private fun createEgressVirtualListeners(group: Group, globalSnapshot: GlobalSnapshot): List<Listener> {
+    private fun createEgressVirtualListeners(
+        group: Group,
+        globalSnapshot: GlobalSnapshot,
+        routes: Collection<RouteSpecification>
+    ): List<Listener> {
         val tcpProxy = group.proxySettings.outgoing.getDomainDependencies().filter {
             it.useSsl()
         }.groupBy(
             { it.getPort() }, { it }
         ).toMap()
 
-        val httpProxy = (group.proxySettings.outgoing.getDomainDependencies() +
-            group.proxySettings.outgoing.getServiceDependencies()).filter {
-            !it.useSsl()
-        }.groupBy(
-            { it.getPort() }, { it }
-        ).toMutableMap()
+        val httpProxy = (
+            group.proxySettings.outgoing.getDomainDependencies() +
+                group.proxySettings.outgoing.getServiceDependencies() +
+                getTrafficSplittingDependencies(group, routes)
+            ).filter {
+                !it.useSsl()
+            }.groupBy(
+                { it.getPort() }, { it }
+            ).toMutableMap()
 
         if (group.proxySettings.outgoing.allServicesDependencies) {
             httpProxy[DEFAULT_HTTP_PORT] = group.proxySettings.outgoing.getServiceDependencies()
@@ -216,6 +231,23 @@ class EnvoyListenersFactory(
 
         return createEgressTcpProxyVirtualListener(tcpProxy) +
             createEgressHttpProxyVirtualListener(httpProxy.toMap(), group, globalSnapshot)
+    }
+
+    private fun getTrafficSplittingDependencies(
+        group: Group,
+        routes: Collection<RouteSpecification>
+    ): List<ServiceDependency> {
+        val clusters = routes.filterIsInstance<WeightRouteSpecification>()
+            .map { it.clusterName }
+            .toList()
+        return group.proxySettings.outgoing.getServiceDependencies()
+            .filter { clusters.contains(it.service) }
+            .map {
+                it.copy(
+                    service = EnvoyClustersFactory.getAggregateClusterName(it.service, snapshotProperties),
+                    settings = it.settings
+                )
+            }
     }
 
     private fun createEgressFilter(
