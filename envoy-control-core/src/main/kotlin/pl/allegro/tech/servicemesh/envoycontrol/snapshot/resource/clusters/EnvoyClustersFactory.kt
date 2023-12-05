@@ -304,7 +304,7 @@ class EnvoyClustersFactory(
         clusterLoadAssignment: ClusterLoadAssignment?,
         trafficSplitting: TrafficSplittingProperties
     ) = clusterLoadAssignment?.endpointsList
-        ?.any { e -> trafficSplitting.zoneName == e.locality.zone } ?: false
+        ?.any { e -> trafficSplitting.zoneName == e.locality.zone && e.lbEndpointsCount > 0 } ?: false
 
     private fun shouldAddDynamicForwardProxyCluster(group: Group) =
         group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()

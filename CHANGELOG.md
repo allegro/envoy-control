@@ -3,6 +3,11 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.20.3]
+
+### Changed
+- Fixed traffic splitting condition check for cluster configuration
+
 ## [0.20.2]
 
 ### Changed
