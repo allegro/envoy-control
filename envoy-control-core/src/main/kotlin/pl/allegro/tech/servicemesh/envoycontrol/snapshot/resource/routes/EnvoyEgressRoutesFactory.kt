@@ -359,7 +359,8 @@ class EnvoyEgressRoutesFactory(
                         .withClusterWeight(routeSpec.clusterName, routeSpec.clusterWeights.main)
                         .withClusterWeight(
                             getAggregateClusterName(routeSpec.clusterName, properties),
-                            routeSpec.clusterWeights.secondary
+                            routeSpec.clusterWeights.secondary,
+                            routeSpec.clusterName
                         )
                 )
             }
@@ -369,14 +370,41 @@ class EnvoyEgressRoutesFactory(
         }
     }
 
-    private fun WeightedCluster.Builder.withClusterWeight(clusterName: String, weight: Int): WeightedCluster.Builder {
+    private fun WeightedCluster.Builder.withClusterWeight(
+        clusterName: String,
+        weight: Int,
+        headerValue: String? = null
+    ): WeightedCluster.Builder {
         this.addClusters(
             WeightedCluster.ClusterWeight.newBuilder()
                 .setName(clusterName)
                 .setWeight(UInt32Value.of(weight))
+                .withHeader(properties.loadBalancing.trafficSplitting.headerName, headerValue)
                 .build()
         )
         return this
+    }
+
+    private fun WeightedCluster.ClusterWeight.Builder.withHeader(
+        key: String?,
+        value: String?
+    ): WeightedCluster.ClusterWeight.Builder {
+        key?.takeIf { it.isNotBlank() }
+            ?.let {
+                value?.let { this.addResponseHeadersToAdd(buildHeader(key, value)) }
+            }
+        return this
+    }
+
+    private fun buildHeader(key: String, value: String): HeaderValueOption.Builder {
+        return HeaderValueOption.newBuilder()
+            .setHeader(
+                HeaderValue.newBuilder()
+                    .setKey(key)
+                    .setValue(value)
+            )
+            .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
+            .setKeepEmptyValue(false)
     }
 }
 
