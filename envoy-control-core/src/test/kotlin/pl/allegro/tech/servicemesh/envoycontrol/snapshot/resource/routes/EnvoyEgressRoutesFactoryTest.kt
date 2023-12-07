@@ -317,7 +317,6 @@ internal class EnvoyEgressRoutesFactoryTest {
             }
     }
 
-
     @Test
     fun `should not add traffic splitting header if header key is not set`() {
         val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
