@@ -226,8 +226,12 @@ class EnvoySnapshotFactory(
         val trafficSplitting = properties.loadBalancing.trafficSplitting
         val weights = trafficSplitting.serviceByWeightsProperties[serviceName]
         val enabledForDependency = globalSnapshot.endpoints[clusterName]?.endpointsList
-            ?.any { e -> trafficSplitting.zoneName == e.locality.zone }
+            ?.any { e -> trafficSplitting.zoneName == e.locality.zone && e.lbEndpointsCount > 0 }
             ?: false
+        logger.debug(
+            "Building route spec, weights: $weights, " +
+                "serviceName: $serviceName, outgoing dependency clusterName: $clusterName, enabled: $enabledForDependency"
+        )
         return if (weights != null && enabledForDependency) {
             logger.debug(
                 "Building traffic splitting route spec, weights: $weights, " +
