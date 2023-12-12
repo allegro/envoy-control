@@ -230,7 +230,8 @@ class EnvoySnapshotFactory(
             ?: false
         logger.debug(
             "Building route spec, weights: $weights, " +
-                "serviceName: $serviceName, outgoing dependency clusterName: $clusterName, enabled: $enabledForDependency"
+                "serviceName: $serviceName, outgoing dependency clusterName: $clusterName, " +
+                "enabled: $enabledForDependency"
         )
         return if (weights != null && enabledForDependency) {
             logger.debug(
