@@ -12,6 +12,7 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.VirtualCluster
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
+import io.envoyproxy.envoy.config.route.v3.WeightedCluster
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalRetryPolicyProperties
@@ -24,6 +25,16 @@ fun RouteConfiguration.hasSingleVirtualHostThat(condition: VirtualHost.() -> Uni
 
 fun RouteConfiguration.hasVirtualHostThat(name: String, condition: VirtualHost.() -> Unit): RouteConfiguration {
     condition(this.virtualHostsList.find { it.name == name }!!)
+    return this
+}
+
+fun RouteConfiguration.hasClusterThat(name: String, condition: WeightedCluster.ClusterWeight?.() -> Unit): RouteConfiguration {
+    condition(this.virtualHostsList
+        .flatMap { it.routesList }
+        .map { it.route }
+        .flatMap { route -> route.weightedClusters.clustersList }
+        .find { it.name == name }
+    )
     return this
 }
 

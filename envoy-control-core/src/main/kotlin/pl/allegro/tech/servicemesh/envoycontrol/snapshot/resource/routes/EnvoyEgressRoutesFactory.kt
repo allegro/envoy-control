@@ -36,6 +36,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StandardRouteSpecificat
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory.Companion.getAggregateClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.ServiceTagFilterFactory
+import java.lang.Boolean.TRUE
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 class EnvoyEgressRoutesFactory(
@@ -359,7 +360,8 @@ class EnvoyEgressRoutesFactory(
                         .withClusterWeight(routeSpec.clusterName, routeSpec.clusterWeights.main)
                         .withClusterWeight(
                             getAggregateClusterName(routeSpec.clusterName, properties),
-                            routeSpec.clusterWeights.secondary
+                            routeSpec.clusterWeights.secondary,
+                            true
                         )
                 )
             }
@@ -369,14 +371,39 @@ class EnvoyEgressRoutesFactory(
         }
     }
 
-    private fun WeightedCluster.Builder.withClusterWeight(clusterName: String, weight: Int): WeightedCluster.Builder {
-        this.addClusters(
-            WeightedCluster.ClusterWeight.newBuilder()
-                .setName(clusterName)
-                .setWeight(UInt32Value.of(weight))
-                .build()
-        )
+    private fun WeightedCluster.Builder.withClusterWeight(
+        clusterName: String,
+        weight: Int,
+        withHeader: Boolean = false
+    ): WeightedCluster.Builder {
+        val clusters = WeightedCluster.ClusterWeight.newBuilder()
+            .setName(clusterName)
+            .setWeight(UInt32Value.of(weight))
+            .also {
+                if (withHeader) {
+                    it.withHeader(properties.loadBalancing.trafficSplitting.headerName)
+                }
+            }
+        return this.addClusters(clusters)
+    }
+
+    private fun WeightedCluster.ClusterWeight.Builder.withHeader(key: String?): WeightedCluster.ClusterWeight.Builder {
+        key?.takeIf { it.isNotBlank() }
+            ?.let {
+                this.addResponseHeadersToAdd(buildHeader(key))
+            }
         return this
+    }
+
+    private fun buildHeader(key: String): HeaderValueOption.Builder {
+        return HeaderValueOption.newBuilder()
+            .setHeader(
+                HeaderValue.newBuilder()
+                    .setKey(key)
+                    .setValue(TRUE.toString())
+            )
+            .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
+            .setKeepEmptyValue(false)
     }
 }
 

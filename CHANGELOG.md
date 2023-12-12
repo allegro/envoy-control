@@ -2,6 +2,10 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
+## [0.20.4]
+
+### Changed
+- Added possibility to add response header for weighted secondary cluster 
 
 ## [0.20.3]
 
