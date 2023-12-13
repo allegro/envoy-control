@@ -36,6 +36,7 @@ class SnapshotProperties {
     var deltaXdsEnabled = false
     var retryPolicy = RetryPolicyProperties()
     var tcpDumpsEnabled: Boolean = true
+    var shouldAuditGlobalSnapshot: Boolean = true
 }
 
 class MetricsProperties {
@@ -143,6 +144,7 @@ class LoadBalancingProperties {
     var regularMetadataKey = "lb_regular"
     var localityMetadataKey = "locality"
     var weights = LoadBalancingWeightsProperties()
+    var trafficSplitting = TrafficSplittingProperties()
     var policy = Cluster.LbPolicy.LEAST_REQUEST
     var useKeysSubsetFallbackPolicy = true
     var priorities = LoadBalancingPriorityProperties()
@@ -152,6 +154,19 @@ class CanaryProperties {
     var enabled = false
     var metadataKey = "canary"
     var headerValue = "1"
+}
+
+class TrafficSplittingProperties {
+    var zoneName = ""
+    var headerName = ""
+    var serviceByWeightsProperties: Map<String, ZoneWeights> = mapOf()
+    var secondaryClusterSuffix = "secondary"
+    var aggregateClusterSuffix = "aggregate"
+}
+
+class ZoneWeights {
+    var main = 100
+    var secondary = 0
 }
 
 class LoadBalancingWeightsProperties {

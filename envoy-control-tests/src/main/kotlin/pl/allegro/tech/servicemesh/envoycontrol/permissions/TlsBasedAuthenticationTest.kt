@@ -5,7 +5,7 @@ import okhttp3.Request
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isForbidden
@@ -189,8 +189,8 @@ internal class TlsBasedAuthenticationTest {
         }
     }
 
-    @Disabled("Flaky test")
     @Test
+    @Tag("flaky")
     fun `should encrypt traffic between selected services even if only one endpoint supports mtls`() {
         // given 2 endpoints
         registerEcho2Insecure()

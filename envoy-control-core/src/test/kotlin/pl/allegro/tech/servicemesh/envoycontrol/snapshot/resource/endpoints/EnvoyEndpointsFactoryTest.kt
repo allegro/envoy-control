@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
@@ -18,7 +19,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceName
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingPriorityProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TrafficSplittingProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ZoneWeights
+import pl.allegro.tech.servicemesh.envoycontrol.utils.zoneWeights
 import java.util.concurrent.ConcurrentHashMap
 import java.util.stream.Stream
 
@@ -51,12 +57,20 @@ internal class EnvoyEndpointsFactoryTest {
 
     private val serviceName = "service-one"
 
+    private val secondaryClusterName = "service-one-secondary"
+
+    private val serviceName2 = "service-two"
+
+    private val defaultWeights = zoneWeights(50, 50)
+
+    private val defaultZone = "DC1"
+
     private val endpointsFactory = EnvoyEndpointsFactory(
         SnapshotProperties().apply {
             routing.serviceTags.enabled = true
             routing.serviceTags.autoServiceTagEnabled = true
         },
-        currentZone = "DC1"
+        currentZone = defaultZone
     )
 
     private val multiClusterStateDC1Local = MultiClusterState(
@@ -352,6 +366,122 @@ internal class EnvoyEndpointsFactoryTest {
         )
     }
 
+    @Test
+    fun `should create secondary cluster endpoints`() {
+        val multiClusterState = MultiClusterState(
+            listOf(
+                clusterState(cluster = "DC1"),
+                clusterState(cluster = "DC2"),
+                clusterState(cluster = "DC1", serviceName = serviceName2),
+                clusterState(cluster = "DC2", serviceName = serviceName2),
+            )
+        )
+
+        val services = setOf(serviceName, serviceName2)
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithTrafficSplitting(
+                mapOf(serviceName to defaultWeights)
+            ),
+            currentZone = defaultZone
+        )
+        val loadAssignments = envoyEndpointsFactory
+            .createLoadAssignment(services, multiClusterState)
+            .associateBy { it.clusterName }
+
+        val result = envoyEndpointsFactory.getSecondaryClusterEndpoints(
+            loadAssignments,
+            services.map { it.toRouteSpecification() }
+        )
+        assertThat(result).hasSize(2)
+            .anySatisfy { x -> assertThat(x.clusterName).isEqualTo(secondaryClusterName) }
+            .allSatisfy { x -> assertThat(x.endpointsList).allMatch { it.locality.zone == defaultZone } }
+    }
+
+    @Test
+    fun `should get empty secondary cluster endpoints for route spec with no weights`() {
+        val multiClusterState = MultiClusterState(
+            listOf(
+                clusterState(cluster = defaultZone),
+                clusterState(cluster = defaultZone, serviceName = serviceName2),
+            )
+        )
+        val services = setOf(serviceName, serviceName2)
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithTrafficSplitting(
+                mapOf(serviceName to defaultWeights)
+            ),
+            currentZone = defaultZone
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(
+            services,
+            multiClusterState
+        ).associateBy { it.clusterName }
+
+        val result = envoyEndpointsFactory.getSecondaryClusterEndpoints(
+            loadAssignments,
+            listOf(serviceName.toRouteSpecification())
+        )
+        assertThat(result).allSatisfy { x ->
+            assertThat(x.clusterName)
+                .isEqualTo(secondaryClusterName)
+        }
+    }
+
+    @Test
+    fun `should get empty secondary cluster endpoints for route spec with no such cluster`() {
+        val multiClusterState = MultiClusterState(
+            listOf(
+                clusterState(cluster = defaultZone),
+                clusterState(cluster = defaultZone, serviceName = serviceName2),
+            )
+        )
+        val services = setOf(serviceName, serviceName2)
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithTrafficSplitting(
+                mapOf(serviceName to defaultWeights)
+            ),
+            currentZone = defaultZone
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(
+            services,
+            multiClusterState
+        ).associateBy { it.clusterName }
+
+        val result = envoyEndpointsFactory.getSecondaryClusterEndpoints(
+            loadAssignments,
+            listOf("some-other-service-name".toRouteSpecification())
+        )
+        assertThat(result).isEmpty()
+    }
+
+    @Test
+    fun `should get empty secondary cluster endpoints when none comply zone condition`() {
+        val multiClusterState = MultiClusterState(
+            listOf(
+                clusterState(cluster = defaultZone),
+                clusterState(cluster = defaultZone, serviceName = serviceName2),
+            )
+        )
+        val services = setOf(serviceName, serviceName2)
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithTrafficSplitting(
+                mapOf(serviceName to defaultWeights),
+                zone = "DC2"
+            ),
+            currentZone = defaultZone
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(
+            services,
+            multiClusterState
+        ).associateBy { it.clusterName }
+
+        val result = envoyEndpointsFactory.getSecondaryClusterEndpoints(
+            loadAssignments,
+            listOf(serviceName.toRouteSpecification())
+        )
+        assertThat(result).isEmpty()
+    }
+
     private fun List<ClusterLoadAssignment>.assertHasLoadAssignment(map: Map<String, Int>) {
         assertThat(this)
             .isNotEmpty()
@@ -364,7 +494,11 @@ internal class EnvoyEndpointsFactoryTest {
             }
     }
 
-    private fun clusterState(locality: Locality, cluster: String): ClusterState {
+    private fun clusterState(
+        locality: Locality = Locality.LOCAL,
+        cluster: String,
+        serviceName: String = this.serviceName
+    ): ClusterState {
         return ClusterState(
             ServicesState(
                 serviceNameToInstances = concurrentMapOf(
@@ -404,6 +538,21 @@ internal class EnvoyEndpointsFactoryTest {
                     }
                 }
         }
+
+    private fun snapshotPropertiesWithTrafficSplitting(
+        serviceByWeights: Map<String, ZoneWeights>,
+        zone: String = defaultZone
+    ) =
+        SnapshotProperties().apply {
+            loadBalancing.trafficSplitting = TrafficSplittingProperties().apply {
+                zoneName = zone
+                serviceByWeightsProperties = serviceByWeights
+            }
+        }
+
+    private fun String.toRouteSpecification(weights: ZoneWeights = defaultWeights): RouteSpecification {
+        return WeightRouteSpecification(this, listOf(), DependencySettings(), weights)
+    }
 
     private fun String.toClusterLoadAssignment(): ClusterLoadAssignment = ClusterLoadAssignment.newBuilder()
         .also { builder -> JsonFormat.parser().merge(this, builder) }

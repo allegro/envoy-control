@@ -10,6 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.HeaderMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalReplyMapperProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.MatcherAndMapper
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ResponseFormat
+import java.util.function.Consumer
 
 class LocalReplyConfigFactoryTest {
 
@@ -246,11 +247,11 @@ class LocalReplyConfigFactoryTest {
         // expects
         assertThatExceptionOfType(IllegalArgumentException::class.java)
             .isThrownBy { LocalReplyConfigFactory(properties) }
-            .satisfies {
+            .satisfies(Consumer {
                 assertThat(it.message).isEqualTo(
                     "One and only one of: headerMatcher, responseFlagMatcher, statusCodeMatcher has to be defined."
                 )
-            }
+            })
     }
 
     @Test
@@ -272,11 +273,11 @@ class LocalReplyConfigFactoryTest {
         // expects
         assertThatExceptionOfType(IllegalArgumentException::class.java)
             .isThrownBy { LocalReplyConfigFactory(properties) }
-            .satisfies {
+            .satisfies(Consumer {
                 assertThat(it.message).isEqualTo(
                     "Only one of: exactMatch, regexMatch can be defined."
                 )
-            }
+            })
     }
 
     @Test
@@ -295,11 +296,11 @@ class LocalReplyConfigFactoryTest {
         // expects
         assertThatExceptionOfType(IllegalArgumentException::class.java)
             .isThrownBy { LocalReplyConfigFactory(properties) }
-            .satisfies {
+            .satisfies(Consumer {
                 assertThat(it.message).isEqualTo(
                     "Only one of: jsonFormat, textFormat can be defined."
                 )
-            }
+            })
     }
 
     @Test
@@ -326,11 +327,11 @@ class LocalReplyConfigFactoryTest {
         // expects
         assertThatExceptionOfType(IllegalArgumentException::class.java)
             .isThrownBy { LocalReplyConfigFactory(properties) }
-            .satisfies {
+            .satisfies(Consumer {
                 assertThat(it.message).isEqualTo(
                     "Only one of: jsonFormat, textFormat can be defined."
                 )
-            }
+            })
     }
 
     private val expectedConfigForResponseFlagsMatcher = """mappers {

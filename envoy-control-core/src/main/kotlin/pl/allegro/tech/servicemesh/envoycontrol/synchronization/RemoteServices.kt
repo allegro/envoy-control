@@ -29,7 +29,7 @@ class RemoteServices(
     fun getChanges(interval: Long): Flux<MultiClusterState> {
         val aclFlux: Flux<MultiClusterState> = Flux.create({ sink ->
             scheduler.scheduleWithFixedDelay({
-                meterRegistry.timer("sync-dc.get-multi-cluster-states.time").record {
+                meterRegistry.timer("sync-dc.get-multi-cluster-states.time").recordCallable {
                     getChanges(sink::next, interval)
                 }
             }, 0, interval, TimeUnit.SECONDS)

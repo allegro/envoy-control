@@ -2,6 +2,42 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
+## [0.20.4]
+
+### Changed
+- Added possibility to add response header for weighted secondary cluster 
+
+## [0.20.4]
+
+### Changed
+- Fix `shouldAuditGlobalSnapshot` property
+
+## [0.20.3]
+
+### Changed
+- Fixed traffic splitting condition check for cluster configuration
+
+## [0.20.2]
+
+### Changed
+- Updated property names:  secondaryClusterPostfix is changed to secondaryClusterSuffix, 
+- aggregateClusterPostfix is changed to aggregateClusterSuffix
+
+## [0.20.1]
+
+### Changed
+- Implemented configuring traffic splitting and fallback using aggregate cluster functionality
+
+## [0.20.0]
+
+### Changed
+- Spring Boot upgraded to 3.1.2
+- Java upgraded to 17
+- Kotlin upgraded to 1.8.2
+- Gradle upgraded to 8.3
+
+### Fixed
+- Random port generation for testcontainers
 
 ## [0.19.36]
 

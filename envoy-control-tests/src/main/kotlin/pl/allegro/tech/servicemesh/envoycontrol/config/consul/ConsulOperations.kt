@@ -70,6 +70,21 @@ class ConsulOperations(port: Int) {
         tags
     )
 
+    fun registerServiceWithEnvoyOnEgress(
+        extension: EnvoyExtension,
+        id: String = UUID.randomUUID().toString(),
+        name: String,
+        registerDefaultCheck: Boolean = false,
+        tags: List<String> = listOf("a")
+    ) = registerService(
+        id,
+        name,
+        extension.container.ipAddress(),
+        EnvoyContainer.EGRESS_LISTENER_CONTAINER_PORT,
+        registerDefaultCheck,
+        tags
+    )
+
     fun deregisterService(id: String) {
         client.agentServiceDeregister(id)
     }

@@ -2,10 +2,13 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy
+import pl.allegro.tech.servicemesh.envoycontrol.groups.hasClusterThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomIdleTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomRequestTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasHostRewriteHeader
@@ -21,13 +24,15 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hostRewriteHeaderIsEmpty
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPrefix
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StandardRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ZoneWeights
 
 internal class EnvoyEgressRoutesFactoryTest {
 
     val clusters = listOf(
-        RouteSpecification(
+        StandardRouteSpecification(
             clusterName = "srv1",
             routeDomains = listOf("srv1"),
             settings = DependencySettings(
@@ -39,6 +44,15 @@ internal class EnvoyEgressRoutesFactoryTest {
                 rewriteHostHeader = true,
                 retryPolicy = RetryPolicy()
             )
+        )
+    )
+
+    val weightedClusters = listOf(
+        WeightRouteSpecification(
+            clusterName = "srv1",
+            routeDomains = listOf("srv1"),
+            settings = DependencySettings(),
+            ZoneWeights()
         )
     )
 
@@ -171,8 +185,8 @@ internal class EnvoyEgressRoutesFactoryTest {
             egress.headersToRemove = mutableListOf("x-special-case-header", "x-custom")
         })
         val routesSpecifications = listOf(
-            RouteSpecification("example_pl_1553", listOf("example.pl:1553"), DependencySettings()),
-            RouteSpecification("example_com_1553", listOf("example.com:1553"), DependencySettings())
+            StandardRouteSpecification("example_pl_1553", listOf("example.pl:1553"), DependencySettings()),
+            StandardRouteSpecification("example_com_1553", listOf("example.com:1553"), DependencySettings())
         )
 
         // when
@@ -203,7 +217,7 @@ internal class EnvoyEgressRoutesFactoryTest {
         val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
         val retryPolicy = RetryPolicy(methods = setOf("GET", "POST"))
         val routesSpecifications = listOf(
-            RouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
+            StandardRouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
         )
 
         val routeConfig = routesFactory.createEgressRouteConfig(
@@ -234,7 +248,7 @@ internal class EnvoyEgressRoutesFactoryTest {
         val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
         val retryPolicy = RetryPolicy(numberRetries = 3)
         val routesSpecifications = listOf(
-            RouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
+            StandardRouteSpecification("example", listOf("example.pl:1553"), DependencySettings(retryPolicy = retryPolicy)),
         )
 
         val routeConfig = routesFactory.createEgressRouteConfig(
@@ -259,7 +273,7 @@ internal class EnvoyEgressRoutesFactoryTest {
         // given
         val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
         val routesSpecifications = listOf(
-            RouteSpecification("example", listOf("example.pl:1553"), DependencySettings()),
+            StandardRouteSpecification("example", listOf("example.pl:1553"), DependencySettings()),
         )
 
         val routeConfig = routesFactory.createEgressRouteConfig(
@@ -277,5 +291,48 @@ internal class EnvoyEgressRoutesFactoryTest {
             defaultRoute.matchingOnAnyMethod()
             defaultRoute.matchingOnPrefix("/")
         }
+    }
+
+    @Test
+    fun `should add traffic splitting header for secondary weighted cluster`() {
+
+        val expectedHeaderKey = "test-header"
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
+            loadBalancing.trafficSplitting.headerName = expectedHeaderKey
+        })
+
+        val routeConfig = routesFactory.createEgressRouteConfig(
+            "client1",
+            weightedClusters,
+            false
+        )
+
+        routeConfig
+            .hasClusterThat("srv1-aggregate") {
+                assertNotNull(this)
+                assertNotNull(this!!.responseHeadersToAddList.find { it.header.key == expectedHeaderKey })
+            }.hasClusterThat("srv1") {
+                assertNotNull(this)
+                assertTrue(this!!.responseHeadersToAddList.isEmpty())
+            }
+    }
+
+    @Test
+    fun `should not add traffic splitting header if header key is not set`() {
+        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
+        val routeConfig = routesFactory.createEgressRouteConfig(
+            "client1",
+            weightedClusters,
+            false
+        )
+
+        routeConfig
+            .hasClusterThat("srv1-aggregate") {
+                assertNotNull(this)
+                assertTrue(this!!.responseHeadersToAddList.isEmpty())
+            }.hasClusterThat("srv1") {
+                assertNotNull(this)
+                assertNotNull(this!!.responseHeadersToAddList.isEmpty())
+            }
     }
 }

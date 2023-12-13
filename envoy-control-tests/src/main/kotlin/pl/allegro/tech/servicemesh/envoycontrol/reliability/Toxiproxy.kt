@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.reliability
 
-import com.pszymczyk.consul.infrastructure.Ports
 import eu.rekawek.toxiproxy.Proxy
 import org.testcontainers.junit.jupiter.Testcontainers
 import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest.Companion.consul
@@ -8,6 +7,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.BaseEnvoyTest.Companion.n
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer.Companion.internalToxiproxyPort
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer.Companion.allInterfaces
+import pl.allegro.tech.servicemesh.envoycontrol.utils.Ports
 
 @Testcontainers
 internal class Toxiproxy private constructor() {

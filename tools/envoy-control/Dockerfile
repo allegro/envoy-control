@@ -1,4 +1,4 @@
-FROM gradle:6.6.1-jdk11 AS builder
+FROM gradle:8.3-jdk17 AS builder
 COPY --chown=gradle:gradle settings.gradle build.gradle gradle.properties /home/gradle/src/
 COPY --chown=gradle:gradle envoy-control-core/ /home/gradle/src/envoy-control-core/
 COPY --chown=gradle:gradle envoy-control-runner/ /home/gradle/src/envoy-control-runner/
@@ -8,7 +8,7 @@ COPY --chown=gradle:gradle envoy-control-source-consul/ /home/gradle/src/envoy-c
 WORKDIR /home/gradle/src
 RUN gradle :envoy-control-runner:assemble --parallel --no-daemon
 
-FROM adoptopenjdk/openjdk11:alpine-jre
+FROM eclipse-temurin:17-jre
 
 RUN mkdir /tmp/envoy-control-dist /tmp/envoy-control /bin/envoy-control /etc/envoy-control /var/tmp/config
 COPY --from=builder /home/gradle/src/envoy-control-runner/build/distributions/ /tmp/envoy-control-dist

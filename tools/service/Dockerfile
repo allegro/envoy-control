@@ -1,4 +1,5 @@
 FROM mendhak/http-https-echo
+USER root
 RUN apk add --update \
     curl \
     && rm -rf /var/cache/apk/*
