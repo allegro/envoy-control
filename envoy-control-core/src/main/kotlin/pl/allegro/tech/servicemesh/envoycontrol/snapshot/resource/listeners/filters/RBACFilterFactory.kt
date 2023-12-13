@@ -275,13 +275,22 @@ class RBACFilterFactory(
 
     private fun createStatusRoutePolicy(statusRouteProperties: StatusRouteProperties): Map<String, Policy.Builder> {
         return if (statusRouteProperties.enabled) {
+            val notRules = statusRouteProperties.blockedStatusEndpoints.map {
+                rBACFilterPermissions.createPathPermission(
+                    path = it.path,
+                    matchingType = it.matchingType
+                ).build()
+            }
             val permissions = statusRouteProperties.endpoints
                 .map {
-                    rBACFilterPermissions.createPathPermission(
+                    val permission = rBACFilterPermissions.createPathPermission(
                         path = it.path,
                         matchingType = it.matchingType
-                    ).build()
+                    )
+                    notRules.forEach { permission.setNotRule(it) }
+                    permission.build()
                 }
+
             val policy = Policy.newBuilder()
                 .addPrincipals(anyPrincipal)
                 .addPermissions(anyOf(permissions))
@@ -368,15 +377,18 @@ class RBACFilterFactory(
                         principal
                     )
                 )
+
                 OAuth.Policy.STRICT -> mergePrincipals(
                     listOf(
                         strictPolicyPrincipal,
                         principal
                     )
                 )
+
                 OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
                     principal
                 }
+
                 null -> {
                     principal
                 }

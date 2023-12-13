@@ -214,6 +214,7 @@ class AdminRouteProperties {
 class StatusRouteProperties {
     var enabled = false
     var endpoints: MutableList<EndpointMatch> = mutableListOf()
+    var blockedStatusEndpoints: MutableList<EndpointMatch> = mutableListOf()
     var createVirtualCluster = false
 }
 
