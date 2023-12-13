@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Added possibility to add response header for weighted secondary cluster 
 
+## [0.20.4]
+
+### Changed
+- Fix `shouldAuditGlobalSnapshot` property
+
 ## [0.20.3]
 
 ### Changed

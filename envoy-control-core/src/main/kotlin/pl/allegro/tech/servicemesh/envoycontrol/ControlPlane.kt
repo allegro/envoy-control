@@ -337,7 +337,11 @@ class ControlPlane private constructor(
         }
 
         fun withSnapshotChangeAuditor(snapshotChangeAuditor: SnapshotChangeAuditor): ControlPlaneBuilder {
-            this.snapshotChangeAuditor = snapshotChangeAuditor
+            if (properties.envoy.snapshot.shouldAuditGlobalSnapshot) {
+                this.snapshotChangeAuditor = snapshotChangeAuditor
+            } else {
+                this.snapshotChangeAuditor = NoopSnapshotChangeAuditor
+            }
             return this
         }
 
