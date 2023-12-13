@@ -225,9 +225,9 @@ class EnvoySnapshotFactory(
     ): RouteSpecification {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
         val weights = trafficSplitting.serviceByWeightsProperties[serviceName]
-        val enabledForDependency = globalSnapshot.endpoints[clusterName]?.endpointsList
-            ?.any { e -> trafficSplitting.zoneName == e.locality.zone }
-            ?: false
+        val enabledForDependency = globalSnapshot.endpoints[clusterName]?.let {
+            endpointsFactory.filterEndpoints(it, settings.routingPolicy)
+        }?.endpointsList?.any { e -> trafficSplitting.zoneName == e.locality.zone && e.lbEndpointsCount > 0 } ?: false
         return if (weights != null && enabledForDependency) {
             logger.debug(
                 "Building traffic splitting route spec, weights: $weights, " +
