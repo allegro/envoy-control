@@ -28,11 +28,6 @@ fun CallStats.verifyCallsCountCloseTo(service: EchoServiceExtension, expectedCou
     return this
 }
 
-fun CallStats.verifyCallsCountEquals(service: EchoServiceExtension, expectedCount: Int): CallStats {
-    Assertions.assertThat(this.hits(service)).isEqualTo(expectedCount)
-    return this
-}
-
 fun CallStats.verifyCallsCountGreaterThan(service: EchoServiceExtension, hits: Int): CallStats {
     Assertions.assertThat(this.hits(service)).isGreaterThan(hits)
     return this
