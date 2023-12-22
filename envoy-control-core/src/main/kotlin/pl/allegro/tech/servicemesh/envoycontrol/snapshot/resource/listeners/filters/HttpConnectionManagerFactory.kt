@@ -66,6 +66,8 @@ class HttpConnectionManagerFactory(
                     .setUseRemoteAddress(BoolValue.newBuilder().setValue(listenersConfig.useRemoteAddress).build())
                     .setDelayedCloseTimeout(Duration.newBuilder().setSeconds(0).build())
                     .setCommonHttpProtocolOptions(httpProtocolOptions)
+                    .setNormalizePath(BoolValue.newBuilder().setValue(true).build())
+                    .setMergeSlashes(true)
                     .setCodecType(HttpConnectionManager.CodecType.AUTO)
                     .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
                 if (listenersConfig.useRemoteAddress) {
