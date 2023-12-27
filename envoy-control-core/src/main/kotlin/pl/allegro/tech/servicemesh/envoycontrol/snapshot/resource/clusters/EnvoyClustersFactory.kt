@@ -78,7 +78,9 @@ class EnvoyClustersFactory(
 
     private val clustersForJWT: List<Cluster> =
         properties.jwt.providers.values.mapNotNull(this::clusterForOAuthProvider)
-
+    private val keepAliveTime = 7200
+    private val keepAliveProbes = 9
+    private val keepAliveInterval = 75
     companion object {
         private val logger by logger()
 
@@ -272,9 +274,9 @@ class EnvoyClustersFactory(
         ).toBuilder()
             .setUpstreamConnectionOptions(UpstreamConnectionOptions.newBuilder()
                 .setTcpKeepalive(TcpKeepalive.newBuilder()
-                    .setKeepaliveTime(UInt32Value.of(7200))
-                    .setKeepaliveProbes(UInt32Value.of(9))
-                    .setKeepaliveInterval(UInt32Value.of(75))
+                    .setKeepaliveTime(UInt32Value.of(keepAliveTime))
+                    .setKeepaliveProbes(UInt32Value.of(keepAliveProbes))
+                    .setKeepaliveInterval(UInt32Value.of(keepAliveInterval))
                     .build())
                 .build())
             .build()
