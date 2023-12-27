@@ -8,6 +8,7 @@ import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.cluster.v3.CircuitBreakers
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.cluster.v3.OutlierDetection
+import io.envoyproxy.envoy.config.cluster.v3.UpstreamConnectionOptions
 import io.envoyproxy.envoy.config.core.v3.Address
 import io.envoyproxy.envoy.config.core.v3.AggregatedConfigSource
 import io.envoyproxy.envoy.config.core.v3.ApiConfigSource
@@ -19,6 +20,7 @@ import io.envoyproxy.envoy.config.core.v3.Http2ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.RoutingPriority
 import io.envoyproxy.envoy.config.core.v3.SocketAddress
+import io.envoyproxy.envoy.config.core.v3.TcpKeepalive
 import io.envoyproxy.envoy.config.core.v3.TransportSocket
 import io.envoyproxy.envoy.config.core.v3.UpstreamHttpProtocolOptions
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
@@ -267,7 +269,15 @@ class EnvoyClustersFactory(
             dependencySettings,
             cluster,
             getSecondaryClusterName(cluster.name, properties)
-        )
+        ).toBuilder()
+            .setUpstreamConnectionOptions(UpstreamConnectionOptions.newBuilder()
+                .setTcpKeepalive(TcpKeepalive.newBuilder()
+                    .setKeepaliveTime(UInt32Value.of(7200))
+                    .setKeepaliveProbes(UInt32Value.of(9))
+                    .setKeepaliveInterval(UInt32Value.of(75))
+                    .build())
+                .build())
+            .build()
         val aggregateCluster =
             createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
         return listOf(mainCluster, secondaryCluster, aggregateCluster)
