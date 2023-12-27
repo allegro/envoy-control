@@ -293,6 +293,9 @@ class EgressProperties {
     var hostHeaderRewriting = HostHeaderRewritingProperties()
     var headersToRemove = mutableListOf<String>()
     var domains = mutableListOf<String>()
+    var keepAliveTime = 7200
+    var keepAliveProbes = 9
+    var keepAliveInterval = 75
 }
 
 class IngressProperties {
