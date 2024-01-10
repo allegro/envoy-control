@@ -11,7 +11,6 @@ import io.envoyproxy.envoy.config.core.v3.GrpcService
 import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.PathNormalizationOptions
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -68,7 +67,7 @@ class HttpConnectionManagerFactory(
                     .setDelayedCloseTimeout(Duration.newBuilder().setSeconds(0).build())
                     .setCommonHttpProtocolOptions(httpProtocolOptions)
                     .setNormalizePath(BoolValue.newBuilder().setValue(true).build())
-                    .setPathWithEscapedSlashesAction(HttpConnectionManager.PathWithEscapedSlashesAction.UNESCAPE_AND_REDIRECT)
+                    .setPathWithEscapedSlashesAction(HttpConnectionManager.PathWithEscapedSlashesAction.KEEP_UNCHANGED)
                     .setMergeSlashes(true)
                     .setCodecType(HttpConnectionManager.CodecType.AUTO)
                     .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
