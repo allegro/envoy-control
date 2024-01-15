@@ -17,6 +17,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathNormalizationConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
@@ -405,6 +406,7 @@ class EnvoySnapshotFactoryTest {
                 serviceDependencies = serviceDependencies(*dependencies),
                 rateLimitEndpoints = rateLimitEndpoints
             ),
+            PathNormalizationConfig(),
             listenersConfig
         )
     }
@@ -430,6 +432,7 @@ class EnvoySnapshotFactoryTest {
                 serviceDependencies = serviceDependencies(*dependencies),
                 defaultServiceSettings = defaultServiceSettings
             ),
+            PathNormalizationConfig(),
             listenersConfig
         )
     }

@@ -16,7 +16,7 @@ data class ServicesGroup(
     override val serviceName: String = "",
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val pathNormalizationConfig: PathNormalizationConfig,
+    override val pathNormalizationConfig: PathNormalizationConfig = PathNormalizationConfig(),
     override val listenersConfig: ListenersConfig? = null,
 ) : Group()
 
@@ -25,14 +25,14 @@ data class AllServicesGroup(
     override val serviceName: String = "",
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val pathNormalizationConfig: PathNormalizationConfig,
+    override val pathNormalizationConfig: PathNormalizationConfig = PathNormalizationConfig(),
     override val listenersConfig: ListenersConfig? = null
 ) : Group()
 
 data class PathNormalizationConfig(
-    val normalizationEnabled: Boolean,
-    val mergeSlashes: Boolean,
-    val pathWithEscapedSlashesAction: String
+    val normalizationEnabled: Boolean? = null,
+    val mergeSlashes: Boolean? = null,
+    val pathWithEscapedSlashesAction: String? = null
 )
 
 data class ListenersConfig(

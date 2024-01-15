@@ -95,10 +95,12 @@ class NodeMetadataValidator(
     private fun validatePathNormalization(metadata: NodeMetadata) {
         val action = metadata.pathNormalizationConfig.pathWithEscapedSlashesAction
 
-        val actionIsValidEnumValue = HttpConnectionManager.PathWithEscapedSlashesAction.values()
-            .any { it.name.uppercase() == action.uppercase() }
-        if (actionIsValidEnumValue) {
-            throw InvalidPathWithEscapedSlashesAction(action)
+        if (action != null) {
+            val actionIsValidEnumValue = HttpConnectionManager.PathWithEscapedSlashesAction.values()
+                .any { it.name.uppercase() == action.uppercase() }
+            if (actionIsValidEnumValue) {
+                throw InvalidPathWithEscapedSlashesAction(action)
+            }
         }
     }
 

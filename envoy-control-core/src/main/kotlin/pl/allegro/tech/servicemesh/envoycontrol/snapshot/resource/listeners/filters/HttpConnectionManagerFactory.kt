@@ -67,13 +67,15 @@ class HttpConnectionManagerFactory(
                     .setUseRemoteAddress(BoolValue.newBuilder().setValue(listenersConfig.useRemoteAddress).build())
                     .setDelayedCloseTimeout(Duration.newBuilder().setSeconds(0).build())
                     .setCommonHttpProtocolOptions(httpProtocolOptions)
-                    .setNormalizePath(BoolValue.newBuilder().setValue(normalizationConfig.normalizationEnabled).build())
-                    .setPathWithEscapedSlashesAction(
-                        normalizationConfig.pathWithEscapedSlashesAction.toPathWithEscapedSlashesActionEnum()
-                    )
-                    .setMergeSlashes(normalizationConfig.mergeSlashes)
                     .setCodecType(HttpConnectionManager.CodecType.AUTO)
                     .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
+
+                normalizationConfig.normalizationEnabled
+                    ?.let { connectionManagerBuilder.setNormalizePath(BoolValue.newBuilder().setValue(it).build()) }
+                normalizationConfig.mergeSlashes?.let { connectionManagerBuilder.setMergeSlashes(it) }
+                normalizationConfig.pathWithEscapedSlashesAction?.toPathWithEscapedSlashesActionEnum()?.let {
+                    connectionManagerBuilder.setPathWithEscapedSlashesAction(it)
+                }
                 if (listenersConfig.useRemoteAddress) {
                     connectionManagerBuilder.setXffNumTrustedHops(
                         snapshotProperties.dynamicListeners.httpFilters.ingressXffNumTrustedHops
