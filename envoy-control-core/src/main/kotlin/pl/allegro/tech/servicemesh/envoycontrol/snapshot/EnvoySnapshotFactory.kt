@@ -275,11 +275,11 @@ class EnvoySnapshotFactory(
         val rateLimitClusters =
             if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
         val rateLimitLoadAssignments = rateLimitClusters.mapNotNull { name -> globalSnapshot.endpoints[name] }
-        val secondaryLoadAssignments = endpointsFactory.getSecondaryClusterEndpoints(
+        val loadAssignments = endpointsFactory.assignLocalityWeights(
             egressLoadAssignments,
             egressRouteSpecifications
         )
-        return egressLoadAssignments.values.toList() + rateLimitLoadAssignments + secondaryLoadAssignments
+        return loadAssignments + rateLimitLoadAssignments
     }
 
     private fun newSnapshotForGroup(

@@ -388,7 +388,7 @@ internal class EnvoyEndpointsFactoryTest {
             .createLoadAssignment(services, multiClusterState)
             .associateBy { it.clusterName }
 
-        val result = envoyEndpointsFactory.getSecondaryClusterEndpoints(
+        val result = envoyEndpointsFactory.assignLocalityWeights(
             loadAssignments,
             services.map { it.toRouteSpecification() }
         )
@@ -417,7 +417,7 @@ internal class EnvoyEndpointsFactoryTest {
             multiClusterState
         ).associateBy { it.clusterName }
 
-        val result = envoyEndpointsFactory.getSecondaryClusterEndpoints(
+        val result = envoyEndpointsFactory.assignLocalityWeights(
             loadAssignments,
             listOf(serviceName.toRouteSpecification())
         )
@@ -447,7 +447,7 @@ internal class EnvoyEndpointsFactoryTest {
             multiClusterState
         ).associateBy { it.clusterName }
 
-        val result = envoyEndpointsFactory.getSecondaryClusterEndpoints(
+        val result = envoyEndpointsFactory.assignLocalityWeights(
             loadAssignments,
             listOf("some-other-service-name".toRouteSpecification())
         )
@@ -475,7 +475,7 @@ internal class EnvoyEndpointsFactoryTest {
             multiClusterState
         ).associateBy { it.clusterName }
 
-        val result = envoyEndpointsFactory.getSecondaryClusterEndpoints(
+        val result = envoyEndpointsFactory.assignLocalityWeights(
             loadAssignments,
             listOf(serviceName.toRouteSpecification())
         )

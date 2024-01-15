@@ -19,8 +19,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StandardRouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory.Companion.getSecondaryClusterName
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ZoneWeights
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 
 typealias EnvoyProxyLocality = io.envoyproxy.envoy.config.core.v3.Locality
@@ -77,25 +78,37 @@ class EnvoyEndpointsFactory(
         }
     }
 
-    fun getSecondaryClusterEndpoints(
+    fun assignLocalityWeights(
         clusterLoadAssignments: Map<String, ClusterLoadAssignment>,
         egressRouteSpecifications: List<RouteSpecification>
     ): List<ClusterLoadAssignment> {
-        return egressRouteSpecifications
+        val weighted = egressRouteSpecifications
             .filterIsInstance<WeightRouteSpecification>()
             .onEach { logger.debug("Traffic splitting is enabled for cluster: ${it.clusterName}") }
             .mapNotNull { routeSpec ->
                 clusterLoadAssignments[routeSpec.clusterName]?.let { assignment ->
                     ClusterLoadAssignment.newBuilder(assignment)
                         .clearEndpoints()
-                        .addAllEndpoints(assignment.endpointsList?.filter { e ->
-                            e.locality.zone == properties.loadBalancing.trafficSplitting.zoneName
-                        })
-                        .setClusterName(getSecondaryClusterName(routeSpec.clusterName, properties))
+                        .addAllEndpoints(assignWeights(assignment.endpointsList, routeSpec.clusterWeights))
+                        .setClusterName(routeSpec.clusterName)
                         .build()
                 }
             }
-            .filter { it.endpointsList.isNotEmpty() }
+        val remaining = egressRouteSpecifications.filterIsInstance<StandardRouteSpecification>()
+            .mapNotNull { clusterLoadAssignments[it.clusterName] }
+        return (remaining + weighted).filter { it.endpointsList.isNotEmpty() }
+    }
+
+    private fun assignWeights(
+        llbEndpointsList: List<LocalityLbEndpoints>, weights: ZoneWeights
+    ): List<LocalityLbEndpoints> {
+        return llbEndpointsList
+            .filter { weights.zoneByWeights.containsKey(it.locality.zone) }
+            .map {
+                it.toBuilder()
+                    .setLoadBalancingWeight(UInt32Value.of(weights.zoneByWeights[it.locality.zone] ?: 0))
+                    .build()
+            }.toList()
     }
 
     private fun filterEndpoints(loadAssignment: ClusterLoadAssignment, tag: String): ClusterLoadAssignment? {

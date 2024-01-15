@@ -11,7 +11,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlClusteredExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import verifyCallsCountCloseTo
-import verifyCallsCountGreaterThan
 import verifyIsReachable
 import java.time.Duration
 
@@ -20,18 +19,22 @@ class WeightedClustersRoutingTest {
         private const val forceTrafficZone = "dc2"
 
         private val properties = mapOf(
+            "pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.EnvoyEndpointsFactory" to "DEBUG",
+            "pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory" to "DEBUG",
             "envoy-control.envoy.snapshot.stateSampleDuration" to Duration.ofSeconds(0),
             "envoy-control.sync.enabled" to true,
             "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.zoneName" to forceTrafficZone,
             "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.$serviceName.main" to 90,
             "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.$serviceName.secondary" to 10,
+            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.$serviceName.zoneByWeights.dc1" to 3,
+            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.$serviceName.zoneByWeights.dc2" to 1,
             "envoy-control.envoy.snapshot.loadBalancing.priorities.zonePriorities" to mapOf(
                 "dc1" to mapOf(
                     "dc1" to 0,
-                    "dc2" to 1
+                    "dc2" to 0
                 ),
                 "dc2" to mapOf(
-                    "dc1" to 1,
+                    "dc1" to 0,
                     "dc2" to 0,
                 ),
             )
@@ -93,8 +96,8 @@ class WeightedClustersRoutingTest {
         echoEnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
 
         echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2)
-            .verifyCallsCountCloseTo(upstreamServiceDC1, 90)
-            .verifyCallsCountGreaterThan(upstreamServiceDC2, 1)
+            .verifyCallsCountCloseTo(upstreamServiceDC1, 75)
+            .verifyCallsCountCloseTo(upstreamServiceDC2, 25)
     }
 
     @Test
@@ -108,7 +111,7 @@ class WeightedClustersRoutingTest {
         echoEnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
 
         echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2, tag = "tag")
-            .verifyCallsCountCloseTo(upstreamServiceDC1, 90)
-            .verifyCallsCountGreaterThan(upstreamServiceDC2, 1)
+            .verifyCallsCountCloseTo(upstreamServiceDC1, 75)
+            .verifyCallsCountCloseTo(upstreamServiceDC2, 25)
     }
 }

@@ -79,16 +79,6 @@ class EnvoyClustersFactory(
 
     companion object {
         private val logger by logger()
-
-        @JvmStatic
-        fun getSecondaryClusterName(serviceName: String, snapshotProperties: SnapshotProperties): String {
-            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.secondaryClusterSuffix}"
-        }
-
-        @JvmStatic
-        fun getAggregateClusterName(serviceName: String, snapshotProperties: SnapshotProperties): String {
-            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.aggregateClusterSuffix}"
-        }
     }
 
     fun getClustersForServices(
@@ -262,15 +252,16 @@ class EnvoyClustersFactory(
         dependencySettings: DependencySettings,
         cluster: Cluster
     ): Collection<Cluster> {
-        val mainCluster = createClusterForGroup(dependencySettings, cluster)
-        val secondaryCluster = createClusterForGroup(
-            dependencySettings,
-            cluster,
-            getSecondaryClusterName(cluster.name, properties)
-        )
-        val aggregateCluster =
-            createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
-        return listOf(mainCluster, secondaryCluster, aggregateCluster)
+       val cluster = createClusterForGroup(dependencySettings, cluster)
+            .toBuilder()
+            .setCommonLbConfig(
+                Cluster.CommonLbConfig.newBuilder().setLocalityWeightedLbConfig(
+                    Cluster.CommonLbConfig.LocalityWeightedLbConfig.getDefaultInstance()
+                )
+                    .build()
+            )
+            .build()
+        return listOf(cluster)
             .onEach {
                 logger.debug("Created set of cluster configs for traffic splitting: {}", it.toString())
             }
@@ -355,25 +346,6 @@ class EnvoyClustersFactory(
                 useTransparentProxy
             )
         }
-    }
-
-    private fun createAggregateCluster(clusterName: String, aggregatedClusters: Collection<String>): Cluster {
-        return Cluster.newBuilder()
-            .setName(getAggregateClusterName(clusterName, properties))
-            .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
-            .setLbPolicy(Cluster.LbPolicy.CLUSTER_PROVIDED)
-            .setClusterType(
-                Cluster.CustomClusterType.newBuilder()
-                    .setName("envoy.clusters.aggregate")
-                    .setTypedConfig(
-                        Any.pack(
-                            EnvoyClusterConfig.newBuilder()
-                                .addAllClusters(aggregatedClusters)
-                                .build()
-                        )
-                    )
-            )
-            .build()
     }
 
     private fun strictDnsCluster(

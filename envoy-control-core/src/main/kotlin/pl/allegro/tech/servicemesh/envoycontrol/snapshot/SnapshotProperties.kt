@@ -165,8 +165,9 @@ class TrafficSplittingProperties {
 }
 
 class ZoneWeights {
-    var main = 100
+    var main = 100 // todo remove
     var secondary = 0
+    var zoneByWeights: Map<String, Int> = mapOf()
 }
 
 class LoadBalancingWeightsProperties {
