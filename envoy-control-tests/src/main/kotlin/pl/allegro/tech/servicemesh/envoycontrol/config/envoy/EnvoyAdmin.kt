@@ -70,7 +70,7 @@ class EnvoyAdmin(
     }
 
     fun configDump(): String {
-        val response = get("config_dump", "c")
+        val response = get("config_dump", "c") // todo remove
         return response.body.use { it!!.string() }
     }
 
@@ -112,7 +112,7 @@ class EnvoyAdmin(
         return client.newCall(
             Request.Builder()
                 .get()
-                .url(if(param.isEmpty())"$address/$path" else "$address/$path?&include_eds=on")
+                .url(if (param.isEmpty()) "$address/$path" else "$address/$path?&include_eds=on")
                 .build()
         )
             .execute().addToCloseableResponses()
