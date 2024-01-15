@@ -96,7 +96,7 @@ class EnvoyEndpointsFactory(
             }
         val remaining = egressRouteSpecifications.filterIsInstance<StandardRouteSpecification>()
             .mapNotNull { clusterLoadAssignments[it.clusterName] }
-        return (remaining + weighted).filter { it.endpointsList.isNotEmpty() }
+        return (remaining + weighted)
     }
 
     private fun assignWeights(

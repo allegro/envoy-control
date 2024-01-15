@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.routing
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
@@ -129,7 +128,6 @@ class RoutingPolicyTest {
     }
 
     @Test
-    @Disabled
     fun `should change routing when instance with prefered tag appears`() {
         // given
         val otherEchoId = consul.server.operations.registerService(
@@ -200,8 +198,7 @@ class RoutingPolicyTest {
         }
     }
 
-    @Test
-    @Disabled
+    @Test // todo remove logs
     fun `should change routing when instance with prefered tag disappers`() {
         // given
         val ipsumId = consul.server.operations.registerService(
