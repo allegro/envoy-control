@@ -40,7 +40,6 @@ public class SimpleCacheTest {
 
     private static final boolean ADS = ThreadLocalRandom.current().nextBoolean();
     protected static final String CLUSTER_NAME = "cluster0";
-    private static final String SECONDARY_CLUSTER_NAME = "cluster1";
     private static final String LISTENER_NAME = "listener0";
     private static final String ROUTE_NAME = "route0";
     private static final String SECRET_NAME = "secret0";
@@ -65,10 +64,8 @@ public class SimpleCacheTest {
             VERSION2);
 
     protected static final Snapshot MULTIPLE_RESOURCES_SNAPSHOT2 = Snapshot.create(
-            ImmutableList.of(Cluster.newBuilder().setName(CLUSTER_NAME).build(),
-                    Cluster.newBuilder().setName(SECONDARY_CLUSTER_NAME).build()),
-            ImmutableList.of(ClusterLoadAssignment.newBuilder().setClusterName(CLUSTER_NAME).build(),
-                    ClusterLoadAssignment.newBuilder().setClusterName(SECONDARY_CLUSTER_NAME).build()),
+            ImmutableList.of(Cluster.newBuilder().setName(CLUSTER_NAME).build()),
+            ImmutableList.of(ClusterLoadAssignment.newBuilder().setClusterName(CLUSTER_NAME).build()),
             ImmutableList.of(Listener.newBuilder().setName(LISTENER_NAME).build()),
             ImmutableList.of(RouteConfiguration.newBuilder().setName(ROUTE_NAME).build()),
             ImmutableList.of(Secret.newBuilder().setName(SECRET_NAME).build()),

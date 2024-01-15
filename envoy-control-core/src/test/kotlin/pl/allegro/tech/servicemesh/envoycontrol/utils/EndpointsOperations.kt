@@ -17,7 +17,7 @@ fun createLoadAssignments(clusters: List<Cluster>): List<ClusterLoadAssignment> 
 fun createEndpoints(): List<LocalityLbEndpoints> =
     listOf(
         createEndpoint(CURRENT_ZONE),
-        createEndpoint(TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE)
+        createEndpoint(TRAFFIC_SPLITTING_ZONE)
     )
 
 fun createEndpoint(zone: String): LocalityLbEndpoints {

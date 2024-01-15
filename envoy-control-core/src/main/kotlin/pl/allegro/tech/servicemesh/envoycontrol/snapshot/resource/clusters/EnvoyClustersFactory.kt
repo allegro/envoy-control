@@ -79,16 +79,6 @@ class EnvoyClustersFactory(
 
     companion object {
         private val logger by logger()
-
-        @JvmStatic
-        fun getSecondaryClusterName(serviceName: String, snapshotProperties: SnapshotProperties): String {
-            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.secondaryClusterSuffix}"
-        }
-
-        @JvmStatic
-        fun getAggregateClusterName(serviceName: String, snapshotProperties: SnapshotProperties): String {
-            return "$serviceName-${snapshotProperties.loadBalancing.trafficSplitting.aggregateClusterSuffix}"
-        }
     }
 
     fun getClustersForServices(
@@ -207,8 +197,8 @@ class EnvoyClustersFactory(
 
         val dependencies = group.proxySettings.outgoing.getServiceDependencies().associateBy { it.service }
         val clustersForGroup = when (group) {
-            is ServicesGroup -> dependencies.flatMap {
-                createClusters(
+            is ServicesGroup -> dependencies.mapNotNull {
+                createCluster(
                     group.serviceName,
                     it.value.settings,
                     clusters[it.key],
@@ -217,9 +207,9 @@ class EnvoyClustersFactory(
             }
 
             is AllServicesGroup -> {
-                globalSnapshot.allServicesNames.flatMap {
+                globalSnapshot.allServicesNames.mapNotNull {
                     val dependency = dependencies[it]
-                    createClusters(
+                    createCluster(
                         group.serviceName,
                         getDependencySettings(dependency, group),
                         clusters[it],
@@ -245,7 +235,7 @@ class EnvoyClustersFactory(
         dependencySettings: DependencySettings,
         cluster: Cluster,
         clusterName: String? = cluster.name
-    ): Cluster {
+    ): Cluster.Builder {
         val idleTimeoutPolicy =
             dependencySettings.timeoutPolicy.connectionIdleTimeout ?: cluster.commonHttpProtocolOptions.idleTimeout
         return Cluster.newBuilder(cluster)
@@ -255,40 +245,36 @@ class EnvoyClustersFactory(
                 Cluster.EdsClusterConfig.newBuilder(cluster.edsClusterConfig)
                     .setServiceName(clusterName)
             )
-            .build()
     }
 
-    private fun createSetOfClustersForGroup(
+    private fun createClusterWithLocalityWeightedConfigForGroup(
         dependencySettings: DependencySettings,
         cluster: Cluster
-    ): Collection<Cluster> {
-        val mainCluster = createClusterForGroup(dependencySettings, cluster)
-        val secondaryCluster = createClusterForGroup(
-            dependencySettings,
-            cluster,
-            getSecondaryClusterName(cluster.name, properties)
-        )
-        val aggregateCluster =
-            createAggregateCluster(mainCluster.name, linkedSetOf(secondaryCluster.name, mainCluster.name))
-        return listOf(mainCluster, secondaryCluster, aggregateCluster)
-            .onEach {
-                logger.debug("Created set of cluster configs for traffic splitting: {}", it.toString())
+    ): Cluster.Builder {
+        return createClusterForGroup(dependencySettings, cluster)
+            .setCommonLbConfig(
+                Cluster.CommonLbConfig.newBuilder()
+                    .setLocalityWeightedLbConfig(Cluster.CommonLbConfig.LocalityWeightedLbConfig.getDefaultInstance())
+                    .build()
+            )
+            .also {
+                logger.debug("Created cluster config for traffic splitting: {}", it.toString())
             }
     }
 
-    private fun createClusters(
+    private fun createCluster(
         serviceName: String,
         dependencySettings: DependencySettings,
         cluster: Cluster?,
         clusterLoadAssignment: ClusterLoadAssignment?
-    ): Collection<Cluster> {
+    ): Cluster? {
         return cluster?.let {
             if (enableTrafficSplitting(serviceName, clusterLoadAssignment)) {
-                createSetOfClustersForGroup(dependencySettings, cluster)
+                createClusterWithLocalityWeightedConfigForGroup(dependencySettings, cluster)
             } else {
-                listOf(createClusterForGroup(dependencySettings, cluster))
-            }
-        } ?: listOf()
+                createClusterForGroup(dependencySettings, cluster)
+            }.build()
+        }
     }
 
     private fun enableTrafficSplitting(
@@ -296,7 +282,7 @@ class EnvoyClustersFactory(
         clusterLoadAssignment: ClusterLoadAssignment?
     ): Boolean {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
-        val trafficSplitEnabled = trafficSplitting.serviceByWeightsProperties.containsKey(serviceName)
+        val trafficSplitEnabled = trafficSplitting.weightsByService.containsKey(serviceName)
         return trafficSplitEnabled && hasEndpointsInZone(clusterLoadAssignment, trafficSplitting)
     }
 
@@ -355,25 +341,6 @@ class EnvoyClustersFactory(
                 useTransparentProxy
             )
         }
-    }
-
-    private fun createAggregateCluster(clusterName: String, aggregatedClusters: Collection<String>): Cluster {
-        return Cluster.newBuilder()
-            .setName(getAggregateClusterName(clusterName, properties))
-            .setConnectTimeout(Durations.fromMillis(properties.edsConnectionTimeout.toMillis()))
-            .setLbPolicy(Cluster.LbPolicy.CLUSTER_PROVIDED)
-            .setClusterType(
-                Cluster.CustomClusterType.newBuilder()
-                    .setName("envoy.clusters.aggregate")
-                    .setTypedConfig(
-                        Any.pack(
-                            EnvoyClusterConfig.newBuilder()
-                                .addAllClusters(aggregatedClusters)
-                                .build()
-                        )
-                    )
-            )
-            .build()
     }
 
     private fun strictDnsCluster(
