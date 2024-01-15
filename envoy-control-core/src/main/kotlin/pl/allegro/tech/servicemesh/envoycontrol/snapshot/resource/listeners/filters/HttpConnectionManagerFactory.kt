@@ -68,7 +68,9 @@ class HttpConnectionManagerFactory(
                     .setDelayedCloseTimeout(Duration.newBuilder().setSeconds(0).build())
                     .setCommonHttpProtocolOptions(httpProtocolOptions)
                     .setNormalizePath(BoolValue.newBuilder().setValue(normalizationConfig.normalizationEnabled).build())
-                    .setPathWithEscapedSlashesAction(normalizationConfig.pathWithEscapedSlashesAction.toPathWithEscapedSlashesActionEnum())
+                    .setPathWithEscapedSlashesAction(
+                        normalizationConfig.pathWithEscapedSlashesAction.toPathWithEscapedSlashesActionEnum()
+                    )
                     .setMergeSlashes(normalizationConfig.mergeSlashes)
                     .setCodecType(HttpConnectionManager.CodecType.AUTO)
                     .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))

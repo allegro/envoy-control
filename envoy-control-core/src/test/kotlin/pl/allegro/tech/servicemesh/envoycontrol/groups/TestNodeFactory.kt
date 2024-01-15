@@ -145,7 +145,6 @@ fun pathNormalizationProto(
         }
     }
 
-
 fun accessLogBooleanFilterProto(value: Boolean? = null, fieldName: String): Value = struct {
     when {
         value != null -> putFields(fieldName, boolean(value))

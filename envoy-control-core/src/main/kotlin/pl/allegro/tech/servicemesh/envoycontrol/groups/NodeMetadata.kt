@@ -81,7 +81,8 @@ fun getPathNormalization(proto: Value?, snapshotProperties: SnapshotProperties):
     return PathNormalizationConfig(
         normalizationEnabled = proto.field("enabled")?.boolValue ?: defaultNormalizationConfig.normalizationEnabled,
         mergeSlashes = proto.field("merge_slashes")?.boolValue ?: defaultNormalizationConfig.mergeSlashes,
-        pathWithEscapedSlashesAction = proto.field("path_with_escaped_slashes_action")?.stringValue ?: defaultNormalizationConfig.pathWithEscapedSlashesAction
+        pathWithEscapedSlashesAction = proto.field("path_with_escaped_slashes_action")?.stringValue
+            ?: defaultNormalizationConfig.pathWithEscapedSlashesAction
     )
 }
 
