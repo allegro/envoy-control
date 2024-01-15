@@ -51,6 +51,7 @@ class HttpConnectionManagerFactory(
     ): HttpConnectionManager? {
         val listenersConfig = group.listenersConfig!!
 
+        val normalizationConfig = group.pathNormalizationConfig
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix(statPrefix)
             .setRds(setupRds(group.communicationMode, initialFetchTimeout, routeConfigName))
@@ -66,9 +67,9 @@ class HttpConnectionManagerFactory(
                     .setUseRemoteAddress(BoolValue.newBuilder().setValue(listenersConfig.useRemoteAddress).build())
                     .setDelayedCloseTimeout(Duration.newBuilder().setSeconds(0).build())
                     .setCommonHttpProtocolOptions(httpProtocolOptions)
-                    .setNormalizePath(BoolValue.newBuilder().setValue(true).build())
-                    .setPathWithEscapedSlashesAction(HttpConnectionManager.PathWithEscapedSlashesAction.KEEP_UNCHANGED)
-                    .setMergeSlashes(true)
+                    .setNormalizePath(BoolValue.newBuilder().setValue(normalizationConfig.normalizationEnabled).build())
+                    .setPathWithEscapedSlashesAction(normalizationConfig.pathWithEscapedSlashesAction.toPathWithEscapedSlashesActionEnum())
+                    .setMergeSlashes(normalizationConfig.mergeSlashes)
                     .setCodecType(HttpConnectionManager.CodecType.AUTO)
                     .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
                 if (listenersConfig.useRemoteAddress) {
@@ -77,6 +78,7 @@ class HttpConnectionManagerFactory(
                     )
                 }
             }
+
             Direction.EGRESS -> {
                 connectionManagerBuilder
                     .setHttpProtocolOptions(
@@ -106,6 +108,12 @@ class HttpConnectionManagerFactory(
         addHttpFilters(connectionManagerBuilder, filters, group, globalSnapshot)
 
         return connectionManagerBuilder.build()
+    }
+
+    private fun String.toPathWithEscapedSlashesActionEnum(): HttpConnectionManager.PathWithEscapedSlashesAction {
+        return HttpConnectionManager.PathWithEscapedSlashesAction.values()
+            .find { it.name.uppercase() == this.uppercase() }
+            ?: HttpConnectionManager.PathWithEscapedSlashesAction.UNRECOGNIZED
     }
 
     private fun setupRds(

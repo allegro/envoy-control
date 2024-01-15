@@ -2,7 +2,17 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
-## [0.20.4]
+## [0.20.9]
+### Changed
+- Configurable path normalization
+
+## [0.20.6 - 0.20.8]
+
+### Changed
+- Merge slashes in http request
+- Feature flag for auditing global snapshot
+
+## [0.20.5]
 
 ### Changed
 - Added possibility to add response header for weighted secondary cluster 

@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
+import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -40,6 +41,9 @@ class ServiceNameNotProvidedException : NodeMetadataValidationException(
     "Service name has not been provided."
 )
 
+class InvalidPathWithEscapedSlashesAction(action: String) : NodeMetadataValidationException(
+    "$action is invalid value for pathWithEscapedSlashesAction."
+)
 class RateLimitIncorrectValidationException(rateLimit: String?) : NodeMetadataValidationException(
     "Rate limit value: $rateLimit is incorrect."
 )
@@ -82,9 +86,20 @@ class NodeMetadataValidator(
     private fun validateMetadata(metadata: NodeMetadata) {
         validateServiceName(metadata)
         validateDependencies(metadata)
+        validatePathNormalization(metadata)
         validateIncomingEndpoints(metadata)
         validateIncomingRateLimitEndpoints(metadata)
         validateConfigurationMode(metadata)
+    }
+
+    private fun validatePathNormalization(metadata: NodeMetadata) {
+        val action = metadata.pathNormalizationConfig.pathWithEscapedSlashesAction
+
+        val actionIsValidEnumValue = HttpConnectionManager.PathWithEscapedSlashesAction.values()
+            .any { it.name.uppercase() == action.uppercase() }
+        if (actionIsValidEnumValue) {
+            throw InvalidPathWithEscapedSlashesAction(action)
+        }
     }
 
     private fun validateServiceName(metadata: NodeMetadata) {

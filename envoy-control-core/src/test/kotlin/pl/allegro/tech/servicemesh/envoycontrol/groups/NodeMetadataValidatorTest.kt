@@ -261,6 +261,25 @@ class NodeMetadataValidatorTest {
             })
     }
 
+    @Test
+    fun `should throw an exception when PathWithEscapedSlashesAction is invalid`() {
+        // given
+        val node = nodeV3(
+            pathNormalization = PathNormalizationConfig(pathWithEscapedSlashesAction = "foo", normalizationEnabled = true, mergeSlashes = true)
+        )
+        val request = DiscoveryRequestV3.newBuilder()
+            .setNode(node)
+            .build()
+
+        // then
+        assertThatExceptionOfType(InvalidPathWithEscapedSlashesAction::class.java)
+            .isThrownBy { validator.onV3StreamRequest(123, request = request) }
+            .satisfies(Consumer {
+                assertThat(it.status.description).isEqualTo("foo is invalid value for pathWithEscapedSlashesAction.")
+                assertThat(it.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+            })
+    }
+
     private fun createIncomingPermissions(
         enabled: Boolean = false,
         servicesAllowedToUseWildcard: MutableSet<String> = mutableSetOf()

@@ -21,7 +21,8 @@ fun nodeV3(
     connectionIdleTimeout: String? = null,
     healthCheckPath: String? = null,
     healthCheckClusterName: String? = null,
-    rateLimit: String? = null
+    rateLimit: String? = null,
+    pathNormalization: PathNormalizationConfig? = null
 ): NodeV3 {
     val meta = NodeV3.newBuilder().metadataBuilder
 
@@ -51,6 +52,16 @@ fun nodeV3(
                 healthCheckPath = healthCheckPath,
                 healthCheckClusterName = healthCheckClusterName,
                 rateLimit = rateLimit
+            )
+        )
+    }
+    if (pathNormalization != null) {
+        meta.putFields(
+            "path_normalization",
+            pathNormalizationProto(
+                pathNormalization.normalizationEnabled,
+                pathNormalization.mergeSlashes,
+                pathNormalization.pathWithEscapedSlashesAction
             )
         )
     }
@@ -111,6 +122,29 @@ fun accessLogFilterProto(value: String? = null, fieldName: String): Value = stru
         else -> putFields(fieldName, nullValue)
     }
 }
+
+fun pathNormalizationProto(
+    normalizationEnabled: Boolean?,
+    mergeSlashes: Boolean?,
+    pathWithEscapedSlashesAction: String?
+) = struct {
+        normalizationEnabled?.let {
+            putFields(
+                "enabled", boolean(it)
+            )
+        }
+        mergeSlashes?.let {
+            putFields(
+                "merge_slashes", boolean(it)
+            )
+        }
+        pathWithEscapedSlashesAction?.let {
+            putFields(
+                "path_with_escaped_slashes_action", string(it)
+            )
+        }
+    }
+
 
 fun accessLogBooleanFilterProto(value: Boolean? = null, fieldName: String): Value = struct {
     when {
@@ -186,6 +220,7 @@ data class RetryBackOffInput(
     val baseInterval: String? = null,
     val maxInterval: String? = null
 )
+
 data class RetryHostPredicateInput(
     val name: String?
 )
@@ -216,7 +251,13 @@ class OutgoingDependenciesProtoScope {
         serviceDependencies: List<String> = emptyList(),
         idleTimeout: String? = null,
         responseTimeout: String? = null
-    ) = serviceDependencies.forEach { withService(it, idleTimeout, responseTimeout) } // TODO: responseTimeout as connectionIdleTimeout, is this correct?
+    ) = serviceDependencies.forEach {
+        withService(
+            it,
+            idleTimeout,
+            responseTimeout
+        )
+    } // TODO: responseTimeout as connectionIdleTimeout, is this correct?
 
     fun withService(
         serviceName: String,
