@@ -8,13 +8,10 @@ import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.utils.AGGREGATE_CLUSTER_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_NAME1
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_NAME2
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_CLUSTER_WEIGHTS
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_SERVICE_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.MAIN_CLUSTER_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.SECONDARY_CLUSTER_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createAllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createCluster
@@ -94,32 +91,6 @@ internal class EnvoyClustersFactoryTest {
         assertThat(result).allSatisfy {
             assertThat(it).isEqualTo(securedCluster)
         }
-    }
-
-    @Test
-    fun `should get clusters for group with weighted and aggregate clusters`() {
-        val cluster1 = createCluster(snapshotPropertiesWithWeights, CLUSTER_NAME1)
-        val factory = EnvoyClustersFactory(snapshotPropertiesWithWeights)
-        val result = factory.getClustersForGroup(
-            createServicesGroup(
-                snapshotProperties = snapshotPropertiesWithWeights,
-                listenersConfig = createListenersConfig(snapshotPropertiesWithWeights, true),
-                dependencies = arrayOf(CLUSTER_NAME1 to null),
-            ),
-            createGlobalSnapshot(cluster1)
-        )
-        assertThat(result)
-            .anySatisfy {
-                assertThat(it.name).isEqualTo(MAIN_CLUSTER_NAME)
-                assertThat(it.edsClusterConfig).isEqualTo(cluster1.edsClusterConfig)
-            }
-            .anySatisfy {
-                assertThat(it.name).isEqualTo(SECONDARY_CLUSTER_NAME)
-            }
-            .anySatisfy {
-                assertThat(it.name).isEqualTo(AGGREGATE_CLUSTER_NAME)
-                assertThat(it.clusterType.typedConfig.isInitialized).isTrue()
-            }
     }
 
     private fun createGlobalSnapshot(

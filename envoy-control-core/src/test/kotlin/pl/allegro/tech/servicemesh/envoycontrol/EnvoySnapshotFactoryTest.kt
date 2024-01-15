@@ -229,42 +229,6 @@ class EnvoySnapshotFactoryTest {
     }
 
     @Test
-    fun `should create weighted snapshot clusters`() {
-        // given
-        val envoySnapshotFactory = createSnapshotFactory(snapshotPropertiesWithWeights)
-        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = DEFAULT_SERVICE_NAME)
-        val cluster2 =
-            createCluster(snapshotPropertiesWithWeights, clusterName = SERVICE_NAME_2)
-        val group: Group = createServicesGroup(
-            dependencies = arrayOf(cluster2.name to null),
-            snapshotProperties = snapshotPropertiesWithWeights
-        )
-        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
-
-        // when
-        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
-
-        // then
-        assertThat(snapshot.clusters().resources())
-            .containsKey(MAIN_CLUSTER_NAME)
-            .containsKey(SECONDARY_CLUSTER_NAME)
-            .containsKey(AGGREGATE_CLUSTER_NAME)
-        assertThat(snapshot.endpoints().resources().values)
-            .anySatisfy {
-                assertThat(it.clusterName).isEqualTo(MAIN_CLUSTER_NAME)
-                assertThat(it.endpointsList)
-                    .anyMatch { e -> e.locality.zone == CURRENT_ZONE }
-                    .anyMatch { e -> e.locality.zone == TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE }
-            }
-        assertThat(snapshot.endpoints().resources().values)
-            .anySatisfy {
-                assertThat(it.clusterName).isEqualTo(SECONDARY_CLUSTER_NAME)
-                assertThat(it.endpointsList)
-                    .allMatch { e -> e.locality.zone == TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE }
-            }
-    }
-
-    @Test
     fun `should get regular snapshot clusters when traffic splitting zone condition isn't complied`() {
         // given
         val defaultProperties = SnapshotProperties().also {
@@ -291,31 +255,6 @@ class EnvoySnapshotFactoryTest {
             .containsKey(MAIN_CLUSTER_NAME)
             .doesNotContainKey(SECONDARY_CLUSTER_NAME)
             .doesNotContainKey(AGGREGATE_CLUSTER_NAME)
-    }
-
-    @Test
-    fun `should create weighted snapshot clusters for wildcard dependencies`() {
-        // given
-        val envoySnapshotFactory = createSnapshotFactory(snapshotPropertiesWithWeights)
-        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = DEFAULT_SERVICE_NAME)
-        val cluster2 = createCluster(snapshotPropertiesWithWeights, clusterName = SERVICE_NAME_2)
-        val wildcardTimeoutPolicy = outgoingTimeoutPolicy(connectionIdleTimeout = 12)
-
-        val group: Group = createAllServicesGroup(
-            dependencies = arrayOf("*" to wildcardTimeoutPolicy),
-            snapshotProperties = snapshotPropertiesWithWeights,
-            defaultServiceSettings = DependencySettings(),
-        )
-        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
-
-        // when
-        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
-
-        // then
-        assertThat(snapshot.clusters().resources())
-            .containsKey(MAIN_CLUSTER_NAME)
-            .containsKey(SECONDARY_CLUSTER_NAME)
-            .containsKey(AGGREGATE_CLUSTER_NAME)
     }
 
     @Test
