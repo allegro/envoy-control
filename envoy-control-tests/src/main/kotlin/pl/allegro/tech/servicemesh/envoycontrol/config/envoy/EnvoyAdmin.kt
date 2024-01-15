@@ -69,8 +69,8 @@ class EnvoyAdmin(
         }
     }
 
-    private fun configDump(): String {
-        val response = get("config_dump")
+    fun configDump(): String {
+        val response = get("config_dump", "c")
         return response.body.use { it!!.string() }
     }
 
@@ -108,11 +108,11 @@ class EnvoyAdmin(
     private val client = OkHttpClient.Builder()
         .build()
 
-    private fun get(path: String): Response {
+    private fun get(path: String, param: String = ""): Response {
         return client.newCall(
             Request.Builder()
                 .get()
-                .url("$address/$path")
+                .url(if(param.isEmpty())"$address/$path" else "$address/$path?&include_eds=on")
                 .build()
         )
             .execute().addToCloseableResponses()
