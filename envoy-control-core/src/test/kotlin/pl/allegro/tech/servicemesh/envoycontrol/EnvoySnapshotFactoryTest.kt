@@ -43,7 +43,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.EGRESS_HOST
 import pl.allegro.tech.servicemesh.envoycontrol.utils.EGRESS_PORT
 import pl.allegro.tech.servicemesh.envoycontrol.utils.INGRESS_HOST
 import pl.allegro.tech.servicemesh.envoycontrol.utils.INGRESS_PORT
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createCluster
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createClusterConfigurations
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createEndpoints
@@ -54,13 +53,6 @@ class EnvoySnapshotFactoryTest {
         const val SECONDARY_CLUSTER_NAME = "service-name-2-secondary"
         const val AGGREGATE_CLUSTER_NAME = "service-name-2-aggregate"
         const val SERVICE_NAME_2 = "service-name-2"
-    }
-
-    private val snapshotPropertiesWithWeights = SnapshotProperties().also {
-        it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
-            DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
-        )
-        it.loadBalancing.trafficSplitting.zoneName = TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
     }
 
     @Test

@@ -10,9 +10,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_NAME1
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_NAME2
-import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_CLUSTER_WEIGHTS
-import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_SERVICE_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createAllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createCluster
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createClusterConfigurations
@@ -24,12 +21,6 @@ internal class EnvoyClustersFactoryTest {
 
     companion object {
         private val factory = EnvoyClustersFactory(SnapshotProperties())
-        private val snapshotPropertiesWithWeights = SnapshotProperties().apply {
-            loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
-                DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
-            )
-            loadBalancing.trafficSplitting.zoneName = TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
-        }
     }
 
     @Test
