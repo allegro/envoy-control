@@ -25,6 +25,11 @@ import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 class MetadataNodeGroupTest {
 
+    private val defaultNormalizationConfig = PathNormalizationConfig(
+        normalizationEnabled = true,
+        mergeSlashes = true,
+        pathWithEscapedSlashesAction = "KEEP_UNCHANGED"
+    )
     @Test
     fun `should assign to group with all dependencies`() {
         // given
@@ -41,6 +46,7 @@ class MetadataNodeGroupTest {
                 // because service may define different settings for different dependencies (for example endpoints, which
                 // will be implemented in https://github.com/allegro/envoy-control/issues/6
                 communicationMode = XDS,
+                pathNormalizationConfig = defaultNormalizationConfig,
                 proxySettings = ProxySettings().with(
                     serviceDependencies = serviceDependencies("a", "b", "c"),
                     allServicesDependencies = true
@@ -61,6 +67,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = setOf()),
+                pathNormalizationConfig = defaultNormalizationConfig,
                 communicationMode = XDS
             )
         )
@@ -79,6 +86,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
+                pathNormalizationConfig = defaultNormalizationConfig,
                 communicationMode = XDS
             )
         )
@@ -97,6 +105,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             AllServicesGroup(
                 communicationMode = ADS,
+                pathNormalizationConfig = defaultNormalizationConfig,
                 proxySettings = ProxySettings().with(allServicesDependencies = true)
             )
         )
@@ -115,6 +124,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
+                pathNormalizationConfig = defaultNormalizationConfig,
                 communicationMode = ADS
             )
         )
@@ -135,6 +145,7 @@ class MetadataNodeGroupTest {
                 // we have to preserve all services even if outgoingPermissions is disabled,
                 // because service may define different settings for different dependencies (for example retry config)
                 communicationMode = ADS,
+                pathNormalizationConfig = defaultNormalizationConfig,
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c"))
             )
         )
@@ -157,6 +168,7 @@ class MetadataNodeGroupTest {
         assertThat(group).isEqualTo(
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
+                pathNormalizationConfig = defaultNormalizationConfig,
                 communicationMode = XDS,
                 serviceName = "app1"
             )
@@ -197,6 +209,7 @@ class MetadataNodeGroupTest {
             ServicesGroup(
                 communicationMode = ADS,
                 serviceName = "app1",
+                pathNormalizationConfig = defaultNormalizationConfig,
                 proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("a", "b"))
             )
         )
@@ -218,6 +231,7 @@ class MetadataNodeGroupTest {
             AllServicesGroup(
                 communicationMode = XDS,
                 serviceName = "app1",
+                pathNormalizationConfig = defaultNormalizationConfig,
                 proxySettings = addedProxySettings.with(allServicesDependencies = true)
             )
         )
