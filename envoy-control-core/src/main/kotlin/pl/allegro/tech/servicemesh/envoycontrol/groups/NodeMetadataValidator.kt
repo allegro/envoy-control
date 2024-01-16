@@ -98,7 +98,7 @@ class NodeMetadataValidator(
         if (action != null) {
             val actionIsValidEnumValue = HttpConnectionManager.PathWithEscapedSlashesAction.values()
                 .any { it.name.uppercase() == action.uppercase() }
-            if (actionIsValidEnumValue) {
+            if (!actionIsValidEnumValue) {
                 throw InvalidPathWithEscapedSlashesAction(action)
             }
         }
