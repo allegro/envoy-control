@@ -23,19 +23,27 @@ class WeightedClustersRoutingTest {
             "pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory" to "DEBUG",
             "envoy-control.envoy.snapshot.stateSampleDuration" to Duration.ofSeconds(0),
             "envoy-control.sync.enabled" to true,
-            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.zoneName" to forceTrafficZone,
-            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.$serviceName.main" to 90,
-            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.$serviceName.secondary" to 10,
-            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.$serviceName.zoneByWeights.dc1" to 3,
-            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.serviceByWeightsProperties.$serviceName.zoneByWeights.dc2" to 1,
-            "envoy-control.envoy.snapshot.loadBalancing.priorities.zonePriorities" to mapOf(
+            "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.zoneName" to forceTrafficZone,
+            "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.serviceByWeightsProperties.$serviceName.main" to 90,
+            "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.serviceByWeightsProperties.$serviceName.secondary" to 10,
+            "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.serviceByWeightsProperties.$serviceName.zoneByWeights.dc1" to 30,
+            "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.serviceByWeightsProperties.$serviceName.zoneByWeights.dc2" to 10,
+            "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.serviceByWeightsProperties.$serviceName.zoneByWeights.dc3" to 1,
+            "envoy-control.envoy.snapshot.load-balancing.priorities.zonePriorities" to mapOf(
                 "dc1" to mapOf(
                     "dc1" to 0,
-                    "dc2" to 0
+                    "dc2" to 0,
+                    "dc3" to 3,
                 ),
                 "dc2" to mapOf(
                     "dc1" to 0,
                     "dc2" to 0,
+                    "dc3" to 3,
+                ),
+                "dc3" to mapOf(
+                    "dc1" to 3,
+                    "dc2" to 3,
+                    "dc3" to 0,
                 ),
             )
         )
@@ -67,6 +75,11 @@ class WeightedClustersRoutingTest {
 
         @JvmField
         @RegisterExtension
+        val envoyControl3 =
+            EnvoyControlClusteredExtension(consul.serverThird, { properties }, listOf(consul))
+
+        @JvmField
+        @RegisterExtension
         val echoServiceDC1 = EchoServiceExtension()
 
         @JvmField
@@ -79,10 +92,18 @@ class WeightedClustersRoutingTest {
 
         @JvmField
         @RegisterExtension
+        val upstreamServiceDC3 = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
         val echoEnvoyDC1 = EnvoyExtension(envoyControl, localService = echoServiceDC1, config)
         @JvmField
         @RegisterExtension
         val echoEnvoyDC2 = EnvoyExtension(envoyControl2)
+
+        @JvmField
+        @RegisterExtension
+        val echoEnvoyDC3 = EnvoyExtension(envoyControl3)
     }
 
     @Test
@@ -98,6 +119,7 @@ class WeightedClustersRoutingTest {
         echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2)
             .verifyCallsCountCloseTo(upstreamServiceDC1, 75)
             .verifyCallsCountCloseTo(upstreamServiceDC2, 25)
+        println("snapshot: " + envoyControl.app.getGlobalSnapshot(false).toString())
     }
 
     @Test

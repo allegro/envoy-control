@@ -144,6 +144,7 @@ class EnvoyLoadBalancingPrioritiesTest {
         consulClusters.serverFirst.registerServiceAndVerifyCall(serviceDC1_1)
         envoyDC1.callEchoServiceRepeatedly(serviceDC1_1, serviceDC2_1, serviceDC3_1)
             .verifyNoCallsRoutedTo(serviceDC2_1, serviceDC3_1)
+        println("snapshot: " + envoyControl.app.getGlobalSnapshot(false).toString())
     }
 
     @Test
