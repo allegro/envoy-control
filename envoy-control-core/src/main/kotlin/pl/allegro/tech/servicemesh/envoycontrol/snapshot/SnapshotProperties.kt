@@ -13,6 +13,7 @@ import java.time.Duration
 class SnapshotProperties {
     var routes = RoutesProperties()
     var localService = LocalServiceProperties()
+    var pathNormalization = PathNormalizationProperties()
     var egress = EgressProperties()
     var ingress = IngressProperties()
     var incomingPermissions = IncomingPermissionsProperties()
@@ -39,6 +40,11 @@ class SnapshotProperties {
     var shouldAuditGlobalSnapshot: Boolean = true
 }
 
+class PathNormalizationProperties {
+    var enabled = true
+    var mergeSlashes = true
+    var pathWithEscapedSlashesAction = "KEEP_UNCHANGED"
+}
 class MetricsProperties {
     var cacheSetSnapshot = false
 }

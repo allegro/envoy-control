@@ -7,6 +7,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingRateLimitEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathNormalizationConfig
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.with
@@ -30,6 +31,7 @@ fun createServicesGroup(
             serviceDependencies = serviceDependencies(*dependencies),
             rateLimitEndpoints = rateLimitEndpoints
         ),
+        PathNormalizationConfig(),
         listenersConfig
     )
 }
@@ -55,6 +57,7 @@ fun createAllServicesGroup(
             serviceDependencies = serviceDependencies(*dependencies),
             defaultServiceSettings = defaultServiceSettings
         ),
+        PathNormalizationConfig(),
         listenersConfig
     )
 }

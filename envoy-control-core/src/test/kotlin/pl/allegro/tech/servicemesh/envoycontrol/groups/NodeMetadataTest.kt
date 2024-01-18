@@ -1195,6 +1195,33 @@ class NodeMetadataTest {
     }
 
     @Test
+    fun `should parse normalization config`() {
+        // given
+        val proto = pathNormalizationProto(normalizationEnabled = true, mergeSlashes = false, pathWithEscapedSlashesAction = "UNESCAPE_AND_REDIRECT")
+
+        // when
+        val value = getPathNormalization(proto, snapshotProperties())
+        // expects
+
+        assertThat(value.normalizationEnabled).isTrue
+        assertThat(value.mergeSlashes).isFalse
+        assertThat(value.pathWithEscapedSlashesAction).isEqualTo("UNESCAPE_AND_REDIRECT")
+    }
+    @Test
+    fun `should use default values when there is no normalization config`() {
+        // given
+        val proto = pathNormalizationProto(normalizationEnabled = null, mergeSlashes = null, pathWithEscapedSlashesAction = null)
+
+        // when
+        val value = getPathNormalization(proto, snapshotProperties())
+        // expects
+
+        assertThat(value.normalizationEnabled).isTrue
+        assertThat(value.mergeSlashes).isTrue()
+        assertThat(value.pathWithEscapedSlashesAction).isEqualTo("KEEP_UNCHANGED")
+    }
+
+    @Test
     fun `should use default routing policy`() {
         // given
         val proto = outgoingDependenciesProto {

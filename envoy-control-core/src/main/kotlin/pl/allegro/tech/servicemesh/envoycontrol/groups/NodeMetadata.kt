@@ -33,6 +33,7 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
 
     val communicationMode = getCommunicationMode(metadata.fieldsMap["ads"])
 
+    val pathNormalizationConfig = getPathNormalization(metadata.fieldsMap["path_normalization"], properties)
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
 }
 
@@ -65,6 +66,23 @@ data class ProxySettings(
             endpoints = emptyList(),
             roles = emptyList()
         )
+    )
+}
+
+fun getPathNormalization(proto: Value?, snapshotProperties: SnapshotProperties): PathNormalizationConfig {
+    val defaultNormalizationConfig = PathNormalizationConfig(
+        snapshotProperties.pathNormalization.enabled,
+        snapshotProperties.pathNormalization.mergeSlashes,
+        snapshotProperties.pathNormalization.pathWithEscapedSlashesAction
+    )
+    if (proto == null) {
+        return defaultNormalizationConfig
+    }
+    return PathNormalizationConfig(
+        normalizationEnabled = proto.field("enabled")?.boolValue ?: defaultNormalizationConfig.normalizationEnabled,
+        mergeSlashes = proto.field("merge_slashes")?.boolValue ?: defaultNormalizationConfig.mergeSlashes,
+        pathWithEscapedSlashesAction = proto.field("path_with_escaped_slashes_action")?.stringValue
+            ?: defaultNormalizationConfig.pathWithEscapedSlashesAction
     )
 }
 
@@ -366,9 +384,11 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
         pathPrefix != null -> IncomingEndpoint(
             pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy, oauth
         )
+
         pathRegex != null -> IncomingEndpoint(
             pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy, oauth
         )
+
         else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
 }
@@ -391,9 +411,11 @@ fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
         pathPrefix != null -> IncomingRateLimitEndpoint(
             pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, rateLimit
         )
+
         pathRegex != null -> IncomingRateLimitEndpoint(
             pathRegex, PathMatchingType.PATH_REGEX, methods, clients, rateLimit
         )
+
         else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
 }
@@ -473,6 +495,7 @@ fun Value.toDuration(): Duration? {
             "Timeout definition has number format" +
                 " but should be in string format and ends with 's'"
         )
+
         Value.KindCase.STRING_VALUE -> {
             try {
                 this.stringValue?.takeIf { it.isNotBlank() }?.let { Durations.parse(it) }
@@ -480,6 +503,7 @@ fun Value.toDuration(): Duration? {
                 throw NodeMetadataValidationException("Timeout definition has incorrect format: ${ex.message}")
             }
         }
+
         else -> null
     }
 }

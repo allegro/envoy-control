@@ -172,7 +172,6 @@ class MetadataNodeGroup(
         val discoveryServiceName = nodeMetadata.discoveryServiceName
         val proxySettings = proxySettings(nodeMetadata)
         val listenersConfig = createListenersConfig(node.id, node.metadata, node.userAgentBuildVersion)
-
         return when {
             hasAllServicesDependencies(nodeMetadata) ->
                 AllServicesGroup(
@@ -180,6 +179,7 @@ class MetadataNodeGroup(
                     serviceName,
                     discoveryServiceName,
                     proxySettings,
+                    nodeMetadata.pathNormalizationConfig,
                     listenersConfig
                 )
             else ->
@@ -188,6 +188,7 @@ class MetadataNodeGroup(
                     serviceName,
                     discoveryServiceName,
                     proxySettings,
+                    nodeMetadata.pathNormalizationConfig,
                     listenersConfig
                 )
         }

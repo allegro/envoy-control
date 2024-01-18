@@ -51,6 +51,7 @@ class HttpConnectionManagerFactory(
     ): HttpConnectionManager? {
         val listenersConfig = group.listenersConfig!!
 
+        val normalizationConfig = group.pathNormalizationConfig
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix(statPrefix)
             .setRds(setupRds(group.communicationMode, initialFetchTimeout, routeConfigName))
@@ -66,15 +67,22 @@ class HttpConnectionManagerFactory(
                     .setUseRemoteAddress(BoolValue.newBuilder().setValue(listenersConfig.useRemoteAddress).build())
                     .setDelayedCloseTimeout(Duration.newBuilder().setSeconds(0).build())
                     .setCommonHttpProtocolOptions(httpProtocolOptions)
-                    .setMergeSlashes(true)
                     .setCodecType(HttpConnectionManager.CodecType.AUTO)
                     .setHttpProtocolOptions(ingressHttp1ProtocolOptions(group.serviceName))
+
+                normalizationConfig.normalizationEnabled
+                    ?.let { connectionManagerBuilder.setNormalizePath(BoolValue.newBuilder().setValue(it).build()) }
+                normalizationConfig.mergeSlashes?.let { connectionManagerBuilder.setMergeSlashes(it) }
+                normalizationConfig.pathWithEscapedSlashesAction?.toPathWithEscapedSlashesActionEnum()?.let {
+                    connectionManagerBuilder.setPathWithEscapedSlashesAction(it)
+                }
                 if (listenersConfig.useRemoteAddress) {
                     connectionManagerBuilder.setXffNumTrustedHops(
                         snapshotProperties.dynamicListeners.httpFilters.ingressXffNumTrustedHops
                     )
                 }
             }
+
             Direction.EGRESS -> {
                 connectionManagerBuilder
                     .setHttpProtocolOptions(
@@ -104,6 +112,12 @@ class HttpConnectionManagerFactory(
         addHttpFilters(connectionManagerBuilder, filters, group, globalSnapshot)
 
         return connectionManagerBuilder.build()
+    }
+
+    private fun String.toPathWithEscapedSlashesActionEnum(): HttpConnectionManager.PathWithEscapedSlashesAction {
+        return HttpConnectionManager.PathWithEscapedSlashesAction.values()
+            .find { it.name.uppercase() == this.uppercase() }
+            ?: HttpConnectionManager.PathWithEscapedSlashesAction.UNRECOGNIZED
     }
 
     private fun setupRds(
