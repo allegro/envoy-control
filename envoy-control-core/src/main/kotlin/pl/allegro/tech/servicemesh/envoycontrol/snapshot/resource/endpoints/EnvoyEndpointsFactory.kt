@@ -154,28 +154,26 @@ class EnvoyEndpointsFactory(
         zone: String,
         locality: Locality
     ): LocalityLbEndpoints {
-        val priority = toEnvoyPriority(zone, locality)
         return LocalityLbEndpoints.newBuilder()
             .setLocality(EnvoyProxyLocality.newBuilder().setZone(zone).build())
             .addAllLbEndpoints(serviceInstances?.instances
                 ?.map {
-                    createLbEndpoint(it, serviceInstances.serviceName, locality, priority)
+                    createLbEndpoint(it, serviceInstances.serviceName, locality)
                 } ?: emptyList())
-            .setPriority(priority)
+            .setPriority(toEnvoyPriority(zone, locality))
             .build()
     }
 
     private fun createLbEndpoint(
         serviceInstance: ServiceInstance,
         serviceName: String,
-        locality: Locality,
-        priority: Int
+        locality: Locality
     ): LbEndpoint {
         return LbEndpoint.newBuilder()
             .setEndpoint(
                 buildEndpoint(serviceInstance)
             )
-            .setMetadata(serviceInstance, serviceName, locality, priority)
+            .setMetadata(serviceInstance, serviceName, locality)
             .setLoadBalancingWeightFromInstance(serviceInstance)
             .build()
     }
@@ -204,8 +202,7 @@ class EnvoyEndpointsFactory(
     private fun LbEndpoint.Builder.setMetadata(
         instance: ServiceInstance,
         serviceName: String,
-        locality: Locality,
-        priority: Int
+        locality: Locality
     ): LbEndpoint.Builder {
         val lbMetadataKeys = Struct.newBuilder()
         val socketMatchMetadataKeys = Struct.newBuilder()
@@ -231,11 +228,9 @@ class EnvoyEndpointsFactory(
                 Value.newBuilder().setBoolValue(true).build()
             )
         }
-        val calcLocality = if (priority == 0) Locality.LOCAL.name else locality.name
-
         lbMetadataKeys.putFields(
             properties.loadBalancing.localityMetadataKey,
-            Value.newBuilder().setStringValue(calcLocality).build()
+            Value.newBuilder().setStringValue(locality.name).build()
         )
         return setMetadata(
             Metadata.newBuilder()
