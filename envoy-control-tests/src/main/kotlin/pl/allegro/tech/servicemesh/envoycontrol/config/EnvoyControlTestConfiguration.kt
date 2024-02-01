@@ -69,6 +69,7 @@ val AdsWithDisabledEndpointPermissions = EnvoyConfig("envoy/config_ads_disabled_
 val AdsWithStaticListeners = EnvoyConfig("envoy/config_ads_static_listeners.yaml")
 val AdsWithNoDependencies = EnvoyConfig("envoy/config_ads_no_dependencies.yaml")
 val Xds = EnvoyConfig("envoy/config_xds.yaml")
+val XdsWithStatConfig = EnvoyConfig("envoy/config_xds_stat_config.yaml")
 val RandomConfigFile = listOf(Ads, Xds, DeltaAds).random()
 val OAuthEnvoyConfig = EnvoyConfig("envoy/config_oauth.yaml")
 

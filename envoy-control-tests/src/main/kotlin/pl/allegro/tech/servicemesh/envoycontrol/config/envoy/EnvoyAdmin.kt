@@ -58,6 +58,10 @@ class EnvoyAdmin(
         return splitedStats[1].trim()
     }
 
+    fun rawMetricValue(metricName: String): String? = get("stats/prometheus").body?.use {
+        it.string().lines().find { line -> line.contains(metricName) }
+    }
+
     fun resetCounters() {
         post("reset_counters")
     }

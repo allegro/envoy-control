@@ -16,6 +16,7 @@ class EnvoyContainer(
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
     private val logLevel: String = "info",
+    private val zone: String = "",
     image: String = DEFAULT_IMAGE
 ) : SSLGenericContainer<EnvoyContainer>(
     dockerfileBuilder = DockerfileBuilder()
@@ -69,7 +70,7 @@ class EnvoyContainer(
         withEnv(ENVOY_UID_ENV_NAME, "0")
         withExposedPorts(EGRESS_LISTENER_CONTAINER_PORT, INGRESS_LISTENER_CONTAINER_PORT, ADMIN_PORT)
         withPrivilegedMode(true)
-
+        val zoneFlag = if(zone != "") "--service-zone $zone" else ""
         withCommand(
             "/bin/sh", "/usr/local/bin/launch_envoy.sh",
             Integer.toString(envoyControl1XdsPort),
@@ -81,7 +82,8 @@ class EnvoyContainer(
             config.privateKey,
             config.serviceName,
             "--config-yaml", config.configOverride,
-            "-l", logLevel
+            "-l", logLevel,
+            zoneFlag
         )
     }
 
