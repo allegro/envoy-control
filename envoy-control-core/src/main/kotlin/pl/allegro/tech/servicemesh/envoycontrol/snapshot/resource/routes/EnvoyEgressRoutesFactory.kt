@@ -20,7 +20,6 @@ import io.envoyproxy.envoy.config.route.v3.RouteAction
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.config.route.v3.VirtualHost
-import io.envoyproxy.envoy.config.route.v3.WeightedCluster
 import io.envoyproxy.envoy.extensions.retry.host.omit_canary_hosts.v3.OmitCanaryHostsPredicate
 import io.envoyproxy.envoy.extensions.retry.host.omit_host_metadata.v3.OmitHostMetadataConfig
 import io.envoyproxy.envoy.extensions.retry.host.previous_hosts.v3.PreviousHostsPredicate
@@ -32,11 +31,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryHostPredicate
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RouteSpecification
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StandardRouteSpecification
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters.EnvoyClustersFactory.Companion.getAggregateClusterName
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.ServiceTagFilterFactory
-import java.lang.Boolean.TRUE
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy as EnvoyControlRetryPolicy
 
 class EnvoyEgressRoutesFactory(
@@ -323,7 +318,7 @@ class EnvoyEgressRoutesFactory(
         shouldAddRetryPolicy: Boolean = false
     ): RouteAction.Builder {
         val routeAction = RouteAction.newBuilder()
-            .setCluster(routeSpecification)
+            .setCluster(routeSpecification.clusterName)
 
         routeSpecification.settings.timeoutPolicy.let { timeoutPolicy ->
             timeoutPolicy.idleTimeout?.let { routeAction.setIdleTimeout(it) }
@@ -345,65 +340,6 @@ class EnvoyEgressRoutesFactory(
         }
 
         return routeAction
-    }
-
-    private fun RouteAction.Builder.setCluster(routeSpec: RouteSpecification): RouteAction.Builder {
-        return when (routeSpec) {
-            is WeightRouteSpecification -> {
-                logger.debug(
-                    "Creating weighted cluster configuration for route spec {}, {}",
-                    routeSpec.clusterName,
-                    routeSpec.clusterWeights
-                )
-                this.setWeightedClusters(
-                    WeightedCluster.newBuilder()
-                        .withClusterWeight(routeSpec.clusterName, routeSpec.clusterWeights.main)
-                        .withClusterWeight(
-                            getAggregateClusterName(routeSpec.clusterName, properties),
-                            routeSpec.clusterWeights.secondary,
-                            true
-                        )
-                )
-            }
-            is StandardRouteSpecification -> {
-                this.setCluster(routeSpec.clusterName)
-            }
-        }
-    }
-
-    private fun WeightedCluster.Builder.withClusterWeight(
-        clusterName: String,
-        weight: Int,
-        withHeader: Boolean = false
-    ): WeightedCluster.Builder {
-        val clusters = WeightedCluster.ClusterWeight.newBuilder()
-            .setName(clusterName)
-            .setWeight(UInt32Value.of(weight))
-            .also {
-                if (withHeader) {
-                    it.withHeader(properties.loadBalancing.trafficSplitting.headerName)
-                }
-            }
-        return this.addClusters(clusters)
-    }
-
-    private fun WeightedCluster.ClusterWeight.Builder.withHeader(key: String?): WeightedCluster.ClusterWeight.Builder {
-        key?.takeIf { it.isNotBlank() }
-            ?.let {
-                this.addResponseHeadersToAdd(buildHeader(key))
-            }
-        return this
-    }
-
-    private fun buildHeader(key: String): HeaderValueOption.Builder {
-        return HeaderValueOption.newBuilder()
-            .setHeader(
-                HeaderValue.newBuilder()
-                    .setKey(key)
-                    .setValue(TRUE.toString())
-            )
-            .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
-            .setKeepEmptyValue(false)
     }
 }
 

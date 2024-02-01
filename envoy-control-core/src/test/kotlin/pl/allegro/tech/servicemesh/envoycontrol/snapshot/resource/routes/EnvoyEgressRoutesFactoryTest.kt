@@ -2,13 +2,10 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes
 
 import com.google.protobuf.util.Durations
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Outgoing
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RetryPolicy
-import pl.allegro.tech.servicemesh.envoycontrol.groups.hasClusterThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomIdleTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasCustomRequestTimeout
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasHostRewriteHeader
@@ -291,48 +288,5 @@ internal class EnvoyEgressRoutesFactoryTest {
             defaultRoute.matchingOnAnyMethod()
             defaultRoute.matchingOnPrefix("/")
         }
-    }
-
-    @Test
-    fun `should add traffic splitting header for secondary weighted cluster`() {
-
-        val expectedHeaderKey = "test-header"
-        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties().apply {
-            loadBalancing.trafficSplitting.headerName = expectedHeaderKey
-        })
-
-        val routeConfig = routesFactory.createEgressRouteConfig(
-            "client1",
-            weightedClusters,
-            false
-        )
-
-        routeConfig
-            .hasClusterThat("srv1-aggregate") {
-                assertNotNull(this)
-                assertNotNull(this!!.responseHeadersToAddList.find { it.header.key == expectedHeaderKey })
-            }.hasClusterThat("srv1") {
-                assertNotNull(this)
-                assertTrue(this!!.responseHeadersToAddList.isEmpty())
-            }
-    }
-
-    @Test
-    fun `should not add traffic splitting header if header key is not set`() {
-        val routesFactory = EnvoyEgressRoutesFactory(SnapshotProperties())
-        val routeConfig = routesFactory.createEgressRouteConfig(
-            "client1",
-            weightedClusters,
-            false
-        )
-
-        routeConfig
-            .hasClusterThat("srv1-aggregate") {
-                assertNotNull(this)
-                assertTrue(this!!.responseHeadersToAddList.isEmpty())
-            }.hasClusterThat("srv1") {
-                assertNotNull(this)
-                assertNotNull(this!!.responseHeadersToAddList.isEmpty())
-            }
     }
 }

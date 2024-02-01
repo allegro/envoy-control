@@ -224,7 +224,7 @@ class EnvoySnapshotFactory(
         globalSnapshot: GlobalSnapshot,
     ): RouteSpecification {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
-        val weights = trafficSplitting.serviceByWeightsProperties[serviceName]
+        val weights = trafficSplitting.weightsByService[serviceName]
         val enabledForDependency = globalSnapshot.endpoints[clusterName]?.endpointsList
             ?.any { e -> trafficSplitting.zoneName == e.locality.zone }
             ?: false
@@ -268,18 +268,16 @@ class EnvoySnapshotFactory(
                 //    endpointsFactory.filterEndpoints() can use this cache to prevent computing the same
                 //    ClusterLoadAssignments many times - it may reduce MEM, CPU and latency if some serviceTags are
                 //    commonly used
-                routeSpec.clusterName to endpointsFactory.filterEndpoints(endpoints, routeSpec.settings.routingPolicy)
+                endpointsFactory.filterEndpoints(endpoints, routeSpec.settings.routingPolicy).let {
+                    endpointsFactory.assignLocalityWeights(routeSpec, it)
+                }
             }
-        }.toMap()
+        }
 
         val rateLimitClusters =
             if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
         val rateLimitLoadAssignments = rateLimitClusters.mapNotNull { name -> globalSnapshot.endpoints[name] }
-        val secondaryLoadAssignments = endpointsFactory.getSecondaryClusterEndpoints(
-            egressLoadAssignments,
-            egressRouteSpecifications
-        )
-        return egressLoadAssignments.values.toList() + rateLimitLoadAssignments + secondaryLoadAssignments
+        return egressLoadAssignments + rateLimitLoadAssignments
     }
 
     private fun newSnapshotForGroup(

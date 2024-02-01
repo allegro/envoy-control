@@ -44,24 +44,16 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.EGRESS_HOST
 import pl.allegro.tech.servicemesh.envoycontrol.utils.EGRESS_PORT
 import pl.allegro.tech.servicemesh.envoycontrol.utils.INGRESS_HOST
 import pl.allegro.tech.servicemesh.envoycontrol.utils.INGRESS_PORT
-import pl.allegro.tech.servicemesh.envoycontrol.utils.TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_PROPERTIES_WITH_WEIGHTS
+import pl.allegro.tech.servicemesh.envoycontrol.utils.TRAFFIC_SPLITTING_ZONE
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createCluster
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createClusterConfigurations
 import pl.allegro.tech.servicemesh.envoycontrol.utils.createEndpoints
+import pl.allegro.tech.servicemesh.envoycontrol.utils.zoneWeights
 
 class EnvoySnapshotFactoryTest {
     companion object {
-        const val MAIN_CLUSTER_NAME = "service-name-2"
-        const val SECONDARY_CLUSTER_NAME = "service-name-2-secondary"
-        const val AGGREGATE_CLUSTER_NAME = "service-name-2-aggregate"
         const val SERVICE_NAME_2 = "service-name-2"
-    }
-
-    private val snapshotPropertiesWithWeights = SnapshotProperties().also {
-        it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
-            DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
-        )
-        it.loadBalancing.trafficSplitting.zoneName = TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE
     }
 
     @Test
@@ -230,93 +222,99 @@ class EnvoySnapshotFactoryTest {
     }
 
     @Test
-    fun `should create weighted snapshot clusters`() {
-        // given
-        val envoySnapshotFactory = createSnapshotFactory(snapshotPropertiesWithWeights)
-        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = DEFAULT_SERVICE_NAME)
-        val cluster2 =
-            createCluster(snapshotPropertiesWithWeights, clusterName = SERVICE_NAME_2)
+    fun `should get regular snapshot cluster when there are no traffic splitting settings for zone`() {
+        val snapshotProperties = SNAPSHOT_PROPERTIES_WITH_WEIGHTS.also {
+            it.loadBalancing.trafficSplitting.zoneName = "not-matching-dc"
+        }
+        val envoySnapshotFactory = createSnapshotFactory(snapshotProperties)
+        val cluster1 = createCluster(snapshotProperties, clusterName = DEFAULT_SERVICE_NAME)
+        val cluster2 = createCluster(snapshotProperties, clusterName = SERVICE_NAME_2)
         val group: Group = createServicesGroup(
-            dependencies = arrayOf(cluster2.name to null),
-            snapshotProperties = snapshotPropertiesWithWeights
+            dependencies = arrayOf(SERVICE_NAME_2 to null),
+            snapshotProperties = snapshotProperties
         )
         val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
-
-        // when
         val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
 
-        // then
-        assertThat(snapshot.clusters().resources())
-            .containsKey(MAIN_CLUSTER_NAME)
-            .containsKey(SECONDARY_CLUSTER_NAME)
-            .containsKey(AGGREGATE_CLUSTER_NAME)
+        assertThat(snapshot.clusters().resources().values)
+            .allSatisfy { !it.hasCommonLbConfig() || !it.commonLbConfig.hasLocalityWeightedLbConfig() }
+            .hasSize(1)
+    }
+
+    @Test
+    fun `should get cluster with locality weighted config when there are traffic splitting settings for zone`() {
+        val envoySnapshotFactory = createSnapshotFactory(SNAPSHOT_PROPERTIES_WITH_WEIGHTS)
+        val cluster1 = createCluster(SNAPSHOT_PROPERTIES_WITH_WEIGHTS, clusterName = DEFAULT_SERVICE_NAME)
+        val cluster2 = createCluster(SNAPSHOT_PROPERTIES_WITH_WEIGHTS, clusterName = SERVICE_NAME_2)
+        val group: Group = createServicesGroup(
+            dependencies = arrayOf(SERVICE_NAME_2 to null),
+            snapshotProperties = SNAPSHOT_PROPERTIES_WITH_WEIGHTS
+        )
+        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        assertThat(snapshot.clusters().resources().values)
+            .anySatisfy { it.hasCommonLbConfig() && it.commonLbConfig.hasLocalityWeightedLbConfig() }
+            .hasSize(1)
+    }
+
+    @Test
+    fun `should get weighted locality lb endpoints when there are traffic splitting settings for zone`() {
+        val envoySnapshotFactory = createSnapshotFactory(SNAPSHOT_PROPERTIES_WITH_WEIGHTS)
+        val cluster1 = createCluster(SNAPSHOT_PROPERTIES_WITH_WEIGHTS, clusterName = DEFAULT_SERVICE_NAME)
+        val cluster2 = createCluster(SNAPSHOT_PROPERTIES_WITH_WEIGHTS, clusterName = SERVICE_NAME_2)
+        val group: Group = createServicesGroup(
+            dependencies = arrayOf(SERVICE_NAME_2 to null),
+            snapshotProperties = SNAPSHOT_PROPERTIES_WITH_WEIGHTS
+        )
+        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
         assertThat(snapshot.endpoints().resources().values)
             .anySatisfy {
-                assertThat(it.clusterName).isEqualTo(MAIN_CLUSTER_NAME)
                 assertThat(it.endpointsList)
-                    .anyMatch { e -> e.locality.zone == CURRENT_ZONE }
-                    .anyMatch { e -> e.locality.zone == TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE }
-            }
-        assertThat(snapshot.endpoints().resources().values)
-            .anySatisfy {
-                assertThat(it.clusterName).isEqualTo(SECONDARY_CLUSTER_NAME)
-                assertThat(it.endpointsList)
-                    .allMatch { e -> e.locality.zone == TRAFFIC_SPLITTING_FORCE_TRAFFIC_ZONE }
+                    .anySatisfy { e ->
+                        e.locality.zone == TRAFFIC_SPLITTING_ZONE &&
+                            e.loadBalancingWeight.value == DEFAULT_CLUSTER_WEIGHTS.weightByZone[TRAFFIC_SPLITTING_ZONE]
+                    }
+                    .anySatisfy { e ->
+                        e.locality.zone == CURRENT_ZONE &&
+                            e.loadBalancingWeight.value == DEFAULT_CLUSTER_WEIGHTS.weightByZone[CURRENT_ZONE]
+                    }
+                    .hasSize(2)
             }
     }
 
     @Test
-    fun `should get regular snapshot clusters when traffic splitting zone condition isn't complied`() {
-        // given
-        val defaultProperties = SnapshotProperties().also {
-            it.dynamicListeners.enabled = false
-            it.loadBalancing.trafficSplitting.serviceByWeightsProperties = mapOf(
-                DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
+    fun `should not set weight to locality lb endpoints when there are no matching weight settings`() {
+        val defaultProperties = SNAPSHOT_PROPERTIES_WITH_WEIGHTS.also {
+            it.loadBalancing.trafficSplitting.weightsByService = mapOf(
+                DEFAULT_SERVICE_NAME to zoneWeights(mapOf(CURRENT_ZONE to 60))
             )
-            it.loadBalancing.trafficSplitting.zoneName = "not-matching-dc"
         }
         val envoySnapshotFactory = createSnapshotFactory(defaultProperties)
         val cluster1 = createCluster(defaultProperties, clusterName = DEFAULT_SERVICE_NAME)
         val cluster2 = createCluster(defaultProperties, clusterName = SERVICE_NAME_2)
         val group: Group = createServicesGroup(
-            dependencies = arrayOf(cluster2.name to null),
+            dependencies = arrayOf(SERVICE_NAME_2 to null),
             snapshotProperties = defaultProperties
         )
         val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
-
-        // when
         val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
 
-        // then
-        assertThat(snapshot.clusters().resources())
-            .containsKey(MAIN_CLUSTER_NAME)
-            .doesNotContainKey(SECONDARY_CLUSTER_NAME)
-            .doesNotContainKey(AGGREGATE_CLUSTER_NAME)
-    }
-
-    @Test
-    fun `should create weighted snapshot clusters for wildcard dependencies`() {
-        // given
-        val envoySnapshotFactory = createSnapshotFactory(snapshotPropertiesWithWeights)
-        val cluster1 = createCluster(snapshotPropertiesWithWeights, clusterName = DEFAULT_SERVICE_NAME)
-        val cluster2 = createCluster(snapshotPropertiesWithWeights, clusterName = SERVICE_NAME_2)
-        val wildcardTimeoutPolicy = outgoingTimeoutPolicy(connectionIdleTimeout = 12)
-
-        val group: Group = createAllServicesGroup(
-            dependencies = arrayOf("*" to wildcardTimeoutPolicy),
-            snapshotProperties = snapshotPropertiesWithWeights,
-            defaultServiceSettings = DependencySettings(),
-        )
-        val globalSnapshot = createGlobalSnapshot(cluster1, cluster2)
-
-        // when
-        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
-
-        // then
-        assertThat(snapshot.clusters().resources())
-            .containsKey(MAIN_CLUSTER_NAME)
-            .containsKey(SECONDARY_CLUSTER_NAME)
-            .containsKey(AGGREGATE_CLUSTER_NAME)
+        assertThat(snapshot.endpoints().resources().values)
+            .anySatisfy {
+                assertThat(it.endpointsList)
+                    .anySatisfy { e ->
+                        e.locality.zone == CURRENT_ZONE &&
+                            e.loadBalancingWeight.value == DEFAULT_CLUSTER_WEIGHTS.weightByZone[CURRENT_ZONE]
+                    }
+                    .anySatisfy { e ->
+                        e.locality.zone == TRAFFIC_SPLITTING_ZONE &&
+                            !e.hasLoadBalancingWeight()
+                    }
+                    .hasSize(2)
+            }
     }
 
     @Test
