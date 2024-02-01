@@ -70,7 +70,7 @@ class EnvoyContainer(
         withEnv(ENVOY_UID_ENV_NAME, "0")
         withExposedPorts(EGRESS_LISTENER_CONTAINER_PORT, INGRESS_LISTENER_CONTAINER_PORT, ADMIN_PORT)
         withPrivilegedMode(true)
-        val zoneFlag = if(zone != "") "--service-zone $zone" else ""
+        val zoneFlag = if (zone != "") "--service-zone $zone" else ""
         withCommand(
             "/bin/sh", "/usr/local/bin/launch_envoy.sh",
             Integer.toString(envoyControl1XdsPort),

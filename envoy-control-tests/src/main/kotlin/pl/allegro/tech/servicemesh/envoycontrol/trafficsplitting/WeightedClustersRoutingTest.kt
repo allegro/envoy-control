@@ -148,5 +148,4 @@ class WeightedClustersRoutingTest {
             .verifyCallsCountCloseTo(upstreamServiceDC1, 75)
             .verifyCallsCountCloseTo(upstreamServiceDC2, 25)
     }
-
 }
