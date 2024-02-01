@@ -2,6 +2,10 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
+## [0.20.11]
+### Changed
+- Added traffic splitting metric tag test
+
 ## [0.20.10]
 ### Changed
 - Implemented locality weighted load balancing

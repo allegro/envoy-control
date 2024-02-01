@@ -19,7 +19,8 @@ import java.time.Duration
 class EnvoyExtension(
     private val envoyControl: EnvoyControlExtensionBase,
     private val localService: ServiceExtension<*>? = null,
-    private val config: EnvoyConfig = RandomConfigFile
+    private val config: EnvoyConfig = RandomConfigFile,
+    zone: String = ""
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     companion object {
@@ -29,7 +30,8 @@ class EnvoyExtension(
     val container: EnvoyContainer = EnvoyContainer(
         config,
         { localService?.container()?.ipAddress() ?: "127.0.0.1" },
-        envoyControl.app.grpcPort
+        envoyControl.app.grpcPort,
+        zone = zone
     ).withNetwork(Network.SHARED)
 
     val ingressOperations: IngressOperations = IngressOperations(container)
