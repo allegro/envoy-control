@@ -35,7 +35,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIn
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.serviceDependencies
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_NAME
-import pl.allegro.tech.servicemesh.envoycontrol.utils.CURRENT_ZONE
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_CLUSTER_WEIGHTS
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_DISCOVERY_SERVICE_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_IDLE_TIMEOUT
@@ -54,6 +53,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.zoneWeights
 class EnvoySnapshotFactoryTest {
     companion object {
         const val SERVICE_NAME_2 = "service-name-2"
+        const val CURRENT_ZONE = "dc1"
     }
 
     @Test
@@ -453,7 +453,8 @@ class EnvoySnapshotFactoryTest {
             SnapshotProperties(),
             EnvoyHttpFilters(
                 emptyList(), emptyList()
-            ) { Metadata.getDefaultInstance() }
+            ) { _, _ -> Metadata.getDefaultInstance() },
+            CURRENT_ZONE
         )
         val egressRoutesFactory = EnvoyEgressRoutesFactory(properties)
         val clustersFactory = EnvoyClustersFactory(properties)

@@ -89,6 +89,7 @@ class SnapshotUpdaterTest {
         )
 
         private val uninitializedSnapshot = null
+        private const val CURRENT_ZONE = "dc1"
     }
 
     val groupWithProxy = AllServicesGroup(
@@ -1309,11 +1310,11 @@ class SnapshotUpdaterTest {
 
     private fun snapshotFactory(snapshotProperties: SnapshotProperties, meterRegistry: MeterRegistry) =
         EnvoySnapshotFactory(
-            ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties),
+            ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties, currentZone = CURRENT_ZONE),
             egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
             clustersFactory = EnvoyClustersFactory(snapshotProperties),
             endpointsFactory = EnvoyEndpointsFactory(
-                snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags), "dc1"
+                snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags), CURRENT_ZONE
             ),
             listenersFactory = EnvoyListenersFactory(
                 snapshotProperties,

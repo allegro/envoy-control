@@ -17,9 +17,7 @@ class EnvoyDefaultFilters(
         snapshotProperties.routes.status,
         jwtProperties = snapshotProperties.jwt
     )
-    private val luaFilterFactory = LuaFilterFactory(
-        snapshotProperties.incomingPermissions
-    )
+    private val luaFilterFactory = LuaFilterFactory(snapshotProperties)
     private val jwtFilterFactory = JwtFilterFactory(
         snapshotProperties.jwt
     )
@@ -68,6 +66,10 @@ class EnvoyDefaultFilters(
         defaultHeaderToMetadataFilter, defaultServiceTagFilter, defaultEnvoyRouterHttpFilter
     )
 
+    val defaultCurrentZoneHeaderFilter = { _: Group, _: GlobalSnapshot ->
+        luaFilterFactory.ingressCurrentZoneHeaderFilter()
+    }
+
     /**
      * Order matters:
      * * defaultClientNameHeaderFilter has to be before defaultRbacLoggingFilter, because the latter consumes results of
@@ -101,7 +103,8 @@ class EnvoyDefaultFilters(
         val preFilters = listOf(
             defaultClientNameHeaderFilter,
             defaultAuthorizationHeaderFilter,
-            defaultJwtHttpFilter
+            defaultJwtHttpFilter,
+            defaultCurrentZoneHeaderFilter
         )
         val postFilters = listOf(
             defaultRbacLoggingFilter,
@@ -113,7 +116,9 @@ class EnvoyDefaultFilters(
         return preFilters + filters.toList() + postFilters
     }
 
-    val defaultIngressMetadata = { group: Group -> luaFilterFactory.ingressScriptsMetadata(group, customLuaMetadata) }
+    val defaultIngressMetadata = { group: Group, currentZone: String ->
+        luaFilterFactory.ingressScriptsMetadata(group, customLuaMetadata, currentZone)
+    }
 
     private fun headerToMetadataConfig(
         rules: List<Config.Rule>,
@@ -144,8 +149,12 @@ class EnvoyDefaultFilters(
     private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter
         .newBuilder()
         .setName("envoy.filters.http.router")
-        .setTypedConfig(Any.pack(Router.newBuilder()
-            .build()))
+        .setTypedConfig(
+            Any.pack(
+                Router.newBuilder()
+                    .build()
+            )
+        )
         .build()
 
     private fun headerToMetadataHttpFilter(headerToMetadataConfig: Config.Builder): HttpFilter {

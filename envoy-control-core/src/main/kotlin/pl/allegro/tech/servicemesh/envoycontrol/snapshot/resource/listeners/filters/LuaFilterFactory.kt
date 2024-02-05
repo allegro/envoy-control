@@ -8,17 +8,17 @@ import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.IncomingPermissionsProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.ListPropertyLua
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.StringPropertyLua
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaMetadataProperty.StructPropertyLua
 
-class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermissionsProperties) {
+class LuaFilterFactory(private val snapshotProperties: SnapshotProperties) {
 
     private val ingressRbacLoggingScript: String = this::class.java.classLoader
         .getResource("lua/ingress_rbac_logging.lua")!!.readText()
 
-    private val ingressRbacLoggingFilter: HttpFilter? = if (incomingPermissionsProperties.enabled) {
+    private val ingressRbacLoggingFilter: HttpFilter? = if (snapshotProperties.incomingPermissions.enabled) {
         HttpFilter.newBuilder()
             .setName("envoy.lua")
             .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressRbacLoggingScript).build()))
@@ -27,7 +27,7 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
         null
     }
 
-    private val trustedClientIdentityHeader = incomingPermissionsProperties.trustedClientIdentityHeader
+    private val trustedClientIdentityHeader = snapshotProperties.incomingPermissions.trustedClientIdentityHeader
 
     fun ingressRbacLoggingFilter(group: Group): HttpFilter? =
         ingressRbacLoggingFilter.takeIf { group.proxySettings.incoming.permissionsEnabled }
@@ -41,33 +41,52 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
             .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientNameHeaderScript).build()))
             .build()
 
-    private val sanUriWildcardRegexForLua = SanUriMatcherFactory(incomingPermissionsProperties.tlsAuthentication)
+    private val ingressCurrentZoneHeaderScript: String = this::class.java.classLoader
+        .getResource("lua/ingress_current_zone_header.lua")!!.readText()
+
+    private val ingressCurrentZoneHeaderFilter: HttpFilter =
+        HttpFilter.newBuilder()
+            .setName("ingress.zone.lua")
+            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressCurrentZoneHeaderScript).build()))
+            .build()
+
+    private val sanUriWildcardRegexForLua = SanUriMatcherFactory(
+        snapshotProperties.incomingPermissions.tlsAuthentication
+    )
         .sanUriWildcardRegexForLua
 
-    fun ingressScriptsMetadata(group: Group, customLuaMetadata: StructPropertyLua = StructPropertyLua()): Metadata {
+    fun ingressScriptsMetadata(
+        group: Group,
+        customLuaMetadata: StructPropertyLua = StructPropertyLua(),
+        currentZone: String
+    ): Metadata {
         val metadata = StructPropertyLua(
             "client_identity_headers" to ListPropertyLua(
-                incomingPermissionsProperties
+                snapshotProperties.incomingPermissions
                     .clientIdentityHeaders.map(::StringPropertyLua)
             ),
             "request_id_headers" to ListPropertyLua(
-                incomingPermissionsProperties.requestIdentificationHeaders.map(
+                snapshotProperties.incomingPermissions.requestIdentificationHeaders.map(
                     ::StringPropertyLua
                 )
             ),
             "trusted_client_identity_header" to StringPropertyLua(trustedClientIdentityHeader),
             "san_uri_lua_pattern" to StringPropertyLua(sanUriWildcardRegexForLua),
             "clients_allowed_to_all_endpoints" to ListPropertyLua(
-                incomingPermissionsProperties.clientsAllowedToAllEndpoints.map(
+                snapshotProperties.incomingPermissions.clientsAllowedToAllEndpoints.map(
                     ::StringPropertyLua
                 )
             ),
             "service_name" to StringPropertyLua(group.serviceName),
             "discovery_service_name" to StringPropertyLua(group.discoveryServiceName ?: ""),
             "rbac_headers_to_log" to ListPropertyLua(
-                incomingPermissionsProperties.headersToLogInRbac.map(::StringPropertyLua)
+                snapshotProperties.incomingPermissions.headersToLogInRbac.map(::StringPropertyLua)
             ),
-            ) + customLuaMetadata
+            "traffic_splitting_zone_header_name" to StringPropertyLua(
+                snapshotProperties.loadBalancing.trafficSplitting.headerName
+            ),
+            "current_zone" to StringPropertyLua(currentZone)
+        ) + customLuaMetadata
         return Metadata.newBuilder()
             .putFilterMetadata("envoy.filters.http.lua", metadata.toValue().structValue)
             .build()
@@ -75,6 +94,8 @@ class LuaFilterFactory(private val incomingPermissionsProperties: IncomingPermis
 
     fun ingressClientNameHeaderFilter(): HttpFilter? =
         ingressClientNameHeaderFilter.takeIf { trustedClientIdentityHeader.isNotEmpty() }
+
+    fun ingressCurrentZoneHeaderFilter(): HttpFilter = ingressCurrentZoneHeaderFilter
 }
 
 sealed class LuaMetadataProperty<T>(open val value: T) {
