@@ -30,11 +30,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.getRuleId
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 
-typealias IngressMetadataFactory = (node: Group) -> Metadata
+typealias IngressMetadataFactory = (node: Group, currentZone: String) -> Metadata
 
 class EnvoyIngressRoutesFactory(
     private val properties: SnapshotProperties,
-    envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters
+    envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters,
+    private val currentZone: String
 ) {
 
     private val allClients = setOf(
@@ -187,7 +188,7 @@ class EnvoyIngressRoutesFactory(
                     .setRoute(clusterRouteActionWithRetryPolicy(retryPolicy, localRouteAction))
             }
         return (retryRoutes + nonRetryRoute).map { builder ->
-            builder.setMetadata(filterMetadata(group)).build()
+            builder.setMetadata(filterMetadata(group, currentZone)).build()
         }
     }
 

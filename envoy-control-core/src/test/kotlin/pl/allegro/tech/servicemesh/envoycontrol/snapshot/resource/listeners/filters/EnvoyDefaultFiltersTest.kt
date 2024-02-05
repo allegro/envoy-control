@@ -11,7 +11,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class EnvoyDefaultFiltersTest {
 
-    private val defaultFilters = EnvoyDefaultFilters(SnapshotProperties(), LuaMetadataProperty.StructPropertyLua())
+    private val defaultFilters = EnvoyDefaultFilters(
+        SnapshotProperties(),
+        LuaMetadataProperty.StructPropertyLua()
+    )
 
     @Test
     fun `should create default filters`() {
@@ -20,6 +23,7 @@ class EnvoyDefaultFiltersTest {
             defaultFilters.defaultClientNameHeaderFilter,
             defaultFilters.defaultAuthorizationHeaderFilter,
             defaultFilters.defaultJwtHttpFilter,
+            defaultFilters.defaultCurrentZoneHeaderFilter,
             defaultFilters.defaultRbacLoggingFilter,
             defaultFilters.defaultRbacFilter,
             defaultFilters.defaultRateLimitLuaFilter,
@@ -47,6 +51,7 @@ class EnvoyDefaultFiltersTest {
             defaultFilters.defaultClientNameHeaderFilter,
             defaultFilters.defaultAuthorizationHeaderFilter,
             defaultFilters.defaultJwtHttpFilter,
+            defaultFilters.defaultCurrentZoneHeaderFilter,
             customFilter,
             defaultFilters.defaultRbacLoggingFilter,
             defaultFilters.defaultRbacFilter,

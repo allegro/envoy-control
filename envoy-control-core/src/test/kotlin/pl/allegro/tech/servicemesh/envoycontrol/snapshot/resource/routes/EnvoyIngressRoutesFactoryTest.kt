@@ -79,6 +79,7 @@ internal class EnvoyIngressRoutesFactoryTest {
         adminRoute(),
         adminRedirectRoute()
     )
+    private val currentZone = "dc1"
 
     @Test
     fun `should create route config with health check and response timeout defined`() {
@@ -94,7 +95,7 @@ internal class EnvoyIngressRoutesFactoryTest {
                 pathPrefix = "/config_dump"
                 method = "GET"
             })
-        })
+        }, currentZone = currentZone)
         val responseTimeout = Durations.fromSeconds(777)
         val idleTimeout = Durations.fromSeconds(61)
         val connectionIdleTimeout = Durations.fromSeconds(120)
@@ -107,12 +108,18 @@ internal class EnvoyIngressRoutesFactoryTest {
                 permissionsEnabled = true,
                 timeoutPolicy = TimeoutPolicy(idleTimeout, responseTimeout, connectionIdleTimeout),
                 rateLimitEndpoints = listOf(
-                    IncomingRateLimitEndpoint("/hello", PathMatchingType.PATH_PREFIX, setOf("GET", "POST"),
-                        setOf(ClientWithSelector.create("client-1", "selector")), "100/s"),
-                    IncomingRateLimitEndpoint("/banned", PathMatchingType.PATH, setOf("GET"),
-                        setOf(ClientWithSelector.create("*")), "0/m"),
-                    IncomingRateLimitEndpoint("/a/.*", PathMatchingType.PATH_REGEX, emptySet(),
-                        setOf(ClientWithSelector.create("client-2")), "0/m")
+                    IncomingRateLimitEndpoint(
+                        "/hello", PathMatchingType.PATH_PREFIX, setOf("GET", "POST"),
+                        setOf(ClientWithSelector.create("client-1", "selector")), "100/s"
+                    ),
+                    IncomingRateLimitEndpoint(
+                        "/banned", PathMatchingType.PATH, setOf("GET"),
+                        setOf(ClientWithSelector.create("*")), "0/m"
+                    ),
+                    IncomingRateLimitEndpoint(
+                        "/a/.*", PathMatchingType.PATH_REGEX, emptySet(),
+                        setOf(ClientWithSelector.create("client-2")), "0/m"
+                    )
                 )
             )
         )
@@ -185,7 +192,7 @@ internal class EnvoyIngressRoutesFactoryTest {
             ingress.headersToRemove = mutableListOf("x-via-vip", "x-special-case-header")
             ingress.addServiceNameHeaderToResponse = true
             ingress.addRequestedAuthorityHeaderToResponse = true
-        })
+        }, currentZone = currentZone)
         val proxySettingsOneEndpoint = ProxySettings(
             incoming = Incoming(
                 healthCheck = HealthCheck(

@@ -164,6 +164,7 @@ class CanaryProperties {
 
 class TrafficSplittingProperties {
     var zoneName = ""
+    var headerName = ""
     var weightsByService: Map<String, ZoneWeights> = mapOf()
 }
 
