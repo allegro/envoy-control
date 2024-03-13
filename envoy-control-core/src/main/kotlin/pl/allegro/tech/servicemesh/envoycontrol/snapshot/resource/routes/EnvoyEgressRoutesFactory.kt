@@ -343,6 +343,15 @@ class EnvoyEgressRoutesFactory(
         if (properties.egress.hostHeaderRewriting.enabled && routeSpecification.settings.rewriteHostHeader) {
             routeAction.hostRewriteHeader = properties.egress.hostHeaderRewriting.customHostHeader
         }
+        if (routeSpecification.clusterName.startsWith("service-mesh")) {
+            routeAction.addHashPolicy(
+                RouteAction.HashPolicy.newBuilder()
+                    .setHeader(
+                        RouteAction.HashPolicy.Header.newBuilder()
+                            .setHeaderName("x-hashing-key")
+                    )
+            )
+        }
 
         return routeAction
     }

@@ -496,6 +496,7 @@ class EnvoyClustersFactory(
                 ).setServiceName(clusterConfiguration.serviceName)
             )
             .setLbPolicy(properties.loadBalancing.policy)
+            // .setLbPolicy(Cluster.LbPolicy.RING_HASH)
             // TODO: if we want to have multiple memory-backend instances of ratelimit
             // then we should have consistency hashed lb
             // setting RING_HASH here is not enough (but it's probably required so I leave it here)
@@ -506,6 +507,10 @@ class EnvoyClustersFactory(
             //     }
             // )
             .configureLbSubsets()
+
+        if (clusterConfiguration.serviceName.startsWith("service-mesh")) {
+            cluster.setLbPolicy(Cluster.LbPolicy.RING_HASH)
+        }
 
         cluster.setCommonHttpProtocolOptions(httpProtocolOptions)
         cluster.setCircuitBreakers(allThresholds)
