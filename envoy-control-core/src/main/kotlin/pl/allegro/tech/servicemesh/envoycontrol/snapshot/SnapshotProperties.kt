@@ -323,6 +323,7 @@ class Threshold(var priority: String) {
     var maxPendingRequests = 1024
     var maxRequests = 1024
     var maxRetries = 3
+    var trackRemaining = true
 }
 
 class Http2Properties {

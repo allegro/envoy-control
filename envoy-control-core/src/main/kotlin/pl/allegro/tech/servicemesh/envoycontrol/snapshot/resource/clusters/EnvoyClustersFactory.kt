@@ -567,6 +567,7 @@ class EnvoyClustersFactory(
             "HIGH" -> thresholdsBuilder.priority = RoutingPriority.HIGH
             else -> thresholdsBuilder.priority = RoutingPriority.UNRECOGNIZED
         }
+        thresholdsBuilder.setTrackRemaining(threshold.trackRemaining)
         return thresholdsBuilder.build()
     }
 
