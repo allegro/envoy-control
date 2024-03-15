@@ -2,6 +2,10 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
+## [0.20.12]
+### Changed
+- Added "trackRemaining" flag to enable possibility of tracking additional circuit breaker metrics
+- 
 ## [0.20.11]
 ### Changed
 - Implemented adding a header for locality weighted load balancing
