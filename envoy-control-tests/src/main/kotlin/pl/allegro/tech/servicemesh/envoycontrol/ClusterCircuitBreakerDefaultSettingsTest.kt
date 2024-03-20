@@ -27,6 +27,7 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
                 it.maxPendingRequests = 6
                 it.maxRequests = 7
                 it.maxRetries = 8
+                it.trackRemaining = true
             }
         )
 
@@ -59,9 +60,13 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
         // when
         val maxRequestsSetting = envoy.container.admin().circuitBreakerSetting("echo", "max_requests", "default_priority")
         val maxRetriesSetting = envoy.container.admin().circuitBreakerSetting("echo", "max_retries", "high_priority")
+        val remainingPendingMetric = envoy.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_pending")
+        val remainingRqMetric = envoy.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_rq")
 
         // then
         assertThat(maxRequestsSetting).isEqualTo(3)
         assertThat(maxRetriesSetting).isEqualTo(8)
+        assertThat(remainingPendingMetric).isNotNull()
+        assertThat(remainingRqMetric).isNotNull()
     }
 }
