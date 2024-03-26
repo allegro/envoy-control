@@ -81,13 +81,16 @@ class EnvoyEndpointsFactory(
         routeSpec: RouteSpecification,
         loadAssignment: ClusterLoadAssignment
     ): ClusterLoadAssignment {
-        return if (routeSpec is WeightRouteSpecification) {
-            ClusterLoadAssignment.newBuilder(loadAssignment)
-                .clearEndpoints()
-                .addAllEndpoints(assignWeights(loadAssignment.endpointsList, routeSpec.clusterWeights))
-                .setClusterName(routeSpec.clusterName)
-                .build()
-        } else loadAssignment
+
+        val endpointsWithWeights = if (routeSpec is WeightRouteSpecification) {
+            assignWeights(loadAssignment.endpointsList, routeSpec.clusterWeights)
+        } else assignWeightsForUnlistedClusters(loadAssignment.endpointsList)
+
+        return ClusterLoadAssignment.newBuilder(loadAssignment)
+            .clearEndpoints()
+            .addAllEndpoints(endpointsWithWeights)
+            .setClusterName(routeSpec.clusterName)
+            .build()
     }
 
     private fun assignWeights(
@@ -98,6 +101,19 @@ class EnvoyEndpointsFactory(
                 if (weights.weightByZone.containsKey(it.locality.zone)) {
                     LocalityLbEndpoints.newBuilder(it)
                         .setLoadBalancingWeight(UInt32Value.of(weights.weightByZone[it.locality.zone] ?: 0))
+                        .build()
+                } else it
+            }
+    }
+
+    private fun assignWeightsForUnlistedClusters(
+        llbEndpointsList: List<LocalityLbEndpoints>
+    ): List<LocalityLbEndpoints> {
+         return llbEndpointsList
+            .map {
+                if (properties.loadBalancing.trafficSplitting.zoneName == it.locality.zone) {
+                    LocalityLbEndpoints.newBuilder(it)
+                        .setLoadBalancingWeight(UInt32Value.of(0))
                         .build()
                 } else it
             }
