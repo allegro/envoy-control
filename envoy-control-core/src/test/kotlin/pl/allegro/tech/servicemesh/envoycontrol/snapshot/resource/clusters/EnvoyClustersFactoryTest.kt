@@ -10,6 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_NAME1
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_NAME2
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CURRENT_ZONE
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_CLUSTER_WEIGHTS
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_SERVICE_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.TRAFFIC_SPLITTING_ZONE
@@ -23,7 +24,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.createServicesGroup
 internal class EnvoyClustersFactoryTest {
 
     companion object {
-        private val factory = EnvoyClustersFactory(SnapshotProperties())
+        private val factory = EnvoyClustersFactory(SnapshotProperties(), CURRENT_ZONE)
         private val snapshotPropertiesWithWeights = SnapshotProperties().apply {
             loadBalancing.trafficSplitting.weightsByService = mapOf(
                 DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
@@ -96,7 +97,7 @@ internal class EnvoyClustersFactoryTest {
     @Test
     fun `should get cluster with locality weighted config for group clusters`() {
         val cluster1 = createCluster(snapshotPropertiesWithWeights, CLUSTER_NAME1)
-        val factory = EnvoyClustersFactory(snapshotPropertiesWithWeights)
+        val factory = EnvoyClustersFactory(snapshotPropertiesWithWeights, CURRENT_ZONE)
         val result = factory.getClustersForGroup(
             createServicesGroup(
                 snapshotProperties = snapshotPropertiesWithWeights,

@@ -52,13 +52,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
-import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TrafficSplittingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.SanUriMatcherFactory
 
 typealias EnvoyClusterConfig = io.envoyproxy.envoy.extensions.clusters.aggregate.v3.ClusterConfig
 
 class EnvoyClustersFactory(
-    private val properties: SnapshotProperties
+    private val properties: SnapshotProperties,
+    private val currentZone: String
 ) {
     private val httpProtocolOptions: HttpProtocolOptions = HttpProtocolOptions.newBuilder().setIdleTimeout(
         Durations.fromMillis(properties.egress.commonHttp.connectionIdleTimeout.toMillis())
@@ -283,14 +283,10 @@ class EnvoyClustersFactory(
     ): Boolean {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
         val trafficSplitEnabled = trafficSplitting.weightsByService.containsKey(serviceName)
-        return trafficSplitEnabled && hasEndpointsInZone(clusterLoadAssignment, trafficSplitting)
+        val allowed = clusterLoadAssignment != null &&
+            properties.loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting.contains(currentZone)
+        return trafficSplitEnabled && allowed
     }
-
-    private fun hasEndpointsInZone(
-        clusterLoadAssignment: ClusterLoadAssignment?,
-        trafficSplitting: TrafficSplittingProperties
-    ) = clusterLoadAssignment?.endpointsList
-        ?.any { e -> trafficSplitting.zoneName == e.locality.zone && e.lbEndpointsCount > 0 } ?: false
 
     private fun shouldAddDynamicForwardProxyCluster(group: Group) =
         group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()

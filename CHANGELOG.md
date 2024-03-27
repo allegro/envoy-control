@@ -2,6 +2,12 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
+
+## [0.20.13]
+### Changed
+- Added setting: "zonesAllowingTrafficSplitting", so changes in a config would be made only for envoys in that zone
+- Fixed setting priority for traffic splitting endpoints, they will be duplicated with higher priorities
+
 ## [0.20.12]
 ### Changed
 - Added "trackRemaining" flag to enable possibility of tracking additional circuit breaker metrics

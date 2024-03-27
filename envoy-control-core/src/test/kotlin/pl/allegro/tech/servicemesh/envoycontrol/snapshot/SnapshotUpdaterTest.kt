@@ -1312,7 +1312,7 @@ class SnapshotUpdaterTest {
         EnvoySnapshotFactory(
             ingressRoutesFactory = EnvoyIngressRoutesFactory(snapshotProperties, currentZone = CURRENT_ZONE),
             egressRoutesFactory = EnvoyEgressRoutesFactory(snapshotProperties),
-            clustersFactory = EnvoyClustersFactory(snapshotProperties),
+            clustersFactory = EnvoyClustersFactory(snapshotProperties, CURRENT_ZONE),
             endpointsFactory = EnvoyEndpointsFactory(
                 snapshotProperties, ServiceTagMetadataGenerator(snapshotProperties.routing.serviceTags), CURRENT_ZONE
             ),
