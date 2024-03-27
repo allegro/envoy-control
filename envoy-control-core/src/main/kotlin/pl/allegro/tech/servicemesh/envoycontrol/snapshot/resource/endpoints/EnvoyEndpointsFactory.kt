@@ -34,6 +34,7 @@ class EnvoyEndpointsFactory(
 ) {
     companion object {
         private val logger by logger()
+        private const val HIGHEST_PRIORITY = 0
     }
 
     fun createLoadAssignment(
@@ -84,16 +85,22 @@ class EnvoyEndpointsFactory(
         return if (routeSpec is WeightRouteSpecification) {
             ClusterLoadAssignment.newBuilder(loadAssignment)
                 .clearEndpoints()
-                .addAllEndpoints(assignWeights(loadAssignment.endpointsList, routeSpec.clusterWeights))
+                .addAllEndpoints(
+                    assignWeightsAndDuplicateEndpoints(
+                        loadAssignment.endpointsList,
+                        routeSpec.clusterWeights
+                    )
+                )
                 .setClusterName(routeSpec.clusterName)
                 .build()
         } else loadAssignment
     }
 
-    private fun assignWeights(
-        llbEndpointsList: List<LocalityLbEndpoints>, weights: ZoneWeights
+    private fun assignWeightsAndDuplicateEndpoints(
+        llbEndpointsList: List<LocalityLbEndpoints>,
+        weights: ZoneWeights
     ): List<LocalityLbEndpoints> {
-        return llbEndpointsList
+        val endpoints = llbEndpointsList
             .map {
                 if (weights.weightByZone.containsKey(it.locality.zone)) {
                     LocalityLbEndpoints.newBuilder(it)
@@ -101,6 +108,22 @@ class EnvoyEndpointsFactory(
                         .build()
                 } else it
             }
+        return overrideTrafficSplittingZoneEndpointsPriority(endpoints)
+            ?.let { listOf(it) + endpoints } ?: endpoints
+    }
+
+    private fun overrideTrafficSplittingZoneEndpointsPriority(
+        endpoints: List<LocalityLbEndpoints>
+    ): LocalityLbEndpoints? {
+        return if (properties.loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting.contains(currentZone)) {
+            endpoints
+                .find { properties.loadBalancing.trafficSplitting.zoneName == it.locality.zone }
+                ?.let {
+                    LocalityLbEndpoints.newBuilder(it)
+                        .setPriority(HIGHEST_PRIORITY)
+                        .build()
+                }
+        } else null
     }
 
     private fun filterEndpoints(loadAssignment: ClusterLoadAssignment, tag: String): ClusterLoadAssignment? {
