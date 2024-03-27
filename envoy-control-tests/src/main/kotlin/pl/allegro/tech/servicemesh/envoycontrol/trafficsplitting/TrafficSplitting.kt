@@ -1,5 +1,5 @@
-import TrafficSplitting.deltaPercentage
-import TrafficSplitting.upstreamServiceName
+import TrafficSplitting.DELTA_PERCENTAGE
+import TrafficSplitting.UPSTREAM_SERVICE_NAME
 import org.assertj.core.api.Assertions
 import org.assertj.core.data.Percentage
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
@@ -10,9 +10,27 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
 internal object TrafficSplitting {
-    const val upstreamServiceName = "service-1"
-    const val serviceName = "echo2"
-    const val deltaPercentage = 20.0
+    const val UPSTREAM_SERVICE_NAME = "service-1"
+    const val SERVICE_NAME = "echo2"
+    const val DELTA_PERCENTAGE = 20.0
+    const val FORCE_TRAFFIC_ZONE = "dc2"
+    val DEFAULT_PRIORITIES = mapOf(
+        "dc1" to mapOf(
+            "dc1" to 0,
+            "dc2" to 1,
+            "dc3" to 2,
+        ),
+        "dc2" to mapOf(
+            "dc1" to 1,
+            "dc2" to 0,
+            "dc3" to 2,
+        ),
+        "dc3" to mapOf(
+            "dc1" to 2,
+            "dc2" to 1,
+            "dc3" to 0,
+        )
+    )
 }
 
 fun EnvoyExtension.verifyIsReachable(echoServiceExtension: EchoServiceExtension, service: String) {
@@ -24,12 +42,12 @@ fun EnvoyExtension.verifyIsReachable(echoServiceExtension: EchoServiceExtension,
 }
 
 fun CallStats.verifyCallsCountCloseTo(service: EchoServiceExtension, expectedCount: Int): CallStats {
-    Assertions.assertThat(this.hits(service)).isCloseTo(expectedCount, Percentage.withPercentage(deltaPercentage))
+    Assertions.assertThat(this.hits(service)).isCloseTo(expectedCount, Percentage.withPercentage(DELTA_PERCENTAGE))
     return this
 }
 
-fun CallStats.verifyCallsCountGreaterThan(service: EchoServiceExtension, hits: Int): CallStats {
-    Assertions.assertThat(this.hits(service)).isGreaterThan(hits)
+fun CallStats.verifyCallsCountEq(service: EchoServiceExtension, expectedCount: Int): CallStats {
+    Assertions.assertThat(this.hits(service)).isEqualTo(expectedCount)
     return this
 }
 
@@ -39,7 +57,7 @@ fun EnvoyExtension.callUpstreamServiceRepeatedly(
 ): CallStats {
     val stats = CallStats(services.asList())
     this.egressOperations.callServiceRepeatedly(
-        service = upstreamServiceName,
+        service = UPSTREAM_SERVICE_NAME,
         stats = stats,
         minRepeat = numberOfCalls,
         maxRepeat = numberOfCalls,
@@ -56,12 +74,12 @@ fun EnvoyExtension.callUpstreamServiceRepeatedly(
 ): CallStats {
     val stats = CallStats(services.asList())
     this.egressOperations.callServiceRepeatedly(
-        service = upstreamServiceName,
+        service = UPSTREAM_SERVICE_NAME,
         stats = stats,
         minRepeat = numberOfCalls,
         maxRepeat = numberOfCalls,
         repeatUntil = { true },
         headers = tag?.let { mapOf("x-service-tag" to it) } ?: emptyMap(),
-        )
+    )
     return stats
 }

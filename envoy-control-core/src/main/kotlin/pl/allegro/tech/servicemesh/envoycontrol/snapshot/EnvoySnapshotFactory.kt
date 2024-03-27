@@ -229,6 +229,12 @@ class EnvoySnapshotFactory(
             ?.any { e -> trafficSplitting.zoneName == e.locality.zone }
             ?: false
         return if (weights != null && enabledForDependency) {
+            if (serviceName == "varnish") {
+                logger.info(
+                    "Building traffic splitting route spec, weights: $weights, " +
+                        "serviceName: $serviceName, clusterName: $clusterName, "
+                )
+            }
             logger.debug(
                 "Building traffic splitting route spec, weights: $weights, " +
                     "serviceName: $serviceName, clusterName: $clusterName, "
@@ -273,7 +279,6 @@ class EnvoySnapshotFactory(
                 }
             }
         }
-
         val rateLimitClusters =
             if (rateLimitEndpoints.isNotEmpty()) listOf(properties.rateLimit.serviceName) else emptyList()
         val rateLimitLoadAssignments = rateLimitClusters.mapNotNull { name -> globalSnapshot.endpoints[name] }

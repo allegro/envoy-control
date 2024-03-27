@@ -29,5 +29,6 @@ fun createEndpoint(zone: String): LocalityLbEndpoints {
                 .build()
         )
         .addAllLbEndpoints(listOf(LbEndpoint.getDefaultInstance()))
+        .setPriority(DEFAULT_PRIORITY)
         .build()
 }
