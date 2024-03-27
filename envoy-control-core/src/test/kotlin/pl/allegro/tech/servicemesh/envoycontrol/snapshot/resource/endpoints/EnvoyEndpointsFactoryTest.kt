@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import pl.allegro.tech.servicemesh.envoycontrol.groups.DependencySettings
 import pl.allegro.tech.servicemesh.envoycontrol.groups.RoutingPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
@@ -19,6 +20,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingPriorityProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LoadBalancingProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TrafficSplittingProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.WeightRouteSpecification
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ZoneWeights
 import java.util.concurrent.ConcurrentHashMap
 import java.util.stream.Stream
 
@@ -33,13 +37,13 @@ internal class EnvoyEndpointsFactoryTest {
             ),
             "DC2" to mapOf(
                 "DC1" to 1,
-                "DC2" to 2,
-                "DC3" to 3
+                "DC2" to 0,
+                "DC3" to 2
             ),
             "DC3" to mapOf(
-                "DC1" to 2,
-                "DC2" to 3,
-                "DC3" to 4
+                "DC1" to 1,
+                "DC2" to 2,
+                "DC3" to 0
             )
         )
 
@@ -52,6 +56,7 @@ internal class EnvoyEndpointsFactoryTest {
     private val serviceName = "service-one"
 
     private val defaultZone = "DC1"
+    private val trafficSplittingZone = "DC2"
 
     private val endpointsFactory = EnvoyEndpointsFactory(
         SnapshotProperties().apply {
@@ -76,6 +81,31 @@ internal class EnvoyEndpointsFactoryTest {
             clusterState(Locality.REMOTE, "DC3")
         )
     )
+
+    private val defaultZoneWeights = mapOf(
+        "DC1" to 100,
+        "DC2" to 10,
+        "DC3" to 2
+    )
+
+    private val snapshotPropertiesWithWeights = SnapshotProperties().apply {
+        loadBalancing = LoadBalancingProperties()
+            .apply {
+                priorities = LoadBalancingPriorityProperties()
+                    .apply { zonePriorities = dcPriorityProperties }
+                trafficSplitting = TrafficSplittingProperties()
+                    .apply {
+                        zoneName = trafficSplittingZone
+                        zonesAllowingTrafficSplitting = listOf("DC1")
+                        weightsByService = mapOf(
+                            serviceName to ZoneWeights()
+                                .apply {
+                                    weightByZone = defaultZoneWeights
+                                }
+                        )
+                    }
+            }
+    }
 
     // language=json
     private val globalLoadAssignmentJson = """{
@@ -352,6 +382,28 @@ internal class EnvoyEndpointsFactoryTest {
                 "DC3" to 2
             )
         )
+    }
+
+    @Test
+    fun `should override priority and duplicate endpoints for traffic splitting zone`() {
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithWeights,
+            currentZone = "DC1"
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC1Local)
+        var resultLoadAssignment = envoyEndpointsFactory.assignLocalityWeights(
+            WeightRouteSpecification(
+                serviceName, listOf(), DependencySettings(), ZoneWeights().apply { weightByZone = defaultZoneWeights }
+            ),
+            loadAssignments[0]
+        )
+
+        assertThat(resultLoadAssignment.endpointsList).hasSize(dcPriorityProperties.size + 1)
+        assertThat(resultLoadAssignment.endpointsList)
+            .anySatisfy { it.hasZoneWithPriority("DC2", 1) }
+            .anySatisfy { it.hasZoneWithPriority("DC2", 0) }
+            .anySatisfy { it.hasZoneWithPriority("DC1", 0) }
+            .anySatisfy { it.hasZoneWithPriority("DC3", 2) }
     }
 
     private fun List<ClusterLoadAssignment>.assertHasLoadAssignment(map: Map<String, Int>) {

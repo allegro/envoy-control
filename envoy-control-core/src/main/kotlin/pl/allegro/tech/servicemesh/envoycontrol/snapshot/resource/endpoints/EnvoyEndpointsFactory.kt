@@ -34,6 +34,7 @@ class EnvoyEndpointsFactory(
 ) {
     companion object {
         private val logger by logger()
+        private const val HIGHEST_PRIORITY = 0
     }
 
     fun createLoadAssignment(
@@ -84,22 +85,44 @@ class EnvoyEndpointsFactory(
         return if (routeSpec is WeightRouteSpecification) {
             ClusterLoadAssignment.newBuilder(loadAssignment)
                 .clearEndpoints()
-                .addAllEndpoints(assignWeights(loadAssignment.endpointsList, routeSpec.clusterWeights))
+                .addAllEndpoints(
+                    assignWeightsAndDuplicateEndpoints(
+                        loadAssignment.endpointsList,
+                        routeSpec.clusterWeights
+                    )
+                )
                 .setClusterName(routeSpec.clusterName)
                 .build()
         } else loadAssignment
     }
 
-    private fun assignWeights(
-        llbEndpointsList: List<LocalityLbEndpoints>, weights: ZoneWeights
+    private fun assignWeightsAndDuplicateEndpoints(
+        llbEndpointsList: List<LocalityLbEndpoints>,
+        weights: ZoneWeights
     ): List<LocalityLbEndpoints> {
+        if (properties.loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting.contains(currentZone)) {
+            val endpoints = llbEndpointsList
+                .map {
+                    if (weights.weightByZone.containsKey(it.locality.zone)) {
+                        LocalityLbEndpoints.newBuilder(it)
+                            .setLoadBalancingWeight(UInt32Value.of(weights.weightByZone[it.locality.zone] ?: 0))
+                            .build()
+                    } else it
+                }
+            return overrideTrafficSplittingZoneEndpointsPriority(endpoints) + endpoints
+        }
         return llbEndpointsList
+    }
+
+    private fun overrideTrafficSplittingZoneEndpointsPriority(
+        endpoints: List<LocalityLbEndpoints>
+    ): List<LocalityLbEndpoints> {
+        return endpoints
+            .filter { properties.loadBalancing.trafficSplitting.zoneName == it.locality.zone }
             .map {
-                if (weights.weightByZone.containsKey(it.locality.zone)) {
-                    LocalityLbEndpoints.newBuilder(it)
-                        .setLoadBalancingWeight(UInt32Value.of(weights.weightByZone[it.locality.zone] ?: 0))
-                        .build()
-                } else it
+                LocalityLbEndpoints.newBuilder(it)
+                    .setPriority(HIGHEST_PRIORITY)
+                    .build()
             }
     }
 
