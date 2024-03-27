@@ -166,6 +166,7 @@ class TrafficSplittingProperties {
     var zoneName = ""
     var headerName = ""
     var weightsByService: Map<String, ZoneWeights> = mapOf()
+    var zonesAllowingTrafficSplitting = listOf<String>()
 }
 
 class ZoneWeights {

@@ -34,26 +34,27 @@ class EnvoyEndpointsFactory(
 ) {
     companion object {
         private val logger by logger()
+        private const val HIGHEST_PRIORITY = 0
     }
 
     fun createLoadAssignment(
         clusters: Set<String>,
         multiClusterState: MultiClusterState
     ): List<ClusterLoadAssignment> {
-
         return clusters
             .map { serviceName ->
                 val localityLbEndpoints = multiClusterState
                     .map {
                         val locality = it.locality
                         val cluster = it.cluster
-
                         createEndpointsGroup(it.servicesState[serviceName], cluster, locality)
                     }
+                val endpoints = duplicateAndOverridePriorityForLocalityLbEndpoints(serviceName, localityLbEndpoints)
+                    ?.let { localityLbEndpoints + it } ?: localityLbEndpoints
 
                 ClusterLoadAssignment.newBuilder()
                     .setClusterName(serviceName)
-                    .addAllEndpoints(localityLbEndpoints)
+                    .addAllEndpoints(endpoints)
                     .build()
             }
     }
@@ -88,6 +89,25 @@ class EnvoyEndpointsFactory(
                 .setClusterName(routeSpec.clusterName)
                 .build()
         } else loadAssignment
+    }
+
+    private fun duplicateAndOverridePriorityForLocalityLbEndpoints(
+        serviceName: String,
+        localityLbEndpoints: List<LocalityLbEndpoints>
+    ): LocalityLbEndpoints? {
+        val weightsByService = properties.loadBalancing.trafficSplitting.weightsByService
+        val trafficSplittingEnabled = weightsByService.isNotEmpty()
+        val serviceNotListed = !weightsByService.containsKey(serviceName)
+        val zoneAllowsTrafficSplitting =
+            properties.loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting.contains(currentZone)
+        return if (trafficSplittingEnabled && serviceNotListed && zoneAllowsTrafficSplitting) {
+            localityLbEndpoints
+                .find { properties.loadBalancing.trafficSplitting.zoneName == it.locality.zone }
+                ?.let { LocalityLbEndpoints.newBuilder(it)
+                    .setPriority(HIGHEST_PRIORITY)
+                    .build()
+                }
+        } else null
     }
 
     private fun assignWeights(

@@ -11,10 +11,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlClusteredExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import verifyCallsCountCloseTo
+import verifyCallsCountEq
 import verifyIsReachable
 import java.time.Duration
 
-class WeightedClustersRoutingTest {
+class LocalityWeightedLoadBalancingRoutingTest {
     companion object {
         private const val forceTrafficZone = "dc2"
 
@@ -24,17 +25,18 @@ class WeightedClustersRoutingTest {
             "envoy-control.envoy.snapshot.stateSampleDuration" to Duration.ofSeconds(0),
             "envoy-control.sync.enabled" to true,
             "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.zoneName" to forceTrafficZone,
+            "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.zonesAllowingTrafficSplitting" to "dc1",
             "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.weightsByService.$serviceName.weightByZone.dc1" to 30,
             "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.weightsByService.$serviceName.weightByZone.dc2" to 10,
             "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.weightsByService.$serviceName.weightByZone.dc3" to 1,
             "envoy-control.envoy.snapshot.load-balancing.priorities.zonePriorities" to mapOf(
                 "dc1" to mapOf(
                     "dc1" to 0,
-                    "dc2" to 0,
+                    "dc2" to 1,
                     "dc3" to 3,
                 ),
                 "dc2" to mapOf(
-                    "dc1" to 0,
+                    "dc1" to 1,
                     "dc2" to 0,
                     "dc3" to 3,
                 ),
@@ -53,9 +55,11 @@ class WeightedClustersRoutingTest {
                   outgoing:
                     dependencies:
                       - service: "service-1"
+                      - service: "service-2"
         """.trimIndent()
 
         private val config = Xds.copy(configOverride = echo2Config, serviceName = "echo2")
+        private val configEcho = Xds.copy(configOverride = echo2Config, serviceName = "echo")
 
         @JvmField
         @RegisterExtension
@@ -78,6 +82,10 @@ class WeightedClustersRoutingTest {
 
         @JvmField
         @RegisterExtension
+        val echo2ServiceDC1 = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
         val echoServiceDC1 = EchoServiceExtension()
 
         @JvmField
@@ -94,44 +102,62 @@ class WeightedClustersRoutingTest {
 
         @JvmField
         @RegisterExtension
-        val echoEnvoyDC1 = EnvoyExtension(envoyControl, localService = echoServiceDC1, config)
-        @JvmField
-        @RegisterExtension
-        val echoEnvoyDC2 = EnvoyExtension(envoyControl2)
+        val echo2EnvoyDC1 = EnvoyExtension(envoyControl, localService = echo2ServiceDC1, config)
 
         @JvmField
         @RegisterExtension
-        val echoEnvoyDC3 = EnvoyExtension(envoyControl3)
+        val echoEnvoyDC1 = EnvoyExtension(envoyControl, localService = echoServiceDC1, configEcho)
+
+        @JvmField
+        @RegisterExtension
+        val echoEnvoyDC2 = EnvoyExtension(envoyControl2)
     }
 
     @Test
     fun `should route traffic according to weights`() {
-        consul.serverFirst.operations.registerServiceWithEnvoyOnEgress(echoEnvoyDC1, name = serviceName)
+        consul.serverFirst.operations.registerServiceWithEnvoyOnEgress(echo2EnvoyDC1, name = serviceName)
 
         consul.serverFirst.operations.registerService(upstreamServiceDC1, name = upstreamServiceName)
-        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC1, upstreamServiceName)
+        echo2EnvoyDC1.verifyIsReachable(upstreamServiceDC1, upstreamServiceName)
 
         consul.serverSecond.operations.registerService(upstreamServiceDC2, name = upstreamServiceName)
-        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
+        echo2EnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
 
-        echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2)
+        echo2EnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2)
             .verifyCallsCountCloseTo(upstreamServiceDC1, 75)
             .verifyCallsCountCloseTo(upstreamServiceDC2, 25)
-        println("snapshot: " + envoyControl.app.getGlobalSnapshot(false).toString())
+            .verifyCallsCountEq(upstreamServiceDC3, 0)
     }
 
     @Test
     fun `should route traffic according to weights with service tag`() {
-        consul.serverFirst.operations.registerServiceWithEnvoyOnEgress(echoEnvoyDC1, name = serviceName)
+        consul.serverFirst.operations.registerServiceWithEnvoyOnEgress(echo2EnvoyDC1, name = serviceName)
 
         consul.serverFirst.operations.registerService(upstreamServiceDC1, name = upstreamServiceName, tags = listOf("tag"))
-        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC1, upstreamServiceName)
+        echo2EnvoyDC1.verifyIsReachable(upstreamServiceDC1, upstreamServiceName)
 
         consul.serverSecond.operations.registerService(upstreamServiceDC2, name = upstreamServiceName, tags = listOf("tag"))
-        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
+        echo2EnvoyDC1.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
 
-        echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2, tag = "tag")
+        echo2EnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2, tag = "tag")
             .verifyCallsCountCloseTo(upstreamServiceDC1, 75)
             .verifyCallsCountCloseTo(upstreamServiceDC2, 25)
+            .verifyCallsCountEq(upstreamServiceDC3, 0)
+    }
+
+    @Test
+    fun `should not split traffic for not listed service`() {
+        consul.serverFirst.operations.registerServiceWithEnvoyOnEgress(echoEnvoyDC1, name = "echo")
+
+        consul.serverFirst.operations.registerService(upstreamServiceDC1, name = upstreamServiceName,)
+        echoEnvoyDC1.verifyIsReachable(upstreamServiceDC1, upstreamServiceName)
+
+        consul.serverSecond.operations.registerService(upstreamServiceDC2, name = upstreamServiceName)
+        echoEnvoyDC2.verifyIsReachable(upstreamServiceDC2, upstreamServiceName)
+
+        echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2)
+            .verifyCallsCountEq(upstreamServiceDC1, 100)
+            .verifyCallsCountEq(upstreamServiceDC2, 0)
+            .verifyCallsCountEq(upstreamServiceDC3, 0)
     }
 }

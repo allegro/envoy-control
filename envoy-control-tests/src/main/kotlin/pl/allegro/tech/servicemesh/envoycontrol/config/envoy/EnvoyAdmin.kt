@@ -69,8 +69,8 @@ class EnvoyAdmin(
         }
     }
 
-    private fun configDump(): String {
-        val response = get("config_dump")
+    fun configDump(): String {
+        val response = get("config_dump?include_eds=on")
         return response.body.use { it!!.string() }
     }
 
