@@ -328,6 +328,12 @@ class EnvoySnapshotFactory(
         )
 
         val version = snapshotsVersions.version(group, clusters, endpoints, listeners, routes)
+        // TODO REMOVE THIS LOG
+        if (group.serviceName == "service-mesh-service-second") {
+            endpoints
+                .find{ it.clusterName == "service-mesh-service-first"}
+                ?.let {  logger.info("Snapshot endpoints (${it.endpointsList.size}): ${it.endpointsList.toString()}") }
+        }
         return createSnapshot(
             clusters = clusters,
             clustersVersion = version.clusters,

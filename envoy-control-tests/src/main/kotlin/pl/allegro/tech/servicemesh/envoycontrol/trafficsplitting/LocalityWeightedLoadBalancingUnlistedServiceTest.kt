@@ -12,7 +12,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulMultiCluster
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlClusteredExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
-import pl.allegro.tech.servicemesh.envoycontrol.trafficsplitting.LocalityWeightedLoadBalancingTest.Companion.upstreamServiceDC3
 import verifyCallsCountEq
 import verifyIsReachable
 import java.time.Duration
@@ -87,6 +86,5 @@ class LocalityWeightedLoadBalancingUnlistedServiceTest {
         echoEnvoyDC1.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2)
             .verifyCallsCountEq(upstreamServiceDC1, 100)
             .verifyCallsCountEq(upstreamServiceDC2, 0)
-            .verifyCallsCountEq(upstreamServiceDC3, 0)
     }
 }

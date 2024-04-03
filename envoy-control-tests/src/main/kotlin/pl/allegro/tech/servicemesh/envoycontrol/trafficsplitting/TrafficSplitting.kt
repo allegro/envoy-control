@@ -12,7 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtens
 internal object TrafficSplitting {
     const val UPSTREAM_SERVICE_NAME = "service-1"
     const val SERVICE_NAME = "echo2"
-    const val DELTA_PERCENTAGE = 20.0
+    const val DELTA_PERCENTAGE = 10.0
     const val FORCE_TRAFFIC_ZONE = "dc2"
     val DEFAULT_PRIORITIES = mapOf(
         "dc1" to mapOf(

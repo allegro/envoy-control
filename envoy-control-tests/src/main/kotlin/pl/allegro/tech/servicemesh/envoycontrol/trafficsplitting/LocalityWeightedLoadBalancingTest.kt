@@ -15,6 +15,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtens
 import verifyCallsCountCloseTo
 import verifyCallsCountEq
 import verifyIsReachable
+import java.io.File
 import java.time.Duration
 
 class LocalityWeightedLoadBalancingTest {
@@ -100,10 +101,13 @@ class LocalityWeightedLoadBalancingTest {
         consul.serverSecond.operations.registerService(upstreamServiceDC2, name = UPSTREAM_SERVICE_NAME)
         downstreamServiceEnvoy.verifyIsReachable(upstreamServiceDC2, UPSTREAM_SERVICE_NAME)
 
+        consul.serverThird.operations.registerService(upstreamServiceDC3, name = UPSTREAM_SERVICE_NAME)
+        envoyDC3.verifyIsReachable(upstreamServiceDC3, UPSTREAM_SERVICE_NAME)
+
         downstreamServiceEnvoy.callUpstreamServiceRepeatedly(upstreamServiceDC1, upstreamServiceDC2)
             .verifyCallsCountCloseTo(upstreamServiceDC1, 75)
             .verifyCallsCountCloseTo(upstreamServiceDC2, 25)
-            .verifyCallsCountEq(upstreamServiceDC3, 0)
+        .verifyCallsCountEq(upstreamServiceDC3, 0)
     }
 
     @Test
