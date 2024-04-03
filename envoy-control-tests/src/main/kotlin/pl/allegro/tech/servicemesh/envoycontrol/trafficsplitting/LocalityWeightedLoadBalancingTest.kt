@@ -15,7 +15,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtens
 import verifyCallsCountCloseTo
 import verifyCallsCountEq
 import verifyIsReachable
-import java.io.File
 import java.time.Duration
 
 class LocalityWeightedLoadBalancingTest {
