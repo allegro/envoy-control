@@ -97,6 +97,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
   Enabled by default if auto service-tags feature is used
 - decrease log level for no clients in incoming-endpoint
 
+## [0.19.32]
+- bump Consul version in tests
+
 ## [0.19.31]
 
 ### Changed
