@@ -283,10 +283,16 @@ class EnvoyClustersFactory(
     ): Boolean {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
         val trafficSplitEnabled = trafficSplitting.weightsByService.containsKey(serviceName)
-        val allowed = clusterLoadAssignment != null &&
-            properties.loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting.contains(currentZone)
+        val allowed = clusterLoadAssignment != null && hasEndpointsInZone(clusterLoadAssignment)
+        properties.loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting.contains(currentZone)
         return trafficSplitEnabled && allowed
     }
+
+    private fun hasEndpointsInZone(
+        clusterLoadAssignment: ClusterLoadAssignment?
+    ) = clusterLoadAssignment?.endpointsList
+        ?.any { e -> properties.loadBalancing.trafficSplitting.zoneName == e.locality.zone && e.lbEndpointsCount > 0 }
+        ?: false
 
     private fun shouldAddDynamicForwardProxyCluster(group: Group) =
         group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()

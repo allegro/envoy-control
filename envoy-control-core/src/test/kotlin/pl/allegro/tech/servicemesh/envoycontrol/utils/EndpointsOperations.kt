@@ -5,11 +5,14 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 import io.envoyproxy.envoy.config.endpoint.v3.LbEndpoint
 import io.envoyproxy.envoy.config.endpoint.v3.LocalityLbEndpoints
 
-fun createLoadAssignments(clusters: List<Cluster>): List<ClusterLoadAssignment> {
+fun createLoadAssignments(
+    clusters: List<Cluster>,
+    endpoints: List<LocalityLbEndpoints>
+): List<ClusterLoadAssignment> {
     return clusters.map {
         ClusterLoadAssignment.newBuilder()
             .setClusterName(it.name)
-            .addAllEndpoints(createEndpoints())
+            .addAllEndpoints(endpoints)
             .build()
     }
 }

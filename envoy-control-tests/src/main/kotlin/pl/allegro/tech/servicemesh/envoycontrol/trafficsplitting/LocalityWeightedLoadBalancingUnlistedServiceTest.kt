@@ -22,9 +22,9 @@ class LocalityWeightedLoadBalancingUnlistedServiceTest {
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.stateSampleDuration" to Duration.ZERO,
             "envoy-control.sync.enabled" to true,
-            "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.zoneName" to FORCE_TRAFFIC_ZONE,
-            "envoy-control.envoy.snapshot.load-balancing.trafficSplitting.zonesAllowingTrafficSplitting" to listOf("dc1"),
-            "envoy-control.envoy.snapshot.load-balancing.priorities.zonePriorities" to DEFAULT_PRIORITIES
+            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.zoneName" to FORCE_TRAFFIC_ZONE,
+            "envoy-control.envoy.snapshot.loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting" to listOf("dc1"),
+            "envoy-control.envoy.snapshot.loadBalancing.priorities.zonePriorities" to DEFAULT_PRIORITIES
         )
 
         private val echo2Config = """
