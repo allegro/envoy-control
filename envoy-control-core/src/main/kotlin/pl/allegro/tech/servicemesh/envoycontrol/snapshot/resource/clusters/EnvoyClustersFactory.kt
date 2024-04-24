@@ -283,8 +283,8 @@ class EnvoyClustersFactory(
     ): Boolean {
         val trafficSplitting = properties.loadBalancing.trafficSplitting
         val trafficSplitEnabled = trafficSplitting.weightsByService.containsKey(serviceName)
-        val allowed = clusterLoadAssignment != null && hasEndpointsInZone(clusterLoadAssignment)
-        properties.loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting.contains(currentZone)
+        val allowed = clusterLoadAssignment != null && hasEndpointsInZone(clusterLoadAssignment) &&
+            trafficSplitting.zonesAllowingTrafficSplitting.contains(currentZone)
         return trafficSplitEnabled && allowed
     }
 
