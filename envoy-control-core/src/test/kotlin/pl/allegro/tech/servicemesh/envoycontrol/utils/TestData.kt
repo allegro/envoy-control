@@ -15,6 +15,8 @@ const val CLUSTER_NAME1 = "cluster-1"
 const val CLUSTER_NAME2 = "cluster-2"
 const val TRAFFIC_SPLITTING_ZONE = "dc2"
 const val CURRENT_ZONE = "dc1"
+const val DEFAULT_PRIORITY = 1
+const val HIGHEST_PRIORITY = 0
 
 val DEFAULT_CLUSTER_WEIGHTS = zoneWeights(mapOf(CURRENT_ZONE to 60, TRAFFIC_SPLITTING_ZONE to 40))
 
@@ -24,6 +26,7 @@ val SNAPSHOT_PROPERTIES_WITH_WEIGHTS = SnapshotProperties().also {
         DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
     )
     it.loadBalancing.trafficSplitting.zoneName = TRAFFIC_SPLITTING_ZONE
+    it.loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting = listOf(CURRENT_ZONE)
 }
 
 fun zoneWeights(weightByZone: Map<String, Int>) = ZoneWeights().also {

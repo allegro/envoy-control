@@ -38,9 +38,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_CLUSTER_WEIGHTS
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_DISCOVERY_SERVICE_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_IDLE_TIMEOUT
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_PRIORITY
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DEFAULT_SERVICE_NAME
 import pl.allegro.tech.servicemesh.envoycontrol.utils.EGRESS_HOST
 import pl.allegro.tech.servicemesh.envoycontrol.utils.EGRESS_PORT
+import pl.allegro.tech.servicemesh.envoycontrol.utils.HIGHEST_PRIORITY
 import pl.allegro.tech.servicemesh.envoycontrol.utils.INGRESS_HOST
 import pl.allegro.tech.servicemesh.envoycontrol.utils.INGRESS_PORT
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_PROPERTIES_WITH_WEIGHTS
@@ -275,13 +277,18 @@ class EnvoySnapshotFactoryTest {
                 assertThat(it.endpointsList)
                     .anySatisfy { e ->
                         e.locality.zone == TRAFFIC_SPLITTING_ZONE &&
-                            e.loadBalancingWeight.value == DEFAULT_CLUSTER_WEIGHTS.weightByZone[TRAFFIC_SPLITTING_ZONE]
+                            e.loadBalancingWeight.value == DEFAULT_CLUSTER_WEIGHTS.weightByZone[TRAFFIC_SPLITTING_ZONE] &&
+                            e.priority == DEFAULT_PRIORITY
+                    }.anySatisfy { e ->
+                        e.locality.zone == TRAFFIC_SPLITTING_ZONE &&
+                            e.loadBalancingWeight.value == DEFAULT_CLUSTER_WEIGHTS.weightByZone[TRAFFIC_SPLITTING_ZONE] &&
+                            e.priority == HIGHEST_PRIORITY
                     }
                     .anySatisfy { e ->
                         e.locality.zone == CURRENT_ZONE &&
                             e.loadBalancingWeight.value == DEFAULT_CLUSTER_WEIGHTS.weightByZone[CURRENT_ZONE]
                     }
-                    .hasSize(2)
+                    .hasSize(3)
             }
     }
 
@@ -313,7 +320,7 @@ class EnvoySnapshotFactoryTest {
                         e.locality.zone == TRAFFIC_SPLITTING_ZONE &&
                             !e.hasLoadBalancingWeight()
                     }
-                    .hasSize(2)
+                    .hasSize(3)
             }
     }
 
@@ -457,7 +464,7 @@ class EnvoySnapshotFactoryTest {
             CURRENT_ZONE
         )
         val egressRoutesFactory = EnvoyEgressRoutesFactory(properties)
-        val clustersFactory = EnvoyClustersFactory(properties)
+        val clustersFactory = EnvoyClustersFactory(properties, CURRENT_ZONE)
         val endpointsFactory = EnvoyEndpointsFactory(properties, ServiceTagMetadataGenerator(), CURRENT_ZONE)
         val envoyHttpFilters = EnvoyHttpFilters.defaultFilters(properties)
         val listenersFactory = EnvoyListenersFactory(properties, envoyHttpFilters)
