@@ -139,7 +139,7 @@ Property                                                                        
 **envoy-control.envoy.snapshot.load-balancing.use-keys-subset-fallback-policy**             | KEYS_SUBSET fallback policy is used by default when canary and service-tags are enabled. It is not supported in Envoy <= 1.12.x. Set to false for compatibility with Envoy 1.12.x      | true
 **envoy-control.envoy.snapshot.load-balancing.traffic-splitting.zoneName**             | a zone to which traffic will be routed if traffic splitting is enabled                                                                                                                 | ""
 **envoy-control.envoy.snapshot.load-balancing.traffic-splitting.zones-allowing-traffic-splitting**             | a zone from which traffic should be splitted                                                                                                                                           | empty list
-**envoy-control.envoy.snapshot.load-balancing.traffic-splitting.weights-by-service.**             | a map that maps service name to a map [zoneName: weight]                                                                                                                               | empty map
+**envoy-control.envoy.snapshot.load-balancing.traffic-splitting.weights-by-service**             | a map that maps service name to a map [zoneName: weight]                                                                                                                               | empty map
 
 ## Routing
 
