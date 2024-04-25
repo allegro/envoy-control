@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.20.14]
+### Changed
+- Added test to check circuit breaker metric value
+
 ## [0.20.13]
 ### Changed
 - Added setting: "zonesAllowingTrafficSplitting", so changes in a config would be made only for envoys in that zone

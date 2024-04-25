@@ -11,6 +11,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
+import java.util.concurrent.Callable
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.stream.IntStream
 
 internal class ClusterCircuitBreakerDefaultSettingsTest {
 
@@ -27,7 +32,6 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
                 it.maxPendingRequests = 6
                 it.maxRequests = 7
                 it.maxRetries = 8
-                it.trackRemaining = true
             }
         )
 
@@ -46,6 +50,10 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service)
+
+        @JvmField
+        @RegisterExtension
+        val envoy2 = EnvoyExtension(envoyControl)
     }
 
     @Test
@@ -58,9 +66,11 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
         }
 
         // when
-        val maxRequestsSetting = envoy.container.admin().circuitBreakerSetting("echo", "max_requests", "default_priority")
+        val maxRequestsSetting =
+            envoy.container.admin().circuitBreakerSetting("echo", "max_requests", "default_priority")
         val maxRetriesSetting = envoy.container.admin().circuitBreakerSetting("echo", "max_retries", "high_priority")
-        val remainingPendingMetric = envoy.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_pending")
+        val remainingPendingMetric =
+            envoy.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_pending")
         val remainingRqMetric = envoy.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_rq")
 
         // then
@@ -69,4 +79,41 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
         assertThat(remainingPendingMetric).isNotNull()
         assertThat(remainingRqMetric).isNotNull()
     }
+
+    @Test
+    fun `should have decreased remaining pending rq`() {
+        consul.server.operations.registerServiceWithEnvoyOnIngress(name = "echo", extension = envoy)
+        untilAsserted {
+            val response = envoy.egressOperations.callService("echo")
+            assertThat(response).isOk().isFrom(service)
+        }
+        val latch = CountDownLatch(1)
+        val expectedRemainingPending = "1"
+        val callTask = Callable {
+            envoy2.egressOperations.callService("echo")
+            true
+        }
+        val checkTask = Callable {
+            if (isValueDecreasedTo(expectedRemainingPending)) {
+                latch.countDown()
+            }
+            true
+        }
+        val rqNum = 5
+        val callableTasks: ArrayList<Callable<Boolean>> = ArrayList()
+        IntStream.of(rqNum).forEach {
+            callableTasks.add(callTask)
+            callableTasks.add(checkTask)
+        }
+
+        val invokeAll = Executors.newFixedThreadPool(2 * rqNum).invokeAll(callableTasks)
+        untilAsserted { invokeAll.all { it.isDone } }
+        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue()
+    }
+
+    private fun isValueDecreasedTo(value: String) =
+        envoy2.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_pending")
+            ?.let {
+                it == value
+            } ?: false
 }
