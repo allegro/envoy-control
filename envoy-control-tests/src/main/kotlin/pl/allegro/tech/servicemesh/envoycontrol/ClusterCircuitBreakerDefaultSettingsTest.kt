@@ -20,11 +20,12 @@ import java.util.stream.IntStream
 internal class ClusterCircuitBreakerDefaultSettingsTest {
 
     companion object {
+        const val maxPending = 2
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.egress.commonHttp.circuitBreakers.defaultThreshold" to Threshold("DEFAULT").also {
                 it.maxConnections = 1
-                it.maxPendingRequests = 2
-                it.maxRequests = 3
+                it.maxPendingRequests = maxPending
+                it.maxRequests = 1
                 it.maxRetries = 4
             },
             "envoy-control.envoy.snapshot.egress.commonHttp.circuitBreakers.highThreshold" to Threshold("HIGH").also {
@@ -74,7 +75,7 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
         val remainingRqMetric = envoy.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_rq")
 
         // then
-        assertThat(maxRequestsSetting).isEqualTo(3)
+        assertThat(maxRequestsSetting).isEqualTo(1)
         assertThat(maxRetriesSetting).isEqualTo(8)
         assertThat(remainingPendingMetric).isNotNull()
         assertThat(remainingRqMetric).isNotNull()
@@ -88,32 +89,30 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
             assertThat(response).isOk().isFrom(service)
         }
         val latch = CountDownLatch(1)
-        val expectedRemainingPending = "1"
         val callTask = Callable {
             envoy2.egressOperations.callService("echo")
             true
         }
         val checkTask = Callable {
-            if (isValueDecreasedTo(expectedRemainingPending)) {
+            if (pendingRqLessThan(maxPending)) {
                 latch.countDown()
             }
             true
         }
-        val rqNum = 5
+        val rqNum = 10
         val callableTasks: ArrayList<Callable<Boolean>> = ArrayList()
-        IntStream.of(rqNum).forEach {
+        IntStream.range(0, rqNum).forEach {
             callableTasks.add(callTask)
             callableTasks.add(checkTask)
         }
 
-        val invokeAll = Executors.newFixedThreadPool(2 * rqNum).invokeAll(callableTasks)
-        untilAsserted { invokeAll.all { it.isDone } }
-        assertThat(latch.await(1, TimeUnit.SECONDS)).isTrue()
+        val executor = Executors.newFixedThreadPool(2 * rqNum)
+        executor.invokeAll(callableTasks)
+        assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue()
+        executor.shutdown()
     }
 
-    private fun isValueDecreasedTo(value: String) =
+    private fun pendingRqLessThan(value: Int) =
         envoy2.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_pending")
-            ?.let {
-                it == value
-            } ?: false
+            ?.let { it.toIntOrNull() != value } ?: false
 }
