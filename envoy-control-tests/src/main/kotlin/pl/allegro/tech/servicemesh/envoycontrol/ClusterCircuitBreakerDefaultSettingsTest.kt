@@ -11,15 +11,21 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Threshold
+import java.util.concurrent.Callable
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.stream.IntStream
 
 internal class ClusterCircuitBreakerDefaultSettingsTest {
 
     companion object {
+        const val maxPending = 2
         private val properties = mapOf(
             "envoy-control.envoy.snapshot.egress.commonHttp.circuitBreakers.defaultThreshold" to Threshold("DEFAULT").also {
                 it.maxConnections = 1
-                it.maxPendingRequests = 2
-                it.maxRequests = 3
+                it.maxPendingRequests = maxPending
+                it.maxRequests = 1
                 it.maxRetries = 4
             },
             "envoy-control.envoy.snapshot.egress.commonHttp.circuitBreakers.highThreshold" to Threshold("HIGH").also {
@@ -27,7 +33,6 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
                 it.maxPendingRequests = 6
                 it.maxRequests = 7
                 it.maxRetries = 8
-                it.trackRemaining = true
             }
         )
 
@@ -46,6 +51,10 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service)
+
+        @JvmField
+        @RegisterExtension
+        val envoy2 = EnvoyExtension(envoyControl)
     }
 
     @Test
@@ -58,15 +67,52 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
         }
 
         // when
-        val maxRequestsSetting = envoy.container.admin().circuitBreakerSetting("echo", "max_requests", "default_priority")
+        val maxRequestsSetting =
+            envoy.container.admin().circuitBreakerSetting("echo", "max_requests", "default_priority")
         val maxRetriesSetting = envoy.container.admin().circuitBreakerSetting("echo", "max_retries", "high_priority")
-        val remainingPendingMetric = envoy.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_pending")
+        val remainingPendingMetric =
+            envoy.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_pending")
         val remainingRqMetric = envoy.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_rq")
 
         // then
-        assertThat(maxRequestsSetting).isEqualTo(3)
+        assertThat(maxRequestsSetting).isEqualTo(1)
         assertThat(maxRetriesSetting).isEqualTo(8)
         assertThat(remainingPendingMetric).isNotNull()
         assertThat(remainingRqMetric).isNotNull()
     }
+
+    @Test
+    fun `should have decreased remaining pending rq`() {
+        consul.server.operations.registerServiceWithEnvoyOnIngress(name = "echo", extension = envoy)
+        untilAsserted {
+            val response = envoy.egressOperations.callService("echo")
+            assertThat(response).isOk().isFrom(service)
+        }
+        val latch = CountDownLatch(1)
+        val callTask = Callable {
+            envoy2.egressOperations.callService("echo")
+            true
+        }
+        val checkTask = Callable {
+            if (pendingRqLessThan(maxPending)) {
+                latch.countDown()
+            }
+            true
+        }
+        val rqNum = 10
+        val callableTasks: ArrayList<Callable<Boolean>> = ArrayList()
+        IntStream.range(0, rqNum).forEach {
+            callableTasks.add(callTask)
+            callableTasks.add(checkTask)
+        }
+
+        val executor = Executors.newFixedThreadPool(2 * rqNum)
+        executor.invokeAll(callableTasks)
+        assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue()
+        executor.shutdown()
+    }
+
+    private fun pendingRqLessThan(value: Int) =
+        envoy2.container.admin().statValue("cluster.echo.circuit_breakers.default.remaining_pending")
+            ?.let { it.toIntOrNull() != value } ?: false
 }
