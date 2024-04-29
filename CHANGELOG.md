@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [0.20.14]
 ### Changed
 - Added test to check circuit breaker metric value
+- Set "localityAware=true" for cluster subset config
 
 ## [0.20.13]
 ### Changed

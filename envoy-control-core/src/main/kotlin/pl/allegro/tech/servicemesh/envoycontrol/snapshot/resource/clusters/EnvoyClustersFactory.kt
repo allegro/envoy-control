@@ -257,6 +257,11 @@ class EnvoyClustersFactory(
                     .setLocalityWeightedLbConfig(Cluster.CommonLbConfig.LocalityWeightedLbConfig.getDefaultInstance())
                     .build()
             )
+            .setLbSubsetConfig(
+                Cluster.LbSubsetConfig.newBuilder(cluster.lbSubsetConfig)
+                    .setLocalityWeightAware(true)
+                    .setScaleLocalityWeight(true)
+            )
             .also {
                 logger.debug("Created cluster config for traffic splitting: {}", it.toString())
             }

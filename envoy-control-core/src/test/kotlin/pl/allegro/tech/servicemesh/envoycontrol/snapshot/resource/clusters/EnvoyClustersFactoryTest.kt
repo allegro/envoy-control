@@ -32,6 +32,7 @@ internal class EnvoyClustersFactoryTest {
                 DEFAULT_SERVICE_NAME to DEFAULT_CLUSTER_WEIGHTS
             )
             loadBalancing.trafficSplitting.zoneName = TRAFFIC_SPLITTING_ZONE
+            loadBalancing.trafficSplitting.zonesAllowingTrafficSplitting = listOf(CURRENT_ZONE)
         }
     }
 
@@ -112,7 +113,11 @@ internal class EnvoyClustersFactoryTest {
             .anySatisfy {
                 assertThat(it.name).isEqualTo(CLUSTER_NAME1)
                 assertThat(it.edsClusterConfig).isEqualTo(cluster1.edsClusterConfig)
+                assertThat(it.commonLbConfig).isNotNull
                 assertThat(it.commonLbConfig.localityWeightedLbConfig).isNotNull
+                assertThat(it.lbSubsetConfig).isNotNull
+                assertThat(it.lbSubsetConfig.localityWeightAware).isTrue()
+                assertThat(it.lbSubsetConfig.scaleLocalityWeight).isTrue()
             }
     }
 
@@ -133,6 +138,8 @@ internal class EnvoyClustersFactoryTest {
                 assertThat(it.name).isEqualTo(CLUSTER_NAME1)
                 assertThat(it.edsClusterConfig).isEqualTo(cluster1.edsClusterConfig)
                 assertThat(it.commonLbConfig.hasLocalityWeightedLbConfig()).isFalse()
+                assertThat(it.lbSubsetConfig.localityWeightAware).isFalse()
+                assertThat(it.lbSubsetConfig.scaleLocalityWeight).isFalse()
             }
     }
 
