@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
@@ -81,6 +82,7 @@ internal class ClusterCircuitBreakerDefaultSettingsTest {
         assertThat(remainingRqMetric).isNotNull()
     }
 
+    @Tag("flaky")
     @Test
     fun `should have decreased remaining pending rq`() {
         consul.server.operations.registerServiceWithEnvoyOnIngress(name = "echo", extension = envoy)
