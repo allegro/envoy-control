@@ -4,6 +4,7 @@ import com.google.protobuf.Any
 import com.google.protobuf.Empty
 import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.core.v3.HttpUri
+import io.envoyproxy.envoy.config.core.v3.TypedExtensionConfig
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.RouteMatch
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
@@ -13,6 +14,7 @@ import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.JwtRequirementOr
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RemoteJwks
 import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RequirementRule
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import io.envoyproxy.envoy.extensions.path.match.uri_template.v3.UriTemplateMatchConfig
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
@@ -32,7 +34,7 @@ class JwtFilterFactory(
         }.toMap()
 
     fun createJwtFilter(group: Group): HttpFilter? {
-         return if (shouldCreateFilter(group)) {
+        return if (shouldCreateFilter(group)) {
             HttpFilter.newBuilder()
                 .setName("envoy.filters.http.jwt_authn")
                 .setTypedConfig(
@@ -82,10 +84,10 @@ class JwtFilterFactory(
         .build()
 
     private fun createRules(endpoints: List<IncomingEndpoint>): Set<RequirementRule> {
-        return endpoints.mapNotNull(this::createRuleForEndpoint).toSet()
+        return endpoints.flatMap(this::createRuleForEndpoint).toSet()
     }
 
-    private fun createRuleForEndpoint(endpoint: IncomingEndpoint): RequirementRule? {
+    private fun createRuleForEndpoint(endpoint: IncomingEndpoint): List<RequirementRule> {
         val providers = mutableSetOf<String>()
 
         if (endpoint.oauth != null) {
@@ -96,9 +98,11 @@ class JwtFilterFactory(
             .mapNotNull { clientToOAuthProviderName[it.name] })
 
         return if (providers.isNotEmpty()) {
-            requirementRuleWithPathMatching(endpoint.path, endpoint.pathMatchingType, endpoint.methods, providers)
+            endpoint.paths.map {
+                requirementRuleWithPathMatching(it, endpoint.pathMatchingType, endpoint.methods, providers)
+            } + requirementRuleWithPathMatching(endpoint.path, endpoint.pathMatchingType, endpoint.methods, providers)
         } else {
-            null
+            emptyList()
         }
     }
 
@@ -118,6 +122,17 @@ class JwtFilterFactory(
                     ).build()
                 )
         }
+        pathMatching.setPathMatchPolicy(
+            TypedExtensionConfig.newBuilder()
+                .setName("envoy.path.match.uri_template.uri_template_matcher")
+                .setTypedConfig(
+                    Any.pack(
+                        UriTemplateMatchConfig.newBuilder()
+                            .setPathTemplate(path)
+                            .build()
+                    )
+                ).build()
+        )
         if (methods.isNotEmpty()) {
             val methodsRegexp = methods.joinToString("|")
             val headerMatcher = HeaderMatcher.newBuilder()
@@ -129,8 +144,10 @@ class JwtFilterFactory(
                 )
             pathMatching.addHeaders(headerMatcher)
         }
+
         return RequirementRule.newBuilder()
             .setMatch(pathMatching)
+            .setMatch()
             .setRequires(createJwtRequirement(providers))
             .build()
     }
