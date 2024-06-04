@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.20.15]
+### Changed
+- Add possibility to store service tags in global-snapshot
+
 ## [0.20.14]
 ### Changed
 - Added test to check circuit breaker metric value

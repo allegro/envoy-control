@@ -4,12 +4,16 @@ import io.envoyproxy.controlplane.cache.SnapshotResources
 import io.envoyproxy.envoy.config.cluster.v3.Cluster
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment
 
+typealias ClusterName = String
+typealias Tag = String
+
 data class GlobalSnapshot(
-    val clusters: Map<String, Cluster>,
-    val allServicesNames: Set<String>,
-    val endpoints: Map<String, ClusterLoadAssignment>,
-    val clusterConfigurations: Map<String, ClusterConfiguration>,
-    val securedClusters: Map<String, Cluster>
+    val clusters: Map<ClusterName, Cluster>,
+    val allServicesNames: Set<ClusterName>,
+    val endpoints: Map<ClusterName, ClusterLoadAssignment>,
+    val clusterConfigurations: Map<ClusterName, ClusterConfiguration>,
+    val securedClusters: Map<ClusterName, Cluster>,
+    val tags: Map<ClusterName, Set<Tag>>,
 )
 
 @Suppress("LongParameterList")
@@ -17,8 +21,9 @@ fun globalSnapshot(
     clusters: Iterable<Cluster> = emptyList(),
     endpoints: Iterable<ClusterLoadAssignment> = emptyList(),
     properties: OutgoingPermissionsProperties = OutgoingPermissionsProperties(),
-    clusterConfigurations: Map<String, ClusterConfiguration> = emptyMap(),
-    securedClusters: List<Cluster> = emptyList()
+    clusterConfigurations: Map<ClusterName, ClusterConfiguration> = emptyMap(),
+    securedClusters: List<Cluster> = emptyList(),
+    tags: Map<ClusterName, Set<Tag>> = emptyMap(),
 ): GlobalSnapshot {
     val clusters = SnapshotResources.create<Cluster>(clusters, "").resources()
     val securedClusters = SnapshotResources.create<Cluster>(securedClusters, "").resources()
@@ -29,7 +34,8 @@ fun globalSnapshot(
         securedClusters = securedClusters,
         endpoints = endpoints,
         allServicesNames = allServicesNames,
-        clusterConfigurations = clusterConfigurations
+        clusterConfigurations = clusterConfigurations,
+        tags = tags,
     )
 }
 

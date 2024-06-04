@@ -155,7 +155,9 @@ Property                                                                        
  **(...).allowed-tags-combinations[].tags**                                                             | List of tag patterns, that can be combined and requested together                                                                                                                 | empty list               
  **envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled**                         | Enable auto service tag feature. (`enabled` needs also be true)                                                                                                                   | false                    
  **envoy-control.envoy.snapshot.routing.service-tags.reject-requests-with-duplicated-auto-service-tag** | Return 400 for requests with service-tag which duplicates auto service-tag preference                                                                                             | true                     
+ **envoy-control.envoy.snapshot.routing.service-tags.customTagFilterPrefixes**                          | List of prefixes, which tags will be stored in global-snapshot                                                                                                                    | empty list               
 
+customTagFilterPredix
 ## Outlier detection
 Property                                                                                         | Description                                                                                                                                                                               | Default value
 ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------

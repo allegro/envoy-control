@@ -65,7 +65,8 @@ class EnvoySnapshotFactory(
             clusters = clusters,
             securedClusters = securedClusters,
             endpoints = endpoints,
-            properties = properties.outgoingPermissions
+            properties = properties.outgoingPermissions,
+            tags = extractTags(properties.routing.serviceTags.customTagFilterPrefixes, servicesStates)
         )
         sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
 
@@ -402,6 +403,19 @@ class EnvoySnapshotFactory(
             emptyList<Secret>(),
             SecretsVersion.EMPTY_VERSION.value
         )
+
+    private fun extractTags(tagPrefixes: List<String>, servicesStates: MultiClusterState): Map<String, Set<String>> =
+        servicesStates.flatMap { it.servicesState.serviceNameToInstances.asIterable() }
+            .fold(emptyMap()) {
+                    acc, entry ->
+                val value = acc.getOrDefault(entry.key, emptySet())
+                var newValue = entry.value.instances
+                    .flatMap { it.tags }
+                if (tagPrefixes.isNotEmpty()) {
+                    newValue = newValue.filter { tag -> tagPrefixes.any { tag.startsWith(it) } }
+                }
+                acc.plus(entry.key to (value + newValue))
+            }
 }
 
 data class DomainRoutesGrouper(
