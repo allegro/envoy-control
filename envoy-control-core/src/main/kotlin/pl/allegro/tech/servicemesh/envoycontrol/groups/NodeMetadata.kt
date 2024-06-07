@@ -381,7 +381,7 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
     val oauth = properties.let { this.field("oauth")?.toOAuth(it) }
 
     return when {
-        paths.isNotEmpty() -> IncomingEndpoint(paths, "", PathMatchingType.PATHS, methods, clients, unlistedClientsPolicy, oauth)
+        paths.isNotEmpty() -> IncomingEndpoint(paths, "", PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
         path != null -> IncomingEndpoint(paths, path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
         pathPrefix != null -> IncomingEndpoint(
             paths, pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy, oauth
@@ -422,15 +422,15 @@ fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
     }
 }
 
-fun isMoreThanOnePropertyDefined(vararg properties: Any?): Boolean = properties.filter {
-    if (it != null) {
-        if (it is Set<*>) {
-            return it.isNotEmpty()
-        }
-        return true
+fun isMoreThanOnePropertyDefined(vararg properties: Any?): Boolean = countNonNullAndNotEmptyProperties(properties.toList()) > 1
+
+private fun countNonNullAndNotEmptyProperties(props: List<Any?>): Int = props.filterNotNull().count {
+    if (it is Set<*>) {
+        it.isNotEmpty()
+    } else {
+        true
     }
-    return false
-}.count() > 1
+}
 
 private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
     val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()

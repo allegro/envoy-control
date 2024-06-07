@@ -84,10 +84,10 @@ class JwtFilterFactory(
         .build()
 
     private fun createRules(endpoints: List<IncomingEndpoint>): Set<RequirementRule> {
-        return endpoints.flatMap(this::createRuleForEndpoint).toSet()
+        return endpoints.flatMap(this::createRulesForEndpoint).toSet()
     }
 
-    private fun createRuleForEndpoint(endpoint: IncomingEndpoint): List<RequirementRule> {
+    private fun createRulesForEndpoint(endpoint: IncomingEndpoint): Set<RequirementRule> {
         val providers = mutableSetOf<String>()
 
         if (endpoint.oauth != null) {
@@ -97,13 +97,43 @@ class JwtFilterFactory(
         providers.addAll(endpoint.clients.filter { it.name in clientToOAuthProviderName.keys }
             .mapNotNull { clientToOAuthProviderName[it.name] })
 
-        return if (providers.isNotEmpty()) {
-            endpoint.paths.map {
-                requirementRuleWithPathMatching(it, endpoint.pathMatchingType, endpoint.methods, providers)
-            } + requirementRuleWithPathMatching(endpoint.path, endpoint.pathMatchingType, endpoint.methods, providers)
-        } else {
-            emptyList()
+        if (providers.isEmpty()) {
+            return emptySet()
         }
+
+        return if (endpoint.paths.isNotEmpty()) {
+            endpoint.paths.map {
+                requirementRuleWithURITemplateMatching(it, endpoint.methods, providers)
+            }.toSet()
+        } else {
+            setOf(requirementRuleWithPathMatching(endpoint.path, endpoint.pathMatchingType, endpoint.methods, providers))
+        }
+    }
+
+    private fun requirementRuleWithURITemplateMatching(
+        pathGlobPattern: String,
+        methods: Set<String>,
+        providers: MutableSet<String>
+    ): RequirementRule {
+        val pathMatching = RouteMatch.newBuilder().setPathMatchPolicy(
+            TypedExtensionConfig.newBuilder()
+                .setName("envoy.path.match.uri_template.uri_template_matcher")
+                .setTypedConfig(
+                    Any.pack(
+                        UriTemplateMatchConfig.newBuilder()
+                            .setPathTemplate(pathGlobPattern)
+                            .build()
+                    )
+                ).build()
+        )
+        if (methods.isNotEmpty()) {
+            pathMatching.addHeaders(createHeaderMatcherBuilder(methods))
+        }
+
+        return RequirementRule.newBuilder()
+            .setMatch(pathMatching)
+            .setRequires(createJwtRequirement(providers))
+            .build()
     }
 
     private fun requirementRuleWithPathMatching(
@@ -122,34 +152,24 @@ class JwtFilterFactory(
                     ).build()
                 )
         }
-        pathMatching.setPathMatchPolicy(
-            TypedExtensionConfig.newBuilder()
-                .setName("envoy.path.match.uri_template.uri_template_matcher")
-                .setTypedConfig(
-                    Any.pack(
-                        UriTemplateMatchConfig.newBuilder()
-                            .setPathTemplate(path)
-                            .build()
-                    )
-                ).build()
-        )
         if (methods.isNotEmpty()) {
-            val methodsRegexp = methods.joinToString("|")
-            val headerMatcher = HeaderMatcher.newBuilder()
-                .setName(":method")
-                .setSafeRegexMatch(
-                    RegexMatcher.newBuilder().setRegex(methodsRegexp).setGoogleRe2(
-                        RegexMatcher.GoogleRE2.getDefaultInstance()
-                    ).build()
-                )
-            pathMatching.addHeaders(headerMatcher)
+            pathMatching.addHeaders(createHeaderMatcherBuilder(methods))
         }
 
         return RequirementRule.newBuilder()
             .setMatch(pathMatching)
-            .setMatch()
             .setRequires(createJwtRequirement(providers))
             .build()
+    }
+
+    private fun createHeaderMatcherBuilder(methods: Set<String>): HeaderMatcher.Builder {
+        return HeaderMatcher.newBuilder()
+            .setName(":method")
+            .setSafeRegexMatch(
+                RegexMatcher.newBuilder().setRegex(methods.joinToString("|")).setGoogleRe2(
+                    RegexMatcher.GoogleRE2.getDefaultInstance()
+                ).build()
+            )
     }
 
     private val requirementsForProviders: Map<ProviderName, JwtRequirement> =
