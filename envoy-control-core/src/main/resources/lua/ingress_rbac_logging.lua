@@ -81,6 +81,11 @@ function envoy_on_response(handle)
         local headers = handle:headers()
         local lua_metadata = dynamic_metadata:get('envoy.filters.http.lua') or {}
         local jwt_status = (dynamic_metadata:get('envoy.filters.http.header_to_metadata') or {})['jwt-status'] or 'missing'
+        local jwt_metadata = dynamic_metadata:get('envoy.filters.http.jwt_authn') or {}
+        if jwt_metadata['jwt_failure_reason'] then
+            jwt_status = jwt_metadata['jwt_failure_reason']['message']
+        end
+
         local upstream_request_time = headers:get('x-envoy-upstream-service-time')
         local status_code = headers:get(':status')
         local rbac_action = 'shadow_denied'
