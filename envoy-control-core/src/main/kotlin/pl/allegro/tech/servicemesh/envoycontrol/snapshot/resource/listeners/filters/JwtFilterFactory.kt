@@ -79,6 +79,7 @@ class JwtFilterFactory(
         .setForward(properties.forwardJwt)
         .setForwardPayloadHeader(properties.forwardPayloadHeader)
         .setPayloadInMetadata(properties.payloadInMetadata)
+        .setFailedStatusInMetadata(properties.failedStatusInMetadata)
         .build()
 
     private fun createRules(endpoints: List<IncomingEndpoint>): Set<RequirementRule> {
