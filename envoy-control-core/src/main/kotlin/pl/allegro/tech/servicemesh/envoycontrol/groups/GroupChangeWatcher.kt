@@ -52,7 +52,14 @@ internal class GroupChangeWatcher(
     ): Watch {
         val oldGroups = cache.groups()
 
-        val watch = cache.createWatch(ads, request, knownResourceNames, responseConsumer, hasClusterChanged, allowDefaultEmptyEdsUpdate)
+        val watch = cache.createWatch(
+            ads,
+            request,
+            knownResourceNames,
+            responseConsumer,
+            hasClusterChanged,
+            allowDefaultEmptyEdsUpdate
+        )
         val groups = cache.groups()
         metrics.setCacheGroupsCount(groups.size)
         if (oldGroups != groups) {
