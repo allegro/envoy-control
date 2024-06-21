@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol
 
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.controlplane.cache.SnapshotCache
+import io.envoyproxy.controlplane.cache.v3.SimpleCache
 import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.envoyproxy.controlplane.server.DefaultExecutorGroup
 import io.envoyproxy.controlplane.server.ExecutorGroup
@@ -39,7 +40,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.Service
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
-import pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache
 import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
@@ -142,7 +142,7 @@ class ControlPlane private constructor(
             val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
 
             val groupSnapshotScheduler = buildGroupSnapshotScheduler(groupSnapshotProperties)
-            val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
+            val cache = SimpleCache(nodeGroup)
             val groupChangeWatcher = GroupChangeWatcher(cache, metrics, meterRegistry)
             val meteredConnectionsCallbacks = MetricsDiscoveryServerCallbacks(meterRegistry)
             val loggingDiscoveryServerCallbacks = LoggingDiscoveryServerCallbacks(
