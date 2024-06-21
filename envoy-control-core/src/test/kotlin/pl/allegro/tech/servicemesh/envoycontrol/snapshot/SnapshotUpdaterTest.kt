@@ -1121,7 +1121,8 @@ class SnapshotUpdaterTest {
             request: XdsRequest,
             knownResourceNames: MutableSet<String>,
             responseConsumer: Consumer<Response>,
-            hasClusterChanged: Boolean
+            hasClusterChanged: Boolean,
+            allowDefaultEmptyEdsUpdate: Boolean
         ): Watch {
             throw UnsupportedOperationException("not used in testing")
         }
