@@ -37,14 +37,14 @@ import org.junit.Test;
 public class SimpleCacheTest {
 
     private static final boolean ADS = ThreadLocalRandom.current().nextBoolean();
-    private static final String CLUSTER_NAME = "cluster0";
+    protected static final String CLUSTER_NAME = "cluster0";
     private static final String SECONDARY_CLUSTER_NAME = "cluster1";
     private static final String LISTENER_NAME = "listener0";
     private static final String ROUTE_NAME = "route0";
     private static final String SECRET_NAME = "secret0";
 
     private static final String VERSION1 = UUID.randomUUID().toString();
-    private static final String VERSION2 = UUID.randomUUID().toString();
+    protected static final String VERSION2 = UUID.randomUUID().toString();
 
     private static final Snapshot SNAPSHOT1 = Snapshot.create(
         ImmutableList.of(Cluster.newBuilder().setName(CLUSTER_NAME).build()),
@@ -62,7 +62,7 @@ public class SimpleCacheTest {
         ImmutableList.of(Secret.newBuilder().setName(SECRET_NAME).build()),
         VERSION2);
 
-    private static final Snapshot MULTIPLE_RESOURCES_SNAPSHOT2 = Snapshot.create(
+    protected static final Snapshot MULTIPLE_RESOURCES_SNAPSHOT2 = Snapshot.create(
         ImmutableList.of(Cluster.newBuilder().setName(CLUSTER_NAME).build(),
             Cluster.newBuilder().setName(SECONDARY_CLUSTER_NAME).build()),
         ImmutableList.of(ClusterLoadAssignment.newBuilder().setClusterName(CLUSTER_NAME).build(),
@@ -545,13 +545,17 @@ public class SimpleCacheTest {
         assertThat(cache.groups()).containsExactly(SingleNodeGroup.GROUP);
     }
 
-    private static class ResponseTracker implements Consumer<Response> {
+    protected static class ResponseTracker implements Consumer<Response> {
 
         private final LinkedList<Response> responses = new LinkedList<>();
 
         @Override
         public void accept(Response response) {
             responses.add(response);
+        }
+
+        public LinkedList<Response> getResponses() {
+            return responses;
         }
 
     }
@@ -566,9 +570,9 @@ public class SimpleCacheTest {
         }
     }
 
-    private static class SingleNodeGroup implements NodeGroup<String> {
+    protected static class SingleNodeGroup implements NodeGroup<String> {
 
-        private static final String GROUP = "node";
+        protected static final String GROUP = "node";
 
         @Override
         public String hash(Node node) {
@@ -580,7 +584,7 @@ public class SimpleCacheTest {
         }
     }
 
-    private static class WatchAndTracker {
+    protected static class WatchAndTracker {
 
         final Watch watch;
         final ResponseTracker tracker;

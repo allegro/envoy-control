@@ -7,6 +7,7 @@ import io.envoyproxy.controlplane.cache.Response;
 import io.envoyproxy.controlplane.cache.VersionedResource;
 import io.envoyproxy.controlplane.cache.Watch;
 import io.envoyproxy.controlplane.cache.XdsRequest;
+import io.envoyproxy.controlplane.cache.v3.SimpleCache;
 import io.envoyproxy.controlplane.cache.v3.Snapshot;
 import io.envoyproxy.envoy.config.core.v3.Node;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
@@ -20,11 +21,6 @@ import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
-
-    @Override
-    protected boolean shouldSendMissingEndpoints() {
-        return true;
-    }
 
     protected static final Snapshot SNAPSHOT_WITH_MISSING_RESOURCES = Snapshot.create(
             emptyList(),
@@ -45,7 +41,7 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
 
     @Test
     public void missingNamesListShouldReturnWatcherWithResponseInAdsMode() {
-        pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache<String> cache = new pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
 
@@ -61,7 +57,8 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
                         .build()),
                 Collections.emptySet(),
                 responseTracker,
-                false);
+                false,
+            true);
 
         assertThatWatchReceivesSnapshotWithMissingResources(new WatchAndTracker(watch, responseTracker), SNAPSHOT_WITH_MISSING_RESOURCES);
     }
