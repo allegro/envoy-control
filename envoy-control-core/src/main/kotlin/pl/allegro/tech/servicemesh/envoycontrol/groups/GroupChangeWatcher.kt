@@ -7,6 +7,7 @@ import io.envoyproxy.controlplane.cache.DeltaXdsRequest
 import io.envoyproxy.controlplane.cache.Response
 import io.envoyproxy.controlplane.cache.Watch
 import io.envoyproxy.controlplane.cache.XdsRequest
+import io.envoyproxy.controlplane.cache.v3.SimpleCache
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -14,7 +15,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.util.function.Consumer
-import pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache as SimpleCache
 
 /**
  * This class is needed to force snapshot creation in SnapshotUpdater when new group is added.
@@ -47,11 +47,12 @@ internal class GroupChangeWatcher(
         request: XdsRequest,
         knownResourceNames: MutableSet<String>,
         responseConsumer: Consumer<Response>,
-        hasClusterChanged: Boolean
+        hasClusterChanged: Boolean,
+        allowDefaultEmptyEdsUpdate: Boolean
     ): Watch {
         val oldGroups = cache.groups()
 
-        val watch = cache.createWatch(ads, request, knownResourceNames, responseConsumer, hasClusterChanged)
+        val watch = cache.createWatch(ads, request, knownResourceNames, responseConsumer, hasClusterChanged, allowDefaultEmptyEdsUpdate)
         val groups = cache.groups()
         metrics.setCacheGroupsCount(groups.size)
         if (oldGroups != groups) {
