@@ -94,7 +94,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
       XdsRequest request,
       Set<String> knownResourceNames,
       Consumer<Response> responseConsumer) {
-    return createWatch(ads, request, knownResourceNames, responseConsumer, false);
+    return createWatch(ads, request, knownResourceNames, responseConsumer, false, false);
   }
 
     /**
@@ -106,7 +106,8 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             XdsRequest request,
             Set<String> knownResourceNames,
             Consumer<Response> responseConsumer,
-            boolean hasClusterChanged) {
+            boolean hasClusterChanged,
+            boolean allowDefaultEmptyEdsUpdate) {
     Resources.ResourceType requestResourceType = request.getResourceType();
         Preconditions.checkNotNull(requestResourceType, "unsupported type URL %s",
                 request.getTypeUrl());
@@ -123,7 +124,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             U snapshot = snapshots.get(group);
             String version = snapshot == null ? "" : snapshot.version(requestResourceType, request.getResourceNamesList());
 
-            Watch watch = new Watch(ads, request, responseConsumer);
+            Watch watch = new Watch(ads, allowDefaultEmptyEdsUpdate, request, responseConsumer);
 
             if (snapshot != null) {
                 Set<String> requestedResources = ImmutableSet.copyOf(request.getResourceNamesList());

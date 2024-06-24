@@ -61,7 +61,9 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
                         .build()),
                 Collections.emptySet(),
                 responseTracker,
-                false);
+                false,
+                false
+            );
 
         assertThatWatchReceivesSnapshotWithMissingResources(new WatchAndTracker(watch, responseTracker), SNAPSHOT_WITH_MISSING_RESOURCES);
     }
