@@ -372,7 +372,8 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
     val paths = this.field("paths")?.list().orEmpty().map { it.stringValue }.toSet()
 
     if (isMoreThanOnePropertyDefined(paths, path, pathPrefix, pathRegex)) {
-        throw NodeMetadataValidationException("Precisely one of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is allowed")
+        throw NodeMetadataValidationException(
+            "Precisely one of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is allowed")
     }
 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
@@ -381,8 +382,10 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
     val oauth = properties.let { this.field("oauth")?.toOAuth(it) }
 
     return when {
-        paths.isNotEmpty() -> IncomingEndpoint(paths, "", PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
-        path != null -> IncomingEndpoint(paths, path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
+        paths.isNotEmpty() -> IncomingEndpoint(
+            paths, "", PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
+        path != null -> IncomingEndpoint(
+            paths, path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
         pathPrefix != null -> IncomingEndpoint(
             paths, pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy, oauth
         )
@@ -391,7 +394,8 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
             paths, pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy, oauth
         )
 
-        else -> throw NodeMetadataValidationException("One of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is required")
+        else -> throw NodeMetadataValidationException(
+            "One of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
 }
 
@@ -422,7 +426,8 @@ fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
     }
 }
 
-fun isMoreThanOnePropertyDefined(vararg properties: Any?): Boolean = countNonNullAndNotEmptyProperties(properties.toList()) > 1
+fun isMoreThanOnePropertyDefined(vararg properties: Any?): Boolean =
+    countNonNullAndNotEmptyProperties(properties.toList()) > 1
 
 private fun countNonNullAndNotEmptyProperties(props: List<Any?>): Int = props.filterNotNull().count {
     if (it is Set<*>) {

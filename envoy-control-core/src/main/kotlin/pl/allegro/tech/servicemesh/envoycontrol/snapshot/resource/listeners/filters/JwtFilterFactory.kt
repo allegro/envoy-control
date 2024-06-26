@@ -106,7 +106,8 @@ class JwtFilterFactory(
                 requirementRuleWithURITemplateMatching(it, endpoint.methods, providers)
             }.toSet()
         } else {
-            setOf(requirementRuleWithPathMatching(endpoint.path, endpoint.pathMatchingType, endpoint.methods, providers))
+            setOf(requirementRuleWithPathMatching(
+                endpoint.path, endpoint.pathMatchingType, endpoint.methods, providers))
         }
     }
 

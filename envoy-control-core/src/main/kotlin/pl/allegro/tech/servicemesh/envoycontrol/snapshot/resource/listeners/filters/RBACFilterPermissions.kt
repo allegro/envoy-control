@@ -14,10 +14,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 class RBACFilterPermissions {
     fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
         val permissions = listOfNotNull(
-            if (incomingEndpoint.paths.isNotEmpty())
+            if (incomingEndpoint.paths.isNotEmpty()) {
                 createPathTemplatesPermissionForEndpoint(incomingEndpoint)
-            else
-                createPathPermissionForEndpoint(incomingEndpoint),
+            } else {
+                createPathPermissionForEndpoint(incomingEndpoint)
+            },
             createMethodPermissions(incomingEndpoint),
         )
             .map { it.build() }
@@ -33,7 +34,7 @@ class RBACFilterPermissions {
                 incomingEndpoint.paths.map(this::createPathTemplate)))
     }
 
-    private fun createPathTemplate(path: String): Permission{
+    private fun createPathTemplate(path: String): Permission {
         return permission().setUriTemplate(TypedExtensionConfig.newBuilder()
             .setName("envoy.path.match.uri_template.uri_template_matcher")
             .setTypedConfig(Any.pack(
