@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.20.15]
+### Changed
+- Updated java-control-plane to 1.0.45 - remove custom SimpleCache modification in favor of java-control-plane implementation
+
 ## [0.20.14]
 ### Changed
 - Added test to check circuit breaker metric value

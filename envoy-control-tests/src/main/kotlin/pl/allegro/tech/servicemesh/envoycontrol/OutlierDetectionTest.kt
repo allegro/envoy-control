@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isFrom
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
+import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -33,9 +34,18 @@ class OutlierDetectionTest {
         @RegisterExtension
         val unhealthyService = EchoServiceExtension()
 
+        // necessary since Envoy 1.28.0 to keep the same behaviour (https://www.envoyproxy.io/docs/envoy/latest/version_history/v1.28/v1.28.0)
+        private val outlierEjectionConfig = """
+            layered_runtime:
+              layers:
+              - name: static_layer
+                static_layer:
+                  envoy.reloadable_features.check_mep_on_first_eject: false
+        """.trimIndent()
+
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl)
+        val envoy = EnvoyExtension(envoyControl, config = RandomConfigFile.copy(configOverride = outlierEjectionConfig))
     }
 
     @Test
