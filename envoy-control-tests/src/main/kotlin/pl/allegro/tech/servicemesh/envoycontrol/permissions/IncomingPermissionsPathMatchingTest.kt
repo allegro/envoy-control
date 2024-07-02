@@ -26,6 +26,8 @@ class IncomingPermissionsPathMatchingTest {
                   incoming:
                     unlistedEndpointsPolicy: blockAndLog
                     endpoints:
+                    - paths: ["/api/products", "/api/products/*/reviews", "/api/offers**"]
+                      clients: ["echo2"]
                     - path: "/path"
                       clients: ["echo2"]
                     - pathPrefix: "/prefix"
@@ -137,6 +139,14 @@ class IncomingPermissionsPathMatchingTest {
         }
         echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/abc/regex/1/segment").also {
             assertThat(it).isForbidden()
+        }
+    }
+
+    @Test
+    fun `echo should allow echo2 to access 'api' endpoints for matched Glob patterns in the 'paths' field`() {
+        // expect
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/products").also {
+            assertThat(it).isOk()
         }
     }
 }
