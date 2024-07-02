@@ -3,6 +3,11 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.21.0]
+### Changed
+- Updated `io.envoyproxy.controlplane` to `1.0.45`
+- Added `paths` field in API to support Glob Patterns
+
 ## [0.20.14]
 ### Changed
 - Added test to check circuit breaker metric value

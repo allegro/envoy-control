@@ -71,6 +71,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             permissionsEnabled = true,
             endpoints = listOf(
                 IncomingEndpoint(
+                    emptySet(),
                     "/oauth-protected",
                     PathMatchingType.PATH,
                     setOf("GET"),
@@ -110,6 +111,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             permissionsEnabled = true,
             endpoints = listOf(
                 IncomingEndpoint(
+                    emptySet(),
                     "/oauth-protected",
                     PathMatchingType.PATH,
                     setOf("GET"),
@@ -152,6 +154,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             permissionsEnabled = true,
             endpoints = listOf(
                 IncomingEndpoint(
+                    emptySet(),
                     "/oauth-protected",
                     PathMatchingType.PATH,
                     setOf("GET"),
@@ -178,6 +181,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             permissionsEnabled = true,
             endpoints = listOf(
                 IncomingEndpoint(
+                    emptySet(),
                     "/oauth-protected",
                     PathMatchingType.PATH,
                     setOf("GET"),
@@ -219,6 +223,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             permissionsEnabled = true,
             endpoints = listOf(
                 IncomingEndpoint(
+                    emptySet(),
                     "/oauth-protected",
                     PathMatchingType.PATH,
                     setOf("GET"),
@@ -264,6 +269,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
             permissionsEnabled = true,
             endpoints = listOf(
                 IncomingEndpoint(
+                    emptySet(),
                     "/oauth-protected",
                     PathMatchingType.PATH,
                     setOf("GET"),
@@ -336,7 +342,7 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
     ) = """
         {
           "policies": {
-            "IncomingEndpoint(path=/oauth-protected, pathMatchingType=PATH, methods=[GET], clients=[$clientsWithSelector], unlistedClientsPolicy=$unlistedClientsPolicy, oauth=$oauth)": {
+            "IncomingEndpoint(paths=[], path=/oauth-protected, pathMatchingType=PATH, methods=[GET], clients=[$clientsWithSelector], unlistedClientsPolicy=$unlistedClientsPolicy, oauth=$oauth)": {
               "permissions": [
                 {
                   "and_rules": {

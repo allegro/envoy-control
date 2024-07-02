@@ -369,9 +369,11 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
     val pathPrefix = this.field("pathPrefix")?.stringValue
     val path = this.field("path")?.stringValue
     val pathRegex = this.field("pathRegex")?.stringValue
+    val paths = this.field("paths")?.list().orEmpty().map { it.stringValue }.toSet()
 
-    if (isMoreThanOnePropertyDefined(path, pathPrefix, pathRegex)) {
-        throw NodeMetadataValidationException("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
+    if (isMoreThanOnePropertyDefined(paths, path, pathPrefix, pathRegex)) {
+        throw NodeMetadataValidationException(
+            "Precisely one of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is allowed")
     }
 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
@@ -380,16 +382,20 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
     val oauth = properties.let { this.field("oauth")?.toOAuth(it) }
 
     return when {
-        path != null -> IncomingEndpoint(path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
+        paths.isNotEmpty() -> IncomingEndpoint(
+            paths, "", PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
+        path != null -> IncomingEndpoint(
+            paths, path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
         pathPrefix != null -> IncomingEndpoint(
-            pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy, oauth
+            paths, pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy, oauth
         )
 
         pathRegex != null -> IncomingEndpoint(
-            pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy, oauth
+            paths, pathRegex, PathMatchingType.PATH_REGEX, methods, clients, unlistedClientsPolicy, oauth
         )
 
-        else -> throw NodeMetadataValidationException("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
+        else -> throw NodeMetadataValidationException(
+            "One of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is required")
     }
 }
 
@@ -420,7 +426,16 @@ fun Value.toIncomingRateLimitEndpoint(): IncomingRateLimitEndpoint {
     }
 }
 
-fun isMoreThanOnePropertyDefined(vararg properties: String?): Boolean = properties.filterNotNull().count() > 1
+fun isMoreThanOnePropertyDefined(vararg properties: Any?): Boolean =
+    countNonNullAndNotEmptyProperties(properties.toList()) > 1
+
+private fun countNonNullAndNotEmptyProperties(props: List<Any?>): Int = props.filterNotNull().count {
+    if (it is Set<*>) {
+        it.isNotEmpty()
+    } else {
+        true
+    }
+}
 
 private fun Value?.toIncomingTimeoutPolicy(): Incoming.TimeoutPolicy {
     val idleTimeout: Duration? = this?.field("idleTimeout")?.toDuration()
@@ -757,6 +772,7 @@ data class ClientWithSelector private constructor(
 }
 
 data class IncomingEndpoint(
+    override val paths: Set<String> = emptySet(),
     override val path: String = "",
     override val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
     override val methods: Set<String> = emptySet(),
@@ -797,6 +813,7 @@ data class OAuth(
 }
 
 interface EndpointBase {
+    val paths: Set<String>
     val path: String
     val pathMatchingType: PathMatchingType
     val methods: Set<String>

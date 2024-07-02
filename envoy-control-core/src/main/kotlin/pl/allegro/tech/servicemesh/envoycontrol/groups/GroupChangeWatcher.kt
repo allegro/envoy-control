@@ -44,14 +44,16 @@ internal class GroupChangeWatcher(
 
     override fun createWatch(
         ads: Boolean,
-        request: XdsRequest,
-        knownResourceNames: MutableSet<String>,
-        responseConsumer: Consumer<Response>,
-        hasClusterChanged: Boolean
+        request: XdsRequest?,
+        knownResourceNames: MutableSet<String>?,
+        responseConsumer: Consumer<Response>?,
+        hasClusterChanged: Boolean,
+        allowDefaultEmptyEdsUpdate: Boolean
     ): Watch {
         val oldGroups = cache.groups()
 
-        val watch = cache.createWatch(ads, request, knownResourceNames, responseConsumer, hasClusterChanged)
+        val watch = cache.createWatch(ads, request, knownResourceNames, responseConsumer, hasClusterChanged,
+            allowDefaultEmptyEdsUpdate)
         val groups = cache.groups()
         metrics.setCacheGroupsCount(groups.size)
         if (oldGroups != groups) {

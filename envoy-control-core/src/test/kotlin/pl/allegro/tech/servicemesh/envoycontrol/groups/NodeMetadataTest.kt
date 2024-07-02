@@ -119,7 +119,7 @@ class NodeMetadataTest {
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties()) }
-        assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
+        assertThat(exception.status.description).isEqualTo("Precisely one of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is allowed")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
@@ -135,18 +135,18 @@ class NodeMetadataTest {
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties()) }
-        assertThat(exception.status.description).isEqualTo("Precisely one of 'path', 'pathPrefix' or 'pathRegex' field is allowed")
+        assertThat(exception.status.description).isEqualTo("Precisely one of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is allowed")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 
     @Test
-    fun `should reject endpoint with no path or pathPrefix or pathRegex defined`() {
+    fun `should reject endpoint with empty paths or without path or pathPrefix or pathRegex defined`() {
         // given
         val proto = incomingEndpointProto(path = null, pathPrefix = null, pathRegex = null)
 
         // expects
         val exception = assertThrows<NodeMetadataValidationException> { proto.toIncomingEndpoint(snapshotProperties()) }
-        assertThat(exception.status.description).isEqualTo("One of 'path', 'pathPrefix' or 'pathRegex' field is required")
+        assertThat(exception.status.description).isEqualTo("One of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is required")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
     }
 

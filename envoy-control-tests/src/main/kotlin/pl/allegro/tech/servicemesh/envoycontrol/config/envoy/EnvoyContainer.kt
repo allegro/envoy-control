@@ -39,7 +39,7 @@ class EnvoyContainer(
         private const val ADMIN_PORT = 10000
 
         private const val MIN_SUPPORTED_ENVOY_VERSION = "v1.22.7"
-        private const val MAX_SUPPORTED_ENVOY_VERSION = "v1.24.0"
+        private const val MAX_SUPPORTED_ENVOY_VERSION = "v1.30.4"
 
         val DEFAULT_IMAGE = run {
             val version =
