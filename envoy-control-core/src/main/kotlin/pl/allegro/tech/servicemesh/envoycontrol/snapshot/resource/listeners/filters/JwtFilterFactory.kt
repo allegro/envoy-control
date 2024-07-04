@@ -64,7 +64,8 @@ class JwtFilterFactory(
             it.key to createProvider(it.value)
         }
 
-    private fun createProvider(provider: OAuthProvider) = JwtProvider.newBuilder()
+    private fun createProvider(provider: OAuthProvider): JwtProvider {
+        val jwtProvider = JwtProvider.newBuilder()
         .setRemoteJwks(
             RemoteJwks.newBuilder().setHttpUri(
                 HttpUri.newBuilder()
@@ -79,8 +80,13 @@ class JwtFilterFactory(
         .setForward(properties.forwardJwt)
         .setForwardPayloadHeader(properties.forwardPayloadHeader)
         .setPayloadInMetadata(properties.payloadInMetadata)
-        .setFailedStatusInMetadata(properties.failedStatusInMetadata)
-        .build()
+
+        if (properties.failedStatusInMetadataEnabled) {
+            jwtProvider.setFailedStatusInMetadata(properties.failedStatusInMetadata)
+        }
+
+        return jwtProvider.build()
+    }
 
     private fun createRules(endpoints: List<IncomingEndpoint>): Set<RequirementRule> {
         return endpoints.mapNotNull(this::createRuleForEndpoint).toSet()
