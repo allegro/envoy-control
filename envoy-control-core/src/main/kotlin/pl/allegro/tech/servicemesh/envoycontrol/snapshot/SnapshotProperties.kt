@@ -38,6 +38,7 @@ class SnapshotProperties {
     var retryPolicy = RetryPolicyProperties()
     var tcpDumpsEnabled: Boolean = true
     var shouldAuditGlobalSnapshot: Boolean = true
+    var compression: CompressionProperties = CompressionProperties()
 }
 
 class PathNormalizationProperties {
@@ -375,6 +376,26 @@ class DynamicForwardProxyProperties {
     var maxCachedHosts = 1024 // default Envoy's value
     var maxHostTtl = Duration.ofSeconds(300) // default Envoy's value
     var connectionTimeout = Duration.ofSeconds(1)
+}
+
+class CompressionProperties {
+    var gzip = GzipProperties()
+    var brotli = BrotliProperties()
+    var minContentLength = 100
+    var disableOnEtagHeader = true
+    var requestCompressionEnabled = false
+    var responseCompressionEnabled = false
+}
+
+class BrotliProperties {
+    var enabled = false
+    var quality = 11
+    var chooseFirst = true
+}
+
+class GzipProperties {
+    var enabled = false
+    var chooseFirst = false
 }
 
 data class OAuthProvider(
