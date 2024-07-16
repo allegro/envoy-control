@@ -92,7 +92,9 @@ public class SimpleCacheTest {
                         .build()),
                 Collections.emptySet(),
                 responseTracker,
-                false);
+                false,
+                false
+            );
 
         assertThatWatchIsOpenWithNoResponses(new WatchAndTracker(watch, responseTracker));
     }
@@ -114,7 +116,9 @@ public class SimpleCacheTest {
                         .build()),
                 Collections.emptySet(),
                 responseTracker,
-                false);
+                false,
+                false
+            );
 
         assertThat(watch.isCancelled()).isFalse();
         assertThat(responseTracker.responses).isNotEmpty();
@@ -138,7 +142,9 @@ public class SimpleCacheTest {
                             .build()),
                     Collections.emptySet(),
                     responseTracker,
-                    false);
+                    false,
+                    false
+                );
 
             assertThat(watch.request().getTypeUrl()).isEqualTo(typeUrl);
             assertThat(watch.request().getResourceNamesList()).containsExactlyElementsOf(
@@ -166,7 +172,9 @@ public class SimpleCacheTest {
                         .build()),
                 Sets.newHashSet(""),
                 responseTracker,
-                true);
+                true,
+                false
+            );
 
         assertThat(watch.request().getTypeUrl()).isEqualTo(Resources.V3.ENDPOINT_TYPE_URL);
         assertThat(watch.request().getResourceNamesList()).containsExactlyElementsOf(
@@ -194,7 +202,9 @@ public class SimpleCacheTest {
                                             .build()),
                                     Collections.emptySet(),
                                     responseTracker,
-                                    false);
+                                    false,
+                                    false
+                                );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
@@ -236,7 +246,9 @@ public class SimpleCacheTest {
                                             responseTracker.accept(r);
                                             responseOrderTracker.accept(r);
                                         },
-                                        false);
+                                        false,
+                                        false
+                                    );
 
                                 return new WatchAndTracker(watch, responseTracker);
                             }))
@@ -288,7 +300,9 @@ public class SimpleCacheTest {
                                             .build()),
                                     SNAPSHOT2.resources(typeUrl).keySet(),
                                     responseTracker,
-                                    false);
+                                    false,
+                                    false
+                                );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
@@ -333,7 +347,9 @@ public class SimpleCacheTest {
                                             .build()),
                                     SNAPSHOT2.resources(typeUrl).keySet(),
                                     responseTracker,
-                                    false);
+                                    false,
+                                    false
+                                );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
@@ -366,7 +382,9 @@ public class SimpleCacheTest {
                                             .build()),
                                     SNAPSHOT1.resources(typeUrl).keySet(),
                                     responseTracker,
-                                    false);
+                                    false,
+                                    false
+                                );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
@@ -403,7 +421,9 @@ public class SimpleCacheTest {
                                             .build()),
                                     Collections.emptySet(),
                                     responseTracker,
-                                    false);
+                                    false,
+                                    false
+                                );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
@@ -435,7 +455,9 @@ public class SimpleCacheTest {
                         .build()),
                 Collections.singleton(ROUTE_NAME),
                 responseTracker,
-                false);
+                false,
+                false
+            );
 
         assertThatWatchIsOpenWithNoResponses(new WatchAndTracker(watch, responseTracker));
     }
@@ -475,7 +497,9 @@ public class SimpleCacheTest {
                         .build()),
                 Collections.emptySet(),
                 r -> { },
-                false);
+                false,
+                false
+            );
 
         // clearSnapshot should fail and the snapshot should be left untouched
         assertThat(cache.clearSnapshot(SingleNodeGroup.GROUP)).isFalse();
@@ -502,7 +526,9 @@ public class SimpleCacheTest {
                         .build()),
                 Collections.emptySet(),
                 r -> { },
-                false);
+                false,
+                false
+            );
 
         assertThat(cache.groups()).containsExactly(SingleNodeGroup.GROUP);
     }
