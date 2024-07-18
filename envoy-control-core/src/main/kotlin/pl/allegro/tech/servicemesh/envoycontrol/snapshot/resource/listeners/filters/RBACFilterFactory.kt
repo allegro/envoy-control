@@ -414,6 +414,9 @@ class RBACFilterFactory(
                                 .setKey(jwtProperties.payloadInMetadata)
                         ).addPath(
                             MetadataMatcher.PathSegment.newBuilder()
+                                .setKey(jwtProperties.failedStatusInMetadata)
+                        ).addPath(
+                            MetadataMatcher.PathSegment.newBuilder()
                                 .setKey(jwtProperties.fieldRequiredInToken)
                         )
                         .setValue(ValueMatcher.newBuilder().setPresentMatch(true)).build()
