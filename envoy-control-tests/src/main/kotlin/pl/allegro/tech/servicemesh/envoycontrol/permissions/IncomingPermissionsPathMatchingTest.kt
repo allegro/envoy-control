@@ -33,6 +33,8 @@ class IncomingPermissionsPathMatchingTest {
                       - /api/**/description
                       - /*/login
                       - /**/health
+                      - /file/*.js
+                      - /file/*.html
                       clients: ["echo2"]
                     - path: "/path"
                       clients: ["echo2"]
@@ -172,6 +174,12 @@ class IncomingPermissionsPathMatchingTest {
         echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/login").also {
             assertThat(it).isOk()
         }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/file/spa.js").also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/file/index.html").also {
+            assertThat(it).isOk()
+        }
         echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/products/too/many/reviews").also {
             assertThat(it).isForbidden()
         }
@@ -179,6 +187,9 @@ class IncomingPermissionsPathMatchingTest {
             assertThat(it).isForbidden()
         }
         echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/status/health/login").also {
+            assertThat(it).isForbidden()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/file/index.php").also {
             assertThat(it).isForbidden()
         }
     }
