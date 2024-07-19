@@ -182,5 +182,4 @@ class IncomingPermissionsPathMatchingTest {
             assertThat(it).isForbidden()
         }
     }
-
 }
