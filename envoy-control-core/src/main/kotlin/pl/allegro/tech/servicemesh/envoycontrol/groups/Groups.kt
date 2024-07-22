@@ -48,6 +48,7 @@ data class ListenersConfig(
     val accessLogPath: String = defaultAccessLogPath,
     val addUpstreamExternalAddressHeader: Boolean = defaultAddUpstreamExternalAddressHeader,
     val addUpstreamServiceTags: AddUpstreamServiceTagsCondition = AddUpstreamServiceTagsCondition.NEVER,
+    val addJwtFailureStatus: Boolean = true,
     val accessLogFilterSettings: AccessLogFilterSettings,
     val hasStaticSecretsDefined: Boolean = defaultHasStaticSecretsDefined,
     val useTransparentProxy: Boolean = defaultUseTransparentProxy
