@@ -391,6 +391,8 @@ class JwtFilterProperties {
     var forwardJwt: Boolean = true
     var forwardPayloadHeader = "x-oauth-token-validated"
     var payloadInMetadata = "jwt"
+    var failedStatusInMetadata = "jwt_failure_reason"
+    var failedStatusInMetadataEnabled = true
     var fieldRequiredInToken = "exp"
     var defaultVerificationType = OAuth.Verification.OFFLINE
     var defaultOAuthPolicy = OAuth.Policy.STRICT

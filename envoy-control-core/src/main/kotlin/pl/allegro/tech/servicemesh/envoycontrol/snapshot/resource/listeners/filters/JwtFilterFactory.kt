@@ -25,20 +25,29 @@ class JwtFilterFactory(
     private val properties: JwtFilterProperties
 ) {
 
-    private val jwtProviders: Map<ProviderName, JwtProvider> = getJwtProviders()
+    private val jwtProviderBuilders: Map<ProviderName, JwtProvider.Builder> = getJwtProviderBuilders()
     private val clientToOAuthProviderName: Map<String, String> =
         properties.providers.entries.flatMap { (providerName, provider) ->
             provider.matchings.keys.map { client -> client to providerName }
         }.toMap()
 
     fun createJwtFilter(group: Group): HttpFilter? {
-         return if (shouldCreateFilter(group)) {
+        val configuredJwtProviders =
+            if (group.listenersConfig?.addJwtFailureStatus != false && properties.failedStatusInMetadataEnabled) {
+                jwtProviderBuilders.mapValues {
+                    it.value.setFailedStatusInMetadata(properties.failedStatusInMetadata).build()
+                }
+            } else {
+                jwtProviderBuilders.mapValues { it.value.clearFailedStatusInMetadata().build() }
+            }
+
+        return if (shouldCreateFilter(group)) {
             HttpFilter.newBuilder()
                 .setName("envoy.filters.http.jwt_authn")
                 .setTypedConfig(
                     Any.pack(
                         JwtAuthentication.newBuilder().putAllProviders(
-                            jwtProviders
+                            configuredJwtProviders
                         )
                             .addAllRules(createRules(group.proxySettings.incoming.endpoints))
                             .build()
@@ -59,12 +68,12 @@ class JwtFilterFactory(
     private fun containsClientsWithSelector(it: IncomingEndpoint) =
         clientToOAuthProviderName.keys.intersect(it.clients.map { it.name }).isNotEmpty()
 
-    private fun getJwtProviders(): Map<ProviderName, JwtProvider> =
+    private fun getJwtProviderBuilders(): Map<ProviderName, JwtProvider.Builder> =
         properties.providers.entries.associate {
-            it.key to createProvider(it.value)
+            it.key to createProviderBuilder(it.value)
         }
 
-    private fun createProvider(provider: OAuthProvider) = JwtProvider.newBuilder()
+    private fun createProviderBuilder(provider: OAuthProvider) = JwtProvider.newBuilder()
         .setRemoteJwks(
             RemoteJwks.newBuilder().setHttpUri(
                 HttpUri.newBuilder()
@@ -79,7 +88,6 @@ class JwtFilterFactory(
         .setForward(properties.forwardJwt)
         .setForwardPayloadHeader(properties.forwardPayloadHeader)
         .setPayloadInMetadata(properties.payloadInMetadata)
-        .build()
 
     private fun createRules(endpoints: List<IncomingEndpoint>): Set<RequirementRule> {
         return endpoints.mapNotNull(this::createRuleForEndpoint).toSet()
@@ -136,7 +144,7 @@ class JwtFilterFactory(
     }
 
     private val requirementsForProviders: Map<ProviderName, JwtRequirement> =
-        jwtProviders.keys.associateWith { JwtRequirement.newBuilder().setProviderName(it).build() }
+        jwtProviderBuilders.keys.associateWith { JwtRequirement.newBuilder().setProviderName(it).build() }
 
     private val allowMissingOrFailedRequirement =
         JwtRequirement.newBuilder().setAllowMissingOrFailed(Empty.getDefaultInstance()).build()
