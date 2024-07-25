@@ -46,6 +46,7 @@ class PathNormalizationProperties {
     var mergeSlashes = true
     var pathWithEscapedSlashesAction = "KEEP_UNCHANGED"
 }
+
 class MetricsProperties {
     var cacheSetSnapshot = false
 }
@@ -65,7 +66,7 @@ class AccessLogProperties {
     var enabled = false
     var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
     var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
-            "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
+        "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
     var level = "TRACE"
     var logger = "envoy.AccessLog"
     var customFields = mapOf<String, String>()
@@ -131,6 +132,7 @@ class ClientsListsProperties {
     var defaultClientsList: List<String> = emptyList()
     var customClientsLists: Map<String, List<String>> = mapOf()
 }
+
 class TlsProtocolProperties {
     var cipherSuites: List<String> = listOf("ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-RSA-AES128-GCM-SHA256")
     var minimumVersion = TlsParameters.TlsProtocol.TLSv1_2
@@ -385,6 +387,7 @@ class CompressionProperties {
     var disableOnEtagHeader = true
     var requestCompressionEnabled = false
     var responseCompressionEnabled = false
+    var enableForServices: List<String> = emptyList()
 }
 
 class BrotliProperties {

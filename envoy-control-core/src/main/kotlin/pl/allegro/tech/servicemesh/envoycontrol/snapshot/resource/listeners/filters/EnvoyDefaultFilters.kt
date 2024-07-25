@@ -65,12 +65,12 @@ class EnvoyDefaultFilters(
         authorizationHeaderToMetadataFilter()
     }
 
-    val defaultGzipCompressionFilter = { _: Group, _: GlobalSnapshot ->
-        compressionFilterFactory.gzipCompressionFilter()
+    val defaultGzipCompressionFilter = { group: Group, _: GlobalSnapshot ->
+        compressionFilterFactory.gzipCompressionFilter(group)
     }
 
-    val defaultBrotliCompressionFilter = { _: Group, _: GlobalSnapshot ->
-        compressionFilterFactory.brotliCompressionFilter()
+    val defaultBrotliCompressionFilter = { group: Group, _: GlobalSnapshot ->
+        compressionFilterFactory.brotliCompressionFilter(group)
     }
 
     val defaultEgressFilters = listOf(

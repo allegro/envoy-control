@@ -9,6 +9,7 @@ import io.envoyproxy.envoy.extensions.compression.brotli.compressor.v3.Brotli
 import io.envoyproxy.envoy.extensions.compression.gzip.compressor.v3.Gzip
 import io.envoyproxy.envoy.extensions.filters.http.compressor.v3.Compressor
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class CompressionFilterFactory(val properties: SnapshotProperties) {
@@ -40,14 +41,14 @@ class CompressionFilterFactory(val properties: SnapshotProperties) {
         properties.compression.gzip.chooseFirst
     )
 
-    fun gzipCompressionFilter(): HttpFilter? {
-        return if (properties.compression.gzip.enabled) {
+    fun gzipCompressionFilter(group: Group): HttpFilter? {
+        return if (properties.compression.gzip.enabled && group.hasCompressionEnabled()) {
             gzipCompressionFilter
         } else null
     }
 
-    fun brotliCompressionFilter(): HttpFilter? {
-        return if (properties.compression.brotli.enabled) {
+    fun brotliCompressionFilter(group: Group): HttpFilter? {
+        return if (properties.compression.brotli.enabled && group.hasCompressionEnabled()) {
             brotliCompressionFilter
         } else null
     }
@@ -89,4 +90,6 @@ class CompressionFilterFactory(val properties: SnapshotProperties) {
                     .setDefaultValue(BoolValue.of(defaultValue))
             )
             .setMinContentLength(UInt32Value.of(properties.compression.minContentLength))
+
+    private fun Group.hasCompressionEnabled() = properties.compression.enableForServices.contains(this.serviceName)
 }
