@@ -4,7 +4,8 @@ Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [0.20.17]
-### Changed
+### Fixed
+- Fix JWT provider configuration to not impact lds cache
 - Add missing methods in lua scripts to remove logs about it
 
 ## [0.20.16]
