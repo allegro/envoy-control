@@ -14,42 +14,43 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 
 class CompressionFilterFactory(val properties: SnapshotProperties) {
 
-    private val brotliCompressionFilter: HttpFilter = compressionFilter(
-        TypedExtensionConfig.newBuilder()
-            .setName("envoy.compression.brotli.compressor")
-            .setTypedConfig(
-                com.google.protobuf.Any.pack(
-                    Brotli.newBuilder()
-                        .setQuality(UInt32Value.of(properties.compression.brotli.quality))
-                        .build()
-                )
-            ),
-        properties.compression.brotli.chooseFirst
-    )
-
-    private val gzipCompressionFilter: HttpFilter = compressionFilter(
-        TypedExtensionConfig.newBuilder()
-            .setName("envoy.compression.gzip.compressor")
-            .setTypedConfig(
-                com.google.protobuf.Any.pack(
-                    Gzip.newBuilder()
-                        .setCompressionStrategy(Gzip.CompressionStrategy.DEFAULT_STRATEGY)
-                        .setCompressionLevel(Gzip.CompressionLevel.forNumber(BEST_VALUE))
-                        .build()
-                )
-            ),
-        properties.compression.gzip.chooseFirst
-    )
-
     fun gzipCompressionFilter(group: Group): HttpFilter? {
-        return if (properties.compression.gzip.enabled && group.hasCompressionEnabled()) {
-            gzipCompressionFilter
+        val compressionLevel = Gzip.CompressionLevel.forNumber(
+            group.compressionConfig.gzip?.quality
+                ?: properties.compression.gzip.quality
+        ) ?: Gzip.CompressionLevel.forNumber(BEST_VALUE)
+        return if (group.compressionConfig.gzip?.enabled == true) {
+            compressionFilter(
+                TypedExtensionConfig.newBuilder()
+                    .setName("envoy.compression.gzip.compressor")
+                    .setTypedConfig(
+                        com.google.protobuf.Any.pack(
+                            Gzip.newBuilder()
+                                .setCompressionStrategy(Gzip.CompressionStrategy.DEFAULT_STRATEGY)
+                                .setCompressionLevel(compressionLevel)
+                                .build()
+                        )
+                    ),
+                properties.compression.gzip.chooseFirst
+            )
         } else null
     }
 
     fun brotliCompressionFilter(group: Group): HttpFilter? {
-        return if (properties.compression.brotli.enabled && group.hasCompressionEnabled()) {
-            brotliCompressionFilter
+        val compressionLevel = group.compressionConfig.brotli?.quality ?: properties.compression.brotli.quality
+        return if (group.compressionConfig.brotli?.enabled == true) {
+            compressionFilter(
+                TypedExtensionConfig.newBuilder()
+                    .setName("envoy.compression.brotli.compressor")
+                    .setTypedConfig(
+                        com.google.protobuf.Any.pack(
+                            Brotli.newBuilder()
+                                .setQuality(UInt32Value.of(compressionLevel))
+                                .build()
+                        )
+                    ),
+                properties.compression.brotli.chooseFirst
+            )
         } else null
     }
 
@@ -90,6 +91,4 @@ class CompressionFilterFactory(val properties: SnapshotProperties) {
                     .setDefaultValue(BoolValue.of(defaultValue))
             )
             .setMinContentLength(UInt32Value.of(properties.compression.minContentLength))
-
-    private fun Group.hasCompressionEnabled() = properties.compression.enableForServices.contains(this.serviceName)
 }
