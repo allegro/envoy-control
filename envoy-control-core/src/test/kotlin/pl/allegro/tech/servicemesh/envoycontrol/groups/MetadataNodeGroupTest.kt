@@ -31,7 +31,8 @@ class MetadataNodeGroupTest {
         pathWithEscapedSlashesAction = "KEEP_UNCHANGED"
     )
     private val defaultCompConfig = Compressor(false, 1)
-    private val compressionConfig =  CompressionConfig(defaultCompConfig, defaultCompConfig)
+    private val compressionConfig = CompressionConfig(defaultCompConfig, defaultCompConfig)
+
     @Test
     fun `should assign to group with all dependencies`() {
         // given
