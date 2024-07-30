@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
+import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.util.concurrent.TimeUnit
 
 interface EnvoyControlExtensionBase : BeforeAllCallback, AfterAllCallback {
@@ -16,6 +17,7 @@ class EnvoyControlExtension(private val consul: ConsulExtension, override val ap
     : EnvoyControlExtensionBase {
 
     private var started = false
+    private val logger by logger()
 
     constructor(consul: ConsulExtension, properties: Map<String, Any> = mapOf())
         : this(consul, EnvoyControlRunnerTestApp(
@@ -29,9 +31,11 @@ class EnvoyControlExtension(private val consul: ConsulExtension, override val ap
         }
 
         consul.beforeAll(context)
+        logger.info("Envoy control extension is starting.")
         app.run()
         waitUntilHealthy()
         started = true
+        logger.info("Envoy control extension started.")
     }
 
     private fun waitUntilHealthy() {
