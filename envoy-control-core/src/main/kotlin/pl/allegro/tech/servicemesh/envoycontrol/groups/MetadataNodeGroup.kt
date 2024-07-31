@@ -185,7 +185,8 @@ class MetadataNodeGroup(
                     discoveryServiceName,
                     proxySettings,
                     nodeMetadata.pathNormalizationConfig,
-                    listenersConfig
+                    listenersConfig,
+                    nodeMetadata.compressionConfig
                 )
             else ->
                 ServicesGroup(
@@ -194,7 +195,8 @@ class MetadataNodeGroup(
                     discoveryServiceName,
                     proxySettings,
                     nodeMetadata.pathNormalizationConfig,
-                    listenersConfig
+                    listenersConfig,
+                    nodeMetadata.compressionConfig
                 )
         }
     }

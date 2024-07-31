@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.AdsAllDependencies
 import pl.allegro.tech.servicemesh.envoycontrol.config.Xds
+import pl.allegro.tech.servicemesh.envoycontrol.config.XdsCompression
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
@@ -19,7 +20,6 @@ class CompressionFilterTest {
 
     companion object {
         private const val SERVICE_NAME = "service-1"
-        private const val DOWNSTREAM_SERVICE_NAME = "echo2"
         private const val LONG_STRING = "Workshallmeantheworkofauthorship,whetherinSourceorObjectform," +
             "madeavailableundertheLicensesindicatedbyacopyrightnoticethatisincludedinorattachedto" +
             "thework(anexampleisprovidedintheAppendixbelow)."
@@ -44,13 +44,9 @@ class CompressionFilterTest {
         val envoyControl = EnvoyControlExtension(
             consul,
             mapOf(
-                "envoy-control.envoy.snapshot.compression.gzip.enabled" to true,
-                "envoy-control.envoy.snapshot.compression.brotli.enabled" to true,
                 "envoy-control.envoy.snapshot.compression.minContentLength" to 100,
                 "envoy-control.envoy.snapshot.compression.responseCompressionEnabled" to true,
-                "envoy-control.envoy.snapshot.compression.enableForServices" to listOf(DOWNSTREAM_SERVICE_NAME),
                 "envoy-control.envoy.snapshot.outgoing-permissions.servicesAllowedToUseWildcard" to "test-service"
-
             )
         )
 
@@ -69,7 +65,7 @@ class CompressionFilterTest {
 
         @JvmField
         @RegisterExtension
-        val downstreamEnvoy = EnvoyExtension(envoyControl, downstreamService, Xds)
+        val downstreamEnvoy = EnvoyExtension(envoyControl, downstreamService, XdsCompression)
 
         @JvmField
         @RegisterExtension

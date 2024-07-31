@@ -1197,7 +1197,11 @@ class NodeMetadataTest {
     @Test
     fun `should parse normalization config`() {
         // given
-        val proto = pathNormalizationProto(normalizationEnabled = true, mergeSlashes = false, pathWithEscapedSlashesAction = "UNESCAPE_AND_REDIRECT")
+        val proto = pathNormalizationProto(
+            normalizationEnabled = true,
+            mergeSlashes = false,
+            pathWithEscapedSlashesAction = "UNESCAPE_AND_REDIRECT"
+        )
 
         // when
         val value = getPathNormalization(proto, snapshotProperties())
@@ -1207,10 +1211,15 @@ class NodeMetadataTest {
         assertThat(value.mergeSlashes).isFalse
         assertThat(value.pathWithEscapedSlashesAction).isEqualTo("UNESCAPE_AND_REDIRECT")
     }
+
     @Test
     fun `should use default values when there is no normalization config`() {
         // given
-        val proto = pathNormalizationProto(normalizationEnabled = null, mergeSlashes = null, pathWithEscapedSlashesAction = null)
+        val proto = pathNormalizationProto(
+            normalizationEnabled = null,
+            mergeSlashes = null,
+            pathWithEscapedSlashesAction = null
+        )
 
         // when
         val value = getPathNormalization(proto, snapshotProperties())
@@ -1331,6 +1340,73 @@ class NodeMetadataTest {
 
         // then
         assertThat(customData).isEqualTo(mapOf("abc" to true))
+    }
+
+    @Test
+    fun `should use default values when there is no compression config`() {
+        // given
+        val proto = compressionProto(gzipEnabled = false, brotliEnabled = false)
+
+        // when
+        val value = getCompressionSettings(proto, snapshotProperties())
+        // expects
+
+        assertThat(value.brotli?.enabled).isFalse()
+        assertThat(value.brotli?.quality).isEqualTo(1)
+        assertThat(value.gzip?.enabled).isFalse()
+        assertThat(value.gzip?.quality).isEqualTo(1)
+    }
+
+    @Test
+    fun `should parse gzip config and set default quality if missing`() {
+        // given
+        val proto = compressionProto(gzipEnabled = true, brotliEnabled = false)
+
+        // when
+        val value = getCompressionSettings(proto, snapshotProperties())
+        // expects
+
+        assertThat(value.gzip?.enabled).isTrue()
+        assertThat(value.gzip?.quality).isEqualTo(1)
+    }
+
+    @Test
+    fun `should parse gzip config`() {
+        // given
+        val proto = compressionProto(gzipEnabled = true, gzipQuality = 2, brotliEnabled = false)
+
+        // when
+        val value = getCompressionSettings(proto, snapshotProperties())
+        // expects
+
+        assertThat(value.gzip?.enabled).isTrue()
+        assertThat(value.gzip?.quality).isEqualTo(2)
+    }
+
+    @Test
+    fun `should parse brotli config and set default quality if missing`() {
+        // given
+        val proto = compressionProto(gzipEnabled = false, brotliEnabled = true)
+
+        // when
+        val value = getCompressionSettings(proto, snapshotProperties())
+        // expects
+
+        assertThat(value.brotli?.enabled).isTrue()
+        assertThat(value.gzip?.quality).isEqualTo(1)
+    }
+
+    @Test
+    fun `should parse brotli config`() {
+        // given
+        val proto = compressionProto(gzipEnabled = false, brotliEnabled = true, brotliQuality = 3)
+
+        // when
+        val value = getCompressionSettings(proto, snapshotProperties())
+        // expects
+
+        assertThat(value.brotli?.enabled).isTrue()
+        assertThat(value.brotli?.quality).isEqualTo(3)
     }
 
     fun ObjectAssert<DependencySettings>.hasTimeouts(

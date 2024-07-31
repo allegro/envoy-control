@@ -381,24 +381,18 @@ class DynamicForwardProxyProperties {
 }
 
 class CompressionProperties {
-    var gzip = GzipProperties()
-    var brotli = BrotliProperties()
+    var gzip = CompressorProperties()
+    var brotli = CompressorProperties()
     var minContentLength = 100
     var disableOnEtagHeader = true
     var requestCompressionEnabled = false
     var responseCompressionEnabled = false
-    var enableForServices: List<String> = emptyList()
 }
 
-class BrotliProperties {
+class CompressorProperties {
     var enabled = false
-    var quality = 11
+    var quality = 1
     var chooseFirst = true
-}
-
-class GzipProperties {
-    var enabled = false
-    var chooseFirst = false
 }
 
 data class OAuthProvider(
