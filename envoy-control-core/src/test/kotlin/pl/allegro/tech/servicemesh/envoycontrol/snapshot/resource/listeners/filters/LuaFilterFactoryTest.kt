@@ -17,13 +17,15 @@ internal class LuaFilterFactoryTest {
     val properties = SnapshotProperties().also { it.incomingPermissions = IncomingPermissionsProperties() }
 
     @Test
-    fun `should create metadata with service name and discovery service name`() {
+    fun `should create metadata with service name and discovery service name and service-id`() {
         // given
         val expectedServiceName = "service-1"
         val expectedDiscoveryServiceName = "consul-service-1"
+        val expectedServiceId = "777"
         val group: Group = ServicesGroup(
             communicationMode = CommunicationMode.XDS,
             serviceName = expectedServiceName,
+            serviceId = expectedServiceId,
             discoveryServiceName = expectedDiscoveryServiceName
         )
         val factory = LuaFilterFactory(properties)
@@ -40,9 +42,15 @@ internal class LuaFilterFactoryTest {
             .getFieldsOrThrow("discovery_service_name")
             .stringValue
 
+        val givenServiceId = metadata
+            .getFilterMetadataOrThrow("envoy.filters.http.lua")
+            .getFieldsOrThrow("service_id")
+            .stringValue
+
         // then
         assertThat(givenServiceName).isEqualTo(expectedServiceName)
         assertThat(givenDiscoveryServiceName).isEqualTo(expectedDiscoveryServiceName)
+        assertThat(givenServiceId).isEqualTo(expectedServiceId)
     }
 
     @Test

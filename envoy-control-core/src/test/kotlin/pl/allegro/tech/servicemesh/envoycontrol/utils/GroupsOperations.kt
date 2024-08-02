@@ -24,15 +24,15 @@ fun createServicesGroup(
     listenersConfig: ListenersConfig? = createListenersConfig(snapshotProperties)
 ): ServicesGroup {
     return ServicesGroup(
-        mode,
-        serviceName,
-        discoveryServiceName,
-        ProxySettings().with(
+        communicationMode = mode,
+        serviceName = serviceName,
+        discoveryServiceName = discoveryServiceName,
+        proxySettings = ProxySettings().with(
             serviceDependencies = serviceDependencies(*dependencies),
             rateLimitEndpoints = rateLimitEndpoints
         ),
-        PathNormalizationConfig(),
-        listenersConfig
+        pathNormalizationConfig = PathNormalizationConfig(),
+        listenersConfig = listenersConfig
     )
 }
 
@@ -50,15 +50,15 @@ fun createAllServicesGroup(
         false -> null
     }
     return AllServicesGroup(
-        mode,
-        serviceName,
-        discoveryServiceName,
-        ProxySettings().with(
+        communicationMode = mode,
+        serviceName = serviceName,
+        discoveryServiceName = discoveryServiceName,
+        proxySettings = ProxySettings().with(
             serviceDependencies = serviceDependencies(*dependencies),
             defaultServiceSettings = defaultServiceSettings
         ),
-        PathNormalizationConfig(),
-        listenersConfig
+        pathNormalizationConfig = PathNormalizationConfig(),
+        listenersConfig = listenersConfig
     )
 }
 
