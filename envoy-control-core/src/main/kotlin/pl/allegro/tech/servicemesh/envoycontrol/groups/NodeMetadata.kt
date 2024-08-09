@@ -28,7 +28,7 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
         .fieldsMap["service_name"]
         ?.stringValue
 
-    val serviceId: String? = metadata.fieldsMap["service_id"]?.stringValue
+    val serviceId: Int? = metadata.fieldsMap["service_id"]?.numberValue?.toInt()
 
     val discoveryServiceName: String? = metadata
         .fieldsMap["discovery_service_name"]

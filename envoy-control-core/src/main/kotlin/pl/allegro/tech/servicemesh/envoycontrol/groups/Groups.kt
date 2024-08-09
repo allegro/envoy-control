@@ -5,7 +5,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFiltersPropert
 sealed class Group {
     abstract val communicationMode: CommunicationMode
     abstract val serviceName: String
-    abstract val serviceId: String?
+    abstract val serviceId: Int?
     abstract val discoveryServiceName: String?
     abstract val proxySettings: ProxySettings
     abstract val pathNormalizationConfig: PathNormalizationConfig
@@ -16,7 +16,7 @@ sealed class Group {
 data class ServicesGroup(
     override val communicationMode: CommunicationMode,
     override val serviceName: String = "",
-    override val serviceId: String? = null,
+    override val serviceId: Int? = null,
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
     override val pathNormalizationConfig: PathNormalizationConfig = PathNormalizationConfig(),
@@ -27,7 +27,7 @@ data class ServicesGroup(
 data class AllServicesGroup(
     override val communicationMode: CommunicationMode,
     override val serviceName: String = "",
-    override val serviceId: String? = null,
+    override val serviceId: Int? = null,
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
     override val pathNormalizationConfig: PathNormalizationConfig = PathNormalizationConfig(),
