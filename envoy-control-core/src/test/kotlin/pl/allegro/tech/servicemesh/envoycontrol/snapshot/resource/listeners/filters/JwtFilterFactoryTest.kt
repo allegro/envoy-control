@@ -204,7 +204,8 @@ internal class JwtFilterFactoryTest {
       },
       "forward": true,
       "forwardPayloadHeader": "x-oauth-token-validated",
-      "payloadInMetadata": "jwt"
+      "payloadInMetadata": "jwt",
+      "failedStatusInMetadata": "jwt_failure_reason"
     }
   },
   "rules": [{
@@ -228,7 +229,8 @@ internal class JwtFilterFactoryTest {
       },
       "forward": true,
       "forwardPayloadHeader": "x-oauth-token-validated",
-      "payloadInMetadata": "jwt"
+      "payloadInMetadata": "jwt",
+      "failedStatusInMetadata": "jwt_failure_reason"
     },
     "provider2": {
       "remoteJwks": {
@@ -241,7 +243,8 @@ internal class JwtFilterFactoryTest {
       },
       "forward": true,
       "forwardPayloadHeader": "x-oauth-token-validated",
-      "payloadInMetadata": "jwt"
+      "payloadInMetadata": "jwt",
+      "failedStatusInMetadata": "jwt_failure_reason"
     }
   },
   "rules": [{
@@ -278,7 +281,8 @@ internal class JwtFilterFactoryTest {
       },
       "forward": true,
       "forwardPayloadHeader": "x-oauth-token-validated",
-      "payloadInMetadata": "jwt"
+      "payloadInMetadata": "jwt",
+      "failedStatusInMetadata": "jwt_failure_reason"
     },
     "provider2": {
       "remoteJwks": {
@@ -291,7 +295,8 @@ internal class JwtFilterFactoryTest {
       },
       "forward": true,
       "forwardPayloadHeader": "x-oauth-token-validated",
-      "payloadInMetadata": "jwt"
+      "payloadInMetadata": "jwt",
+      "failedStatusInMetadata": "jwt_failure_reason"
     }
   },
   "rules": [{

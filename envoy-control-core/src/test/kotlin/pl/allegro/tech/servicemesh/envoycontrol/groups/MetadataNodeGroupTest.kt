@@ -30,6 +30,9 @@ class MetadataNodeGroupTest {
         mergeSlashes = true,
         pathWithEscapedSlashesAction = "KEEP_UNCHANGED"
     )
+    private val defaultCompConfig = Compressor(false, 1)
+    private val compressionConfig = CompressionConfig(defaultCompConfig, defaultCompConfig)
+
     @Test
     fun `should assign to group with all dependencies`() {
         // given
@@ -50,7 +53,8 @@ class MetadataNodeGroupTest {
                 proxySettings = ProxySettings().with(
                     serviceDependencies = serviceDependencies("a", "b", "c"),
                     allServicesDependencies = true
-                )
+                ),
+                compressionConfig = compressionConfig
             )
         )
     }
@@ -68,7 +72,8 @@ class MetadataNodeGroupTest {
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = setOf()),
                 pathNormalizationConfig = defaultNormalizationConfig,
-                communicationMode = XDS
+                communicationMode = XDS,
+                compressionConfig = compressionConfig
             )
         )
     }
@@ -87,7 +92,8 @@ class MetadataNodeGroupTest {
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
                 pathNormalizationConfig = defaultNormalizationConfig,
-                communicationMode = XDS
+                communicationMode = XDS,
+                compressionConfig = compressionConfig
             )
         )
     }
@@ -106,7 +112,8 @@ class MetadataNodeGroupTest {
             AllServicesGroup(
                 communicationMode = ADS,
                 pathNormalizationConfig = defaultNormalizationConfig,
-                proxySettings = ProxySettings().with(allServicesDependencies = true)
+                proxySettings = ProxySettings().with(allServicesDependencies = true),
+                compressionConfig = compressionConfig
             )
         )
     }
@@ -125,7 +132,8 @@ class MetadataNodeGroupTest {
             ServicesGroup(
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
                 pathNormalizationConfig = defaultNormalizationConfig,
-                communicationMode = ADS
+                communicationMode = ADS,
+                compressionConfig = compressionConfig
             )
         )
     }
@@ -146,7 +154,8 @@ class MetadataNodeGroupTest {
                 // because service may define different settings for different dependencies (for example retry config)
                 communicationMode = ADS,
                 pathNormalizationConfig = defaultNormalizationConfig,
-                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c"))
+                proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
+                compressionConfig = compressionConfig
             )
         )
     }
@@ -170,7 +179,8 @@ class MetadataNodeGroupTest {
                 proxySettings = ProxySettings().with(serviceDependencies = serviceDependencies("a", "b", "c")),
                 pathNormalizationConfig = defaultNormalizationConfig,
                 communicationMode = XDS,
-                serviceName = "app1"
+                serviceName = "app1",
+                compressionConfig = compressionConfig
             )
         )
     }
@@ -210,7 +220,8 @@ class MetadataNodeGroupTest {
                 communicationMode = ADS,
                 serviceName = "app1",
                 pathNormalizationConfig = defaultNormalizationConfig,
-                proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("a", "b"))
+                proxySettings = addedProxySettings.with(serviceDependencies = serviceDependencies("a", "b")),
+                compressionConfig = compressionConfig
             )
         )
     }
@@ -232,7 +243,8 @@ class MetadataNodeGroupTest {
                 communicationMode = XDS,
                 serviceName = "app1",
                 pathNormalizationConfig = defaultNormalizationConfig,
-                proxySettings = addedProxySettings.with(allServicesDependencies = true)
+                proxySettings = addedProxySettings.with(allServicesDependencies = true),
+                compressionConfig = compressionConfig
             )
         )
     }

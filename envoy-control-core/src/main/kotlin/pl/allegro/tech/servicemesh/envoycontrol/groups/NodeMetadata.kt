@@ -9,6 +9,7 @@ import io.grpc.Status
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector.Companion.decomposeClient
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.AccessLogFiltersProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CommonHttpProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CompressorProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.RetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import pl.allegro.tech.servicemesh.envoycontrol.utils.AccessLogFilterParser
@@ -35,6 +36,7 @@ class NodeMetadata(metadata: Struct, properties: SnapshotProperties) {
 
     val pathNormalizationConfig = getPathNormalization(metadata.fieldsMap["path_normalization"], properties)
     val proxySettings: ProxySettings = ProxySettings(metadata.fieldsMap["proxy_settings"], properties)
+    val compressionConfig: CompressionConfig = getCompressionSettings(metadata.fieldsMap["compression"], properties)
 }
 
 data class AccessLogFilterSettings(val proto: Value?, val properties: AccessLogFiltersProperties) {
@@ -83,6 +85,22 @@ fun getPathNormalization(proto: Value?, snapshotProperties: SnapshotProperties):
         mergeSlashes = proto.field("merge_slashes")?.boolValue ?: defaultNormalizationConfig.mergeSlashes,
         pathWithEscapedSlashesAction = proto.field("path_with_escaped_slashes_action")?.stringValue
             ?: defaultNormalizationConfig.pathWithEscapedSlashesAction
+    )
+}
+
+fun getCompressionSettings(proto: Value?, snapshotProperties: SnapshotProperties): CompressionConfig {
+    val defaultCompressionConfig = CompressionConfig(
+        Compressor(snapshotProperties.compression.gzip.enabled, snapshotProperties.compression.gzip.quality),
+        Compressor(snapshotProperties.compression.brotli.enabled, snapshotProperties.compression.brotli.quality)
+    )
+    if (proto == null) {
+        return defaultCompressionConfig
+    }
+    return CompressionConfig(
+        proto.field("gzip")?.toCompressorProperties(snapshotProperties.compression.gzip)
+            ?: defaultCompressionConfig.gzip,
+        proto.field("brotli")?.toCompressorProperties(snapshotProperties.compression.brotli)
+            ?: defaultCompressionConfig.brotli,
     )
 }
 
@@ -341,6 +359,15 @@ fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
         timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy(),
         unlistedEndpointsPolicy = this?.field("unlistedEndpointsPolicy").toUnlistedPolicy()
+    )
+}
+
+fun Value?.toCompressorProperties(properties: CompressorProperties): Compressor {
+    val enabled = this?.field("enabled")?.boolValue
+    val quality = this?.field("quality")?.numberValue?.toInt()
+    return Compressor(
+        enabled ?: properties.enabled,
+        quality ?: properties.quality
     )
 }
 

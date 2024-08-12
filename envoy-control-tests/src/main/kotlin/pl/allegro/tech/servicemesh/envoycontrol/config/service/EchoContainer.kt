@@ -3,12 +3,11 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.service
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
-import java.util.UUID
 import java.util.Locale
+import java.util.UUID
 
-class EchoContainer : GenericContainer<EchoContainer>("jxlwqq/http-echo"), ServiceContainer {
-
-    val response = UUID.randomUUID().toString()
+class EchoContainer(val response: String = UUID.randomUUID().toString()) :
+    GenericContainer<EchoContainer>("jxlwqq/http-echo"), ServiceContainer {
 
     override fun configure() {
         super.configure()

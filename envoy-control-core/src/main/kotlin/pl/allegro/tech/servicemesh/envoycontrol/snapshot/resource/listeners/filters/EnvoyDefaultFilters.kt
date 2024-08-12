@@ -28,6 +28,8 @@ class EnvoyDefaultFilters(
         properties = snapshotProperties.routing.serviceTags
     )
 
+    private val compressionFilterFactory = CompressionFilterFactory(snapshotProperties)
+
     private val defaultServiceTagHeaderToMetadataFilterRules = serviceTagFilterFactory.headerToMetadataFilterRules()
     private val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagHeaderToMetadataFilterRules)
     private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
@@ -62,8 +64,21 @@ class EnvoyDefaultFilters(
     val defaultAuthorizationHeaderFilter = { _: Group, _: GlobalSnapshot ->
         authorizationHeaderToMetadataFilter()
     }
+
+    val defaultGzipCompressionFilter = { group: Group, _: GlobalSnapshot ->
+        compressionFilterFactory.gzipCompressionFilter(group)
+    }
+
+    val defaultBrotliCompressionFilter = { group: Group, _: GlobalSnapshot ->
+        compressionFilterFactory.brotliCompressionFilter(group)
+    }
+
     val defaultEgressFilters = listOf(
-        defaultHeaderToMetadataFilter, defaultServiceTagFilter, defaultEnvoyRouterHttpFilter
+        defaultHeaderToMetadataFilter,
+        defaultServiceTagFilter,
+        defaultGzipCompressionFilter,
+        defaultBrotliCompressionFilter,
+        defaultEnvoyRouterHttpFilter,
     )
 
     val defaultCurrentZoneHeaderFilter = { _: Group, _: GlobalSnapshot ->

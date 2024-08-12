@@ -128,22 +128,22 @@ fun pathNormalizationProto(
     mergeSlashes: Boolean?,
     pathWithEscapedSlashesAction: String?
 ) = struct {
-        normalizationEnabled?.let {
-            putFields(
-                "enabled", boolean(it)
-            )
-        }
-        mergeSlashes?.let {
-            putFields(
-                "merge_slashes", boolean(it)
-            )
-        }
-        pathWithEscapedSlashesAction?.let {
-            putFields(
-                "path_with_escaped_slashes_action", string(it)
-            )
-        }
+    normalizationEnabled?.let {
+        putFields(
+            "enabled", boolean(it)
+        )
     }
+    mergeSlashes?.let {
+        putFields(
+            "merge_slashes", boolean(it)
+        )
+    }
+    pathWithEscapedSlashesAction?.let {
+        putFields(
+            "path_with_escaped_slashes_action", string(it)
+        )
+    }
+}
 
 fun accessLogBooleanFilterProto(value: Boolean? = null, fieldName: String): Value = struct {
     when {
@@ -199,6 +199,38 @@ fun proxySettingsProto(
         putFields("outgoing", outgoingDependenciesProto {
             withServices(serviceDependencies.toList(), idleTimeout, responseTimeout)
         })
+    }
+}
+
+fun compressionProto(
+    gzipEnabled: Boolean? = null,
+    gzipQuality: Int? = null,
+    brotliEnabled: Boolean? = null,
+    brotliQuality: Int? = null,
+) = struct {
+    gzipEnabled?.let {
+        putFields(
+            "gzip", struct {
+                if (gzipEnabled == true) {
+                    putFields("enabled", boolean(true))
+                }
+                gzipQuality?.let {
+                    putFields("quality", integer(gzipQuality))
+                }
+            }
+        )
+    }
+    brotliEnabled?.let {
+        putFields(
+            "brotli", struct {
+                if (brotliEnabled == true) {
+                    putFields("enabled", boolean(true))
+                }
+                brotliQuality?.let {
+                    putFields("quality", integer(brotliQuality))
+                }
+            }
+        )
     }
 }
 

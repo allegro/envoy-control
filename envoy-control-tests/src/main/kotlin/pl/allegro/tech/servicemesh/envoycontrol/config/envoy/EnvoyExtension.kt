@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
 import org.assertj.core.api.Assertions.assertThat
+import org.awaitility.Awaitility
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
@@ -15,11 +16,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControl
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 class EnvoyExtension(
     private val envoyControl: EnvoyControlExtensionBase,
     private val localService: ServiceExtension<*>? = null,
-    private val config: EnvoyConfig = RandomConfigFile
+    config: EnvoyConfig = RandomConfigFile
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     companion object {
@@ -38,12 +40,18 @@ class EnvoyExtension(
     override fun beforeAll(context: ExtensionContext) {
         localService?.beforeAll(context)
         envoyControl.beforeAll(context)
-
         try {
             container.start()
+            waitUntilHealthy()
         } catch (e: Exception) {
             logger.error("Logs from failed container: ${container.logs}")
             throw e
+        }
+    }
+
+    private fun waitUntilHealthy() {
+        Awaitility.await().atMost(1, TimeUnit.MINUTES).untilAsserted {
+            assertThat(container.admin().isIngressReady())
         }
     }
 

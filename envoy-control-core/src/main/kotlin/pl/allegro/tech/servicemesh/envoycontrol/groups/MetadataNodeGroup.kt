@@ -12,6 +12,8 @@ import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 @Suppress("MagicNumber")
 val MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA = envoyVersion(1, 24)
+@Suppress("MagicNumber")
+val MIN_ENVOY_VERSION_SUPPORTING_JWT_FAILURE_STATUS = envoyVersion(1, 26)
 
 class MetadataNodeGroup(
     val properties: SnapshotProperties
@@ -133,6 +135,8 @@ class MetadataNodeGroup(
         val useTransparentProxy = metadata.fieldsMap["use_transparent_proxy"]?.boolValue
             ?: ListenersConfig.defaultUseTransparentProxy
 
+        val addJwtFailureStatus = envoyVersion.version >= MIN_ENVOY_VERSION_SUPPORTING_JWT_FAILURE_STATUS
+
         return ListenersConfig(
             listenersHostPort.ingressHost,
             listenersHostPort.ingressPort,
@@ -146,6 +150,7 @@ class MetadataNodeGroup(
             accessLogPath,
             addUpstreamExternalAddressHeader,
             addUpstreamServiceTags,
+            addJwtFailureStatus,
             accessLogFilterSettings,
             hasStaticSecretsDefined,
             useTransparentProxy
@@ -180,7 +185,8 @@ class MetadataNodeGroup(
                     discoveryServiceName,
                     proxySettings,
                     nodeMetadata.pathNormalizationConfig,
-                    listenersConfig
+                    listenersConfig,
+                    nodeMetadata.compressionConfig
                 )
             else ->
                 ServicesGroup(
@@ -189,7 +195,8 @@ class MetadataNodeGroup(
                     discoveryServiceName,
                     proxySettings,
                     nodeMetadata.pathNormalizationConfig,
-                    listenersConfig
+                    listenersConfig,
+                    nodeMetadata.compressionConfig
                 )
         }
     }

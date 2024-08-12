@@ -38,6 +38,7 @@ class SnapshotProperties {
     var retryPolicy = RetryPolicyProperties()
     var tcpDumpsEnabled: Boolean = true
     var shouldAuditGlobalSnapshot: Boolean = true
+    var compression: CompressionProperties = CompressionProperties()
 }
 
 class PathNormalizationProperties {
@@ -45,6 +46,7 @@ class PathNormalizationProperties {
     var mergeSlashes = true
     var pathWithEscapedSlashesAction = "KEEP_UNCHANGED"
 }
+
 class MetricsProperties {
     var cacheSetSnapshot = false
 }
@@ -64,7 +66,7 @@ class AccessLogProperties {
     var enabled = false
     var timeFormat = "%START_TIME(%FT%T.%3fZ)%"
     var messageFormat = "%PROTOCOL% %REQ(:METHOD)% %REQ(:authority)% %REQ(:PATH)% " +
-            "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
+        "%DOWNSTREAM_REMOTE_ADDRESS% -> %UPSTREAM_HOST%"
     var level = "TRACE"
     var logger = "envoy.AccessLog"
     var customFields = mapOf<String, String>()
@@ -130,6 +132,7 @@ class ClientsListsProperties {
     var defaultClientsList: List<String> = emptyList()
     var customClientsLists: Map<String, List<String>> = mapOf()
 }
+
 class TlsProtocolProperties {
     var cipherSuites: List<String> = listOf("ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-RSA-AES128-GCM-SHA256")
     var minimumVersion = TlsParameters.TlsProtocol.TLSv1_2
@@ -377,6 +380,21 @@ class DynamicForwardProxyProperties {
     var connectionTimeout = Duration.ofSeconds(1)
 }
 
+class CompressionProperties {
+    var gzip = CompressorProperties()
+    var brotli = CompressorProperties()
+    var minContentLength = 100
+    var disableOnEtagHeader = true
+    var requestCompressionEnabled = false
+    var responseCompressionEnabled = false
+}
+
+class CompressorProperties {
+    var enabled = false
+    var quality = 1
+    var chooseFirst = true
+}
+
 data class OAuthProvider(
     var jwksUri: URI = URI.create("http://localhost"),
     var createCluster: Boolean = false,
@@ -391,6 +409,8 @@ class JwtFilterProperties {
     var forwardJwt: Boolean = true
     var forwardPayloadHeader = "x-oauth-token-validated"
     var payloadInMetadata = "jwt"
+    var failedStatusInMetadata = "jwt_failure_reason"
+    var failedStatusInMetadataEnabled = true
     var fieldRequiredInToken = "exp"
     var defaultVerificationType = OAuth.Verification.OFFLINE
     var defaultOAuthPolicy = OAuth.Policy.STRICT
