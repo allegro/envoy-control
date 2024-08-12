@@ -17,7 +17,7 @@ internal class LuaFilterFactoryTest {
     val properties = SnapshotProperties().also { it.incomingPermissions = IncomingPermissionsProperties() }
 
     @Test
-    fun `should create metadata with service name and discovery service name and service-id`() {
+    fun `should create metadata with service name and discovery service name`() {
         // given
         val expectedServiceName = "service-1"
         val expectedDiscoveryServiceName = "consul-service-1"
@@ -46,15 +46,14 @@ internal class LuaFilterFactoryTest {
     }
 
     @Test
-    fun `should create metadata with serviceId`() {
+    fun `should create filter metadata with serviceId`() {
         // given
         val expectedServiceId = 777
-
-        val group: Group = ServicesGroup(communicationMode = CommunicationMode.XDS, serviceId = expectedServiceId)
-        val factory = LuaFilterFactory(properties)
+        val group = ServicesGroup(communicationMode = CommunicationMode.XDS, serviceId = expectedServiceId)
+        val luaFilterFactory = LuaFilterFactory(properties)
 
         // when
-        val metadata = factory.ingressScriptsMetadata(group, currentZone = "dc1")
+        val metadata = luaFilterFactory.ingressScriptsMetadata(group, currentZone = "dc1")
 
         val actualServiceId = metadata
             .getFilterMetadataOrThrow("envoy.filters.http.lua")
@@ -66,13 +65,13 @@ internal class LuaFilterFactoryTest {
     }
 
     @Test
-    fun `should create metadata with empty serviceId`() {
+    fun `should create filter metadata with empty serviceId`() {
         // given
-        val group: Group = ServicesGroup(communicationMode = CommunicationMode.XDS)
-        val factory = LuaFilterFactory(properties)
+        val group = ServicesGroup(communicationMode = CommunicationMode.XDS)
+        val luaFilterFactory = LuaFilterFactory(properties)
 
         // when
-        val metadata = factory.ingressScriptsMetadata(group, currentZone = "dc1")
+        val metadata = luaFilterFactory.ingressScriptsMetadata(group, currentZone = "dc1")
 
         val actualServiceId = metadata
             .getFilterMetadataOrThrow("envoy.filters.http.lua")

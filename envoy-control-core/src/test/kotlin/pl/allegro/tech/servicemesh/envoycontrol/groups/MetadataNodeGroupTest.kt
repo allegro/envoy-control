@@ -163,14 +163,15 @@ class MetadataNodeGroupTest {
     @Test
     fun `should set serviceId to group if present`() {
         // given
+        val expectedServiceId = 777
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
-        val node = nodeV3(serviceId = 777)
+        val node = nodeV3(serviceId = expectedServiceId)
 
         // when
         val group = nodeGroup.hash(node)
 
         // then
-        assertThat(group.serviceId).isEqualTo(777)
+        assertThat(group.serviceId).isEqualTo(expectedServiceId)
     }
 
     @Test

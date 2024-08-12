@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [0.20.20]
 ### Changed
-- Added service-id property to node metadata
+- Added service_id property to filter metadata
 
 ## [0.20.19]
 ### Changed
