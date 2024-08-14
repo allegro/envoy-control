@@ -78,6 +78,7 @@ class LuaFilterFactory(private val snapshotProperties: SnapshotProperties) {
                 )
             ),
             "service_name" to StringPropertyLua(group.serviceName),
+            "service_id" to StringPropertyLua(group.serviceId?.toString().orEmpty()),
             "discovery_service_name" to StringPropertyLua(group.discoveryServiceName ?: ""),
             "rbac_headers_to_log" to ListPropertyLua(
                 snapshotProperties.incomingPermissions.headersToLogInRbac.map(::StringPropertyLua)

@@ -161,6 +161,33 @@ class MetadataNodeGroupTest {
     }
 
     @Test
+    fun `should set serviceId to group if present`() {
+        // given
+        val expectedServiceId = 777
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
+        val node = nodeV3(serviceId = expectedServiceId)
+
+        // when
+        val group = nodeGroup.hash(node)
+
+        // then
+        assertThat(group.serviceId).isEqualTo(expectedServiceId)
+    }
+
+    @Test
+    fun `should not set serviceId to group if not present`() {
+        // given
+        val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))
+        val node = nodeV3()
+
+        // when
+        val group = nodeGroup.hash(node)
+
+        // then
+        assertThat(group.serviceId).isNull()
+    }
+
+    @Test
     fun `should not include service settings when incoming permissions are disabled`() {
         // given
         val nodeGroup = MetadataNodeGroup(createSnapshotProperties(outgoingPermissions = true))

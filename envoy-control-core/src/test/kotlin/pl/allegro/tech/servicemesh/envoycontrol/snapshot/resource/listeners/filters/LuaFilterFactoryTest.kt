@@ -46,6 +46,43 @@ internal class LuaFilterFactoryTest {
     }
 
     @Test
+    fun `should create filter metadata with serviceId`() {
+        // given
+        val expectedServiceId = 777
+        val group = ServicesGroup(communicationMode = CommunicationMode.XDS, serviceId = expectedServiceId)
+        val luaFilterFactory = LuaFilterFactory(properties)
+
+        // when
+        val metadata = luaFilterFactory.ingressScriptsMetadata(group, currentZone = "dc1")
+
+        val actualServiceId = metadata
+            .getFilterMetadataOrThrow("envoy.filters.http.lua")
+            .getFieldsOrThrow("service_id")
+            .stringValue
+
+        // then
+        assertThat(actualServiceId).isEqualTo(expectedServiceId.toString())
+    }
+
+    @Test
+    fun `should create filter metadata with empty serviceId`() {
+        // given
+        val group = ServicesGroup(communicationMode = CommunicationMode.XDS)
+        val luaFilterFactory = LuaFilterFactory(properties)
+
+        // when
+        val metadata = luaFilterFactory.ingressScriptsMetadata(group, currentZone = "dc1")
+
+        val actualServiceId = metadata
+            .getFilterMetadataOrThrow("envoy.filters.http.lua")
+            .getFieldsOrThrow("service_id")
+            .stringValue
+
+        // then
+        assertThat(actualServiceId).isEmpty()
+    }
+
+    @Test
     fun `should create metadata with given customMetadata`() {
         // given
         val customMetadata = StructPropertyLua(

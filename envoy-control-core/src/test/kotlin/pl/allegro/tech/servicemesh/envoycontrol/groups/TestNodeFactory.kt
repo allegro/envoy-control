@@ -13,6 +13,7 @@ fun nodeV3(
     serviceDependencies: Set<String> = emptySet(),
     ads: Boolean? = null,
     serviceName: String? = null,
+    serviceId: Int? = null,
     discoveryServiceName: String? = null,
     incomingSettings: Boolean = false,
     clients: List<String> = listOf("client1"),
@@ -29,6 +30,8 @@ fun nodeV3(
     serviceName?.let {
         meta.putFields("service_name", string(serviceName))
     }
+
+    serviceId?.let { meta.putFields("service_id", integer(serviceId)) }
 
     discoveryServiceName?.let {
         meta.putFields("discovery_service_name", string(discoveryServiceName))
