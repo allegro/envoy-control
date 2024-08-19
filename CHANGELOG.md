@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.21.0]
+### Changed
+- Added `paths` field in API to support Glob Patterns
+
 ## [0.20.20]
 ### Changed
 - Added service_id property to filter metadata
@@ -23,10 +27,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [0.20.16]
 ### Changed
 - Add JWT failure reason to metadata and use it in jwt-status field on denied requests
-
-## [0.21.0]
-### Changed
-- Added `paths` field in API to support Glob Patterns
 
 ## [0.20.15]
 ### Changed
