@@ -26,6 +26,14 @@ class IncomingPermissionsPathMatchingTest {
                   incoming:
                     unlistedEndpointsPolicy: blockAndLog
                     endpoints:
+                    - paths: 
+                      - /api/products
+                      - /api/products/*/reviews
+                      - /api/offers/**
+                      - /api/**/description
+                      - /*/login
+                      - /**/health
+                      clients: ["echo2"]
                     - path: "/path"
                       clients: ["echo2"]
                     - pathPrefix: "/prefix"
@@ -136,6 +144,41 @@ class IncomingPermissionsPathMatchingTest {
             assertThat(it).isForbidden()
         }
         echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/abc/regex/1/segment").also {
+            assertThat(it).isForbidden()
+        }
+    }
+
+    @Test
+    fun `echo should allow echo2 to access endpoints for matched Glob patterns in the 'paths' field`() {
+        // expect
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/products").also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/products/some/reviews").also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/offers/electronics/phones").also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/some/status/health").also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/path/with/description").also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/paths/with/description").also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/login").also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/products/too/many/reviews").also {
+            assertThat(it).isForbidden()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/products/forbidden").also {
+            assertThat(it).isForbidden()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/status/health/login").also {
             assertThat(it).isForbidden()
         }
     }

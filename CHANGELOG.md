@@ -24,6 +24,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Add JWT failure reason to metadata and use it in jwt-status field on denied requests
 
+## [0.21.0]
+### Changed
+- Added `paths` field in API to support Glob Patterns
+
 ## [0.20.15]
 ### Changed
 - Java-control-plane update to 1.0.45
