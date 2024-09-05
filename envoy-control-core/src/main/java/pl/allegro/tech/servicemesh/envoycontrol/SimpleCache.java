@@ -49,7 +49,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
     @GuardedBy("lock")
     private final Map<T, U> snapshots = new HashMap<>();
-    private final CacheStatusInfoAggregator<T> statuses = new CacheStatusInfoAggregator<>();
+    public final CacheStatusInfoAggregator<T> statuses = new CacheStatusInfoAggregator<>();
 
     private AtomicLong watchCount = new AtomicLong();
 
@@ -75,7 +75,16 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
             // If we don't know about this group, do nothing.
             if (statuses.hasStatuses(group)) {
-                LOGGER.warn("tried to clear snapshot for group with existing watches, group={}", group);
+                Map<Resources.ResourceType, CacheStatusInfo<T>> status = statuses.getStatus(group);
+                Map<Resources.ResourceType, DeltaCacheStatusInfo<T>> deltaStatus = statuses.getDeltaStatus(group);
+                U snapshot = snapshots.get(group);
+                LOGGER.warn(
+                    "tried to clear snapshot for group with existing watches, group={}, status={}, deltaStatus={}, snapshot={}",
+                    group,
+                    status.values(),
+                    deltaStatus.values(),
+                    snapshot.toString()
+                );
 
                 return false;
             }
