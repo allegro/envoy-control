@@ -54,7 +54,7 @@ style:
     active: false # we want to be able to write todo comments
   MagicNumber:
     ignoreAnnotation: true
-    ignoreNumbers: '-1,0,1,2,3'
+    ignoreNumbers: ["-1", "0", "1", "2", "3"]
     excludes: [ "**/resources/**","**/build/**", '**/test/**', '**/**Test.kt', '**TestBase.kt', '**TestConfiguration.kt','**/**Spec.kt','**Container.kt', '**Assertions.kt', '**Extension.kt', '**Operations.kt' ]
   FunctionOnlyReturningConstant:
     active: true
@@ -93,3 +93,8 @@ empty-blocks:
 naming:
   VariableNaming:
     excludes: [ "**/envoy-control-tests/**" ]
+  FunctionNaming:
+    ignoreAnnotated:
+      - "Test"
+      - "ParameterizedTest"
+      - "MethodSource"
