@@ -1,7 +1,3 @@
-plugins {
-    id 'org.springframework.boot' apply false
-}
-
 dependencies {
     implementation project(':envoy-control-runner')
 

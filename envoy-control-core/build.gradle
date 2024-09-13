@@ -1,7 +1,3 @@
-plugins {
-    id 'org.springframework.boot' apply false
-}
-
 dependencies {
     api project(':envoy-control-services')
 

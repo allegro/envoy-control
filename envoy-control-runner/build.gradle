@@ -1,6 +1,5 @@
 plugins {
     id 'application'
-    id 'org.springframework.boot' apply false
 }
 
 mainClassName = 'pl.allegro.tech.servicemesh.envoycontrol.EnvoyControl'
