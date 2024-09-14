@@ -54,8 +54,8 @@ class RBACFilterFactory(
 
     init {
         incomingPermissionsProperties.selectorMatching.forEach {
-            if (it.key !in incomingServicesIpRangeAuthentication && it.key !in incomingServicesSourceAuthentication) {
-                throw IllegalArgumentException("${it.key} is not defined in ip range or ip from discovery section.")
+            require(it.key in incomingServicesIpRangeAuthentication || it.key in incomingServicesSourceAuthentication) {
+                "${it.key} is not defined in ip range or ip from discovery section."
             }
         }
     }
@@ -368,15 +368,18 @@ class RBACFilterFactory(
                         principal
                     )
                 )
+
                 OAuth.Policy.STRICT -> mergePrincipals(
                     listOf(
                         strictPolicyPrincipal,
                         principal
                     )
                 )
+
                 OAuth.Policy.ALLOW_MISSING_OR_FAILED -> {
                     principal
                 }
+
                 null -> {
                     principal
                 }

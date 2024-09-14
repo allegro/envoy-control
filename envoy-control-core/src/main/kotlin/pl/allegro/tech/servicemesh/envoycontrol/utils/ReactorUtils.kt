@@ -130,8 +130,8 @@ private fun measureScannableBuffer(
      * To access actual buffer size, we need to extract it from inners(). We don't know how many sources will
      * be available, so it must be stated explicitly as innerSources parameter.
      */
-    (0 until innerSources).forEach {
-        meterRegistry.gauge("${bufferMetric(name)}_$it", scannable, innerBufferExtractor(it))
+    for (i in 0 until innerSources) {
+        meterRegistry.gauge("${bufferMetric(name)}_$i", scannable, innerBufferExtractor(i))
     }
 }
 
