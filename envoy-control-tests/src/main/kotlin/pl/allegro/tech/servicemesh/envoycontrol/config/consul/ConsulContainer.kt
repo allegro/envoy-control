@@ -27,7 +27,7 @@ class ConsulContainer(
 
     override fun configure() {
         super.configure()
-        portBindings.add("$externalPort:$internalPort")
+        portBindings = listOf("$externalPort:$internalPort")
         awaitConsulReady()
     }
 
