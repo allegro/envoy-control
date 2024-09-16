@@ -7,7 +7,7 @@ dependencies {
     api group: 'com.ecwid.consul', name: 'consul-api', version: versions.ecwid_consul
 
     testImplementation group: 'org.mockito', name: 'mockito-core'
-    testImplementation group: 'cglib', name: 'cglib-nodep', version: versions.cglib
+    testImplementation group: 'net.bytebuddy', name: 'byte-buddy', version: versions.bytebuddy
 
     testImplementation group: 'io.projectreactor', name: 'reactor-test'
     testImplementation group: 'org.testcontainers', name: 'testcontainers'

@@ -52,7 +52,7 @@ allprojects {
         ecwid_consul     : '1.4.1',
         toxiproxy        : '2.1.3',
         consul_recipes   : '0.9.1',
-        cglib            : '3.2.9',
+        bytebuddy         : '1.15.1',
         re2j             : '1.3',
         xxhash           : '0.10.1',
         dropwizard       : '4.2.26'
