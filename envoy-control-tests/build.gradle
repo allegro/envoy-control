@@ -38,7 +38,6 @@ task reliabilityTest(type: Test) {
 }
 
 task flakyTest(type: Test) {
-    systemProperty 'RELIABILITY_FAILURE_DURATION_SECONDS', System.getProperty('RELIABILITY_FAILURE_DURATION_SECONDS', '300')
     useJUnitPlatform {
         includeTags 'flaky'
     }
