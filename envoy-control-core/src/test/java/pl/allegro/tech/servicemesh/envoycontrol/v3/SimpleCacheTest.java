@@ -95,7 +95,6 @@ public class SimpleCacheTest {
                 false,
                 false
             );
-
         assertThatWatchIsOpenWithNoResponses(new WatchAndTracker(watch, responseTracker));
     }
 

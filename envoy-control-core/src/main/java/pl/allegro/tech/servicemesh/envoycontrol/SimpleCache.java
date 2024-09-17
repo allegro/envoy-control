@@ -268,12 +268,15 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                                                            String version) {
         long watchId = watchCount.incrementAndGet();
         status.setWatch(watchId, watch);
-        watch.setStop(() -> status.removeWatch(watchId));
+        watch.setStop(() -> {
+            LOGGER.debug("removing watch {}", watchId);
+            status.removeWatch(watchId);
+        });
+
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("open watch {} for {}[{}] from node {} for version {}",
+            LOGGER.debug("open watch {} for {} from node {} for version {}",
                 watchId,
                 url,
-                String.join(", ", resources),
                 group,
                 version);
         }
@@ -371,12 +374,6 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                     String version = snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList());
 
                     if (!watch.request().getVersionInfo().equals(version)) {
-                        if (LOGGER.isDebugEnabled()) {
-                            LOGGER.debug("responding to open watch {}[{}] with new version {}",
-                                id,
-                                String.join(", ", watch.request().getResourceNamesList()),
-                                version);
-                        }
 
                         respond(watch, snapshot, group);
 
@@ -413,12 +410,6 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                     String version = snapshot.version(watch.request().getResourceType(), Collections.emptyList());
 
                     if (!watch.version().equals(version)) {
-                        if (LOGGER.isDebugEnabled()) {
-                            LOGGER.debug("responding to open watch {}[{}] with new version {}",
-                                id,
-                                String.join(", ", watch.trackedResources().keySet()),
-                                version);
-                        }
 
                     List<String> removedResources = snapshotRemovedResources.stream()
                         .filter(s -> watch.trackedResources().get(s) != null)
