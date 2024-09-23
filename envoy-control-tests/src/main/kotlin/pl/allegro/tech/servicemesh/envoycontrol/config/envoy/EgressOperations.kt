@@ -22,6 +22,7 @@ class EgressOperations(val envoy: EnvoyContainer) {
         body: RequestBody? = null
     ) = callWithHostHeader(service, headers, pathAndQuery, method, body)
 
+    @Suppress("detekt.ForEachOnRange")
     fun callServiceRepeatedly(
         service: String,
         stats: CallStats,

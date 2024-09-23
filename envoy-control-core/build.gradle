@@ -1,7 +1,3 @@
-plugins {
-    id 'org.springframework.boot' apply false
-}
-
 dependencies {
     api project(':envoy-control-services')
 
@@ -9,7 +5,7 @@ dependencies {
     api group: 'com.fasterxml.jackson.module', name: 'jackson-module-afterburner'
     api group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin'
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect'
-    api group: 'io.dropwizard.metrics', name: 'metrics-core'
+    api group: 'io.dropwizard.metrics', name: 'metrics-core', version: versions.dropwizard
     api group: 'io.micrometer', name: 'micrometer-core'
     implementation group: 'com.google.re2j', name: 're2j', version: versions.re2j
 
@@ -25,7 +21,7 @@ dependencies {
     testImplementation group: 'io.grpc', name: 'grpc-testing', version: versions.grpc
     testImplementation group: 'io.projectreactor', name: 'reactor-test'
     testImplementation group: 'org.mockito', name: 'mockito-core'
-    testImplementation group: 'cglib', name: 'cglib-nodep', version: versions.cglib
+    testImplementation group: 'net.bytebuddy', name: 'byte-buddy', version: versions.bytebuddy
 
     testImplementation group: 'org.awaitility', name: 'awaitility'
 

@@ -220,8 +220,9 @@ class EnvoyControlRunnerTestApp(
             .execute().addToCloseableResponses()
     }
 
-    override fun meterRegistry() = app.context().getBean(MeterRegistry::class.java)
-        ?: throw IllegalStateException("MeterRegistry bean not found in the context")
+    override fun meterRegistry() = checkNotNull(app.context().getBean(MeterRegistry::class.java)) {
+        "MeterRegistry bean not found in the context"
+    }
 
     companion object {
         val logger by logger()

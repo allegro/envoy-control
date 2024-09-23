@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.TlsAuthenticationProperties
-import java.lang.IllegalArgumentException
 
 class SanUriMatcherFactory(
     private val tlsProperties: TlsAuthenticationProperties
@@ -35,8 +34,8 @@ class SanUriMatcherFactory(
     private fun getSanUriFormatSplit(): Pair<String, String> {
         val format = tlsProperties.sanUriFormat
         val parts = format.split(serviceNameTemplate)
-        if (parts.size != 2) {
-            throw IllegalArgumentException("SAN URI $format does not properly contain $serviceNameTemplate")
+        require(parts.size == 2) {
+            "SAN URI $format does not properly contain $serviceNameTemplate"
         }
         return parts[0] to parts[1]
     }

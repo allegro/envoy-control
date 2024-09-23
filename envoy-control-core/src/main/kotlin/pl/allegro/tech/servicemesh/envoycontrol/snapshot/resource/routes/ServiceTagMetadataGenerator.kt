@@ -23,9 +23,8 @@ class ServiceTagMetadataGenerator(properties: ServiceTagsProperties = ServiceTag
 
     init {
         properties.allowedTagsCombinations.forEach {
-            if (it.tags.size < 2 || it.tags.size > 3) {
-                throw IllegalArgumentException(
-                    "A tags combination must contain 2 or 3 tags. Combination with ${it.tags.size} tags found")
+            require(it.tags.size in 2..3) {
+                "A tags combination must contain 2 or 3 tags. Combination with ${it.tags.size} tags found"
             }
         }
         val combinationsByService = properties.allowedTagsCombinations

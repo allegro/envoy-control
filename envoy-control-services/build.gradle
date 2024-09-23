@@ -1,7 +1,3 @@
-plugins {
-    id 'org.springframework.boot' apply false
-}
-
 dependencies {
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib'
     api group: 'io.projectreactor', name: 'reactor-core'

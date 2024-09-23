@@ -67,6 +67,7 @@ class LocalReplyConfigFactory(
                 )
                 responseMapperBuilder
             }
+
             matcherAndMapper.responseFlagMatcher.isNotEmpty() -> {
                 responseMapperBuilder.setFilter(
                     AccessLogFilter.newBuilder().setResponseFlagFilter(
@@ -75,6 +76,7 @@ class LocalReplyConfigFactory(
                 )
                 responseMapperBuilder
             }
+
             matcherAndMapper.statusCodeMatcher.isNotEmpty() -> {
                 responseMapperBuilder.setFilter(
                     AccessLogFilter.newBuilder().setStatusCodeFilter(
@@ -83,6 +85,7 @@ class LocalReplyConfigFactory(
                 )
                 responseMapperBuilder
             }
+
             else -> {
                 responseMapperBuilder
             }
@@ -139,6 +142,7 @@ class LocalReplyConfigFactory(
                     )
                 )
             }
+
             headerMatcher.exactMatch.isNotEmpty() -> {
                 headerFilterBuilder.setHeader(headerMatcherBuilder.setExactMatch(headerMatcher.exactMatch))
             }
@@ -158,11 +162,13 @@ class LocalReplyConfigFactory(
             responseFormat.textFormat.isNotEmpty() -> {
                 responseFormatBuilder.setTextFormat(responseFormat.textFormat).build()
             }
+
             responseFormat.jsonFormat.isNotEmpty() -> {
                 val responseBody = Struct.newBuilder()
                 jsonParser.merge(responseFormat.jsonFormat, responseBody)
                 responseFormatBuilder.setJsonFormat(responseBody.build()).build()
             }
+
             else -> {
                 null
             }
@@ -184,25 +190,20 @@ class LocalReplyConfigFactory(
             validateHeaderMatcher(matcherAndMapper.headerMatcher)
         }
 
-        if (definitions != 1) {
-            throw IllegalArgumentException(
-                "One and only one of: headerMatcher, responseFlagMatcher, statusCodeMatcher has to be defined.")
+        require(definitions == 1) {
+            "One and only one of: headerMatcher, responseFlagMatcher, statusCodeMatcher has to be defined."
         }
     }
 
     private fun validateHeaderMatcher(headerMatcher: HeaderMatcherProperties) {
-        if (headerMatcher.exactMatch.isNotEmpty() && headerMatcher.regexMatch.isNotEmpty()) {
-            throw IllegalArgumentException(
-                "Only one of: exactMatch, regexMatch can be defined."
-            )
+        require(headerMatcher.exactMatch.isEmpty() || headerMatcher.regexMatch.isEmpty()) {
+            "Only one of: exactMatch, regexMatch can be defined."
         }
     }
 
     private fun validateResponseFormatProperties(responseFormat: ResponseFormat) {
-        if (responseFormat.jsonFormat.isNotEmpty() && responseFormat.textFormat.isNotEmpty()) {
-            throw IllegalArgumentException(
-                "Only one of: jsonFormat, textFormat can be defined."
-            )
+        require(responseFormat.jsonFormat.isEmpty() || responseFormat.textFormat.isEmpty()) {
+            "Only one of: jsonFormat, textFormat can be defined."
         }
     }
 }
