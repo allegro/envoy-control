@@ -86,7 +86,6 @@ internal class EnvoyControlSynchronizationTest {
         waitServiceOkAndFrom("echo", serviceLocal)
     }
 
-
     @Test
     fun `should not synchronize blacklisted remote clusters`() {
 
@@ -99,8 +98,6 @@ internal class EnvoyControlSynchronizationTest {
 
         // when: instances from dc3 are absent
         envoy.waitForClusterEndpointNotHealthy("echo", serviceRemote3.container().ipAddress())
-
-
     }
     @Test
     fun `latency between service registration in local dc and being able to access it via envoy should be less than 0,5s + stateSampleDuration`() {
@@ -148,12 +145,6 @@ internal class EnvoyControlSynchronizationTest {
             envoy.egressOperations.callService(name).also {
                 assertThat(it).isOk().isFrom(echoServiceExtension)
             }
-        }
-    }
-
-    private fun waitServiceUnhealthy(name: String, echoServiceExtension: EchoServiceExtension) {
-        untilAsserted {
-            envoy.waitForClusterEndpointNotHealthy(name, echoServiceExtension.container().ipAddress())
         }
     }
 

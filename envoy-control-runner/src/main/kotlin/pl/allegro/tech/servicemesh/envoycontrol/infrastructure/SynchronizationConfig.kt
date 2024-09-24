@@ -61,22 +61,18 @@ class SynchronizationConfig {
 
     @Bean
     fun remoteClusters(
-        consulDatacenterReader: ConsulDatacenterReader,
-        properties: EnvoyControlProperties
-    ): RemoteClusters =
-        RemoteClusters(
-            consulDatacenterReader.knownDatacenters()
-                - consulDatacenterReader.localDatacenter()
-                - properties.sync.blackListedRemoteClusters
-        )
+        consulDatacenterReader: ConsulDatacenterReader, properties: EnvoyControlProperties
+    ): RemoteClusters = RemoteClusters(
+        consulDatacenterReader.knownDatacenters() -
+            consulDatacenterReader.localDatacenter() -
+            properties.sync.blackListedRemoteClusters
+    )
 
     @Bean
     fun instanceFetcher(
-        consulProperties: ConsulProperties,
-        envoyControlProperties: EnvoyControlProperties
+        consulProperties: ConsulProperties, envoyControlProperties: EnvoyControlProperties
     ) = SimpleConsulInstanceFetcher(
-        ConsulClient(consulProperties.host, consulProperties.port),
-        envoyControlProperties.sync.envoyControlAppName
+        ConsulClient(consulProperties.host, consulProperties.port), envoyControlProperties.sync.envoyControlAppName
     )
 }
 
