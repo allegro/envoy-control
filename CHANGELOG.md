@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.22.1]
+### Changed
+- Add blacklisted remote clusters to ignore them during sync
+
 ## [0.22.0]
 ### Changed
 - Spring Boot update to 3.3.2

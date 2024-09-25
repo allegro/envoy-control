@@ -11,4 +11,5 @@ class SyncProperties {
     var readTimeout: Duration = Duration.ofMillis(500)
     var envoyControlAppName = "envoy-control"
     var combineServiceChangesExperimentalFlow = false
+    var blackListedRemoteClusters: Set<String> = setOf()
 }

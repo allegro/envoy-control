@@ -31,6 +31,7 @@ internal class EnvoyControlSynchronizationTest {
         val properties = mapOf(
             "envoy-control.envoy.snapshot.stateSampleDuration" to stateSampleDuration,
             "envoy-control.sync.enabled" to true,
+            "envoy-control.sync.blackListedRemoteClusters" to setOf("dc3"),
             "envoy-control.sync.polling-interval" to pollingInterval.seconds
         )
 
@@ -41,6 +42,9 @@ internal class EnvoyControlSynchronizationTest {
         @JvmField
         @RegisterExtension
         val envoyControlDc2 = EnvoyControlClusteredExtension(consulClusters.serverSecond, dependencies = listOf(consulClusters))
+        @JvmField
+        @RegisterExtension
+        val envoyControlDc3 = EnvoyControlClusteredExtension(consulClusters.serverThird, dependencies = listOf(consulClusters))
 
         @JvmField
         @RegisterExtension
@@ -53,13 +57,17 @@ internal class EnvoyControlSynchronizationTest {
         @JvmField
         @RegisterExtension
         val serviceRemote = EchoServiceExtension()
+
+        @JvmField
+        @RegisterExtension
+        val serviceRemote3 = EchoServiceExtension()
     }
 
     @Test
     fun `should prefer services from local dc and fallback to remote dc when needed`() {
 
         // given: local and remote instances
-        registerServiceInRemoteDc("echo", serviceRemote)
+        registerServiceInRemoteDc2("echo", serviceRemote)
         val serviceId = registerServiceInLocalDc("echo", serviceLocal)
 
         // then: local called
@@ -78,6 +86,19 @@ internal class EnvoyControlSynchronizationTest {
         waitServiceOkAndFrom("echo", serviceLocal)
     }
 
+    @Test
+    fun `should not synchronize blacklisted remote clusters`() {
+
+        // given: local and remote instances
+        registerServiceInRemoteDc3("echo", serviceRemote3)
+        registerServiceInRemoteDc2("echo", serviceRemote)
+
+        // when: dc2 is synchronized
+        envoy.waitForClusterEndpointHealthy("echo", serviceRemote.container().ipAddress())
+
+        // when: instances from dc3 are absent
+        envoy.waitForClusterEndpointNotHealthy("echo", serviceRemote3.container().ipAddress())
+    }
     @Test
     fun `latency between service registration in local dc and being able to access it via envoy should be less than 0,5s + stateSampleDuration`() {
         // when
@@ -131,8 +152,12 @@ internal class EnvoyControlSynchronizationTest {
         return consulClusters.serverFirst.operations.registerService(target, name = name)
     }
 
-    fun registerServiceInRemoteDc(name: String, target: EchoServiceExtension): String {
+    fun registerServiceInRemoteDc2(name: String, target: EchoServiceExtension): String {
         return consulClusters.serverSecond.operations.registerService(target, name = name)
+    }
+
+    fun registerServiceInRemoteDc3(name: String, target: EchoServiceExtension): String {
+        return consulClusters.serverThird.operations.registerService(target, name = name)
     }
 
     private class LatencySummary(private val timer: Timer) {
