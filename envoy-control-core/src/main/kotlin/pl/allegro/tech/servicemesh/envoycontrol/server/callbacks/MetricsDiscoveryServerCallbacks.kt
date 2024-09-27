@@ -36,9 +36,9 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
             .map { type -> type to AtomicInteger(0) }
             .toMap()
 
-        meterRegistry.gauge("grpc.connections", Tags.of("connection-type", "all"), connections)
+        meterRegistry.gauge("grpc.connections", Tags.of("type", "all"), connections)
         connectionsByType.forEach { (type, typeConnections) ->
-            meterRegistry.gauge("grpc.connections", Tags.of("connection-type", type.name.lowercase()), typeConnections)
+            meterRegistry.gauge("grpc.connections", Tags.of("type", type.name.lowercase()), typeConnections)
         }
     }
 

@@ -173,14 +173,14 @@ class ControlPlaneConfig {
         ConsulClient(properties.host, properties.port).agentSelf.value?.config?.datacenter ?: "local"
 
     fun controlPlaneMetrics(meterRegistry: MeterRegistry): DefaultEnvoyControlMetrics {
-        val metricName = "services"
+        val metricName = "watched-services"
         return DefaultEnvoyControlMetrics(meterRegistry = meterRegistry).also {
             meterRegistry.gauge(metricName, Tags.of("status", "added"), it.servicesAdded)
             meterRegistry.gauge(metricName, Tags.of("status", "removed"), it.servicesRemoved)
-            meterRegistry.gauge(metricName, Tags.of("status", "instanceChanged"), it.instanceChanges)
-            meterRegistry.gauge(metricName, Tags.of("status", "snapshotChanged"), it.snapshotChanges)
-            meterRegistry.gauge("cache.groups.total", it.cacheGroupsCount)
-            it.meterRegistry.more().counter("services.watch.errors", listOf(), it.errorWatchingServices)
+            meterRegistry.gauge(metricName, Tags.of("status", "instance-changed"), it.instanceChanges)
+            meterRegistry.gauge(metricName, Tags.of("status", "snapshot-changed"), it.snapshotChanges)
+            meterRegistry.gauge("cache.groups.count", it.cacheGroupsCount)
+            it.meterRegistry.more().counter("services.watch.errors.total", listOf(), it.errorWatchingServices)
         }
     }
 

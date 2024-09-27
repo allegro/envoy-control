@@ -236,11 +236,11 @@ interface MetricsDiscoveryServerCallbacksTest {
                 val metric = "grpc.connections"
                 assertThat(
                     meterRegistry.find(metric)
-                        .tags(Tags.of("connection-type", type.name.lowercase())).gauge()
+                        .tags(Tags.of("type", type.name.lowercase())).gauge()
                 ).isNotNull
                 assertThat(
                     meterRegistry.get(metric)
-                        .tags(Tags.of("connection-type", type.name.lowercase())).gauge().value().toInt()
+                        .tags(Tags.of("type", type.name.lowercase())).gauge().value().toInt()
                 ).isEqualTo(value)
             }
         }
@@ -261,7 +261,7 @@ interface MetricsDiscoveryServerCallbacksTest {
 
     private fun assertCondition(type: String, condition: Predicate<Int?>, metricType: String) {
         val counterValue =
-            envoyControl().app.meterRegistry().find("grpc.requests.count")
+            envoyControl().app.meterRegistry().find("grpc.requests.total")
                 .tags(Tags.of("type", type, "metric-type", metricType))
                 .counter()?.count()?.toInt()
         logger.info("$type $counterValue")

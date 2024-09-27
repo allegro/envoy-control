@@ -62,8 +62,8 @@ class RemoteServices(
             .orTimeout(interval, TimeUnit.SECONDS)
             .exceptionally {
                 meterRegistry.counter(
-                    "cross-dc-synchronization.errors",
-                    Tags.of("cluster", cluster, "operation", "get-cluster-state")
+                    "cross-dc-synchronization.errors.total",
+                    Tags.of("cluster", cluster, "operation", "get-state")
                 ).increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
                 clusterStateCache[cluster]
@@ -76,8 +76,8 @@ class RemoteServices(
             cluster to instances
         } catch (e: Exception) {
             meterRegistry.counter(
-                "cross-dc-synchronization.errors",
-                Tags.of("cluster", cluster, "operation", "get-cluster-state")
+                "cross-dc-synchronization.errors.total",
+                Tags.of("cluster", cluster, "operation", "get-instances")
             ).increment()
             logger.warn("Failed fetching instances from $cluster", e)
             cluster to emptyList()
@@ -89,8 +89,7 @@ class RemoteServices(
         state: ServicesState
     ): ClusterState {
         meterRegistry.counter(
-            "cross-dc-synchronization",
-            Tags.of("operation", "service-update", "cluster", cluster)
+            "cross-dc-synchronization.total", Tags.of("cluster", cluster)
         )
             .increment()
         val clusterState = ClusterState(
