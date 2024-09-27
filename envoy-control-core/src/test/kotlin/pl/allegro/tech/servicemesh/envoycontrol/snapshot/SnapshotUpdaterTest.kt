@@ -16,6 +16,7 @@ import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -468,7 +469,8 @@ class SnapshotUpdaterTest {
         val snapshot = cache.getSnapshot(servicesGroup)
         assertThat(snapshot).isEqualTo(null)
         assertThat(
-            simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
+            simpleMeterRegistry.find("snapshot-updater.errors.total")
+                .tags(Tags.of("service", "example-service"))
                 .counter()?.count()
         ).isEqualTo(1.0)
     }

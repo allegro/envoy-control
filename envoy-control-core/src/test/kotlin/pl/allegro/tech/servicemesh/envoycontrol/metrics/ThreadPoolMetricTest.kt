@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.metrics
 
+import io.micrometer.core.instrument.Tag
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -25,12 +26,25 @@ class ThreadPoolMetricTest {
         controlPlane.start()
 
         // then
-        val allMeterNames = meterRegistry.meters.map { it.id.name }
-        val requiredMeterNames = listOf("grpc-server-worker", "grpc-worker-event-loop", "snapshot-update", "group-snapshot").flatMap {
-            listOf("$it.executor.completed", "$it.executor.active", "$it.executor.queued", "$it.executor.pool.size")
-        }
+        val metricNames = listOf("executor.completed", "executor.active", "executor.queued", "executor.pool.size")
+            .map { "envoy-control.$it" }
 
-        assertThat(allMeterNames).containsAll(requiredMeterNames)
+        val metricMap = listOf(
+            "grpc-server-worker",
+            "grpc-worker-event-loop",
+            "snapshot-update",
+            "group-snapshot"
+        ).associateWith { metricNames }
+
+        assertThat(metricMap.entries).allSatisfy {
+            assertThat(it.value.all { metricName ->
+                meterRegistry.meters.any { meter ->
+                    meter.id.name == metricName && meter.id.tags.contains(
+                        Tag.of("executor", it.key)
+                    )
+                }
+            }).isTrue()
+        }
 
         // and
         controlPlane.close()

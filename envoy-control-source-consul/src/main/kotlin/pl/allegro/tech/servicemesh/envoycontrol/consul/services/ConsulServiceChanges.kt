@@ -226,10 +226,10 @@ class ConsulServiceChanges(
                     if (ready) {
                         val stopTimer = System.currentTimeMillis()
                         readinessStateHandler.ready()
-                        metrics.meterRegistry.timer("envoy-control.warmup.time")
+                        metrics.meterRegistry.timer("envoy-control.warmup.seconds")
                             .record(
                                 stopTimer - startTimer,
-                                TimeUnit.MILLISECONDS
+                                TimeUnit.SECONDS
                             )
                     }
                 }

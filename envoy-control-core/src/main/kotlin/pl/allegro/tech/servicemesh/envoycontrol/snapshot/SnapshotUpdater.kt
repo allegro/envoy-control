@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot
 import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
@@ -50,9 +51,12 @@ class SnapshotUpdater(
             // step 2: only watches groups. if groups change we use the last services state and update those groups
             groups().subscribeOn(globalSnapshotScheduler)
         )
-            .measureBuffer("snapshot-updater-merged", meterRegistry, innerSources = 2)
+            .measureBuffer("snapshot.updater.count.total", meterRegistry, innerSources = 2)
             .checkpoint("snapshot-updater-merged")
-            .name("snapshot-updater-merged").metrics()
+            .name("snapshot.updater.count.total")
+            .tag("status", "merged")
+            .tag("type", "global")
+            .metrics()
             // step 3: group updates don't provide a snapshot,
             // so we piggyback the last updated snapshot state for use
             .scan { previous: UpdateResult, newUpdate: UpdateResult ->
@@ -87,14 +91,20 @@ class SnapshotUpdater(
         // see GroupChangeWatcher
         return onGroupAdded
             .publishOn(globalSnapshotScheduler)
-            .measureBuffer("snapshot-updater-groups-published", meterRegistry)
+            .measureBuffer("snapshot-updater.count.total", meterRegistry)
             .checkpoint("snapshot-updater-groups-published")
-            .name("snapshot-updater-groups-published").metrics()
+            .name("snapshot-updater.count.total")
+            .tag("type", "groups")
+            .tag("status", "published").metrics()
             .map { groups ->
                 UpdateResult(action = Action.SERVICES_GROUP_ADDED, groups = groups)
             }
             .onErrorResume { e ->
-                meterRegistry.counter("snapshot-updater.groups.updates.errors").increment()
+                meterRegistry.counter(
+                    "snapshot-updater.errors.total",
+                    Tags.of("type", "groups")
+                )
+                    .increment()
                 logger.error("Unable to process new group", e)
                 Mono.justOrEmpty(UpdateResult(action = Action.ERROR_PROCESSING_CHANGES))
             }
@@ -102,13 +112,19 @@ class SnapshotUpdater(
 
     internal fun services(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return states
-            .name("snapshot-updater-services-sampled").metrics()
-            .onBackpressureLatestMeasured("snapshot-updater-services-sampled", meterRegistry)
+            .name("snapshot-updater.count.total")
+            .tag("type", "services")
+            .tag("status", "sampled")
+            .metrics()
+            .onBackpressureLatestMeasured("snapshot-updater.count.total", meterRegistry)
             // prefetch = 1, instead of default 256, to avoid processing stale states in case of backpressure
             .publishOn(globalSnapshotScheduler, 1)
-            .measureBuffer("snapshot-updater-services-published", meterRegistry)
+            .measureBuffer("snapshot-updater.count.total", meterRegistry) // todo
             .checkpoint("snapshot-updater-services-published")
-            .name("snapshot-updater-services-published").metrics()
+            .name("snapshot-updater.count.total")
+            .tag("type", "services")
+            .tag("status", "published")
+            .metrics()
             .createClusterConfigurations()
             .map { (states, clusters) ->
                 var lastXdsSnapshot: GlobalSnapshot? = null
@@ -135,14 +151,19 @@ class SnapshotUpdater(
             }
             .filter { it != emptyUpdateResult }
             .onErrorResume { e ->
-                meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
+                meterRegistry.counter(
+                    "snapshot-updater.errors.total",
+                    Tags.of("type", "services")
+                ).increment()
                 logger.error("Unable to process service changes", e)
                 Mono.justOrEmpty(UpdateResult(action = Action.ERROR_PROCESSING_CHANGES))
             }
     }
 
     private fun snapshotTimer(serviceName: String) = if (properties.metrics.cacheSetSnapshot) {
-        meterRegistry.timer("snapshot-updater.set-snapshot.$serviceName.time")
+        meterRegistry.timer(
+            "simple-cache.duration.seconds", Tags.of("service", serviceName, "operation", "set-snapshot")
+        )
     } else {
         noopTimer
     }
@@ -154,12 +175,15 @@ class SnapshotUpdater(
                 cache.setSnapshot(group, groupSnapshot)
             }
         } catch (e: Throwable) {
-            meterRegistry.counter("snapshot-updater.services.${group.serviceName}.updates.errors").increment()
+            meterRegistry.counter(
+                "snapshot-updater.errors.total", Tags.of("service", group.serviceName)
+            ).increment()
             logger.error("Unable to create snapshot for group ${group.serviceName}", e)
         }
     }
 
-    private val updateSnapshotForGroupsTimer = meterRegistry.timer("snapshot-updater.update-snapshot-for-groups.time")
+    private val updateSnapshotForGroupsTimer =
+        meterRegistry.timer("snapshot-updater.duration.seconds", Tags.of("type", "groups"))
 
     private fun updateSnapshotForGroups(
         groups: Collection<Group>,
@@ -174,10 +198,13 @@ class SnapshotUpdater(
                 } else if (result.xdsSnapshot != null && group.communicationMode == XDS) {
                     updateSnapshotForGroup(group, result.xdsSnapshot)
                 } else {
-                    meterRegistry.counter("snapshot-updater.communication-mode.errors").increment()
-                    logger.error("Requested snapshot for ${group.communicationMode.name} mode, but it is not here. " +
-                        "Handling Envoy with not supported communication mode should have been rejected before." +
-                        " Please report this to EC developers.")
+                    meterRegistry.counter("snapshot-updater.errors.total", Tags.of("type", "communication-mode"))
+                        .increment()
+                    logger.error(
+                        "Requested snapshot for ${group.communicationMode.name} mode, but it is not here. " +
+                            "Handling Envoy with not supported communication mode should have been rejected before." +
+                            " Please report this to EC developers."
+                    )
                 }
             }
         return results.then(Mono.fromCallable {

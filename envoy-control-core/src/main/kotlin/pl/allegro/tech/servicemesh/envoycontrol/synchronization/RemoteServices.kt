@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
@@ -29,9 +30,10 @@ class RemoteServices(
     fun getChanges(interval: Long): Flux<MultiClusterState> {
         val aclFlux: Flux<MultiClusterState> = Flux.create({ sink ->
             scheduler.scheduleWithFixedDelay({
-                meterRegistry.timer("sync-dc.get-multi-cluster-states.time").recordCallable {
-                    getChanges(sink::next, interval)
-                }
+                meterRegistry.timer("cross-dc-synchronization.seconds", Tags.of("operation", "get-multi-cluster-state"))
+                    .recordCallable {
+                        getChanges(sink::next, interval)
+                    }
             }, 0, interval, TimeUnit.SECONDS)
         }, FluxSink.OverflowStrategy.LATEST)
         return aclFlux.doOnCancel {
@@ -59,7 +61,10 @@ class RemoteServices(
             .thenApply { servicesStateFromCluster(cluster, it) }
             .orTimeout(interval, TimeUnit.SECONDS)
             .exceptionally {
-                meterRegistry.counter("cross-dc-synchronization.$cluster.state-fetcher.errors").increment()
+                meterRegistry.counter(
+                    "cross-dc-synchronization.errors",
+                    Tags.of("cluster", cluster, "operation", "get-cluster-state")
+                ).increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
                 clusterStateCache[cluster]
             }
@@ -70,7 +75,10 @@ class RemoteServices(
             val instances = controlPlaneInstanceFetcher.instances(cluster)
             cluster to instances
         } catch (e: Exception) {
-            meterRegistry.counter("cross-dc-synchronization.$cluster.instance-fetcher.errors").increment()
+            meterRegistry.counter(
+                "cross-dc-synchronization.errors",
+                Tags.of("cluster", cluster, "operation", "get-cluster-state")
+            ).increment()
             logger.warn("Failed fetching instances from $cluster", e)
             cluster to emptyList()
         }
@@ -80,7 +88,11 @@ class RemoteServices(
         cluster: String,
         state: ServicesState
     ): ClusterState {
-        meterRegistry.counter("cross-dc-service-update-$cluster").increment()
+        meterRegistry.counter(
+            "cross-dc-synchronization",
+            Tags.of("operation", "service-update", "cluster", cluster)
+        )
+            .increment()
         val clusterState = ClusterState(
             state.removeServicesWithoutInstances(),
             Locality.REMOTE,

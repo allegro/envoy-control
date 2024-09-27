@@ -7,6 +7,7 @@ import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.AllServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
@@ -67,7 +68,12 @@ class EnvoySnapshotFactory(
             endpoints = endpoints,
             properties = properties.outgoingPermissions
         )
-        sample.stop(meterRegistry.timer("snapshot-factory.new-snapshot.time"))
+        sample.stop(
+            meterRegistry.timer(
+                "snapshot-factory.seconds",
+                Tags.of("operation", "new-snapshot", "type", "global")
+            )
+        )
 
         return snapshot
     }
@@ -155,7 +161,12 @@ class EnvoySnapshotFactory(
         val groupSample = Timer.start(meterRegistry)
 
         val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
-        groupSample.stop(meterRegistry.timer("snapshot-factory.get-snapshot-for-group.time"))
+        groupSample.stop(
+            meterRegistry.timer(
+                "snapshot-factory.seconds",
+                Tags.of("operation", "new-snapshot", "type", "group")
+            )
+        )
         return newSnapshotForGroup
     }
 

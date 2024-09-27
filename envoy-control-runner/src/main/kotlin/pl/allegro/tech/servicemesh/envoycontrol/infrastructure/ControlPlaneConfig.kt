@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.infrastructure
 import com.ecwid.consul.v1.ConsulClient
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -171,15 +172,17 @@ class ControlPlaneConfig {
     fun localDatacenter(properties: ConsulProperties) =
         ConsulClient(properties.host, properties.port).agentSelf.value?.config?.datacenter ?: "local"
 
-    fun controlPlaneMetrics(meterRegistry: MeterRegistry) =
-        DefaultEnvoyControlMetrics(meterRegistry = meterRegistry).also {
-            meterRegistry.gauge("services.added", it.servicesAdded)
-            meterRegistry.gauge("services.removed", it.servicesRemoved)
-            meterRegistry.gauge("services.instanceChanged", it.instanceChanges)
-            meterRegistry.gauge("services.snapshotChanged", it.snapshotChanges)
-            meterRegistry.gauge("cache.groupsCount", it.cacheGroupsCount)
+    fun controlPlaneMetrics(meterRegistry: MeterRegistry): DefaultEnvoyControlMetrics {
+        val metricName = "services"
+        return DefaultEnvoyControlMetrics(meterRegistry = meterRegistry).also {
+            meterRegistry.gauge(metricName, Tags.of("status", "added"), it.servicesAdded)
+            meterRegistry.gauge(metricName, Tags.of("status", "removed"), it.servicesRemoved)
+            meterRegistry.gauge(metricName, Tags.of("status", "instanceChanged"), it.instanceChanges)
+            meterRegistry.gauge(metricName, Tags.of("status", "snapshotChanged"), it.snapshotChanges)
+            meterRegistry.gauge("cache.groups.total", it.cacheGroupsCount)
             it.meterRegistry.more().counter("services.watch.errors", listOf(), it.errorWatchingServices)
         }
+    }
 
     @Bean
     fun protobufJsonFormatHttpMessageConverter(): ProtobufJsonFormatHttpMessageConverter {

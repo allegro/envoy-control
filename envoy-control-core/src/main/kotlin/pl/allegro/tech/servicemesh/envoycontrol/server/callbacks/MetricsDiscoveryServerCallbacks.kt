@@ -1,10 +1,12 @@
 package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
+import com.google.common.net.InetAddresses.increment
 import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as V3DiscoveryRequest
 import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as V3DeltaDiscoveryRequest
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import java.util.concurrent.atomic.AtomicInteger
 
 class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) : DiscoveryServerCallbacks {
@@ -34,9 +36,9 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
             .map { type -> type to AtomicInteger(0) }
             .toMap()
 
-        meterRegistry.gauge("grpc.all-connections", connections)
+        meterRegistry.gauge("grpc.connections", Tags.of("connection-type", "all"), connections)
         connectionsByType.forEach { (type, typeConnections) ->
-            meterRegistry.gauge("grpc.connections.${type.name.toLowerCase()}", typeConnections)
+            meterRegistry.gauge("grpc.connections", Tags.of("connection-type", type.name.lowercase()), typeConnections)
         }
     }
 
@@ -51,7 +53,10 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
     }
 
     override fun onV3StreamRequest(streamId: Long, request: V3DiscoveryRequest) {
-        meterRegistry.counter("grpc.requests.${StreamType.fromTypeUrl(request.typeUrl).name.toLowerCase()}")
+        meterRegistry.counter(
+            "grpc.requests.count",
+            Tags.of("type", StreamType.fromTypeUrl(request.typeUrl).name.lowercase(), "metric-type", "total")
+        )
             .increment()
     }
 
@@ -59,7 +64,10 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
         streamId: Long,
         request: V3DeltaDiscoveryRequest
     ) {
-        meterRegistry.counter("grpc.requests.${StreamType.fromTypeUrl(request.typeUrl).name.toLowerCase()}.delta")
+        meterRegistry.counter(
+            "grpc.requests.count",
+            Tags.of("type", StreamType.fromTypeUrl(request.typeUrl).name.lowercase(), "metric-type", "delta")
+        )
             .increment()
     }
 
