@@ -261,7 +261,7 @@ interface MetricsDiscoveryServerCallbacksTest {
 
     private fun assertCondition(type: String, condition: Predicate<Int?>, metricType: String) {
         val counterValue =
-            envoyControl().app.meterRegistry().find("grpc.requests.total")
+            envoyControl().app.meterRegistry().find("grpc.requests.count")
                 .tags(Tags.of("type", type, "metric-type", metricType))
                 .counter()?.count()?.toInt()
         logger.info("$type $counterValue")
