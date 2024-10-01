@@ -93,7 +93,7 @@ class SnapshotUpdater(
             .publishOn(globalSnapshotScheduler)
             .measureBuffer("snapshot.updater.count.total", meterRegistry)
             .checkpoint("snapshot-updater-groups-published")
-            .name("snapshot-updater.count.total")
+            .name("snapshot.updater.count.total")
             .tag("type", "groups")
             .tag("status", "published").metrics()
             .map { groups ->
