@@ -30,7 +30,7 @@ Sample logger configuration is available here.
 ### Envoy Control
 
 Metric | Description | Labels
-----------------------|------------------------------------|
+----------------------|------------------------------------|--------------------------------
 **watched-services** | Counter of watched services events | status (added/removed/instances-changed/snapshot-changed)
 
 Standard [Spring metrics](https://docs.spring.io/spring-boot/docs/current/reference/html/production-ready-metrics.html#production-ready-metrics-meter) (
