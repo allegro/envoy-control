@@ -30,14 +30,14 @@ class RemoteServices(
     fun getChanges(interval: Long): Flux<MultiClusterState> {
         val aclFlux: Flux<MultiClusterState> = Flux.create({ sink ->
             scheduler.scheduleWithFixedDelay({
-                meterRegistry.timer("cross-dc-synchronization.seconds", Tags.of("operation", "get-multi-cluster-state"))
+                meterRegistry.timer("cross.dc.synchronization.seconds", Tags.of("operation", "get-multi-cluster-state"))
                     .recordCallable {
                         getChanges(sink::next, interval)
                     }
             }, 0, interval, TimeUnit.SECONDS)
         }, FluxSink.OverflowStrategy.LATEST)
         return aclFlux.doOnCancel {
-            meterRegistry.counter("cross-dc-synchronization.cancelled").increment()
+            meterRegistry.counter("cross.dc.synchronization.cancelled").increment()
             logger.warn("Cancelling cross dc sync")
         }
     }
@@ -62,7 +62,7 @@ class RemoteServices(
             .orTimeout(interval, TimeUnit.SECONDS)
             .exceptionally {
                 meterRegistry.counter(
-                    "cross-dc-synchronization.errors.total",
+                    "cross.dc.synchronization.errors.total",
                     Tags.of("cluster", cluster, "operation", "get-state")
                 ).increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
@@ -76,7 +76,7 @@ class RemoteServices(
             cluster to instances
         } catch (e: Exception) {
             meterRegistry.counter(
-                "cross-dc-synchronization.errors.total",
+                "cross.dc.synchronization.errors.total",
                 Tags.of("cluster", cluster, "operation", "get-instances")
             ).increment()
             logger.warn("Failed fetching instances from $cluster", e)
@@ -89,7 +89,7 @@ class RemoteServices(
         state: ServicesState
     ): ClusterState {
         meterRegistry.counter(
-            "cross-dc-synchronization.total", Tags.of("cluster", cluster)
+            "cross.dc.synchronization.total", Tags.of("cluster", cluster)
         )
             .increment()
         val clusterState = ClusterState(

@@ -91,7 +91,7 @@ class SnapshotUpdater(
         // see GroupChangeWatcher
         return onGroupAdded
             .publishOn(globalSnapshotScheduler)
-            .measureBuffer("snapshot-updater.count.total", meterRegistry)
+            .measureBuffer("snapshot.updater.count.total", meterRegistry)
             .checkpoint("snapshot-updater-groups-published")
             .name("snapshot-updater.count.total")
             .tag("type", "groups")
@@ -101,7 +101,7 @@ class SnapshotUpdater(
             }
             .onErrorResume { e ->
                 meterRegistry.counter(
-                    "snapshot-updater.errors.total",
+                    "snapshot.updater.errors.total",
                     Tags.of("type", "groups")
                 )
                     .increment()
@@ -112,16 +112,16 @@ class SnapshotUpdater(
 
     internal fun services(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return states
-            .name("snapshot-updater.count.total")
+            .name("snapshot.updater.count.total")
             .tag("type", "services")
             .tag("status", "sampled")
             .metrics()
-            .onBackpressureLatestMeasured("snapshot-updater.count.total", meterRegistry)
+            .onBackpressureLatestMeasured("snapshot.updater.count.total", meterRegistry)
             // prefetch = 1, instead of default 256, to avoid processing stale states in case of backpressure
             .publishOn(globalSnapshotScheduler, 1)
-            .measureBuffer("snapshot-updater.count.total", meterRegistry) // todo
+            .measureBuffer("snapshot.updater.count.total", meterRegistry)
             .checkpoint("snapshot-updater-services-published")
-            .name("snapshot-updater.count.total")
+            .name("snapshot.updater.count.total")
             .tag("type", "services")
             .tag("status", "published")
             .metrics()
@@ -152,7 +152,7 @@ class SnapshotUpdater(
             .filter { it != emptyUpdateResult }
             .onErrorResume { e ->
                 meterRegistry.counter(
-                    "snapshot-updater.errors.total",
+                    "snapshot.updater.errors.total",
                     Tags.of("type", "services")
                 ).increment()
                 logger.error("Unable to process service changes", e)
@@ -176,14 +176,14 @@ class SnapshotUpdater(
             }
         } catch (e: Throwable) {
             meterRegistry.counter(
-                "snapshot-updater.errors.total", Tags.of("service", group.serviceName)
+                "snapshot.updater.errors.total", Tags.of("service", group.serviceName)
             ).increment()
             logger.error("Unable to create snapshot for group ${group.serviceName}", e)
         }
     }
 
     private val updateSnapshotForGroupsTimer =
-        meterRegistry.timer("snapshot-updater.duration.seconds", Tags.of("type", "groups"))
+        meterRegistry.timer("snapshot.updater.duration.seconds", Tags.of("type", "groups"))
 
     private fun updateSnapshotForGroups(
         groups: Collection<Group>,
@@ -198,7 +198,7 @@ class SnapshotUpdater(
                 } else if (result.xdsSnapshot != null && group.communicationMode == XDS) {
                     updateSnapshotForGroup(group, result.xdsSnapshot)
                 } else {
-                    meterRegistry.counter("snapshot-updater.errors.total", Tags.of("type", "communication-mode"))
+                    meterRegistry.counter("snapshot.updater.errors.total", Tags.of("type", "communication-mode"))
                         .increment()
                     logger.error(
                         "Requested snapshot for ${group.communicationMode.name} mode, but it is not here. " +

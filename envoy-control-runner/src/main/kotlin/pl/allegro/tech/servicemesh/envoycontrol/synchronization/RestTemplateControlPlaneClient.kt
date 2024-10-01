@@ -33,17 +33,17 @@ class RestTemplateControlPlaneClient(
     }
 
     private fun <T> timed(function: () -> T): T {
-        return meterRegistry.timer("cross-dc-synchronization.seconds", Tags.of("operation", "get-state"))
+        return meterRegistry.timer("cross.dc.synchronization.seconds", Tags.of("operation", "get-state"))
             .record(function)
     }
 
     private fun success() {
-        meterRegistry.counter("cross-dc-synchronization", Tags.of("operation", "get-state", "status", "success"))
+        meterRegistry.counter("cross.dc.synchronization", Tags.of("operation", "get-state", "status", "success"))
             .increment()
     }
 
     private fun failure() {
-        meterRegistry.counter("cross-dc-synchronization", Tags.of("operation", "get-state", "status", "failure"))
+        meterRegistry.counter("cross.dc.synchronization", Tags.of("operation", "get-state", "status", "failure"))
             .increment()
     }
 }

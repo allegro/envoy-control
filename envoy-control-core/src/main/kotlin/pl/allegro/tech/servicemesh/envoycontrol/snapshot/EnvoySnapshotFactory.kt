@@ -70,7 +70,7 @@ class EnvoySnapshotFactory(
         )
         sample.stop(
             meterRegistry.timer(
-                "snapshot-factory.seconds",
+                "snapshot.factory.seconds",
                 Tags.of("operation", "new-snapshot", "type", "global")
             )
         )
@@ -163,7 +163,7 @@ class EnvoySnapshotFactory(
         val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
         groupSample.stop(
             meterRegistry.timer(
-                "snapshot-factory.seconds",
+                "snapshot.factory.seconds",
                 Tags.of("operation", "new-snapshot", "type", "group")
             )
         )

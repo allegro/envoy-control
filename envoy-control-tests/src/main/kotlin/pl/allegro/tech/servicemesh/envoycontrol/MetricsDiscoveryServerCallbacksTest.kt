@@ -4,7 +4,6 @@ import io.micrometer.core.instrument.Tags
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
-import org.junit.platform.commons.util.Preconditions.condition
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.config.Ads
 import pl.allegro.tech.servicemesh.envoycontrol.config.DeltaAds
@@ -233,14 +232,15 @@ interface MetricsDiscoveryServerCallbacksTest {
         // expect
         untilAsserted {
             expectedGrpcConnectionsGaugeValues().forEach { (type, value) ->
-                val metric = "grpc.connections"
+                val metric = "connections"
                 assertThat(
                     meterRegistry.find(metric)
-                        .tags(Tags.of("type", type.name.lowercase())).gauge()
+                        .tags(Tags.of("stream-type", type.name.lowercase(), "connection-type", "grpc")).gauge()
                 ).isNotNull
                 assertThat(
                     meterRegistry.get(metric)
-                        .tags(Tags.of("type", type.name.lowercase())).gauge().value().toInt()
+                        .tags(Tags.of("stream-type", type.name.lowercase(), "connection-type", "grpc")).gauge().value()
+                        .toInt()
                 ).isEqualTo(value)
             }
         }
@@ -259,10 +259,10 @@ interface MetricsDiscoveryServerCallbacksTest {
         }
     }
 
-    private fun assertCondition(type: String, condition: Predicate<Int?>, metricType: String) {
+    private fun assertCondition(type: String, condition: Predicate<Int?>, reqTpe: String) {
         val counterValue =
-            envoyControl().app.meterRegistry().find("grpc.requests.count")
-                .tags(Tags.of("type", type, "metric-type", metricType))
+            envoyControl().app.meterRegistry().find("requests.total")
+                .tags(Tags.of("stream-type", type, "discovery-request-type", reqTpe, "connection-type", "grpc"))
                 .counter()?.count()?.toInt()
         logger.info("$type $counterValue")
         assertThat(counterValue).satisfies(Consumer { condition.test(it) })

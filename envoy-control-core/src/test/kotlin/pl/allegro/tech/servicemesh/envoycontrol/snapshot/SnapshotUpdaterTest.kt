@@ -469,7 +469,7 @@ class SnapshotUpdaterTest {
         val snapshot = cache.getSnapshot(servicesGroup)
         assertThat(snapshot).isEqualTo(null)
         assertThat(
-            simpleMeterRegistry.find("snapshot-updater.errors.total")
+            simpleMeterRegistry.find("snapshot.updater.errors.total")
                 .tags(Tags.of("service", "example-service"))
                 .counter()?.count()
         ).isEqualTo(1.0)

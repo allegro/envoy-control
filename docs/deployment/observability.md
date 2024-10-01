@@ -44,13 +44,13 @@ Envoy Control Runner exposes a set of metrics on standard Spring Actuator's `/ac
 
  Metric               | Description                                        | Labels                             
 ----------------------|----------------------------------------------------|------------------------------------
- **grpc.connections** | Number of running gRPC connections of a given type | type (cds/xds/lds/rds/sds/unknown) 
+ **connections** | Number of running gRPC connections of a given type | stream-type (cds/xds/lds/rds/sds/unknown), connection-type (grpc)
 
 #### xDS requests
 
  Metric                  | Description                                       | Labels                                                       
 -------------------------|---------------------------------------------------|--------------------------------------------------------------
- **grpc.requests.count** | Counter of received gRPC requests of a given type | type (cds/xds/lds/rds/sds/unknown), metric-type(total/delta) 
+ **requests.total** | Counter of received gRPC requests of a given type | stream-type (cds/xds/lds/rds/sds/unknown), connection-type (grpc), discovery-request-type(total/delta) 
 
 #### Snapshot
 
@@ -62,4 +62,4 @@ Envoy Control Runner exposes a set of metrics on standard Spring Actuator's `/ac
 
  Metric                                    | Description                                                    | Labels                                       
 -------------------------------------------|----------------------------------------------------------------|----------------------------------------------
- **cross-dc-synchronization.errors.total** | Counter of synchronization errors for a given DC and operation | cluster, operation (get-instances/get-state) 
+ **cross.dc.synchronization.errors.total** | Counter of synchronization errors for a given DC and operation | cluster, operation (get-instances/get-state) 

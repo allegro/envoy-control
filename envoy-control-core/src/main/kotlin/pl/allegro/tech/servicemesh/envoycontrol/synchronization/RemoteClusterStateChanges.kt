@@ -14,5 +14,5 @@ class RemoteClusterStateChanges(
             .getChanges(properties.sync.pollingInterval)
             .startWith(MultiClusterState.empty())
             .distinctUntilChanged()
-            .name("cross-dc-changes-distinct").metrics()
+            .name("cross.dc.synchronization.distinct").metrics()
 }
