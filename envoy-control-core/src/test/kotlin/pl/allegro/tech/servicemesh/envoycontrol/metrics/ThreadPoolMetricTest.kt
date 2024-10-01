@@ -27,16 +27,15 @@ class ThreadPoolMetricTest {
 
         // then
         val metricNames = listOf("executor.completed", "executor.active", "executor.queued", "executor.pool.size")
-            .map { "envoy-control.$it" }
 
-        val metricMap = listOf(
+        val executorNames = listOf(
             "grpc-server-worker",
             "grpc-worker-event-loop",
             "snapshot-update",
             "group-snapshot"
         ).associateWith { metricNames }
 
-        assertThat(metricMap.entries).allSatisfy {
+        assertThat(executorNames.entries).allSatisfy {
             assertThat(it.value.all { metricName ->
                 meterRegistry.meters.any { meter ->
                     meter.id.name == metricName && meter.id.tags.contains(

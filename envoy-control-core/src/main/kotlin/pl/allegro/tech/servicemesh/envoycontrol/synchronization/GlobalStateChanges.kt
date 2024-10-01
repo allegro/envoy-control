@@ -4,9 +4,13 @@ import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CHECKPOINT_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.logSuppressedError
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
+import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
+import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
+import reactor.core.observability.micrometer.Micrometer
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 
@@ -15,9 +19,10 @@ class GlobalStateChanges(
     private val meterRegistry: MeterRegistry,
     private val properties: SyncProperties
 ) {
-    private val scheduler = Schedulers.newBoundedElastic(
-        Int.MAX_VALUE, Int.MAX_VALUE, "global-service-changes-combinator"
-    )
+    private val scheduler =
+        Schedulers.newBoundedElastic(
+            Int.MAX_VALUE, Int.MAX_VALUE, "global-service-changes-combinator"
+        )
 
     fun combined(): Flux<MultiClusterState> {
         val clusterStatesStreams: List<Flux<MultiClusterState>> = clusterStateChanges.map { it.stream() }
@@ -41,9 +46,11 @@ class GlobalStateChanges(
                 .toMultiClusterState()
         }
             .logSuppressedError("combineLatest() suppressed exception")
-            .measureBuffer("global-service-changes-combine-latest", meterRegistry)
+            .measureBuffer("global-service-changes-combinator", meterRegistry)
             .checkpoint("global-service-changes-emitted")
-            .name("global-service-changes-emitted").metrics()
+            .name(REACTOR_METRIC)
+            .tag(METRIC_EMITTER_TAG, "global-service-changes-combinator")
+            .tap(Micrometer.metrics(meterRegistry))
     }
 
     private fun combinedExperimentalFlow(
@@ -70,10 +77,13 @@ class GlobalStateChanges(
             .logSuppressedError("combineLatest() suppressed exception")
             .measureBuffer("global-service-changes-combine-latest", meterRegistry)
             .checkpoint("global-service-changes-emitted")
-            .name("global-service-changes-emitted").metrics()
+            .name(REACTOR_METRIC)
+            .tag(METRIC_EMITTER_TAG, "global-service-changes")
+            .tag(CHECKPOINT_TAG, "emitted")
             .onBackpressureLatestMeasured("global-service-changes-backpressure", meterRegistry)
             .publishOn(scheduler, 1)
             .checkpoint("global-service-changes-published")
-            .name("global-service-changes-published").metrics()
+            .tag(CHECKPOINT_TAG, "published")
+            .tap(Micrometer.metrics(meterRegistry))
     }
 }

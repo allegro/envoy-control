@@ -8,6 +8,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CROSS_DC_SYNC_CANCELLED_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CROSS_DC_SYNC_SECONDS_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CROSS_DC_SYNC_TOTAL_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ERRORS_TOTAL_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.lang.Integer.max
@@ -30,14 +37,17 @@ class RemoteServices(
     fun getChanges(interval: Long): Flux<MultiClusterState> {
         val aclFlux: Flux<MultiClusterState> = Flux.create({ sink ->
             scheduler.scheduleWithFixedDelay({
-                meterRegistry.timer("cross.dc.synchronization.seconds", Tags.of("operation", "get-multi-cluster-state"))
+                meterRegistry.timer(
+                    CROSS_DC_SYNC_SECONDS_METRIC,
+                    Tags.of(OPERATION_TAG, "get-multi-cluster-state")
+                )
                     .recordCallable {
                         getChanges(sink::next, interval)
                     }
             }, 0, interval, TimeUnit.SECONDS)
         }, FluxSink.OverflowStrategy.LATEST)
         return aclFlux.doOnCancel {
-            meterRegistry.counter("cross.dc.synchronization.cancelled").increment()
+            meterRegistry.counter(CROSS_DC_SYNC_CANCELLED_METRIC).increment()
             logger.warn("Cancelling cross dc sync")
         }
     }
@@ -62,8 +72,12 @@ class RemoteServices(
             .orTimeout(interval, TimeUnit.SECONDS)
             .exceptionally {
                 meterRegistry.counter(
-                    "cross.dc.synchronization.errors.total",
-                    Tags.of("cluster", cluster, "operation", "get-state")
+                    ERRORS_TOTAL_METRIC,
+                    Tags.of(
+                        CLUSTER_TAG, cluster,
+                        OPERATION_TAG, "get-state",
+                        METRIC_EMITTER_TAG, "cross-dc-synchronization"
+                    )
                 ).increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
                 clusterStateCache[cluster]
@@ -76,8 +90,12 @@ class RemoteServices(
             cluster to instances
         } catch (e: Exception) {
             meterRegistry.counter(
-                "cross.dc.synchronization.errors.total",
-                Tags.of("cluster", cluster, "operation", "get-instances")
+                ERRORS_TOTAL_METRIC,
+                Tags.of(
+                    CLUSTER_TAG, cluster,
+                    OPERATION_TAG, "get-instances",
+                    METRIC_EMITTER_TAG, "cross-dc-synchronization"
+                )
             ).increment()
             logger.warn("Failed fetching instances from $cluster", e)
             cluster to emptyList()
@@ -89,7 +107,7 @@ class RemoteServices(
         state: ServicesState
     ): ClusterState {
         meterRegistry.counter(
-            "cross.dc.synchronization.total", Tags.of("cluster", cluster)
+            CROSS_DC_SYNC_TOTAL_METRIC, Tags.of(CLUSTER_TAG, cluster)
         )
             .increment()
         val clusterState = ClusterState(

@@ -41,6 +41,12 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServi
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalStateChanges
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CACHE_GROUP_COUNT_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ERRORS_TOTAL_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.STATUS_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.WATCH_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.WATCH_TYPE_TAG
 import reactor.core.scheduler.Schedulers
 import java.net.URI
 
@@ -173,14 +179,29 @@ class ControlPlaneConfig {
         ConsulClient(properties.host, properties.port).agentSelf.value?.config?.datacenter ?: "local"
 
     fun controlPlaneMetrics(meterRegistry: MeterRegistry): DefaultEnvoyControlMetrics {
-        val metricName = "watched-services"
         return DefaultEnvoyControlMetrics(meterRegistry = meterRegistry).also {
-            meterRegistry.gauge(metricName, Tags.of("status", "added"), it.servicesAdded)
-            meterRegistry.gauge(metricName, Tags.of("status", "removed"), it.servicesRemoved)
-            meterRegistry.gauge(metricName, Tags.of("status", "instance-changed"), it.instanceChanges)
-            meterRegistry.gauge(metricName, Tags.of("status", "snapshot-changed"), it.snapshotChanges)
-            meterRegistry.gauge("cache.groups.count", it.cacheGroupsCount)
-            it.meterRegistry.more().counter("services.watch.errors.total", listOf(), it.errorWatchingServices)
+            meterRegistry.gauge(WATCH_METRIC, Tags.of(STATUS_TAG, "added", WATCH_TYPE_TAG, "service"), it.servicesAdded)
+            meterRegistry.gauge(
+                WATCH_METRIC,
+                Tags.of(STATUS_TAG, "removed", WATCH_TYPE_TAG, "service"),
+                it.servicesRemoved
+            )
+            meterRegistry.gauge(
+                WATCH_METRIC,
+                Tags.of(STATUS_TAG, "instance-changed", WATCH_TYPE_TAG, "service"),
+                it.instanceChanges
+            )
+            meterRegistry.gauge(
+                WATCH_METRIC,
+                Tags.of(STATUS_TAG, "snapshot-changed", WATCH_TYPE_TAG, "service"),
+                it.snapshotChanges
+            )
+            meterRegistry.gauge(CACHE_GROUP_COUNT_METRIC, it.cacheGroupsCount)
+            it.meterRegistry.more().counter(
+                ERRORS_TOTAL_METRIC,
+                Tags.of(METRIC_EMITTER_TAG, WATCH_METRIC, WATCH_TYPE_TAG, "service"),
+                it.errorWatchingServices
+            )
         }
     }
 

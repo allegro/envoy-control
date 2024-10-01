@@ -20,6 +20,11 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.RDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.SDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.UNKNOWN
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTIONS_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DISCOVERY_REQ_TYPE_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.REQUESTS_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.STREAM_TYPE_TAG
 import java.util.function.Consumer
 import java.util.function.Predicate
 
@@ -228,18 +233,20 @@ interface MetricsDiscoveryServerCallbacksTest {
         // given
         val meterRegistry = envoyControl().app.meterRegistry()
         consul().server.operations.registerService(service(), name = "echo")
-
+        for (meter in meterRegistry.meters) {
+            print(meter.toString())
+        }
         // expect
         untilAsserted {
             expectedGrpcConnectionsGaugeValues().forEach { (type, value) ->
-                val metric = "connections"
+                val metric = CONNECTIONS_METRIC
                 assertThat(
                     meterRegistry.find(metric)
-                        .tags(Tags.of("stream-type", type.name.lowercase(), "connection-type", "grpc")).gauge()
+                        .tags(Tags.of(STREAM_TYPE_TAG, type.name.lowercase(), CONNECTION_TYPE_TAG, "grpc")).gauge()
                 ).isNotNull
                 assertThat(
                     meterRegistry.get(metric)
-                        .tags(Tags.of("stream-type", type.name.lowercase(), "connection-type", "grpc")).gauge().value()
+                        .tags(Tags.of(STREAM_TYPE_TAG, type.name.lowercase(), CONNECTION_TYPE_TAG, "grpc")).gauge().value()
                         .toInt()
                 ).isEqualTo(value)
             }
@@ -261,8 +268,8 @@ interface MetricsDiscoveryServerCallbacksTest {
 
     private fun assertCondition(type: String, condition: Predicate<Int?>, reqTpe: String) {
         val counterValue =
-            envoyControl().app.meterRegistry().find("requests.total")
-                .tags(Tags.of("stream-type", type, "discovery-request-type", reqTpe, "connection-type", "grpc"))
+            envoyControl().app.meterRegistry().find(REQUESTS_METRIC)
+                .tags(Tags.of(STREAM_TYPE_TAG, type, DISCOVERY_REQ_TYPE_TAG, reqTpe, CONNECTION_TYPE_TAG, "grpc"))
                 .counter()?.count()?.toInt()
         logger.info("$type $counterValue")
         assertThat(counterValue).satisfies(Consumer { condition.test(it) })

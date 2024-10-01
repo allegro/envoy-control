@@ -31,7 +31,7 @@ Sample logger configuration is available here.
 
 Metric | Description | Labels
 ----------------------|------------------------------------|--------------------------------
-**watched-services** | Counter of watched services events | status (added/removed/instances-changed/snapshot-changed)
+**watch** | Counter of watched services events | status (added/removed/instances-changed/snapshot-changed), watch-type, metric-emitter
 
 Standard [Spring metrics](https://docs.spring.io/spring-boot/docs/current/reference/html/production-ready-metrics.html#production-ready-metrics-meter) (
 JVM, CPU, HTTP server) are also included.
@@ -62,4 +62,4 @@ Envoy Control Runner exposes a set of metrics on standard Spring Actuator's `/ac
 
  Metric                                    | Description                                                    | Labels                                       
 -------------------------------------------|----------------------------------------------------------------|----------------------------------------------
- **cross.dc.synchronization.errors.total** | Counter of synchronization errors for a given DC and operation | cluster, operation (get-instances/get-state) 
+ **errors.total** | Counter of synchronization errors for a given DC and operation | cluster, operation (get-instances/get-state) 

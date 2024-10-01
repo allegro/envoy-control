@@ -11,6 +11,9 @@ import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
+import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.WATCH_TYPE_TAG
+import reactor.core.observability.micrometer.Micrometer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.util.function.Consumer
@@ -34,9 +37,14 @@ internal class GroupChangeWatcher(
 
     fun onGroupAdded(): Flux<List<Group>> {
         return groupsChanged
-            .measureBuffer("group-change-watcher-emitted", meterRegistry)
+            .measureBuffer("group-change-watcher", meterRegistry)
             .checkpoint("group-change-watcher-emitted")
-            .name("group-change-watcher-emitted").metrics()
+            .name(REACTOR_METRIC)
+            .tag(WATCH_TYPE_TAG, "group")
+            .tap(Micrometer.metrics(meterRegistry))
+            .doOnSubscribe {
+                logger.info("Watching group changes")
+            }
             .doOnCancel {
                 logger.warn("Cancelling watching group changes")
             }

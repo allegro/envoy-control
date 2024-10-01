@@ -416,7 +416,6 @@ class ControlPlane private constructor(
             ExecutorServiceMetrics(
                 executor,
                 executorServiceName,
-                "envoy-control",
                 Tags.of("executor", executorServiceName)
             )
                 .bindTo(meterRegistry)

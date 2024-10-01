@@ -25,6 +25,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.endpoints.Envo
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.EnvoyListenersFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyEgressRoutesFactory
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIngressRoutesFactory
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_FACTORY_SECONDS_METRIC
 import java.util.SortedMap
 
 class EnvoySnapshotFactory(
@@ -70,7 +71,7 @@ class EnvoySnapshotFactory(
         )
         sample.stop(
             meterRegistry.timer(
-                "snapshot.factory.seconds",
+                SNAPSHOT_FACTORY_SECONDS_METRIC,
                 Tags.of("operation", "new-snapshot", "type", "global")
             )
         )
@@ -163,7 +164,7 @@ class EnvoySnapshotFactory(
         val newSnapshotForGroup = newSnapshotForGroup(group, globalSnapshot)
         groupSample.stop(
             meterRegistry.timer(
-                "snapshot.factory.seconds",
+                SNAPSHOT_FACTORY_SECONDS_METRIC,
                 Tags.of("operation", "new-snapshot", "type", "group")
             )
         )
