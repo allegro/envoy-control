@@ -37,7 +37,11 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
             .toMap()
 
         connectionsByType.forEach { (type, typeConnections) ->
-            meterRegistry.gauge("connections", Tags.of("connection-type", "grpc", "stream-type", type.name.lowercase()), typeConnections)
+            meterRegistry.gauge(
+                "connections",
+                Tags.of("connection-type", "grpc", "stream-type", type.name.lowercase()),
+                typeConnections
+            )
         }
     }
 
@@ -54,7 +58,11 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
     override fun onV3StreamRequest(streamId: Long, request: V3DiscoveryRequest) {
         meterRegistry.counter(
             "requests.total",
-            Tags.of("connection-type", "grpc", "stream-type", StreamType.fromTypeUrl(request.typeUrl).name.lowercase(), "discovery-request-type", "total")
+            Tags.of(
+                "connection-type", "grpc",
+                "stream-type", StreamType.fromTypeUrl(request.typeUrl).name.lowercase(),
+                "discovery-request-type", "total"
+            )
         )
             .increment()
     }
@@ -65,7 +73,11 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
     ) {
         meterRegistry.counter(
             "requests.total",
-            Tags.of("connection-type", "grpc", "stream-type", StreamType.fromTypeUrl(request.typeUrl).name.lowercase(), "discovery-request-type", "delta")
+            Tags.of(
+                "connection-type",
+                "grpc", "stream-type",
+                StreamType.fromTypeUrl(request.typeUrl).name.lowercase(), "discovery-request-type", "delta"
+            )
         )
             .increment()
     }
