@@ -10,21 +10,20 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
-import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
-import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
-import pl.allegro.tech.servicemesh.envoycontrol.utils.noopTimer
-import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
-import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ERRORS_TOTAL_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SIMPLE_CACHE_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_STATUS_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.STATUS_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.UPDATE_TRIGGER_TAG
-import reactor.core.observability.micrometer.Micrometer
+import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
+import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
+import pl.allegro.tech.servicemesh.envoycontrol.utils.noopTimer
+import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -67,7 +66,7 @@ class SnapshotUpdater(
             .tag(METRIC_EMITTER_TAG, "snapshot-updater")
             .tag(SNAPSHOT_STATUS_TAG, "merged")
             .tag(UPDATE_TRIGGER_TAG, "global")
-            .tap(Micrometer.metrics(meterRegistry))
+            .metrics()
             // step 3: group updates don't provide a snapshot,
             // so we piggyback the last updated snapshot state for use
             .scan { previous: UpdateResult, newUpdate: UpdateResult ->
@@ -111,7 +110,7 @@ class SnapshotUpdater(
             .tag(METRIC_EMITTER_TAG, "snapshot-updater")
             .tag(SNAPSHOT_STATUS_TAG, "published")
             .tag(UPDATE_TRIGGER_TAG, "groups")
-            .tap(Micrometer.metrics(meterRegistry))
+            .metrics()
             .onErrorResume { e ->
                 meterRegistry.counter(
                     ERRORS_TOTAL_METRIC,
@@ -136,7 +135,7 @@ class SnapshotUpdater(
             .name(REACTOR_METRIC)
             .tag(UPDATE_TRIGGER_TAG, "services")
             .tag(STATUS_TAG, "published")
-            .tap(Micrometer.metrics(meterRegistry))
+            .metrics()
             .createClusterConfigurations()
             .map { (states, clusters) ->
                 var lastXdsSnapshot: GlobalSnapshot? = null

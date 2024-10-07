@@ -13,7 +13,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.WATCH_TYPE_TAG
-import reactor.core.observability.micrometer.Micrometer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.util.function.Consumer
@@ -41,7 +40,7 @@ internal class GroupChangeWatcher(
             .checkpoint("group-change-watcher-emitted")
             .name(REACTOR_METRIC)
             .tag(WATCH_TYPE_TAG, "group")
-            .tap(Micrometer.metrics(meterRegistry))
+            .metrics()
             .doOnSubscribe {
                 logger.info("Watching group changes")
             }
