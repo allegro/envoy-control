@@ -18,7 +18,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CHECKPOINT_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
-import reactor.core.observability.micrometer.Micrometer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.time.Duration
@@ -63,7 +62,7 @@ class ConsulServiceChanges(
             .tag(CHECKPOINT_TAG, "emitted")
             .checkpoint("consul-service-changes-emitted-distinct")
             .tag(CHECKPOINT_TAG, "distinct")
-            .tap(Micrometer.metrics(metrics.meterRegistry))
+            .metrics()
             .doOnCancel {
                 logger.warn("Cancelling watching consul service changes")
                 watcher.close()
