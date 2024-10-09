@@ -10,6 +10,7 @@ import io.envoyproxy.controlplane.server.callback.SnapshotCollectingCallback
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioServerSocketChannel
@@ -221,10 +222,12 @@ class ControlPlane private constructor(
                     nioEventLoopExecutor
                 )
             )
-            .bossEventLoopGroup(NioEventLoopGroup(
-                properties.server.nioBossEventLoopThreadCount,
-                nioBossEventLoopExecutor
-            ))
+            .bossEventLoopGroup(
+                NioEventLoopGroup(
+                    properties.server.nioBossEventLoopThreadCount,
+                    nioBossEventLoopExecutor
+                )
+            )
             .channelType(NioServerSocketChannel::class.java)
             .executor(grpcServerExecutor)
             .keepAliveTime(properties.server.netty.keepAliveTime.toMillis(), TimeUnit.MILLISECONDS)
@@ -410,7 +413,11 @@ class ControlPlane private constructor(
         }
 
         private fun meterExecutor(executor: ExecutorService, executorServiceName: String) {
-            ExecutorServiceMetrics(executor, executorServiceName, executorServiceName, emptySet())
+            ExecutorServiceMetrics(
+                executor,
+                executorServiceName,
+                Tags.of("executor", executorServiceName)
+            )
                 .bindTo(meterRegistry)
         }
     }

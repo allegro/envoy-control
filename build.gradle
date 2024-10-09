@@ -55,7 +55,7 @@ allprojects {
         bytebuddy        : '1.15.1',
         re2j             : '1.3',
         xxhash           : '0.10.1',
-        dropwizard       : '4.2.26'
+        dropwizard       : '4.2.26',
     ]
 
     dependencyManagement {

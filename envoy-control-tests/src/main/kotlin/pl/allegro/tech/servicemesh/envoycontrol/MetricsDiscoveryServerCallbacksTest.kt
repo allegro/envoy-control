@@ -1,6 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
-import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -20,7 +20,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.RDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.SDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.UNKNOWN
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTIONS_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DISCOVERY_REQ_TYPE_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.REQUESTS_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.STREAM_TYPE_TAG
 import java.util.function.Consumer
+import java.util.function.Predicate
 
 class XdsMetricsDiscoveryServerCallbacksTest : MetricsDiscoveryServerCallbacksTest {
     companion object {
@@ -61,20 +67,23 @@ class XdsMetricsDiscoveryServerCallbacksTest : MetricsDiscoveryServerCallbacksTe
     )
 
     override fun expectedGrpcRequestsCounterValues() = mapOf(
-        CDS.name.toLowerCase() to isGreaterThanZero(),
-        EDS.name.toLowerCase() to isGreaterThanZero(),
-        LDS.name.toLowerCase() to isGreaterThanZero(),
-        RDS.name.toLowerCase() to isGreaterThanZero(),
-        SDS.name.toLowerCase() to isNull(),
-        ADS.name.toLowerCase() to isNull(),
-        UNKNOWN.name.toLowerCase() to isNull(),
-        "${CDS.name.toLowerCase()}.delta" to isNull(),
-        "${EDS.name.toLowerCase()}.delta" to isNull(),
-        "${LDS.name.toLowerCase()}.delta" to isNull(),
-        "${RDS.name.toLowerCase()}.delta" to isNull(),
-        "${SDS.name.toLowerCase()}.delta" to isNull(),
-        "${ADS.name.toLowerCase()}.delta" to isNull(),
-        "${UNKNOWN.name.toLowerCase()}.delta" to isNull()
+        CDS.name.lowercase() to isGreaterThanZero(),
+        EDS.name.lowercase() to isGreaterThanZero(),
+        LDS.name.lowercase() to isGreaterThanZero(),
+        RDS.name.lowercase() to isGreaterThanZero(),
+        SDS.name.lowercase() to isNull(),
+        ADS.name.lowercase() to isNull(),
+        UNKNOWN.name.lowercase() to isNull(),
+    )
+
+    override fun expectedGrpcRequestsDeltaCounterValues() = mapOf(
+        CDS.name.lowercase() to isNull(),
+        EDS.name.lowercase() to isNull(),
+        LDS.name.lowercase() to isNull(),
+        RDS.name.lowercase() to isNull(),
+        SDS.name.lowercase() to isNull(),
+        ADS.name.lowercase() to isNull(),
+        UNKNOWN.name.lowercase() to isNull(),
     )
 }
 
@@ -117,20 +126,23 @@ class AdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbacksTes
     )
 
     override fun expectedGrpcRequestsCounterValues() = mapOf(
-        CDS.name.toLowerCase() to isGreaterThanZero(),
-        EDS.name.toLowerCase() to isGreaterThanZero(),
-        LDS.name.toLowerCase() to isGreaterThanZero(),
-        RDS.name.toLowerCase() to isGreaterThanZero(),
-        SDS.name.toLowerCase() to isNull(),
-        ADS.name.toLowerCase() to isNull(),
-        UNKNOWN.name.toLowerCase() to isNull(),
-        "${CDS.name.toLowerCase()}.delta" to isNull(),
-        "${EDS.name.toLowerCase()}.delta" to isNull(),
-        "${LDS.name.toLowerCase()}.delta" to isNull(),
-        "${RDS.name.toLowerCase()}.delta" to isNull(),
-        "${SDS.name.toLowerCase()}.delta" to isNull(),
-        "${ADS.name.toLowerCase()}.delta" to isNull(),
-        "${UNKNOWN.name.toLowerCase()}.delta" to isNull()
+        CDS.name.lowercase() to isGreaterThanZero(),
+        EDS.name.lowercase() to isGreaterThanZero(),
+        LDS.name.lowercase() to isGreaterThanZero(),
+        RDS.name.lowercase() to isGreaterThanZero(),
+        SDS.name.lowercase() to isNull(),
+        ADS.name.lowercase() to isNull(),
+        UNKNOWN.name.lowercase() to isNull(),
+    )
+
+    override fun expectedGrpcRequestsDeltaCounterValues() = mapOf(
+        CDS.name.lowercase() to isNull(),
+        EDS.name.lowercase() to isNull(),
+        LDS.name.lowercase() to isNull(),
+        RDS.name.lowercase() to isNull(),
+        SDS.name.lowercase() to isNull(),
+        ADS.name.lowercase() to isNull(),
+        UNKNOWN.name.lowercase() to isNull(),
     )
 }
 
@@ -173,24 +185,30 @@ class DeltaAdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbac
     )
 
     override fun expectedGrpcRequestsCounterValues() = mapOf(
-        CDS.name.toLowerCase() to isNull(),
-        EDS.name.toLowerCase() to isNull(),
-        LDS.name.toLowerCase() to isNull(),
-        RDS.name.toLowerCase() to isNull(),
-        SDS.name.toLowerCase() to isNull(),
-        ADS.name.toLowerCase() to isNull(),
-        UNKNOWN.name.toLowerCase() to isNull(),
-        "${CDS.name.toLowerCase()}.delta" to isGreaterThanZero(),
-        "${EDS.name.toLowerCase()}.delta" to isGreaterThanZero(),
-        "${LDS.name.toLowerCase()}.delta" to isGreaterThanZero(),
-        "${RDS.name.toLowerCase()}.delta" to isGreaterThanZero(),
-        "${SDS.name.toLowerCase()}.delta" to isNull(),
-        "${ADS.name.toLowerCase()}.delta" to isNull(),
-        "${UNKNOWN.name.toLowerCase()}.delta" to isNull()
+        CDS.name.lowercase() to isNull(),
+        EDS.name.lowercase() to isNull(),
+        LDS.name.lowercase() to isNull(),
+        RDS.name.lowercase() to isNull(),
+        SDS.name.lowercase() to isNull(),
+        ADS.name.lowercase() to isNull(),
+        UNKNOWN.name.lowercase() to isNull(),
+    )
+
+    override fun expectedGrpcRequestsDeltaCounterValues() = mapOf(
+        CDS.name.lowercase() to isGreaterThanZero(),
+        EDS.name.lowercase() to isGreaterThanZero(),
+        LDS.name.lowercase() to isGreaterThanZero(),
+        RDS.name.lowercase() to isGreaterThanZero(),
+        SDS.name.lowercase() to isNull(),
+        ADS.name.lowercase() to isNull(),
+        UNKNOWN.name.lowercase() to isNull(),
     )
 }
 
 interface MetricsDiscoveryServerCallbacksTest {
+    companion object {
+        private val logger by logger()
+    }
 
     fun consul(): ConsulExtension
 
@@ -204,7 +222,7 @@ interface MetricsDiscoveryServerCallbacksTest {
 
     fun expectedGrpcRequestsCounterValues(): Map<String, (Int?) -> Boolean>
 
-    fun MeterRegistry.counterValue(name: String) = this.find(name).counter()?.count()?.toInt()
+    fun expectedGrpcRequestsDeltaCounterValues(): Map<String, (Int?) -> Boolean>
 
     fun isGreaterThanZero() = { x: Int? -> x!! > 0 }
 
@@ -215,13 +233,22 @@ interface MetricsDiscoveryServerCallbacksTest {
         // given
         val meterRegistry = envoyControl().app.meterRegistry()
         consul().server.operations.registerService(service(), name = "echo")
-
+        for (meter in meterRegistry.meters) {
+            print(meter.toString())
+        }
         // expect
         untilAsserted {
             expectedGrpcConnectionsGaugeValues().forEach { (type, value) ->
-                val metric = "grpc.connections.${type.name.toLowerCase()}"
-                assertThat(meterRegistry.find(metric).gauge()).isNotNull
-                assertThat(meterRegistry.get(metric).gauge().value().toInt()).isEqualTo(value)
+                val metric = CONNECTIONS_METRIC
+                assertThat(
+                    meterRegistry.find(metric)
+                        .tags(Tags.of(STREAM_TYPE_TAG, type.name.lowercase(), CONNECTION_TYPE_TAG, "grpc")).gauge()
+                ).isNotNull
+                assertThat(
+                    meterRegistry.get(metric)
+                        .tags(Tags.of(STREAM_TYPE_TAG, type.name.lowercase(), CONNECTION_TYPE_TAG, "grpc")).gauge().value()
+                        .toInt()
+                ).isEqualTo(value)
             }
         }
     }
@@ -229,16 +256,22 @@ interface MetricsDiscoveryServerCallbacksTest {
     @Test
     fun `should measure gRPC requests`() {
         // given
-        val meterRegistry = envoyControl().app.meterRegistry()
         consul().server.operations.registerService(service(), name = "echo")
 
         // expect
         untilAsserted {
-            expectedGrpcRequestsCounterValues().forEach { (type, condition) ->
-                val counterValue = meterRegistry.counterValue("grpc.requests.$type")
-                println("$type $counterValue")
-                assertThat(counterValue).satisfies(Consumer { condition(it) })
+            expectedGrpcRequestsCounterValues().forEach {
+                assertCondition(it.key, it.value, "total")
             }
         }
+    }
+
+    private fun assertCondition(type: String, condition: Predicate<Int?>, reqTpe: String) {
+        val counterValue =
+            envoyControl().app.meterRegistry().find(REQUESTS_METRIC)
+                .tags(Tags.of(STREAM_TYPE_TAG, type, DISCOVERY_REQ_TYPE_TAG, reqTpe, CONNECTION_TYPE_TAG, "grpc"))
+                .counter()?.count()?.toInt()
+        logger.info("$type $counterValue")
+        assertThat(counterValue).satisfies(Consumer { condition.test(it) })
     }
 }

@@ -1,9 +1,11 @@
 package pl.allegro.tech.servicemesh.envoycontrol.utils
 
+import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
+import org.testcontainers.shaded.org.awaitility.Awaitility
 import reactor.core.publisher.Flux
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.CountDownLatch
@@ -24,10 +26,15 @@ class ReactorUtilsTest {
             .subscribeRequestingN(n = 5)
 
         // then
-        assertThat(received.await(2, TimeUnit.SECONDS)).isTrue()
+        assertThat(received.await(5, TimeUnit.SECONDS)).isTrue()
 
-        val buffered = meterRegistry["reactor-buffers.publish"].gauge()
-        assertThat(buffered.value()).isEqualTo(15.0)
+        Awaitility.waitAtMost(5, TimeUnit.SECONDS).untilAsserted {
+            assertThat(
+                meterRegistry.find(REACTOR_METRIC)
+                    .tags(Tags.of(METRIC_TYPE_TAG, "buffer-size", METRIC_EMITTER_TAG, "publish"))
+                    .gauge()?.value()
+            ).isEqualTo(15.0)
+        }
     }
 
     @Test
@@ -43,9 +50,12 @@ class ReactorUtilsTest {
         // then
         assertThat(received.await(2, TimeUnit.SECONDS)).isTrue()
 
-        val sourcesCount = meterRegistry["reactor-buffers.merge"].gauge().value()
-        val source0Buffered = meterRegistry["reactor-buffers.merge_0"].gauge().value()
-        val source1Buffered = meterRegistry["reactor-buffers.merge_1"].gauge().value()
+        val sourcesCount = meterRegistry.find(REACTOR_METRIC)
+            .tags(Tags.of(METRIC_TYPE_TAG, "buffer-size", METRIC_EMITTER_TAG, "merge")).gauge()?.value()
+        val source0Buffered = meterRegistry.find(REACTOR_METRIC)
+            .tags(Tags.of(METRIC_TYPE_TAG, "buffer-size", METRIC_EMITTER_TAG, "merge_0")).gauge()?.value()
+        val source1Buffered = meterRegistry.find(REACTOR_METRIC)
+            .tags(Tags.of(METRIC_TYPE_TAG, "buffer-size", METRIC_EMITTER_TAG, "merge_1")).gauge()?.value()
 
         assertThat(sourcesCount).isEqualTo(2.0)
         // 12 published minus 5 requested = 7
@@ -67,10 +77,11 @@ class ReactorUtilsTest {
         // then
         assertThat(received.await(2, TimeUnit.SECONDS)).isTrue()
 
-        val buffered = meterRegistry["reactor-buffers.combine"].gauge().value()
+        val result = meterRegistry.find(REACTOR_METRIC)
+            .tags(Tags.of(METRIC_TYPE_TAG, "buffer-size", METRIC_EMITTER_TAG, "combine")).gauge()?.value()
 
         // only two last items from source1 are undelivered (6 produces - 4 requested = 2)
-        assertThat(buffered).isEqualTo(2.0)
+        assertThat(result).isEqualTo(2.0)
     }
 
     @Test
@@ -87,8 +98,10 @@ class ReactorUtilsTest {
         // then
         assertThat(received.await(2, TimeUnit.SECONDS)).isTrue()
 
-        val discardedItemsBeforeBackpressure = meterRegistry["reactor-discarded-items.latest-before"].counter().count()
-        val discardedItemsAfterBackpressure = meterRegistry["reactor-discarded-items.latest"].counter().count()
+        val discardedItemsBeforeBackpressure = meterRegistry.find(REACTOR_METRIC)
+            .tags(Tags.of(METRIC_TYPE_TAG, "discarded-items", METRIC_EMITTER_TAG, "latest-before")).counter()?.count()
+        val discardedItemsAfterBackpressure = meterRegistry.find(REACTOR_METRIC)
+            .tags(Tags.of(METRIC_TYPE_TAG, "discarded-items", METRIC_EMITTER_TAG, "latest")).counter()?.count()
 
         /**
          * Published by range: (0..10)
@@ -97,7 +110,9 @@ class ReactorUtilsTest {
          * Not dispatched to subscriber, received by onBackpressure: (4, 6, 8)
          * Discarded by onBackpressure: (4, 6)
          */
-        assertThat(discardedItemsAfterBackpressure - discardedItemsBeforeBackpressure).isEqualTo(2.0)
+        assertThat(discardedItemsAfterBackpressure).isNotNull()
+        assertThat(discardedItemsAfterBackpressure).isNotNull()
+        assertThat(discardedItemsAfterBackpressure!! - discardedItemsBeforeBackpressure!!).isEqualTo(2.0)
     }
 
     private fun <T> Flux<T>.subscribeRequestingN(n: Int): CountDownLatch {

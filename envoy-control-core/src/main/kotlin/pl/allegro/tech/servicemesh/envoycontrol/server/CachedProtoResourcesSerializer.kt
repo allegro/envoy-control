@@ -12,6 +12,7 @@ import java.util.function.Supplier
 
 import io.envoyproxy.controlplane.server.serializer.DefaultProtoResourcesSerializer
 import io.micrometer.core.instrument.Timer
+import pl.allegro.tech.servicemesh.envoycontrol.utils.PROTOBUF_CACHE_METRIC
 
 internal class CachedProtoResourcesSerializer(
     private val meterRegistry: MeterRegistry,
@@ -27,7 +28,7 @@ internal class CachedProtoResourcesSerializer(
     }
 
     private val cache: Cache<Message, Any> = createCache("protobuf-cache")
-    private val timer = createTimer(reportMetrics, meterRegistry, "protobuf-cache.serialize.time")
+    private val timer = createTimer(reportMetrics, meterRegistry, PROTOBUF_CACHE_METRIC)
 
     private fun <K, V> createCache(cacheName: String): Cache<K, V> {
         return if (reportMetrics) {

@@ -16,6 +16,7 @@ import io.envoyproxy.envoy.config.listener.v3.Listener
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -59,6 +60,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.any
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ERRORS_TOTAL_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICE_TAG
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
@@ -468,7 +473,8 @@ class SnapshotUpdaterTest {
         val snapshot = cache.getSnapshot(servicesGroup)
         assertThat(snapshot).isEqualTo(null)
         assertThat(
-            simpleMeterRegistry.find("snapshot-updater.services.example-service.updates.errors")
+            simpleMeterRegistry.find(ERRORS_TOTAL_METRIC)
+                .tags(Tags.of(SERVICE_TAG, "example-service", OPERATION_TAG, "create-snapshot", METRIC_EMITTER_TAG, "snapshot-updater"))
                 .counter()?.count()
         ).isEqualTo(1.0)
     }
