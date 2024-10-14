@@ -5,7 +5,7 @@ import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.noop.NoopTimer
 
 val noopTimer = NoopTimer(Meter.Id("", Tags.empty(), null, null, Meter.Type.TIMER))
-const val REACTOR_METRIC = "reactor"
+const val REACTOR_METRIC = "reactor.pipeline"
 const val ERRORS_TOTAL_METRIC = "errors.total"
 const val CONNECTIONS_METRIC = "connections"
 const val REQUESTS_METRIC = "requests.total"
