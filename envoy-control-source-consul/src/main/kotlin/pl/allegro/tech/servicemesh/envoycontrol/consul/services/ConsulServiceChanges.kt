@@ -13,16 +13,14 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ENVOY_CONTROL_WARM_UP_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CHECKPOINT_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import pl.allegro.tech.discovery.consul.recipes.watch.catalog.ServiceInstances as RecipesServiceInstances
 import pl.allegro.tech.discovery.consul.recipes.watch.catalog.Services as RecipesServices
 
@@ -231,13 +229,7 @@ class ConsulServiceChanges(
                     remaining.remove(service)
                     ready = remaining.isEmpty()
                     if (ready) {
-                        val stopTimer = System.currentTimeMillis()
                         readinessStateHandler.ready()
-                        metrics.meterRegistry.timer(ENVOY_CONTROL_WARM_UP_METRIC)
-                            .record(
-                                stopTimer - startTimer,
-                                TimeUnit.SECONDS
-                            )
                     }
                 }
             }

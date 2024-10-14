@@ -198,13 +198,10 @@ class SnapshotUpdater(
         }
     }
 
-    private val updateSnapshotForGroupsTimer = meterRegistry.timer("snapshot.update.duration.seconds")
-
     private fun updateSnapshotForGroups(
         groups: Collection<Group>,
         result: UpdateResult
     ): Mono<UpdateResult> {
-        val sample = Timer.start()
         versions.retainGroups(cache.groups())
         val results = Flux.fromIterable(groups)
             .doOnNextScheduledOn(groupSnapshotScheduler) { group ->
@@ -222,7 +219,6 @@ class SnapshotUpdater(
                 }
             }
         return results.then(Mono.fromCallable {
-            sample.stop(updateSnapshotForGroupsTimer)
             result
         })
     }
