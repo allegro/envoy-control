@@ -23,6 +23,7 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tap.v3.Tap
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.boot.jackson.JsonComponent
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -39,7 +40,10 @@ import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 import io.envoyproxy.envoy.extensions.filters.http.rbac.v3.RBAC as RBACFilter
 
 @RestController
-class SnapshotDebugController(val debugService: SnapshotDebugService) {
+class SnapshotDebugController(
+    val debugService: SnapshotDebugService,
+    val meterRegistry: MeterRegistry
+) {
 
     /**
      * Returns a textual representation of the snapshot for debugging purposes.
@@ -63,6 +67,26 @@ class SnapshotDebugController(val debugService: SnapshotDebugService) {
         : ResponseEntity<Collection<Group>> {
         return ResponseEntity(
             debugService.groups(discoveryServiceName),
+            HttpStatus.OK
+        )
+    }
+
+    @GetMapping("/debug-metrics")
+    fun metrics(): ResponseEntity<String> {
+        val stringBuilder = StringBuilder()
+        try {
+            meterRegistry.meters.forEach {
+                try {
+                    stringBuilder.append(it.id).append(it.measure()).append("\n")
+                } catch (e: Exception) {
+                    stringBuilder.append(e.message)
+                }
+            }
+        } catch (e: Exception) {
+            stringBuilder.append(e.message)
+        }
+        return ResponseEntity(
+            stringBuilder.toString(),
             HttpStatus.OK
         )
     }
