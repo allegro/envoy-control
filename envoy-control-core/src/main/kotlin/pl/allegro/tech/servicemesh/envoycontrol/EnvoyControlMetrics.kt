@@ -1,7 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
 import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import io.micrometer.prometheusmetrics.PrometheusConfig
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import java.util.concurrent.atomic.AtomicInteger
 
 interface EnvoyControlMetrics {
@@ -21,7 +22,7 @@ data class DefaultEnvoyControlMetrics(
     val snapshotChanges: AtomicInteger = AtomicInteger(),
     val cacheGroupsCount: AtomicInteger = AtomicInteger(),
     val errorWatchingServices: AtomicInteger = AtomicInteger(),
-    override val meterRegistry: MeterRegistry = SimpleMeterRegistry()
+    override val meterRegistry: MeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
 ) : EnvoyControlMetrics {
 
     override fun errorWatchingServices() {

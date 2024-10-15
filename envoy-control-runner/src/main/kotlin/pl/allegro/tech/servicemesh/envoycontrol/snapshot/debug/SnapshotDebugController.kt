@@ -24,6 +24,7 @@ import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContex
 import io.envoyproxy.envoy.type.matcher.PathMatcher
 import io.envoyproxy.envoy.type.matcher.StringMatcher
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import org.springframework.boot.jackson.JsonComponent
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -81,6 +82,15 @@ class SnapshotDebugController(
                 } catch (e: Exception) {
                     stringBuilder.append(e.message)
                 }
+            }
+        } catch (e: Exception) {
+            stringBuilder.append(e.message)
+        }
+
+        try {
+            if (meterRegistry is PrometheusMeterRegistry) {
+                stringBuilder.append("Prometheus")
+                    .append((meterRegistry as PrometheusMeterRegistry).scrape())
             }
         } catch (e: Exception) {
             stringBuilder.append(e.message)
