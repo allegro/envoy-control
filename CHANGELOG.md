@@ -2,6 +2,10 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
+## [0.22.3]
+### Changed
+- Added service-specific zone priorities
+
 ## [0.22.2]
 ### Changed
 - Migrated metrics to prometheus
