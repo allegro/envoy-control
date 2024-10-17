@@ -5,8 +5,11 @@ import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.noop.NoopTimer
 
 val noopTimer = NoopTimer(Meter.Id("", Tags.empty(), null, null, Meter.Type.TIMER))
-const val REACTOR_METRIC = "reactor"
+const val REACTOR_METRIC = "reactor.stats"
+const val SERVICES_STATE_METRIC = "services.state"
+const val SNAPSHOT_METRIC = "snapshot"
 const val ERRORS_TOTAL_METRIC = "errors.total"
+const val COMMUNICATION_MODE_ERROR_METRIC = "communication.errors.total"
 const val CONNECTIONS_METRIC = "connections"
 const val REQUESTS_METRIC = "requests.total"
 const val WATCH_METRIC = "watch"
@@ -19,6 +22,7 @@ const val SIMPLE_CACHE_METRIC = "simple.cache.duration.seconds"
 const val PROTOBUF_CACHE_METRIC = "protobuf.cache.serialize.time"
 const val CACHE_GROUP_COUNT_METRIC = "cache.groups.count"
 const val SNAPSHOT_FACTORY_SECONDS_METRIC = "snapshot.factory.seconds"
+const val CHANGE_WATCHER_METRIC = "group.change.watcher"
 
 const val CONNECTION_TYPE_TAG = "connection-type"
 const val STREAM_TYPE_TAG = "stream-type"
