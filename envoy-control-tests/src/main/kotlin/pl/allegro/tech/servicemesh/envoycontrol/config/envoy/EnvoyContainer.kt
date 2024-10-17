@@ -17,7 +17,7 @@ class EnvoyContainer(
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
     private val logLevel: String = "info",
     image: String = DEFAULT_IMAGE,
-    private val wrapperServiceIp: () -> String = {"127.0.0.1"},
+    private val wrapperServiceIp: () -> String = { "127.0.0.1" },
 ) : SSLGenericContainer<EnvoyContainer>(
     dockerfileBuilder = DockerfileBuilder()
         .from(image)
