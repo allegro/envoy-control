@@ -162,7 +162,6 @@ internal class EnvoyIngressRoutesFactoryTest {
                         matchingOnPrefix("/status/wrapper/")
                             .toCluster("wrapper")
                             .publicAccess()
-
                     },
                     {
                         ingressRoute()
