@@ -10,7 +10,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StringMatcherType
 class CustomRoutesFactory(properties: RoutesProperties) {
 
     val routes: List<Route> = properties.customs.filter { it.enabled }.map {
-        val matcher = when(it.path.type) {
+        val matcher = when (it.path.type) {
             StringMatcherType.REGEX -> RouteMatch.newBuilder()
                 .setSafeRegex(
                     RegexMatcher.newBuilder()
@@ -31,6 +31,4 @@ class CustomRoutesFactory(properties: RoutesProperties) {
     }
 
     fun generateCustomRoutes() = routes
-
-
 }
