@@ -188,6 +188,7 @@ class RoutesProperties {
     var admin = AdminRouteProperties()
     var status = StatusRouteProperties()
     var authorization = AuthorizationProperties()
+    var customs = emptyList<CustomRuteProperties>()
 }
 
 class ClusterOutlierDetectionProperties {
@@ -258,6 +259,12 @@ class LocalRetryPolicyProperties {
 class AuthorizationProperties {
     var unauthorizedStatusCode = 401
     var unauthorizedResponseMessage = "You have to be authorized"
+}
+
+class CustomRuteProperties {
+    var enabled = false
+    var cluster = "custom"
+    var path = StringMatcher()
 }
 
 class ServiceTagsProperties {

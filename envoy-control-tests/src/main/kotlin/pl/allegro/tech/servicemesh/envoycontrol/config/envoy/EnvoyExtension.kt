@@ -21,7 +21,8 @@ import java.util.concurrent.TimeUnit
 class EnvoyExtension(
     private val envoyControl: EnvoyControlExtensionBase,
     private val localService: ServiceExtension<*>? = null,
-    config: EnvoyConfig = RandomConfigFile
+    config: EnvoyConfig = RandomConfigFile,
+    private val wrapperService: ServiceExtension<*>? = null
 ) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     companion object {
@@ -31,7 +32,8 @@ class EnvoyExtension(
     val container: EnvoyContainer = EnvoyContainer(
         config,
         { localService?.container()?.ipAddress() ?: "127.0.0.1" },
-        envoyControl.app.grpcPort
+        envoyControl.app.grpcPort,
+        wrapperServiceIp = { wrapperService?.container()?.ipAddress() ?: "127.0.0.1" },
     ).withNetwork(Network.SHARED)
 
     val ingressOperations: IngressOperations = IngressOperations(container)

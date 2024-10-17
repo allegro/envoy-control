@@ -20,6 +20,7 @@ TRUSTED_CA="$5"
 CERTIFICATE_CHAIN="$6"
 PRIVATE_KEY="$7"
 SERVICE_NAME="$8"
+WRAPPER_SERVICE_IP="$9"
 
 echo "debug: " "$@"
 
@@ -32,10 +33,11 @@ echo "${CONFIG}" | sed \
  -e "s;CERTIFICATE_CHAIN;${CERTIFICATE_CHAIN};g" \
  -e "s;PRIVATE_KEY;${PRIVATE_KEY};g" \
  -e "s;SERVICE_NAME;${SERVICE_NAME};g" \
+ -e "s;WRAPPER_SERVICE_IP;${WRAPPER_SERVICE_IP};g" \
  > "${CONFIG_FILE}"
 cat "${CONFIG_FILE}"
 
-shift 8
+shift 9
 /usr/local/bin/envoy --drain-time-s 1 -c "${CONFIG_FILE}" "$@"
 
 rm -rf "${CONFIG_DIR}"

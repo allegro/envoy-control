@@ -37,7 +37,8 @@ class EnvoyIngressRoutesFactory(
     envoyHttpFilters: EnvoyHttpFilters = EnvoyHttpFilters.emptyFilters,
     private val currentZone: String
 ) {
-
+    private val adminRoutesFactory = AdminRoutesFactory(properties.routes)
+    private val customRoutesFactory = CustomRoutesFactory(properties.routes)
     private val allClients = setOf(
         ClientWithSelector.create(properties.incomingPermissions.tlsAuthentication.wildcardClientIdentifier)
     )
@@ -231,13 +232,12 @@ class EnvoyIngressRoutesFactory(
                 emptyList()
         }
 
-        val adminRoutesFactory = AdminRoutesFactory(properties.routes)
-
         val virtualHost = VirtualHost.newBuilder()
             .setName("secured_local_service")
             .addDomains("*")
             .addAllVirtualClusters(virtualClusters)
             .addAllRoutes(adminRoutesFactory.generateAdminRoutes())
+            .addAllRoutes(customRoutesFactory.generateCustomRoutes())
             .addAllRoutes(generateSecuredIngressRoutes(proxySettings, group))
             .also {
                 if (properties.localService.retryPolicy.default.enabled) {

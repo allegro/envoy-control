@@ -42,6 +42,15 @@ class AdminRoutesFactory(
         HttpMethod.POST
     )
 
+    private val adminRoutes = guardAccessWithDisableHeader() +
+        generateSecuredAdminRoutes() +
+        listOfNotNull(
+            adminPostRoute.authorized.takeIf { properties.admin.publicAccessEnabled },
+            adminPostRoute.unauthorized.takeIf { properties.admin.publicAccessEnabled },
+            adminRoute.takeIf { properties.admin.publicAccessEnabled },
+            adminRedirectRoute.takeIf { properties.admin.publicAccessEnabled }
+        )
+
     private fun generateSecuredAdminRoutes(): List<Route> {
         return properties.admin.securedPaths
             .flatMap {
@@ -55,16 +64,7 @@ class AdminRoutesFactory(
             }
     }
 
-    fun generateAdminRoutes(): List<Route> {
-        return guardAccessWithDisableHeader() +
-                generateSecuredAdminRoutes() +
-                listOfNotNull(
-                        adminPostRoute.authorized.takeIf { properties.admin.publicAccessEnabled },
-                        adminPostRoute.unauthorized.takeIf { properties.admin.publicAccessEnabled },
-                        adminRoute.takeIf { properties.admin.publicAccessEnabled },
-                        adminRedirectRoute.takeIf { properties.admin.publicAccessEnabled }
-                )
-    }
+    fun generateAdminRoutes() = adminRoutes
 
     private fun createAuthorizedRoute(
         pathPrefix: String,
