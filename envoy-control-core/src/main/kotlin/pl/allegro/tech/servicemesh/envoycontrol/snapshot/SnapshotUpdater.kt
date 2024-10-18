@@ -12,15 +12,17 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CHECKPOINT_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.COMMUNICATION_MODE_ERROR_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ERRORS_TOTAL_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICES_STATE_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SIMPLE_CACHE_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_ERROR_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_GROUP_ERROR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_STATUS_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_UPDATE_DURATION_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.UPDATE_TRIGGER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
@@ -115,7 +117,7 @@ class SnapshotUpdater(
             .metrics()
             .onErrorResume { e ->
                 meterRegistry.counter(
-                    ERRORS_TOTAL_METRIC,
+                    SNAPSHOT_ERROR_METRIC,
                     Tags.of(UPDATE_TRIGGER_TAG, "groups", METRIC_EMITTER_TAG, "snapshot-updater")
                 )
                     .increment()
@@ -164,7 +166,7 @@ class SnapshotUpdater(
             .filter { it != emptyUpdateResult }
             .onErrorResume { e ->
                 meterRegistry.counter(
-                    ERRORS_TOTAL_METRIC,
+                    SNAPSHOT_ERROR_METRIC,
                     Tags.of(METRIC_EMITTER_TAG, "snapshot-updater", UPDATE_TRIGGER_TAG, "services")
                 ).increment()
                 logger.error("Unable to process service changes", e)
@@ -188,7 +190,7 @@ class SnapshotUpdater(
             }
         } catch (e: Throwable) {
             meterRegistry.counter(
-                ERRORS_TOTAL_METRIC,
+                SNAPSHOT_GROUP_ERROR_METRIC,
                 Tags.of(
                     SERVICE_TAG, group.serviceName,
                     OPERATION_TAG, "create-snapshot",
@@ -199,7 +201,7 @@ class SnapshotUpdater(
         }
     }
 
-    private val updateSnapshotForGroupsTimer = meterRegistry.timer("snapshot.update.duration.seconds")
+    private val updateSnapshotForGroupsTimer = meterRegistry.timer(SNAPSHOT_UPDATE_DURATION_METRIC)
 
     private fun updateSnapshotForGroups(
         groups: Collection<Group>,

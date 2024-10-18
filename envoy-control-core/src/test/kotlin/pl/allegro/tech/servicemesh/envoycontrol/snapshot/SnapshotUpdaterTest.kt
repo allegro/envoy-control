@@ -57,13 +57,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIn
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.RequestPolicyMapper
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
-import pl.allegro.tech.servicemesh.envoycontrol.utils.any
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ERRORS_TOTAL_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
+import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICE_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_GROUP_ERROR_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.any
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
@@ -473,8 +473,14 @@ class SnapshotUpdaterTest {
         val snapshot = cache.getSnapshot(servicesGroup)
         assertThat(snapshot).isEqualTo(null)
         assertThat(
-            simpleMeterRegistry.find(ERRORS_TOTAL_METRIC)
-                .tags(Tags.of(SERVICE_TAG, "example-service", OPERATION_TAG, "create-snapshot", METRIC_EMITTER_TAG, "snapshot-updater"))
+            simpleMeterRegistry.find(SNAPSHOT_GROUP_ERROR_METRIC)
+                .tags(
+                    Tags.of(
+                        SERVICE_TAG, "example-service",
+                        OPERATION_TAG, "create-snapshot",
+                        METRIC_EMITTER_TAG, "snapshot-updater"
+                    )
+                )
                 .counter()?.count()
         ).isEqualTo(1.0)
     }

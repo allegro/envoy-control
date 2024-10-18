@@ -42,7 +42,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceIns
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CACHE_GROUP_COUNT_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ERRORS_TOTAL_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.WATCH_ERRORS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.STATUS_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.WATCH_METRIC
@@ -198,8 +198,8 @@ class ControlPlaneConfig {
             )
             meterRegistry.gauge(CACHE_GROUP_COUNT_METRIC, it.cacheGroupsCount)
             it.meterRegistry.more().counter(
-                ERRORS_TOTAL_METRIC,
-                Tags.of(METRIC_EMITTER_TAG, WATCH_METRIC, WATCH_TYPE_TAG, "service"),
+                WATCH_ERRORS_METRIC,
+                Tags.of(METRIC_EMITTER_TAG, "watch-services"),
                 it.errorWatchingServices
             )
         }
