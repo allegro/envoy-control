@@ -2,16 +2,14 @@ package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
 import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as V3DiscoveryRequest
-import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as V3DeltaDiscoveryRequest
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
-import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTIONS_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.DISCOVERY_REQ_TYPE_TAG
-import pl.allegro.tech.servicemesh.envoycontrol.utils.REQUESTS_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.STREAM_TYPE_TAG
 import java.util.concurrent.atomic.AtomicInteger
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as V3DeltaDiscoveryRequest
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as V3DiscoveryRequest
 
 class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) : DiscoveryServerCallbacks {
 
@@ -60,30 +58,14 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
     }
 
     override fun onV3StreamRequest(streamId: Long, request: V3DiscoveryRequest) {
-        meterRegistry.counter(
-            REQUESTS_METRIC,
-            Tags.of(
-                CONNECTION_TYPE_TAG, "grpc",
-                STREAM_TYPE_TAG, StreamType.fromTypeUrl(request.typeUrl).name.lowercase(),
-                DISCOVERY_REQ_TYPE_TAG, "total"
-            )
-        )
-            .increment()
+        // noop
     }
 
     override fun onV3StreamDeltaRequest(
         streamId: Long,
         request: V3DeltaDiscoveryRequest
     ) {
-        meterRegistry.counter(
-            REQUESTS_METRIC,
-            Tags.of(
-                CONNECTION_TYPE_TAG, "grpc",
-                STREAM_TYPE_TAG, StreamType.fromTypeUrl(request.typeUrl).name.lowercase(),
-                DISCOVERY_REQ_TYPE_TAG, "delta"
-            )
-        )
-            .increment()
+        // noop
     }
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String, error: Throwable) {
