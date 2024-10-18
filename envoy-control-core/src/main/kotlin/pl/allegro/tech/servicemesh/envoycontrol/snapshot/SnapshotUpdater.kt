@@ -9,12 +9,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
-import pl.allegro.tech.servicemesh.envoycontrol.utils.CHECKPOINT_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.COMMUNICATION_MODE_ERROR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
-import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICES_STATE_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SIMPLE_CACHE_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_ERROR_METRIC
@@ -64,11 +62,6 @@ class SnapshotUpdater(
         )
             .measureBuffer("snapshot-updater", meterRegistry, innerSources = 2)
             .checkpoint("snapshot-updater-merged")
-            .name(SNAPSHOT_METRIC)
-            .tag(METRIC_EMITTER_TAG, "snapshot-updater")
-            .tag(SNAPSHOT_STATUS_TAG, "merged")
-            .tag(UPDATE_TRIGGER_TAG, "global")
-            .metrics()
             // step 3: group updates don't provide a snapshot,
             // so we piggyback the last updated snapshot state for use
             .scan { previous: UpdateResult, newUpdate: UpdateResult ->
@@ -126,17 +119,11 @@ class SnapshotUpdater(
 
     internal fun services(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return states
-            .name(SERVICES_STATE_METRIC)
-            .tag(METRIC_EMITTER_TAG, "snapshot-updater")
-            .tag(CHECKPOINT_TAG, "sampled")
             .onBackpressureLatestMeasured("snapshot-updater", meterRegistry)
             // prefetch = 1, instead of default 256, to avoid processing stale states in case of backpressure
             .publishOn(globalSnapshotScheduler, 1)
             .measureBuffer("snapshot-updater", meterRegistry)
             .checkpoint("snapshot-updater-services-published")
-            .name(SERVICES_STATE_METRIC)
-            .tag(CHECKPOINT_TAG, "published")
-            .metrics()
             .createClusterConfigurations()
             .map { (states, clusters) ->
                 var lastXdsSnapshot: GlobalSnapshot? = null
