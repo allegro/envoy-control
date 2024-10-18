@@ -4,7 +4,6 @@ import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
-import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -22,7 +21,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_ERROR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_GROUP_ERROR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_STATUS_TAG
-import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_UPDATE_DURATION_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.UPDATE_TRIGGER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
@@ -201,13 +199,10 @@ class SnapshotUpdater(
         }
     }
 
-    private val updateSnapshotForGroupsTimer = meterRegistry.timer(SNAPSHOT_UPDATE_DURATION_METRIC)
-
     private fun updateSnapshotForGroups(
         groups: Collection<Group>,
         result: UpdateResult
     ): Mono<UpdateResult> {
-        val sample = Timer.start()
         versions.retainGroups(cache.groups())
         val results = Flux.fromIterable(groups)
             .doOnNextScheduledOn(groupSnapshotScheduler) { group ->
@@ -225,7 +220,6 @@ class SnapshotUpdater(
                 }
             }
         return results.then(Mono.fromCallable {
-            sample.stop(updateSnapshotForGroupsTimer)
             result
         })
     }
