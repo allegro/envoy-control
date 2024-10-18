@@ -168,7 +168,11 @@ private fun innerBufferExtractor(index: Int) = { s: Scannable ->
 }
 
 private val queueSubscriptionBufferExtractor = { s: Fuseable.QueueSubscription<*> ->
-    s.size.toDouble()
+    if (s != null) {
+        s.size.toDouble()
+    } else {
+        -1.0
+    }
 }
 
 sealed class ParallelizableScheduler
