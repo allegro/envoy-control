@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.utils
 import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
 import org.testcontainers.shaded.org.awaitility.Awaitility
@@ -13,7 +12,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.function.BiFunction
 
-@Disabled
 class ReactorUtilsTest {
 
     @Test
