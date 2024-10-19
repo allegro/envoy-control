@@ -14,11 +14,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.ERRORS_TOTAL_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
-import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SIMPLE_CACHE_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_STATUS_TAG
-import pl.allegro.tech.servicemesh.envoycontrol.utils.STATUS_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.UPDATE_TRIGGER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
@@ -60,13 +57,9 @@ class SnapshotUpdater(
             // step 2: only watches groups. if groups change we use the last services state and update those groups
             groups().subscribeOn(globalSnapshotScheduler)
         )
-            .measureBuffer("snapshot-updater", meterRegistry, innerSources = 2)
+            .measureBuffer("snapshot-updater-merged", meterRegistry, innerSources = 2)
             .checkpoint("snapshot-updater-merged")
-            .name(REACTOR_METRIC)
-            .tag(METRIC_EMITTER_TAG, "snapshot-updater")
-            .tag(SNAPSHOT_STATUS_TAG, "merged")
-            .tag(UPDATE_TRIGGER_TAG, "global")
-            .metrics()
+            .name("snapshot-updater-merged").metrics()
             // step 3: group updates don't provide a snapshot,
             // so we piggyback the last updated snapshot state for use
             .scan { previous: UpdateResult, newUpdate: UpdateResult ->
@@ -101,16 +94,12 @@ class SnapshotUpdater(
         // see GroupChangeWatcher
         return onGroupAdded
             .publishOn(globalSnapshotScheduler)
-            .measureBuffer("snapshot-updater", meterRegistry)
+            .measureBuffer("snapshot-updater-groups-published", meterRegistry)
             .checkpoint("snapshot-updater-groups-published")
+            .name("snapshot-updater-groups-published").metrics()
             .map { groups ->
                 UpdateResult(action = Action.SERVICES_GROUP_ADDED, groups = groups)
             }
-            .name(REACTOR_METRIC)
-            .tag(METRIC_EMITTER_TAG, "snapshot-updater")
-            .tag(SNAPSHOT_STATUS_TAG, "published")
-            .tag(UPDATE_TRIGGER_TAG, "groups")
-            .metrics()
             .onErrorResume { e ->
                 meterRegistry.counter(
                     ERRORS_TOTAL_METRIC,
@@ -124,18 +113,13 @@ class SnapshotUpdater(
 
     internal fun services(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return states
-            .name(REACTOR_METRIC)
-            .tag(UPDATE_TRIGGER_TAG, "services")
-            .tag(STATUS_TAG, "sampled")
-            .onBackpressureLatestMeasured("snapshot-updater", meterRegistry)
+            .name("snapshot-updater-services-sampled").metrics()
+            .onBackpressureLatestMeasured("snapshot-updater-services-sampled", meterRegistry)
             // prefetch = 1, instead of default 256, to avoid processing stale states in case of backpressure
             .publishOn(globalSnapshotScheduler, 1)
-            .measureBuffer("snapshot-updater", meterRegistry)
+            .measureBuffer("snapshot-updater-services-published", meterRegistry)
             .checkpoint("snapshot-updater-services-published")
-            .name(REACTOR_METRIC)
-            .tag(UPDATE_TRIGGER_TAG, "services")
-            .tag(STATUS_TAG, "published")
-            .metrics()
+            .name("snapshot-updater-services-published").metrics()
             .createClusterConfigurations()
             .map { (states, clusters) ->
                 var lastXdsSnapshot: GlobalSnapshot? = null
@@ -162,10 +146,7 @@ class SnapshotUpdater(
             }
             .filter { it != emptyUpdateResult }
             .onErrorResume { e ->
-                meterRegistry.counter(
-                    ERRORS_TOTAL_METRIC,
-                    Tags.of(METRIC_EMITTER_TAG, "snapshot-updater", UPDATE_TRIGGER_TAG, "services")
-                ).increment()
+                meterRegistry.counter("snapshot-updater.services.updates.errors").increment()
                 logger.error("Unable to process service changes", e)
                 Mono.justOrEmpty(UpdateResult(action = Action.ERROR_PROCESSING_CHANGES))
             }

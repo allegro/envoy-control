@@ -15,9 +15,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ENVOY_CONTROL_WARM_UP_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
-import pl.allegro.tech.servicemesh.envoycontrol.utils.CHECKPOINT_TAG
-import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
-import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.time.Duration
@@ -55,14 +52,11 @@ class ConsulServiceChanges(
             },
             FluxSink.OverflowStrategy.LATEST
         )
-            .measureDiscardedItems("consul-service-changes", metrics.meterRegistry)
+            .measureDiscardedItems("consul-service-changes-emitted", metrics.meterRegistry)
             .checkpoint("consul-service-changes-emitted")
-            .name(REACTOR_METRIC)
-            .tag(METRIC_EMITTER_TAG, "consul-service-changes")
-            .tag(CHECKPOINT_TAG, "emitted")
+            .name("consul-service-changes-emitted").metrics()
             .checkpoint("consul-service-changes-emitted-distinct")
-            .tag(CHECKPOINT_TAG, "distinct")
-            .metrics()
+            .name("consul-service-changes-emitted-distinct").metrics()
             .doOnCancel {
                 logger.warn("Cancelling watching consul service changes")
                 watcher.close()
