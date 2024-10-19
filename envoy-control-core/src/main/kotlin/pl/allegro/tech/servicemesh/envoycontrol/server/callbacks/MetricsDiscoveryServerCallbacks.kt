@@ -6,6 +6,8 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTIONS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.DISCOVERY_REQ_TYPE_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.REQUESTS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.STREAM_TYPE_TAG
 import java.util.concurrent.atomic.AtomicInteger
 import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as V3DeltaDiscoveryRequest
@@ -58,14 +60,30 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
     }
 
     override fun onV3StreamRequest(streamId: Long, request: V3DiscoveryRequest) {
-        // noop
+        meterRegistry.counter(
+            REQUESTS_METRIC,
+            Tags.of(
+                CONNECTION_TYPE_TAG, "grpc",
+                STREAM_TYPE_TAG, StreamType.fromTypeUrl(request.typeUrl).name.lowercase(),
+                DISCOVERY_REQ_TYPE_TAG, "total"
+            )
+        )
+            .increment()
     }
 
     override fun onV3StreamDeltaRequest(
         streamId: Long,
         request: V3DeltaDiscoveryRequest
     ) {
-        // noop
+        meterRegistry.counter(
+            REQUESTS_METRIC,
+            Tags.of(
+                CONNECTION_TYPE_TAG, "grpc",
+                STREAM_TYPE_TAG, StreamType.fromTypeUrl(request.typeUrl).name.lowercase(),
+                DISCOVERY_REQ_TYPE_TAG, "delta"
+            )
+        )
+            .increment()
     }
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String, error: Throwable) {

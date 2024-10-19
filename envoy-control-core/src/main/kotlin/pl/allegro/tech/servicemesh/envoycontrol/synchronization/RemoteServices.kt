@@ -12,7 +12,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CROSS_DC_SYNC_CANCELLED_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CROSS_DC_SYNC_SECONDS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CROSS_DC_SYNC_TOTAL_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICES_STATE_ERRORS_METRIC
 import reactor.core.publisher.Flux
@@ -75,8 +74,7 @@ class RemoteServices(
                     SERVICES_STATE_ERRORS_METRIC,
                     Tags.of(
                         CLUSTER_TAG, cluster,
-                        OPERATION_TAG, "get-state",
-                        METRIC_EMITTER_TAG, "cross-dc-synchronization"
+                        OPERATION_TAG, "get-state"
                     )
                 ).increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
@@ -93,8 +91,7 @@ class RemoteServices(
                 SERVICES_STATE_ERRORS_METRIC,
                 Tags.of(
                     CLUSTER_TAG, cluster,
-                    OPERATION_TAG, "get-instances",
-                    METRIC_EMITTER_TAG, "cross-dc-synchronization"
+                    OPERATION_TAG, "get-instances"
                 )
             ).increment()
             logger.warn("Failed fetching instances from $cluster", e)

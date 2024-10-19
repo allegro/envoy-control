@@ -57,7 +57,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.EnvoyIn
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.RequestPolicyMapper
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.routes.ServiceTagMetadataGenerator
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DirectScheduler
-import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
@@ -477,8 +476,7 @@ class SnapshotUpdaterTest {
                 .tags(
                     Tags.of(
                         SERVICE_TAG, "example-service",
-                        OPERATION_TAG, "create-snapshot",
-                        METRIC_EMITTER_TAG, "snapshot-updater"
+                        OPERATION_TAG, "create-snapshot"
                     )
                 )
                 .counter()?.count()

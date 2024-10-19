@@ -12,7 +12,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CHECKPOINT_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.COMMUNICATION_MODE_ERROR_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ParallelizableScheduler
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICES_STATE_METRIC
@@ -186,8 +185,7 @@ class SnapshotUpdater(
                 SNAPSHOT_GROUP_ERROR_METRIC,
                 Tags.of(
                     SERVICE_TAG, group.serviceName,
-                    OPERATION_TAG, "create-snapshot",
-                    METRIC_EMITTER_TAG, "snapshot-updater"
+                    OPERATION_TAG, "create-snapshot"
                 )
             ).increment()
             logger.error("Unable to create snapshot for group ${group.serviceName}", e)

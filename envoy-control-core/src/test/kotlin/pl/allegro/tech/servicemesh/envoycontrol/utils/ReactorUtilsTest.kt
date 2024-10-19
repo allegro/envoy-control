@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.utils
 import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
 import org.testcontainers.shaded.org.awaitility.Awaitility
@@ -13,7 +12,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.function.BiFunction
 
-@Disabled
 class ReactorUtilsTest {
 
     @Test
@@ -100,9 +98,9 @@ class ReactorUtilsTest {
         // then
         assertThat(received.await(2, TimeUnit.SECONDS)).isTrue()
 
-        val discardedItemsBeforeBackpressure = meterRegistry.find(REACTOR_METRIC)
+        val discardedItemsBeforeBackpressure = meterRegistry.find(REACTOR_TOTAL_METRIC)
             .tags(Tags.of(METRIC_TYPE_TAG, "discarded-items", METRIC_EMITTER_TAG, "latest-before")).counter()?.count()
-        val discardedItemsAfterBackpressure = meterRegistry.find(REACTOR_METRIC)
+        val discardedItemsAfterBackpressure = meterRegistry.find(REACTOR_TOTAL_METRIC)
             .tags(Tags.of(METRIC_TYPE_TAG, "discarded-items", METRIC_EMITTER_TAG, "latest")).counter()?.count()
 
         /**

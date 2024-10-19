@@ -2,7 +2,6 @@ package pl.allegro.tech.servicemesh.envoycontrol
 
 import io.micrometer.core.instrument.Tags
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
@@ -21,15 +20,14 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.RDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.SDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.UNKNOWN
-import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTIONS_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DISCOVERY_REQ_TYPE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.REQUESTS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.STREAM_TYPE_TAG
 import java.util.function.Consumer
 import java.util.function.Predicate
 
-@Disabled
 class XdsMetricsDiscoveryServerCallbacksTest : MetricsDiscoveryServerCallbacksTest {
     companion object {
 
@@ -89,7 +87,6 @@ class XdsMetricsDiscoveryServerCallbacksTest : MetricsDiscoveryServerCallbacksTe
     )
 }
 
-@Disabled
 class AdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbacksTest {
     companion object {
 
@@ -149,7 +146,6 @@ class AdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbacksTes
     )
 }
 
-@Disabled
 class DeltaAdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbacksTest {
     companion object {
 
@@ -209,7 +205,6 @@ class DeltaAdsMetricsDiscoveryServerCallbackTest : MetricsDiscoveryServerCallbac
     )
 }
 
-@Disabled
 interface MetricsDiscoveryServerCallbacksTest {
     companion object {
         private val logger by logger()
@@ -251,7 +246,8 @@ interface MetricsDiscoveryServerCallbacksTest {
                 ).isNotNull
                 assertThat(
                     meterRegistry.get(metric)
-                        .tags(Tags.of(STREAM_TYPE_TAG, type.name.lowercase(), CONNECTION_TYPE_TAG, "grpc")).gauge().value()
+                        .tags(Tags.of(STREAM_TYPE_TAG, type.name.lowercase(), CONNECTION_TYPE_TAG, "grpc")).gauge()
+                        .value()
                         .toInt()
                 ).isEqualTo(value)
             }
