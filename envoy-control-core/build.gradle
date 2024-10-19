@@ -6,7 +6,9 @@ dependencies {
     api group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin'
     implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect'
     api group: 'io.dropwizard.metrics', name: 'metrics-core', version: versions.dropwizard
-    api group: 'io.micrometer', name: 'micrometer-core'
+    implementation group: 'io.micrometer', name: 'micrometer-core'
+    implementation group: 'io.projectreactor', name: 'reactor-core-micrometer', version: versions.reactor_core_micrometer
+    implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus'
 
     implementation group: 'com.google.re2j', name: 're2j', version: versions.re2j
 

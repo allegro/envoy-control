@@ -5,6 +5,8 @@ dependencies {
     implementation group: 'io.projectreactor', name: 'reactor-core'
     api group: 'pl.allegro.tech.discovery', name: 'consul-recipes', version: versions.consul_recipes
     api group: 'com.ecwid.consul', name: 'consul-api', version: versions.ecwid_consul
+    implementation group: 'io.projectreactor', name: 'reactor-core-micrometer', version: versions.reactor_core_micrometer
+    implementation group: 'io.micrometer', name: 'micrometer-registry-prometheus'
 
     testImplementation group: 'org.mockito', name: 'mockito-core'
     testImplementation group: 'net.bytebuddy', name: 'byte-buddy', version: versions.bytebuddy

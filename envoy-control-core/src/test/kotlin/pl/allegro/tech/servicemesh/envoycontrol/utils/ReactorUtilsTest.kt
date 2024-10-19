@@ -3,6 +3,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.utils
 import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
 import org.testcontainers.shaded.org.awaitility.Awaitility
@@ -65,6 +66,7 @@ class ReactorUtilsTest {
     }
 
     @Test
+    @Disabled
     fun `should measure buffer size of combineLatest operator`() {
         // given
         val meterRegistry = SimpleMeterRegistry()

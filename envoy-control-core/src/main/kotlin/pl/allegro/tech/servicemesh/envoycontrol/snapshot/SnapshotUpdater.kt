@@ -4,6 +4,7 @@ import io.envoyproxy.controlplane.cache.SnapshotCache
 import io.envoyproxy.controlplane.cache.v3.Snapshot
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
+import io.micrometer.core.instrument.Timer
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.ADS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode.XDS
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
@@ -17,11 +18,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SIMPLE_CACHE_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.SNAPSHOT_STATUS_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.STATUS_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.UPDATE_TRIGGER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.doOnNextScheduledOn
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.noopTimer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
+import reactor.core.observability.micrometer.Micrometer
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
@@ -60,6 +63,11 @@ class SnapshotUpdater(
         )
             .measureBuffer("snapshot-updater", meterRegistry, innerSources = 2)
             .checkpoint("snapshot-updater-merged")
+            .name(REACTOR_METRIC)
+            .tag(METRIC_EMITTER_TAG, "snapshot-updater")
+            .tag(SNAPSHOT_STATUS_TAG, "merged")
+            .tag(UPDATE_TRIGGER_TAG, "global")
+            .tap(Micrometer.metrics(meterRegistry))
             // step 3: group updates don't provide a snapshot,
             // so we piggyback the last updated snapshot state for use
             .scan { previous: UpdateResult, newUpdate: UpdateResult ->
@@ -103,7 +111,7 @@ class SnapshotUpdater(
             .tag(METRIC_EMITTER_TAG, "snapshot-updater")
             .tag(SNAPSHOT_STATUS_TAG, "published")
             .tag(UPDATE_TRIGGER_TAG, "groups")
-            .metrics()
+            .tap(Micrometer.metrics(meterRegistry))
             .onErrorResume { e ->
                 meterRegistry.counter(
                     ERRORS_TOTAL_METRIC,
@@ -117,11 +125,18 @@ class SnapshotUpdater(
 
     internal fun services(states: Flux<MultiClusterState>): Flux<UpdateResult> {
         return states
+            .name(REACTOR_METRIC)
+            .tag(UPDATE_TRIGGER_TAG, "services")
+            .tag(STATUS_TAG, "sampled")
             .onBackpressureLatestMeasured("snapshot-updater", meterRegistry)
             // prefetch = 1, instead of default 256, to avoid processing stale states in case of backpressure
             .publishOn(globalSnapshotScheduler, 1)
             .measureBuffer("snapshot-updater", meterRegistry)
             .checkpoint("snapshot-updater-services-published")
+            .name(REACTOR_METRIC)
+            .tag(UPDATE_TRIGGER_TAG, "services")
+            .tag(STATUS_TAG, "published")
+            .tap(Micrometer.metrics(meterRegistry))
             .createClusterConfigurations()
             .map { (states, clusters) ->
                 var lastXdsSnapshot: GlobalSnapshot? = null
@@ -184,10 +199,13 @@ class SnapshotUpdater(
         }
     }
 
+    private val updateSnapshotForGroupsTimer = meterRegistry.timer("snapshot.update.duration.seconds")
+
     private fun updateSnapshotForGroups(
         groups: Collection<Group>,
         result: UpdateResult
     ): Mono<UpdateResult> {
+        val sample = Timer.start()
         versions.retainGroups(cache.groups())
         val results = Flux.fromIterable(groups)
             .doOnNextScheduledOn(groupSnapshotScheduler) { group ->
@@ -205,6 +223,7 @@ class SnapshotUpdater(
                 }
             }
         return results.then(Mono.fromCallable {
+            sample.stop(updateSnapshotForGroupsTimer)
             result
         })
     }
