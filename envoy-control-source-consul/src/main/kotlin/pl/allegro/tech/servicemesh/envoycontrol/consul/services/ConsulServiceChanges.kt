@@ -13,7 +13,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.server.ReadinessStateHandler
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CHECKPOINT_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.ENVOY_CONTROL_WARM_UP_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICES_STATE_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureDiscardedItems
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
@@ -54,7 +56,13 @@ class ConsulServiceChanges(
         )
             .measureDiscardedItems("consul-service-changes", metrics.meterRegistry)
             .checkpoint("consul-service-changes-emitted")
+            .name(SERVICES_STATE_METRIC)
+            .tag(CHECKPOINT_TAG, "consul-emitted")
+            .metrics()
             .checkpoint("consul-service-changes-emitted-distinct")
+            .name(SERVICES_STATE_METRIC)
+            .tag(CHECKPOINT_TAG, "consul-distinct")
+            .metrics()
             .doOnCancel {
                 logger.warn("Cancelling watching consul service changes")
                 watcher.close()

@@ -4,6 +4,8 @@ import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterStateChanges
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CHECKPOINT_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICES_STATE_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.logSuppressedError
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
 import pl.allegro.tech.servicemesh.envoycontrol.utils.onBackpressureLatestMeasured
@@ -44,6 +46,9 @@ class GlobalStateChanges(
             .logSuppressedError("combineLatest() suppressed exception")
             .measureBuffer("global-service-changes-combinator", meterRegistry)
             .checkpoint("global-service-changes-emitted")
+            .name(SERVICES_STATE_METRIC)
+            .tag(CHECKPOINT_TAG, "combined")
+            .metrics()
     }
 
     private fun combinedExperimentalFlow(
@@ -70,7 +75,14 @@ class GlobalStateChanges(
             .logSuppressedError("combineLatest() suppressed exception")
             .measureBuffer("global-service-changes-combine-latest", meterRegistry)
             .checkpoint("global-service-changes-emitted")
+            .name(SERVICES_STATE_METRIC)
+            .tag(CHECKPOINT_TAG, "emitted")
+            .metrics()
             .onBackpressureLatestMeasured("global-service-changes-backpressure", meterRegistry)
             .publishOn(scheduler, 1)
+            .checkpoint("global-service-changes-published")
+            .name(SERVICES_STATE_METRIC)
+            .tag(CHECKPOINT_TAG, "published")
+            .metrics()
     }
 }
