@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.infrastructure
 import com.ecwid.consul.v1.ConsulClient
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Tags
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -41,10 +40,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.RegexServi
 import pl.allegro.tech.servicemesh.envoycontrol.services.transformers.ServiceInstancesTransformer
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.EnvoyHttpFilters
 import pl.allegro.tech.servicemesh.envoycontrol.synchronization.GlobalStateChanges
-import pl.allegro.tech.servicemesh.envoycontrol.utils.CACHE_GROUP_COUNT_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.STATUS_TAG
-import pl.allegro.tech.servicemesh.envoycontrol.utils.WATCH_ERRORS_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.WATCH_METRIC
 import reactor.core.scheduler.Schedulers
 import java.net.URI
 
