@@ -177,18 +177,7 @@ class ControlPlaneConfig {
         ConsulClient(properties.host, properties.port).agentSelf.value?.config?.datacenter ?: "local"
 
     fun controlPlaneMetrics(meterRegistry: MeterRegistry): DefaultEnvoyControlMetrics {
-        return DefaultEnvoyControlMetrics(meterRegistry = meterRegistry).also {
-            meterRegistry.gauge(WATCH_METRIC, Tags.of(STATUS_TAG, "added"), it.servicesAdded)
-            meterRegistry.gauge(WATCH_METRIC, Tags.of(STATUS_TAG, "removed"), it.servicesRemoved)
-            meterRegistry.gauge(WATCH_METRIC, Tags.of(STATUS_TAG, "instance-changed"), it.instanceChanges)
-            meterRegistry.gauge(WATCH_METRIC, Tags.of(STATUS_TAG, "snapshot-changed"), it.snapshotChanges)
-            meterRegistry.gauge(CACHE_GROUP_COUNT_METRIC, it.cacheGroupsCount)
-            it.meterRegistry.more().counter(
-                WATCH_ERRORS_METRIC,
-                listOf(),
-                it.errorWatchingServices
-            )
-        }
+        return DefaultEnvoyControlMetrics(meterRegistry = meterRegistry)
     }
 
     @Bean

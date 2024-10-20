@@ -1,7 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.utils
 
 import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Tags
 import org.reactivestreams.Subscription
 import org.slf4j.LoggerFactory
 import reactor.core.Disposable
@@ -12,7 +11,6 @@ import reactor.core.scheduler.Scheduler
 import reactor.core.scheduler.Schedulers
 import java.time.Duration
 import java.util.concurrent.TimeUnit
-import kotlin.streams.asSequence
 
 private val logger = LoggerFactory.getLogger("pl.allegro.tech.servicemesh.envoycontrol.utils.ReactorUtils")
 private val defaultScheduler by lazy { Schedulers.newSingle("reactor-utils-scheduler") }
@@ -52,7 +50,7 @@ fun <T> Flux<T>.measureBuffer(
 fun <T> Flux<T>.measureDiscardedItems(name: String, meterRegistry: MeterRegistry): Flux<T> = this
     .doOnDiscard(Any::class.java) {
         meterRegistry.counter(
-            REACTOR_TOTAL_METRIC,
+            REACTOR_METRIC,
             METRIC_TYPE_TAG, "discarded-items",
             METRIC_EMITTER_TAG, name
         ).increment()
@@ -112,12 +110,7 @@ private fun measureQueueSubscriptionBuffer(
     name: String,
     meterRegistry: MeterRegistry
 ) {
-    meterRegistry.gauge(
-        REACTOR_METRIC,
-        Tags.of(METRIC_TYPE_TAG, "buffer-size", METRIC_EMITTER_TAG, name),
-        subscription,
-        queueSubscriptionBufferExtractor
-    )
+    logger.info("subscription $subscription name: $name meterRegistry: $meterRegistry")
 }
 
 private fun measureScannableBuffer(
@@ -126,49 +119,7 @@ private fun measureScannableBuffer(
     innerSources: Int,
     meterRegistry: MeterRegistry
 ) {
-    val buffered = scannable.scan(Scannable.Attr.BUFFERED)
-    if (buffered == null) {
-        logger.error(
-            "Cannot register metric $REACTOR_METRIC 'with $METRIC_EMITTER_TAG: $name'. Buffer size not available. " +
-                "Use measureBuffer() only on supported reactor operators"
-        )
-        return
-    }
-
-    meterRegistry.gauge(
-        REACTOR_METRIC,
-        Tags.of(METRIC_TYPE_TAG, "buffer-size", METRIC_EMITTER_TAG, name),
-        scannable,
-        scannableBufferExtractor
-    )
-
-    /**
-     * Special case for FlatMap derived operators like merge(). The main buffer attribute doesn't return actual
-     * buffer (that is controlled by `prefetch` parameter) size. Instead it returns simply number of connected sources.
-     *
-     * To access actual buffer size, we need to extract it from inners(). We don't know how many sources will
-     * be available, so it must be stated explicitly as innerSources parameter.
-     */
-    for (i in 0 until innerSources) {
-        meterRegistry.gauge(
-            REACTOR_METRIC,
-            Tags.of(METRIC_TYPE_TAG, "buffer-size", METRIC_EMITTER_TAG, "${(name)}_$i"),
-            scannable,
-            innerBufferExtractor(i)
-        )
-    }
-}
-
-private val scannableBufferExtractor = { s: Scannable -> s.scan(Scannable.Attr.BUFFERED)?.toDouble() ?: -1.0 }
-private fun innerBufferExtractor(index: Int) = { s: Scannable ->
-    s.inners().asSequence()
-        .elementAtOrNull(index)
-        ?.let(scannableBufferExtractor)
-        ?: -1.0
-}
-
-private val queueSubscriptionBufferExtractor = { s: Fuseable.QueueSubscription<*> ->
-    s.size.toDouble()
+  logger.info("scannable $scannable name: $name innerSources: $innerSources meterRegistry: $meterRegistry")
 }
 
 sealed class ParallelizableScheduler
