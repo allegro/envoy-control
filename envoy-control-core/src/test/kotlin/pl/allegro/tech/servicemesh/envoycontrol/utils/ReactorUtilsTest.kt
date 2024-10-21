@@ -99,9 +99,9 @@ class ReactorUtilsTest {
         assertThat(received.await(2, TimeUnit.SECONDS)).isTrue()
 
         val discardedItemsBeforeBackpressure = meterRegistry.find(REACTOR_DISCARDED_METRIC)
-            .tags(Tags.of( METRIC_EMITTER_TAG, "latest-before")).counter()?.count()
+            .tags(Tags.of(METRIC_EMITTER_TAG, "latest-before")).counter()?.count()
         val discardedItemsAfterBackpressure = meterRegistry.find(REACTOR_DISCARDED_METRIC)
-            .tags(Tags.of( METRIC_EMITTER_TAG, "latest")).counter()?.count()
+            .tags(Tags.of(METRIC_EMITTER_TAG, "latest")).counter()?.count()
 
         /**
          * Published by range: (0..10)
