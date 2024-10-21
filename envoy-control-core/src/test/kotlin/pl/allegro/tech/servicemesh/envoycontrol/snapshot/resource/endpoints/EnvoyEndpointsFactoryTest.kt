@@ -406,6 +406,40 @@ internal class EnvoyEndpointsFactoryTest {
             .anySatisfy { it.hasZoneWithPriority("DC3", 2) }
     }
 
+    @Test
+    fun `should create load assignment with service zone priorities`() {
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithPriorities
+                (
+                mapOf("DC2" to mapOf("DC1" to 1, "DC2" to 1, "DC3" to 1)),
+                mapOf("DC2" to mapOf("DC1" to 2, "DC2" to 2, "DC3" to 2)),
+                serviceName
+            ),
+            currentZone = "DC2"
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC2Local)
+        loadAssignments.assertHasLoadAssignment(
+            mapOf("DC1" to 2, "DC2" to 2, "DC3" to 2)
+        )
+    }
+
+    @Test
+    fun `should create load assignment with global zone priorities when no service config found`() {
+        val envoyEndpointsFactory = EnvoyEndpointsFactory(
+            snapshotPropertiesWithPriorities
+                (
+                mapOf("DC2" to mapOf("DC1" to 1, "DC2" to 1, "DC3" to 1)),
+                mapOf("DC2" to mapOf("DC1" to 2, "DC2" to 2, "DC3" to 2)),
+                "another-service"
+            ),
+            currentZone = "DC2"
+        )
+        val loadAssignments = envoyEndpointsFactory.createLoadAssignment(setOf(serviceName), multiClusterStateDC2Local)
+        loadAssignments.assertHasLoadAssignment(
+            mapOf("DC1" to 1, "DC2" to 1, "DC3" to 1)
+        )
+    }
+
     private fun List<ClusterLoadAssignment>.assertHasLoadAssignment(map: Map<String, Int>) {
         assertThat(this)
             .isNotEmpty()
@@ -453,12 +487,21 @@ internal class EnvoyEndpointsFactoryTest {
         assertThat(this.locality.zone).isEqualTo(zone)
     }
 
-    private fun snapshotPropertiesWithPriorities(priorities: Map<String, Map<String, Int>>) =
+    private fun snapshotPropertiesWithPriorities(
+        priorities: Map<String, Map<String, Int>>,
+        servicePriorities: Map<String, Map<String, Int>> = mapOf(),
+        serviceName: String? = null
+    ) =
         SnapshotProperties().apply {
             loadBalancing = LoadBalancingProperties()
                 .apply {
                     this.priorities = LoadBalancingPriorityProperties().apply {
                         zonePriorities = priorities
+                    }
+                    serviceName?.let {
+                        this.servicePriorities = mapOf(serviceName to LoadBalancingPriorityProperties().apply {
+                            zonePriorities = servicePriorities
+                        })
                     }
                 }
         }
