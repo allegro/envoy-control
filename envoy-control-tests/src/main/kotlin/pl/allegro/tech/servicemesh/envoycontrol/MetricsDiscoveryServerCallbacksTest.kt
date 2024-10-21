@@ -20,8 +20,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscover
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.RDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.SDS
 import pl.allegro.tech.servicemesh.envoycontrol.server.callbacks.MetricsDiscoveryServerCallbacks.StreamType.UNKNOWN
-import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTIONS_METRIC
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DISCOVERY_REQ_TYPE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.REQUESTS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.STREAM_TYPE_TAG
@@ -246,7 +246,8 @@ interface MetricsDiscoveryServerCallbacksTest {
                 ).isNotNull
                 assertThat(
                     meterRegistry.get(metric)
-                        .tags(Tags.of(STREAM_TYPE_TAG, type.name.lowercase(), CONNECTION_TYPE_TAG, "grpc")).gauge().value()
+                        .tags(Tags.of(STREAM_TYPE_TAG, type.name.lowercase(), CONNECTION_TYPE_TAG, "grpc")).gauge()
+                        .value()
                         .toInt()
                 ).isEqualTo(value)
             }
