@@ -12,9 +12,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.utils.CLUSTER_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CROSS_DC_SYNC_CANCELLED_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CROSS_DC_SYNC_SECONDS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CROSS_DC_SYNC_TOTAL_METRIC
-import pl.allegro.tech.servicemesh.envoycontrol.utils.ERRORS_TOTAL_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.OPERATION_TAG
-import pl.allegro.tech.servicemesh.envoycontrol.utils.METRIC_EMITTER_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.SERVICES_STATE_ERRORS_METRIC
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.lang.Integer.max
@@ -72,11 +71,10 @@ class RemoteServices(
             .orTimeout(interval, TimeUnit.SECONDS)
             .exceptionally {
                 meterRegistry.counter(
-                    ERRORS_TOTAL_METRIC,
+                    SERVICES_STATE_ERRORS_METRIC,
                     Tags.of(
                         CLUSTER_TAG, cluster,
-                        OPERATION_TAG, "get-state",
-                        METRIC_EMITTER_TAG, "cross-dc-synchronization"
+                        OPERATION_TAG, "get-state"
                     )
                 ).increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
@@ -90,11 +88,10 @@ class RemoteServices(
             cluster to instances
         } catch (e: Exception) {
             meterRegistry.counter(
-                ERRORS_TOTAL_METRIC,
+                SERVICES_STATE_ERRORS_METRIC,
                 Tags.of(
                     CLUSTER_TAG, cluster,
-                    OPERATION_TAG, "get-instances",
-                    METRIC_EMITTER_TAG, "cross-dc-synchronization"
+                    OPERATION_TAG, "get-instances"
                 )
             ).increment()
             logger.warn("Failed fetching instances from $cluster", e)

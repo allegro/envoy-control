@@ -52,8 +52,7 @@ fun <T> Flux<T>.measureBuffer(
 fun <T> Flux<T>.measureDiscardedItems(name: String, meterRegistry: MeterRegistry): Flux<T> = this
     .doOnDiscard(Any::class.java) {
         meterRegistry.counter(
-            REACTOR_METRIC,
-            METRIC_TYPE_TAG, "discarded-items",
+            REACTOR_DISCARDED_METRIC,
             METRIC_EMITTER_TAG, name
         ).increment()
     }
