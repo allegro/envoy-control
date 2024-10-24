@@ -157,6 +157,7 @@ class LoadBalancingProperties {
     var policy = Cluster.LbPolicy.LEAST_REQUEST
     var useKeysSubsetFallbackPolicy = true
     var priorities = LoadBalancingPriorityProperties()
+    var servicePriorities: Map<String, LoadBalancingPriorityProperties> = mapOf()
 }
 
 class CanaryProperties {

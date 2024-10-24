@@ -188,7 +188,7 @@ class EnvoyEndpointsFactory(
                 ?.map {
                     createLbEndpoint(it, serviceInstances.serviceName, locality)
                 } ?: emptyList())
-            .setPriority(toEnvoyPriority(zone, locality))
+            .setPriority(toEnvoyPriority(zone, locality, serviceInstances))
             .build()
     }
 
@@ -286,8 +286,14 @@ class EnvoyEndpointsFactory(
             false -> this
         }
 
-    private fun toEnvoyPriority(zone: String, locality: Locality): Int {
-        val zonePriorities = properties.loadBalancing.priorities.zonePriorities
+    private fun toEnvoyPriority(zone: String, locality: Locality, serviceInstances: ServiceInstances?): Int {
+        var zonePriorities = properties.loadBalancing.priorities.zonePriorities
+        serviceInstances?.let {
+            if (properties.loadBalancing.servicePriorities.containsKey(serviceInstances.serviceName)) {
+                zonePriorities =
+                    properties.loadBalancing.servicePriorities[serviceInstances.serviceName]!!.zonePriorities
+            }
+        }
         return when (zonePriorities.isNotEmpty()) {
             true -> zonePriorities[currentZone]?.get(zone) ?: toEnvoyPriority(locality)
             false -> toEnvoyPriority(locality)
