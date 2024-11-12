@@ -25,6 +25,11 @@ class CustomRoutesFactory(properties: RoutesProperties) {
             .setName(it.cluster)
             .setRoute(RouteAction.newBuilder()
                 .setCluster(it.cluster)
+                .also { route ->
+                    if (it.prefixRewrite != "") {
+                        route.setPrefixRewrite(it.prefixRewrite)
+                    }
+                }
             )
             .setMatch(matcher)
             .build()

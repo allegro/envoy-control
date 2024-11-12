@@ -264,6 +264,7 @@ class AuthorizationProperties {
 class CustomRuteProperties {
     var enabled = false
     var cluster = "custom"
+    var prefixRewrite = ""
     var path = StringMatcher()
 }
 
