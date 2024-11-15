@@ -236,8 +236,8 @@ class EnvoyIngressRoutesFactory(
             .setName("secured_local_service")
             .addDomains("*")
             .addAllVirtualClusters(virtualClusters)
-            .addAllRoutes(adminRoutesFactory.generateAdminRoutes())
             .addAllRoutes(customRoutesFactory.generateCustomRoutes())
+            .addAllRoutes(adminRoutesFactory.generateAdminRoutes())
             .addAllRoutes(generateSecuredIngressRoutes(proxySettings, group))
             .also {
                 if (properties.localService.retryPolicy.default.enabled) {
