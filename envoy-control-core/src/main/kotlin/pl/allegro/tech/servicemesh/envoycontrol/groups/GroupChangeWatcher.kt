@@ -10,8 +10,8 @@ import io.envoyproxy.controlplane.cache.XdsRequest
 import io.micrometer.core.instrument.MeterRegistry
 import pl.allegro.tech.servicemesh.envoycontrol.EnvoyControlMetrics
 import pl.allegro.tech.servicemesh.envoycontrol.logger
+import pl.allegro.tech.servicemesh.envoycontrol.utils.CHANGE_WATCHER_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.measureBuffer
-import pl.allegro.tech.servicemesh.envoycontrol.utils.REACTOR_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.WATCH_TYPE_TAG
 import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
@@ -38,7 +38,7 @@ internal class GroupChangeWatcher(
         return groupsChanged
             .measureBuffer("group-change-watcher", meterRegistry)
             .checkpoint("group-change-watcher-emitted")
-            .name(REACTOR_METRIC)
+            .name(CHANGE_WATCHER_METRIC)
             .tag(WATCH_TYPE_TAG, "group")
             .metrics()
             .doOnSubscribe {
