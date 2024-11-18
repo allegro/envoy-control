@@ -45,6 +45,7 @@ internal class CustomRouteTest {
 
         @JvmField
         @RegisterExtension
+        // val envoy = EnvoyExtension(envoyControl, service)
         val envoy = EnvoyExtension(envoyControl, service, wrapperService = wrapper)
     }
     @Test
@@ -54,6 +55,7 @@ internal class CustomRouteTest {
             endpoint = "/status/wrapper/prometheus"
         )
         // then
-        assertThat(response).isOk().isFrom(wrapper)
+        assertThat(response).isOk()
+            .isFrom(wrapper)
     }
 }

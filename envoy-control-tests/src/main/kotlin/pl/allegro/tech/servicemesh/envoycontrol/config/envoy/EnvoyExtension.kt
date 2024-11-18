@@ -41,6 +41,7 @@ class EnvoyExtension(
 
     override fun beforeAll(context: ExtensionContext) {
         localService?.beforeAll(context)
+        wrapperService?.beforeAll(context)
         envoyControl.beforeAll(context)
         try {
             container.start()
