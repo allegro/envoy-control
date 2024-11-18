@@ -157,12 +157,12 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasStatusVirtualClusters()
                 hasOneDomain("*")
                 hasOnlyRoutesInOrder(
-                    *adminRoutes,
                     {
                         matchingOnPrefix("/status/wrapper/")
                             .toCluster("wrapper")
                             .publicAccess()
                     },
+                    *adminRoutes,
                     {
                         ingressRoute()
                         matchingOnMethod("GET")
