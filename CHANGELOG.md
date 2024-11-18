@@ -2,9 +2,17 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
-## [0.22.3]
+
+## [0.22.5]
 ### Changed
 - Add possibility to create custom routes
+
+## [0.22.4]
+- Added possibility for configuring priorities per service
+
+## [0.22.3]
+### Changed
+- Changed names of some metrics
 
 ## [0.22.2]
 ### Changed
