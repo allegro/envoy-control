@@ -132,17 +132,21 @@ class JwtFilterFactory(
         methods: Set<String>,
         providers: MutableSet<String>
     ): RequirementRule {
-        val pathMatching = RouteMatch.newBuilder().setPathMatchPolicy(
-            TypedExtensionConfig.newBuilder()
-                .setName("envoy.path.match.uri_template.uri_template_matcher")
-                .setTypedConfig(
-                    Any.pack(
-                        UriTemplateMatchConfig.newBuilder()
-                            .setPathTemplate(pathGlobPattern)
-                            .build()
-                    )
-                ).build()
-        )
+
+        val pathMatching =
+            if (pathGlobPattern.matches(Regex("^[^*]*[^*/]\\*$")))
+                RouteMatch.newBuilder().setPrefix(pathGlobPattern)
+            else RouteMatch.newBuilder().setPathMatchPolicy(
+                TypedExtensionConfig.newBuilder()
+                    .setName("envoy.path.match.uri_template.uri_template_matcher")
+                    .setTypedConfig(
+                        Any.pack(
+                            UriTemplateMatchConfig.newBuilder()
+                                .setPathTemplate(pathGlobPattern)
+                                .build()
+                        )
+                    ).build()
+            )
         if (methods.isNotEmpty()) {
             pathMatching.addHeaders(createHeaderMatcherBuilder(methods))
         }
