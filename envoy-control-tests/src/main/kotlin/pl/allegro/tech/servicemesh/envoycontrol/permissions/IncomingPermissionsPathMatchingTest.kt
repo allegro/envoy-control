@@ -33,6 +33,7 @@ class IncomingPermissionsPathMatchingTest {
                       - /api/**/description
                       - /*/login
                       - /**/health
+                      - /paths-prefix*
                       clients: ["echo2"]
                     - path: "/path"
                       clients: ["echo2"]
@@ -170,6 +171,9 @@ class IncomingPermissionsPathMatchingTest {
             assertThat(it).isOk()
         }
         echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/login").also {
+            assertThat(it).isOk()
+        }
+        echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/paths-prefix-test").also {
             assertThat(it).isOk()
         }
         echo2Envoy.egressOperations.callService(service = "echo", pathAndQuery = "/api/products/too/many/reviews").also {
