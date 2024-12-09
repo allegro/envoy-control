@@ -393,7 +393,7 @@ class CompressionProperties {
 class CompressorProperties {
     var enabled = false
     var quality = 1
-    var chooseFirst = true
+    var chooseFirst = false
 }
 
 data class OAuthProvider(

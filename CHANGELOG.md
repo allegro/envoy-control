@@ -33,6 +33,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Added service_id property to filter metadata
 
+## [0.20.20]
+### Changed
+- Changed defaults for "chooseFirst" in compression filter properties 
+- 
 ## [0.20.19]
 ### Changed
 - Added http compression filter properties to node metadata
