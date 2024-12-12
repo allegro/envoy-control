@@ -57,13 +57,9 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 oAuthPolicyPrincipal,
-                "ClientWithSelector(name=$client, selector=null, negated=false)",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)"
             ),
             expectedPoliciesForOAuth(
                 oAuthPolicyPrincipal,
-                "ClientWithSelector(name=$client, selector=null, negated=false)",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)"
             )
         )
 
@@ -98,13 +94,9 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 oAuthPrincipal,
-                "ClientWithSelector(name=$client, selector=$selector, negated=false)",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             ),
             expectedPoliciesForOAuth(
                 oAuthPrincipal,
-                "ClientWithSelector(name=$client, selector=$selector, negated=false)",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             )
         )
         val incomingPermission = Incoming(
@@ -141,13 +133,9 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 conjunctionOfPrincipals(oAuthPrincipal, negatedOAuthPrincipal),
-                "ClientWithSelector(name=$client, selector=$selector, negated=false), ClientWithSelector(name=$client, selector=$negatedSelector, negated=true)",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             ),
             expectedPoliciesForOAuth(
                 conjunctionOfPrincipals(oAuthPrincipal, negatedOAuthPrincipal),
-                "ClientWithSelector(name=$client, selector=$selector, negated=false), ClientWithSelector(name=$client, selector=$negatedSelector, negated=true)",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             )
         )
         val incomingPermission = Incoming(
@@ -197,13 +185,9 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 originalAndAuthenticatedPrincipal("client1"),
-                "ClientWithSelector(name=client1, selector=null, negated=false)",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             ),
             expectedPoliciesForOAuth(
                 originalAndAuthenticatedPrincipal("client1"),
-                "ClientWithSelector(name=client1, selector=null, negated=false)",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=ALLOW_MISSING_OR_FAILED)"
             )
         )
 
@@ -241,15 +225,9 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 oAuthPrincipalsNoClients(policy),
-                "",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)",
-                "$unlistedClientsPolicy"
             ),
             expectedPoliciesForOAuth(
                 oAuthPrincipalsNoClients(policy),
-                "",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)",
-                "$unlistedClientsPolicy"
             )
         )
 
@@ -287,15 +265,9 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
         val expectedRbacBuilder = getRBACFilterWithShadowRules(
             expectedPoliciesForOAuth(
                 """{ "not_id":  {"any": "true"} }""",
-                "",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)",
-                "$unlistedClientsPolicy"
             ),
             expectedPoliciesForOAuth(
                 """{ "not_id":  {"any": "true"} }""",
-                "",
-                "OAuth(provider=oauth-provider, verification=OFFLINE, policy=$policy)",
-                "$unlistedClientsPolicy"
             )
         )
 
@@ -336,13 +308,10 @@ internal class RBACFilterFactoryJwtTest : RBACFilterFactoryTestUtils {
 
     private fun expectedPoliciesForOAuth(
         principals: String,
-        clientsWithSelector: String,
-        oauth: String,
-        unlistedClientsPolicy: String = "BLOCKANDLOG"
     ) = """
         {
           "policies": {
-            "IncomingEndpoint(paths=[], path=/oauth-protected, pathMatchingType=PATH, methods=[GET], clients=[$clientsWithSelector], unlistedClientsPolicy=$unlistedClientsPolicy, oauth=$oauth)": {
+            "path:/oauth-protected": {
               "permissions": [
                 {
                   "and_rules": {

@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
 import com.google.protobuf.Any
+import com.google.protobuf.MessageOrBuilder
 import io.envoyproxy.envoy.config.core.v3.TypedExtensionConfig
 import io.envoyproxy.envoy.config.rbac.v3.Permission
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
@@ -14,42 +15,33 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 class RBACFilterPermissions {
     fun createCombinedPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder {
         val permissions = listOfNotNull(
-            if (incomingEndpoint.paths.isNotEmpty()) {
-                createPathTemplatesPermissionForEndpoint(incomingEndpoint)
-            } else {
-                createPathPermissionForEndpoint(incomingEndpoint)
-            },
+            createPathPermissionForEndpoint(incomingEndpoint),
             createMethodPermissions(incomingEndpoint),
-        )
-            .map { it.build() }
+        ).map { it.build() }
 
         return permission().setAndRules(
             Permission.Set.newBuilder().addAllRules(permissions)
         )
     }
 
-    private fun createPathTemplatesPermissionForEndpoint(incomingEndpoint: IncomingEndpoint): Permission.Builder {
-        return permission()
-            .setOrRules(Permission.Set.newBuilder().addAllRules(
-                incomingEndpoint.paths.map(this::createPathTemplate)))
-    }
+    fun createPathPermission(endpoint: IncomingEndpoint, matchingType: PathMatchingType): Permission.Builder {
+        val matcherBuilder = createMatcherBuilder(endpoint, matchingType)
+        return when (matchingType) {
+            PathMatchingType.PATHS -> {
+                val pathTemplates =
+                    matcherBuilder.map { permission().setUriTemplate(it as TypedExtensionConfig.Builder) }
+                permission().setOrRules(Permission.Set.newBuilder().addAllRules(pathTemplates.map { it.build() }))
+            }
 
-    private fun createPathTemplate(path: String): Permission {
-        return permission().setUriTemplate(TypedExtensionConfig.newBuilder()
-            .setName("envoy.path.match.uri_template.uri_template_matcher")
-            .setTypedConfig(Any.pack(
-                UriTemplateMatchConfig.newBuilder()
-                    .setPathTemplate(path)
-                    .build()
-            ))).build()
-    }
-
-    fun createPathPermission(path: String, matchingType: PathMatchingType): Permission.Builder {
-        return permission().setUrlPath(createPathMatcher(path, matchingType))
+            else -> {
+                val pathMatcher = PathMatcher.newBuilder().setPath(matcherBuilder.first() as StringMatcher).build()
+                permission().setUrlPath(pathMatcher)
+            }
+        }
     }
 
     private fun createPathPermissionForEndpoint(incomingEndpoint: IncomingEndpoint): Permission.Builder {
-        return createPathPermission(incomingEndpoint.path, incomingEndpoint.pathMatchingType)
+        return createPathPermission(incomingEndpoint, incomingEndpoint.pathMatchingType)
     }
 
     private fun createMethodPermissions(incomingEndpoint: IncomingEndpoint): Permission.Builder? {
@@ -67,35 +59,39 @@ class RBACFilterPermissions {
         return permission().setHeader(methodMatch).build()
     }
 
-    private fun createPathMatcher(path: String, matchingType: PathMatchingType): PathMatcher {
-        val matcher = when (matchingType) {
-            PathMatchingType.PATH -> StringMatcher.newBuilder().setExact(path).build()
-            PathMatchingType.PATH_PREFIX -> StringMatcher.newBuilder().setPrefix(path).build()
-            PathMatchingType.PATH_REGEX -> safeRegexMatcher(path)
+    private fun createMatcherBuilder(
+        endpoint: IncomingEndpoint, matchingType: PathMatchingType
+    ): List<MessageOrBuilder> {
+        val builder = when (matchingType) {
+            PathMatchingType.PATH -> listOf(StringMatcher.newBuilder().setExact(endpoint.path).build())
+            PathMatchingType.PATH_PREFIX -> listOf(StringMatcher.newBuilder().setPrefix(endpoint.path).build())
+            PathMatchingType.PATH_REGEX -> listOf(safeRegexMatcher(endpoint.path))
+            PathMatchingType.PATHS -> endpoint.paths.map {
+                TypedExtensionConfig.newBuilder().setName("envoy.path.match.uri_template.uri_template_matcher")
+                    .setTypedConfig(
+                        Any.pack(
+                            UriTemplateMatchConfig.newBuilder().setPathTemplate(it).build()
+                        )
+                    )
+            }
         }
-        return PathMatcher.newBuilder().setPath(matcher).build()
+        return builder
     }
 }
 
-private fun safeRegexMatcher(regexPattern: String) = StringMatcher.newBuilder()
-    .setSafeRegex(
-        RegexMatcher.newBuilder()
-            .setRegex(regexPattern)
-            .setGoogleRe2(
-                RegexMatcher.GoogleRE2.getDefaultInstance()
-            )
-            .build()
-    )
-    .build()
+private fun safeRegexMatcher(regexPattern: String) = StringMatcher.newBuilder().setSafeRegex(
+    RegexMatcher.newBuilder().setRegex(regexPattern).setGoogleRe2(
+        RegexMatcher.GoogleRE2.getDefaultInstance()
+    ).build()
+).build()
 
 private fun permission() = Permission.newBuilder()
 private fun not(permission: Permission.Builder) = permission().setNotRule(permission)
-fun anyOf(permissions: Iterable<Permission>): Permission.Builder = permission()
-    .setOrRules(Permission.Set.newBuilder().addAllRules(permissions))
+fun anyOf(permissions: Iterable<Permission>): Permission.Builder =
+    permission().setOrRules(Permission.Set.newBuilder().addAllRules(permissions))
 
-fun noneOf(permissions: List<Permission>): Permission.Builder =
-    if (permissions.isNotEmpty()) {
-        not(anyOf(permissions))
-    } else {
-        permission().setAny(true)
-    }
+fun noneOf(permissions: List<Permission>): Permission.Builder = if (permissions.isNotEmpty()) {
+    not(anyOf(permissions))
+} else {
+    permission().setAny(true)
+}

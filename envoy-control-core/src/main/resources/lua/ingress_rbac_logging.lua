@@ -76,6 +76,7 @@ function envoy_on_response(handle)
     local dynamic_metadata = handle:streamInfo():dynamicMetadata()
     local rbacMetadata = dynamic_metadata:get('envoy.filters.http.rbac') or {}
     local is_shadow_denied = (rbacMetadata['shadow_engine_result'] or '') == 'denied'
+    local rule = rbacMetadata['shadow_effective_policy_id'] or ''
 
     if is_shadow_denied then
         local headers = handle:headers()
@@ -92,11 +93,11 @@ function envoy_on_response(handle)
         if upstream_request_time == nil and status_code == '403' then
             rbac_action = 'denied'
         end
-        log_request(handle, lua_metadata, jwt_status, rbac_action)
+        log_request(handle, rule, lua_metadata, jwt_status, rbac_action)
     end
 end
 
-function log_request(handle, lua_metadata, jwt_status, rbac_action)
+function log_request(handle, rule, lua_metadata, jwt_status, rbac_action)
     local client_name = lua_metadata['request.info.client_name'] or ''
     local trusted_client = lua_metadata['request.info.trusted_client'] or false
     local path = lua_metadata['request.info.path'] or ''
@@ -112,6 +113,7 @@ function log_request(handle, lua_metadata, jwt_status, rbac_action)
 
     local message = {
         '\nINCOMING_PERMISSIONS {"method":"', method,
+        '","rule":"', rule,
         '","path":"', path,
         '","clientIp":"', source_ip,
         '","clientName":"', escape(client_name),

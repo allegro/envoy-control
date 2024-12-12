@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.fil
 
 import com.google.protobuf.util.JsonFormat
 import io.envoyproxy.envoy.config.rbac.v3.Permission
+import io.envoyproxy.envoy.extensions.path.match.uri_template.v3.UriTemplateMatchConfig
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
@@ -106,6 +107,71 @@ internal class RBACFilterPermissionsTest {
     }
 
     @Test
+    fun `should create permissions with uri template matchers`() {
+        // given
+        val endpoint = IncomingEndpoint(
+            paths = setOf("/example", "/example/*"),
+            pathMatchingType = PathMatchingType.PATHS,
+            methods = setOf("PUT", "DELETE")
+        )
+        // language=json
+        val expectedPermission = """{
+            "and_rules": {
+              "rules": [
+                {
+                 "or_rules": {
+                   "rules": [
+                   {
+                    "uri_template": {
+                     "name": "envoy.path.match.uri_template.uri_template_matcher",
+                     "typed_config": {
+                      "@type": "type.googleapis.com/envoy.extensions.path.match.uri_template.v3.UriTemplateMatchConfig",
+                      "path_template": "/example"
+                     }
+                    }
+                   },
+                   {
+                    "uri_template": {
+                     "name": "envoy.path.match.uri_template.uri_template_matcher",
+                     "typed_config": {
+                      "@type": "type.googleapis.com/envoy.extensions.path.match.uri_template.v3.UriTemplateMatchConfig",
+                      "path_template": "/example/*"
+                     }
+                    }
+                   }
+                  ]
+                 }
+                },
+                {
+                  "or_rules": {
+                    "rules": [
+                      {
+                        "header": {
+                          "name": ":method",
+                          "exact_match": "PUT"
+                        }
+                      }, 
+                      {
+                        "header": {
+                          "name": ":method",
+                          "exact_match": "DELETE"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+        }""".asPermission()
+
+        // when
+        val permissions = rbacFilterPermissions.createCombinedPermissions(endpoint).build()
+
+        // then
+        assertThat(permissions).isEqualTo(expectedPermission)
+    }
+
+    @Test
     fun `should create permissions with method matchers`() {
         // given
         val endpoint = IncomingEndpoint(
@@ -155,7 +221,8 @@ internal class RBACFilterPermissionsTest {
 
     private fun String.asPermission(): Permission {
         val builder = Permission.newBuilder()
-        JsonFormat.parser().merge(this, builder)
+        val typeRegistry = JsonFormat.TypeRegistry.newBuilder().add(UriTemplateMatchConfig.getDescriptor()).build()
+        JsonFormat.parser().usingTypeRegistry(typeRegistry).merge(this, builder)
         return builder.build()
     }
 }

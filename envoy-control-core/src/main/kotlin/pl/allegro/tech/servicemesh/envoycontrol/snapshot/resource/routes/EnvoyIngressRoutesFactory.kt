@@ -128,6 +128,7 @@ class EnvoyIngressRoutesFactory(
         PathMatchingType.PATH_PREFIX -> HeaderMatcher.newBuilder().setName(":path").setPrefixMatch(path).build()
         PathMatchingType.PATH -> HeaderMatcher.newBuilder().setName(":path").setExactMatch(path).build()
         PathMatchingType.PATH_REGEX -> HeaderMatcher.newBuilder().setName(":path").setRe2Match(path).build()
+        PathMatchingType.PATHS -> throw IllegalArgumentException("PathMatchingType.PATHS is not supported")
     }
 
     private fun HeaderMatcher.Builder.setRe2Match(regexPattern: String) = this

@@ -18,6 +18,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
+import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
@@ -180,13 +181,13 @@ class RBACFilterFactory(
                 it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG ||
                     it.endpoint.oauth?.policy != null
             }
-            .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
+            .map { (endpoint, policy) -> endpoint.extractRule() to policy }.toMap()
 
         val loggedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
             .filter {
                 it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG && it.endpoint.oauth?.policy == null
             }
-            .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
+            .map { (endpoint, policy) -> endpoint.extractRule() to policy }.toMap()
 
         val allowUnlistedPolicies = unlistedAndLoggedEndpointsPolicies(
             incomingPermissions,
@@ -277,9 +278,16 @@ class RBACFilterFactory(
         return if (statusRouteProperties.enabled) {
             val permissions = statusRouteProperties.endpoints
                 .map {
-                    rBACFilterPermissions.createPathPermission(
+                    IncomingEndpoint(
+                        paths = emptySet(),
                         path = it.path,
-                        matchingType = it.matchingType
+                        pathMatchingType = PathMatchingType.PATH_PREFIX
+                    )
+                }
+                .map {
+                    rBACFilterPermissions.createPathPermission(
+                        endpoint = it,
+                        matchingType = it.pathMatchingType
                     ).build()
                 }
             val policy = Policy.newBuilder()

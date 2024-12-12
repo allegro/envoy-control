@@ -819,7 +819,7 @@ data class IncomingRateLimitEndpoint(
 )
 
 enum class PathMatchingType {
-    PATH, PATH_PREFIX, PATH_REGEX
+    PATH, PATH_PREFIX, PATH_REGEX, PATHS
 }
 
 enum class CommunicationMode {
@@ -846,6 +846,15 @@ interface EndpointBase {
     val path: String
     val pathMatchingType: PathMatchingType
     val methods: Set<String>
+
+    fun extractRule(): String {
+        return when (pathMatchingType) {
+            PathMatchingType.PATH -> "path:$path"
+            PathMatchingType.PATH_PREFIX -> "pathPrefix:$path"
+            PathMatchingType.PATH_REGEX -> "pathRegex:$path"
+            PathMatchingType.PATHS -> "paths${paths.joinToString(",")}"
+        }
+    }
 }
 
 // We don't distinguish between absence of the field and the field with explicit null value.
