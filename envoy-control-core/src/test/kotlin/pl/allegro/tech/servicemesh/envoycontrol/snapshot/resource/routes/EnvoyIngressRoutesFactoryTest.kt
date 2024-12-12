@@ -32,14 +32,20 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
+import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPrefix
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingRetryPolicy
 import pl.allegro.tech.servicemesh.envoycontrol.groups.pathMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.prefixPathMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.groups.publicAccess
+import pl.allegro.tech.servicemesh.envoycontrol.groups.toCluster
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CustomRuteProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalRetryPoliciesProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalRetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SecuredRoute
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StringMatcher
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.StringMatcherType
 import java.time.Duration
 
 internal class EnvoyIngressRoutesFactoryTest {
@@ -95,6 +101,14 @@ internal class EnvoyIngressRoutesFactoryTest {
                 pathPrefix = "/config_dump"
                 method = "GET"
             })
+            routes.customs = listOf(CustomRuteProperties().apply {
+                enabled = true
+                cluster = "wrapper"
+                path = StringMatcher().apply {
+                    type = StringMatcherType.PREFIX
+                    value = "/status/wrapper/"
+                }
+            })
         }, currentZone = currentZone)
         val responseTimeout = Durations.fromSeconds(777)
         val idleTimeout = Durations.fromSeconds(61)
@@ -143,6 +157,11 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasStatusVirtualClusters()
                 hasOneDomain("*")
                 hasOnlyRoutesInOrder(
+                    {
+                        matchingOnPrefix("/status/wrapper/")
+                            .toCluster("wrapper")
+                            .publicAccess()
+                    },
                     *adminRoutes,
                     {
                         ingressRoute()

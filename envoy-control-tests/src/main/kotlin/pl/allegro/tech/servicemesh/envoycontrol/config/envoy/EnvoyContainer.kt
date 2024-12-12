@@ -16,7 +16,8 @@ class EnvoyContainer(
     private val envoyControl1XdsPort: Int,
     private val envoyControl2XdsPort: Int = envoyControl1XdsPort,
     private val logLevel: String = "info",
-    image: String = DEFAULT_IMAGE
+    image: String = DEFAULT_IMAGE,
+    private val wrapperServiceIp: () -> String = { "127.0.0.1" },
 ) : SSLGenericContainer<EnvoyContainer>(
     dockerfileBuilder = DockerfileBuilder()
         .from(image)
@@ -72,14 +73,15 @@ class EnvoyContainer(
 
         withCommand(
             "/bin/sh", "/usr/local/bin/launch_envoy.sh",
-            Integer.toString(envoyControl1XdsPort),
-            Integer.toString(envoyControl2XdsPort),
+            envoyControl1XdsPort.toString(),
+            envoyControl2XdsPort.toString(),
             CONFIG_DEST,
             localServiceIp(),
             config.trustedCa,
             config.certificateChain,
             config.privateKey,
             config.serviceName,
+            wrapperServiceIp(),
             "--config-yaml", config.configOverride,
             "-l", logLevel
         )
