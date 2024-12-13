@@ -19,6 +19,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
+import pl.allegro.tech.servicemesh.envoycontrol.groups.toJson
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.Client
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
@@ -180,13 +181,13 @@ class RBACFilterFactory(
                 it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.BLOCKANDLOG ||
                     it.endpoint.oauth?.policy != null
             }
-            .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
+            .map { (endpoint, policy) -> endpoint.toJson() to policy }.toMap()
 
         val loggedEndpointsPolicies = incomingEndpointsPolicies.asSequence()
             .filter {
                 it.endpoint.unlistedClientsPolicy == Incoming.UnlistedPolicy.LOG && it.endpoint.oauth?.policy == null
             }
-            .map { (endpoint, policy) -> "$endpoint" to policy }.toMap()
+            .map { (endpoint, policy) -> endpoint.toJson() to policy }.toMap()
 
         val allowUnlistedPolicies = unlistedAndLoggedEndpointsPolicies(
             incomingPermissions,

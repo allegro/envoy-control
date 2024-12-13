@@ -67,6 +67,7 @@ interface RBACFilterFactoryTestUtils {
         }
         """
     }
+
     fun authenticatedPrincipal(value: String): String {
         return """{
                     "authenticated": {
@@ -76,6 +77,7 @@ interface RBACFilterFactoryTestUtils {
                     }
                 }"""
     }
+
     fun originalDestinationPrincipal(value: String): String {
         return """{
                     "and_ids": {
@@ -119,7 +121,7 @@ interface RBACFilterFactoryTestUtils {
 
     fun getRBACFilterWithShadowRules(rules: String, shadowRules: String): HttpFilter {
         val rbacFilter = RBAC.newBuilder()
-         JsonFormat.parser().merge(wrapInFilter(rules), rbacFilter)
+        JsonFormat.parser().merge(wrapInFilter(rules), rbacFilter)
         JsonFormat.parser().merge(wrapInFilterShadow(shadowRules), rbacFilter)
         return HttpFilter.newBuilder()
             .setName("envoy.filters.http.rbac")

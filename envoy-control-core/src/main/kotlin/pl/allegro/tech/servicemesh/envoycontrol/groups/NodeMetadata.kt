@@ -1,5 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.protobuf.Duration
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
@@ -810,6 +813,13 @@ data class IncomingEndpoint(
     val oauth: OAuth? = null
 ) : EndpointBase
 
+val mapper: com.fasterxml.jackson.databind.ObjectMapper = jacksonObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_EMPTY)
+
+fun IncomingEndpoint.toJson(): String {
+    mapper.configure(JsonParser.Feature.IGNORE_UNDEFINED, true)
+    val jsonString = mapper.writeValueAsString(this)
+    return jsonString
+}
 data class IncomingRateLimitEndpoint(
     val path: String,
     val pathMatchingType: PathMatchingType = PathMatchingType.PATH,
