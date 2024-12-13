@@ -121,6 +121,7 @@ internal class IncomingPermissionsAllowedClientTest {
         assertThat(echoResponse).isOk().isFrom(service)
         assertThat(echoEnvoy.container).hasOneAccessAllowedWithActionLog(
             protocol = "https",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"echo\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "echo3",
@@ -150,6 +151,7 @@ internal class IncomingPermissionsAllowedClientTest {
         assertThat(echoResponse).isOk().isFrom(service)
         assertThat(echoEnvoy.container).hasOneAccessAllowedWithActionLog(
             protocol = "https",
+            rule = "{\"path\":\"/block-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"echo\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo3",
@@ -179,6 +181,7 @@ internal class IncomingPermissionsAllowedClientTest {
         assertThat(echoResponse).isOk().isFrom(service)
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"echo\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "echo3",
@@ -208,6 +211,7 @@ internal class IncomingPermissionsAllowedClientTest {
         assertThat(echoResponse).isForbidden()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
+            rule = "{\"path\":\"/block-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"echo\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo3",
@@ -232,6 +236,7 @@ internal class IncomingPermissionsAllowedClientTest {
         assertThat(echo2Envoy.container.ingressTlsRequests()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"echo\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
             path = "/log-unlisted-endpoint",
             method = "GET",
             clientName = "echo3 (not trusted)",
@@ -255,6 +260,7 @@ internal class IncomingPermissionsAllowedClientTest {
         assertThat(echoEnvoy.container.ingressTlsRequests()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
+            rule = "",
             path = "/block-and-log-unlisted-endpoint",
             method = "GET",
             clientName = "echo3 (not trusted)",

@@ -78,6 +78,7 @@ class IncomingPermissionsRequestIdTest {
         // then
         assertThat(response).isOk()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
+            rule = "?",
             protocol = "http",
             requestId = "123"
         )
@@ -94,6 +95,7 @@ class IncomingPermissionsRequestIdTest {
         assertThat(response).isOk()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "?",
             requestId = "\""
         )
     }

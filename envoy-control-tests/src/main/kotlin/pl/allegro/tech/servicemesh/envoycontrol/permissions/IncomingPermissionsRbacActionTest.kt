@@ -84,6 +84,7 @@ class IncomingPermissionsRbacActionTest {
         assertThat(response).isOk()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "?",
             rbacAction = "shadow_denied"
         )
     }
@@ -97,6 +98,7 @@ class IncomingPermissionsRbacActionTest {
         assertThat(response).isUnreachable()
         assertThat(failingEchoEnvoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "?",
             rbacAction = "shadow_denied",
             statusCode = "503"
         )

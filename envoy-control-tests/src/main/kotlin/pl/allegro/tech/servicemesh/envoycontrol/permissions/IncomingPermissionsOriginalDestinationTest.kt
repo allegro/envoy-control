@@ -138,6 +138,7 @@ class IncomingPermissionsOriginalDestinationTest {
 
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
+            rule = "{\"path\":\"/blocked-echo\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"echo2\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/blocked-echo",
             method = "GET",
             clientName = "echo",

@@ -60,6 +60,7 @@ internal class IncomingPermissionsEmptyEndpointsTest {
         assertThat(echoResponse).isOk().isFrom(echo)
         assertThat(envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "ALLOW_LOGGED_POLICY",
             path = "/some-endpoint",
             method = "GET",
             clientName = "",

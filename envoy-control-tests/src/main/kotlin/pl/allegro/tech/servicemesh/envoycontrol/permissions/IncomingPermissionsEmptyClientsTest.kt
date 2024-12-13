@@ -87,6 +87,7 @@ internal class IncomingPermissionsEmptyClientsTest {
         assertThat(echoResponse).isForbidden()
         assertThat(envoy1.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
+            rule = "{\"path\":\"/blocked-for-all\",\"pathMatchingType\":\"PATH\"}",
             path = "/blocked-for-all",
             method = "GET",
             clientName = "",
@@ -105,6 +106,7 @@ internal class IncomingPermissionsEmptyClientsTest {
         assertThat(echoResponse).isOk().isFrom(echo)
         assertThat(envoy1.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "ALLOW_UNLISTED_POLICY",
             path = "/unlisted",
             method = "GET",
             clientName = "",
@@ -121,6 +123,7 @@ internal class IncomingPermissionsEmptyClientsTest {
         assertThat(echo2Response).isOk().isFrom(echo2)
         assertThat(envoy2.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "{\"path\":\"/logged-for-all\",\"pathMatchingType\":\"PATH\", \"unlistedClientsPolicy\":\"LOG\"}",
             path = "/logged-for-all",
             method = "GET",
             clientName = "",
@@ -137,6 +140,7 @@ internal class IncomingPermissionsEmptyClientsTest {
         assertThat(echo2Response).isForbidden()
         assertThat(envoy2.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
+            rule = "?",
             path = "/unlisted",
             method = "GET",
             clientName = "",

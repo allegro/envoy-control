@@ -265,6 +265,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
+            rule = "{\"path\":\"/block-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo2",
@@ -284,6 +285,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
+            rule = "{\"path\":\"/block-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "echo",
@@ -325,6 +327,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
+            rule = "{\"path\":\"/block-unlisted-clients-by-default\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}]}",
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
@@ -344,6 +347,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
+            rule = "{\"path\":\"/block-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/block-unlisted-clients",
             method = "GET",
             clientName = "",
@@ -386,6 +390,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "echo2",
@@ -405,6 +410,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "echo",
@@ -444,6 +450,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "",
@@ -461,6 +468,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "",
@@ -505,6 +513,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
+            rule = "{\"path\":\"/block-unlisted-clients-by-default\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}]}",
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "echo2",
@@ -524,6 +533,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
+            rule = "{\"path\":\"/block-unlisted-clients-by-default\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}]}",
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "",
@@ -543,6 +553,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
+            rule = "?",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo3",
@@ -562,6 +573,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
+            rule = "ALLOW_LOGGED_POLICY",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo3",
@@ -581,6 +593,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
+            rule = "?",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo2",
@@ -601,6 +614,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
+            rule = "ALLOW_LOGGED_POLICY",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "echo",
@@ -620,6 +634,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
+            rule = "?",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
@@ -639,6 +654,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "ALLOW_LOGGED_POLICY",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
@@ -657,6 +673,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "http",
+            rule = "?",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
@@ -676,6 +693,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_http.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "http",
+            rule = "ALLOW_UNLISTED_POLICY",
             path = "/unlisted-endpoint",
             method = "GET",
             clientName = "",
@@ -699,6 +717,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echoEnvoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echoEnvoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/log-unlisted-clients",
             method = "POST",
             clientName = "echo3",
@@ -723,6 +742,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/log-unlisted-clients",
             method = "POST",
             clientName = "echo3",
@@ -746,6 +766,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionLog(
             protocol = "https",
+            rule = "{\"path\":\"/log-unlisted-clients\",\"pathMatchingType\":\"PATH\",\"methods\":[\"GET\"],\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}],\"unlistedClientsPolicy\":\"BLOCKANDLOG\"}",
             path = "/log-unlisted-clients",
             method = "GET",
             clientName = "service-name-from-header (not trusted)",
@@ -766,6 +787,7 @@ class IncomingPermissionsLoggingModeTest {
         assertThat(echo2Envoy.container.admin().statValue("http.ingress_https.downstream_rq_completed")?.toInt()).isOne()
         assertThat(echo2Envoy.container).hasOneAccessDenialWithActionBlock(
             protocol = "https",
+            rule = "{\"path\":\"/block-unlisted-clients-by-default\",\"pathMatchingType\":\"PATH\",\"clients\":[{\"name\":\"authorized-clients\",\"negated\":false}]}",
             path = "/block-unlisted-clients-by-default",
             method = "GET",
             clientName = "echo",

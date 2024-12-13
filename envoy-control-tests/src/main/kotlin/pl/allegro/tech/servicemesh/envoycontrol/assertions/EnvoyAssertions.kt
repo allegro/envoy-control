@@ -9,6 +9,7 @@ import java.util.function.Consumer
 
 private class RbacLog(
     val protocol: String,
+    val rule: String,
     val path: String? = null,
     val method: String? = null,
     val clientName: String? = null,
@@ -41,6 +42,7 @@ fun ObjectAssert<EnvoyContainer>.hasNoRBACDenials(): ObjectAssert<EnvoyContainer
 @Suppress("LongParameterList")
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
     protocol: String,
+    rule: String,
     path: String,
     method: String,
     clientName: String,
@@ -53,6 +55,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
     protocol = protocol,
     logPredicate = RbacLog(
         protocol = protocol,
+        rule = rule,
         path = path,
         method = method,
         clientName = clientName,
@@ -67,6 +70,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionBlock(
 
 fun ObjectAssert<EnvoyContainer>.hasOneAccessAllowedWithActionLog(
     protocol: String,
+    rule: String,
     path: String? = null,
     method: String? = null,
     clientName: String? = null,
@@ -81,6 +85,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessAllowedWithActionLog(
     shadowDenied = false,
     logPredicate = RbacLog(
         protocol = protocol,
+        rule = rule,
         path = path,
         method = method,
         clientIp = clientIp,
@@ -95,6 +100,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessAllowedWithActionLog(
 
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     protocol: String,
+    rule: String,
     path: String? = null,
     method: String? = null,
     clientName: String? = null,
@@ -109,6 +115,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     shadowDenied = false,
     logPredicate = RbacLog(
         protocol = protocol,
+        rule = rule,
         path = path,
         method = method,
         clientIp = clientIp,
@@ -123,7 +130,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
 
 fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     protocol: String,
-    path: String? = null,
+    rule: String,path: String? = null,
     method: String? = null,
     clientName: String? = null,
     trustedClient: Boolean? = null,
@@ -138,6 +145,7 @@ fun ObjectAssert<EnvoyContainer>.hasOneAccessDenialWithActionLog(
     protocol = protocol,
     logPredicate = RbacLog(
         protocol = protocol,
+        rule = rule,
         path = path,
         method = method,
         clientIp = clientIp,
@@ -181,6 +189,7 @@ private fun ObjectAssert<String>.matchesRbacAccessDeniedLog(logPredicate: RbacLo
     assertThat(parsed.protocol).isEqualTo(logPredicate.protocol)
     assertEqualProperty(parsed, logPredicate, RbacLog::protocol)
     assertEqualProperty(parsed, logPredicate, RbacLog::method)
+    assertEqualProperty(parsed, logPredicate, RbacLog::rule)
     assertEqualProperty(parsed, logPredicate, RbacLog::path)
     assertEqualProperty(parsed, logPredicate, RbacLog::clientIp)
     assertEqualProperty(parsed, logPredicate, RbacLog::clientName)
