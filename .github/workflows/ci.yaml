@@ -26,6 +26,7 @@ jobs:
       GRADLE_OPTS: '-Dfile.encoding=utf-8 -Dorg.gradle.daemon=false'
 
     steps:
+      - run: docker version
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
