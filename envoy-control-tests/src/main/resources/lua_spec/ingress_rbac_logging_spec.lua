@@ -4,8 +4,9 @@ local _ = match._
 local contains = function(substring)
     return match.matches(substring, nil, true)
 end
-local function formatLog(method, path, source_ip, client_name, protocol, request_id, status_code, trusted_client, allowed_client, rbac_action, authority, lua_authority, jwt_token_status, headers_to_log)
+local function formatLog(method, rule, path, source_ip, client_name, protocol, request_id, status_code, trusted_client, allowed_client, rbac_action, authority, lua_authority, jwt_token_status, headers_to_log)
     local message = "\nINCOMING_PERMISSIONS {\"method\":\"" .. method ..
+        "\",\"rule\":\"" .. rule ..
         "\",\"path\":\"" .. path ..
         "\",\"clientIp\":\"" .. source_ip ..
         "\",\"clientName\":\"" .. escape(client_name) ..
@@ -397,7 +398,8 @@ describe("envoy_on_response:", function()
                 }
             },
             ['envoy.filters.http.rbac'] = {
-                ['shadow_engine_result'] = 'denied'
+                ['shadow_engine_result'] = 'denied',
+                ['shadow_effective_policy_id'] = '{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}'
             },
             ['envoy.filters.http.lua'] = {
                 ['service_name'] = "service",
@@ -425,6 +427,7 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog(
                 "POST",
+                "{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
                 "/path?query=val",
                 "127.1.1.3",
                 "service-first",
@@ -452,6 +455,7 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog(
                 "POST",
+                "{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
                 "/path?query=val",
                 "127.1.1.3",
                 "service-first",
@@ -479,6 +483,7 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog(
                 "POST",
+                "{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
                 "/path?query=val",
                 "127.1.1.3",
                 "service-first",
@@ -507,6 +512,7 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog(
                 "POST",
+                "{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
                 "/path?query=val",
                 "127.1.1.3",
                 "service-first",
@@ -535,6 +541,7 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog(
                 "",
+                "{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
                 "",
                 "",
                 "",
@@ -563,6 +570,7 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog(
                 "",
+                "{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
                 "",
                 "",
                 "",
@@ -590,6 +598,7 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog(
                 "POST",
+                "{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
                 "",
                 "127.1.1.3",
                 "service-first",
@@ -618,6 +627,7 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog(
                 "POST",
+                "{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
                 "/path?query=val",
                 "127.1.1.3",
                 "service-first",
@@ -651,6 +661,7 @@ describe("envoy_on_response:", function()
             -- then
             assert.spy(handle.logInfo).was_called_with(_, formatLog(
                 "POST",
+                "{\"path\":\"/path\",\"pathMatchingType\":\"PATH\",\"methods\":[\"POST\"],\"clients\":[{\"name\":\"service-first\",\"negated\":false},{\"name\":\"client2\",\"negated\":false}],\"unlistedClientsPolicy\":\"LOG\"}",
                 "/path?query=val",
                 "127.1.1.3",
                 "service-first",
