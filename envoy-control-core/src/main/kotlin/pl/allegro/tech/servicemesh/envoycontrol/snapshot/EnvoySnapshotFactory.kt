@@ -337,7 +337,19 @@ class EnvoySnapshotFactory(
         val endpoints = getServicesEndpointsForGroup(
             group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot,
             egressRouteSpecification
-        )
+        ).also { e ->
+            val list = e.mapNotNull { el -> el.endpointsList.find { x -> x.lbEndpointsList.isEmpty() } }
+            val rPolicy = group.proxySettings.outgoing.defaultServiceSettings.routingPolicy
+            if (list.isNotEmpty() &&
+                list.none { it.locality.zone.contains(properties.loadBalancing.trafficSplitting.zoneName) } &&
+                rPolicy.autoServiceTag
+            ) {
+                logger.warn(
+                    "Some of service ${group.serviceName} dependencies have ClusterLoadAssignment with empty " +
+                        "lbEndpoints: $list, routingPolicy: $rPolicy, all endpoints: $e"
+                )
+            }
+        }
 
         val version = snapshotsVersions.version(group, clusters, endpoints, listeners, routes)
         return createSnapshot(
