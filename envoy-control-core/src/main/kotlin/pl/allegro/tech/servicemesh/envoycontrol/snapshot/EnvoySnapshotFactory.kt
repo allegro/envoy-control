@@ -280,9 +280,30 @@ class EnvoySnapshotFactory(
                 //    endpointsFactory.filterEndpoints() can use this cache to prevent computing the same
                 //    ClusterLoadAssignments many times - it may reduce MEM, CPU and latency if some serviceTags are
                 //    commonly used
-                endpointsFactory.filterEndpoints(endpoints, routeSpec.settings.routingPolicy).let {
-                    endpointsFactory.assignLocalityWeights(routeSpec, it)
-                }
+                endpointsFactory.filterEndpoints(endpoints, routeSpec.settings.routingPolicy)
+                    .also {
+                        if (it.endpointsList.isEmpty() &&
+                            properties.debugServiceNames.contains(routeSpec.clusterName)
+                        ) {
+                            logger.warn(
+                                "Filtering endpoints resulted in empty list for ${routeSpec.clusterName}. " +
+                                    "Endpoints before filter: $endpoints"
+                            )
+                        }
+                    }
+                    .let {
+                        endpointsFactory.assignLocalityWeights(routeSpec, it)
+                    }
+                    .also {
+                        if (it.endpointsList.isEmpty() &&
+                            properties.debugServiceNames.contains(routeSpec.clusterName)
+                        ) {
+                            logger.warn(
+                                "Assigning weights resulted in empty endpoints for ${routeSpec.clusterName}. " +
+                                    "Endpoints before filter: $endpoints\""
+                            )
+                        }
+                    }
             }
         }
         val rateLimitClusters =
