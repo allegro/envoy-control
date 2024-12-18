@@ -280,9 +280,30 @@ class EnvoySnapshotFactory(
                 //    endpointsFactory.filterEndpoints() can use this cache to prevent computing the same
                 //    ClusterLoadAssignments many times - it may reduce MEM, CPU and latency if some serviceTags are
                 //    commonly used
-                endpointsFactory.filterEndpoints(endpoints, routeSpec.settings.routingPolicy).let {
-                    endpointsFactory.assignLocalityWeights(routeSpec, it)
-                }
+                endpointsFactory.filterEndpoints(endpoints, routeSpec.settings.routingPolicy)
+                    .also {
+                        if (it.endpointsList.isEmpty() &&
+                            properties.debugServiceNames.contains(routeSpec.clusterName)
+                        ) {
+                            logger.warn(
+                                "Filtering endpoints resulted in empty list for ${routeSpec.clusterName}. " +
+                                    "Endpoints before filter: $endpoints"
+                            )
+                        }
+                    }
+                    .let {
+                        endpointsFactory.assignLocalityWeights(routeSpec, it)
+                    }
+                    .also {
+                        if (it.endpointsList.isEmpty() &&
+                            properties.debugServiceNames.contains(routeSpec.clusterName)
+                        ) {
+                            logger.warn(
+                                "Assigning weights resulted in empty endpoints for ${routeSpec.clusterName}. " +
+                                    "Endpoints before filter: $endpoints\""
+                            )
+                        }
+                    }
             }
         }
         val rateLimitClusters =
@@ -337,19 +358,7 @@ class EnvoySnapshotFactory(
         val endpoints = getServicesEndpointsForGroup(
             group.proxySettings.incoming.rateLimitEndpoints, globalSnapshot,
             egressRouteSpecification
-        ).also { e ->
-            val list = e.mapNotNull { el -> el.endpointsList.find { x -> x.lbEndpointsList.isEmpty() } }
-            val rPolicy = group.proxySettings.outgoing.defaultServiceSettings.routingPolicy
-            if (list.isNotEmpty() &&
-                list.none { it.locality.zone.contains(properties.loadBalancing.trafficSplitting.zoneName) } &&
-                rPolicy.autoServiceTag
-            ) {
-                logger.warn(
-                    "Some of service ${group.serviceName} dependencies have ClusterLoadAssignment with empty " +
-                        "lbEndpoints: $list, routingPolicy: $rPolicy, all endpoints: $e"
-                )
-            }
-        }
+        )
 
         val version = snapshotsVersions.version(group, clusters, endpoints, listeners, routes)
         return createSnapshot(

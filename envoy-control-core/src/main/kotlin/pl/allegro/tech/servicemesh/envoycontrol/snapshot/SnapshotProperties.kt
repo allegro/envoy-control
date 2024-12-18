@@ -39,6 +39,7 @@ class SnapshotProperties {
     var tcpDumpsEnabled: Boolean = true
     var shouldAuditGlobalSnapshot: Boolean = true
     var compression: CompressionProperties = CompressionProperties()
+    var debugServiceNames: List<String> = emptyList()
 }
 
 class PathNormalizationProperties {
