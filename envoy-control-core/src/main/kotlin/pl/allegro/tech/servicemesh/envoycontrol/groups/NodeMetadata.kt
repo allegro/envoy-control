@@ -76,8 +76,8 @@ data class ProxySettings(
 fun Value.toPathNormalization(snapshotProperties: SnapshotProperties): PathNormalizationPolicy {
     return PathNormalizationPolicy(
         normalizationEnabled = this.field("enabled")?.boolValue ?: snapshotProperties.pathNormalization.enabled,
-        mergeSlashes = this.field("merge_slashes")?.boolValue ?: snapshotProperties.pathNormalization.mergeSlashes,
-        pathWithEscapedSlashesAction = this.field("path_with_escaped_slashes_action")?.stringValue
+        mergeSlashes = this.field("mergeSlashes")?.boolValue ?: snapshotProperties.pathNormalization.mergeSlashes,
+        pathWithEscapedSlashesAction = this.field("escapedSlashesAction")?.stringValue
             ?: snapshotProperties.pathNormalization.pathWithEscapedSlashesAction
     )
 }
@@ -366,7 +366,7 @@ fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
         rateLimitEndpoints = rateLimitEndpointsField.orEmpty().map(Value::toIncomingRateLimitEndpoint),
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
-        pathNormalizationPolicy = this?.field("path_normalization")?.toPathNormalization(properties),
+        pathNormalizationPolicy = this?.field("pathNormalizationPolicy")?.toPathNormalization(properties),
         healthCheck = this?.field("healthCheck").toHealthCheck(),
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
         timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy(),
