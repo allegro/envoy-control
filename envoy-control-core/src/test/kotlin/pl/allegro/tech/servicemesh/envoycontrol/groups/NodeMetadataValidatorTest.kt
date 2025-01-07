@@ -265,7 +265,7 @@ class NodeMetadataValidatorTest {
     fun `should throw an exception when PathWithEscapedSlashesAction is invalid`() {
         // given
         val node = nodeV3(
-            pathNormalization = PathNormalizationConfig(pathWithEscapedSlashesAction = "foo", normalizationEnabled = true, mergeSlashes = true)
+            pathNormalization = PathNormalizationPolicy(pathWithEscapedSlashesAction = "foo", normalizationEnabled = true, mergeSlashes = true)
         )
         val request = DiscoveryRequestV3.newBuilder()
             .setNode(node)

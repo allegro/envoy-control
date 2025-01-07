@@ -23,7 +23,7 @@ fun nodeV3(
     healthCheckPath: String? = null,
     healthCheckClusterName: String? = null,
     rateLimit: String? = null,
-    pathNormalization: PathNormalizationConfig? = null
+    pathNormalization: PathNormalizationPolicy? = null
 ): NodeV3 {
     val meta = NodeV3.newBuilder().metadataBuilder
 

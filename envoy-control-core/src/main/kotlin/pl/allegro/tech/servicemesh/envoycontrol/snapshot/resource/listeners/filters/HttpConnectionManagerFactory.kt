@@ -51,7 +51,7 @@ class HttpConnectionManagerFactory(
     ): HttpConnectionManager? {
         val listenersConfig = group.listenersConfig!!
 
-        val normalizationConfig = group.pathNormalizationConfig
+        val normalizationConfig = group.proxySettings.incoming.pathNormalizationPolicy ?: group.pathNormalizationPolicy
         val connectionManagerBuilder = HttpConnectionManager.newBuilder()
             .setStatPrefix(statPrefix)
             .setRds(setupRds(group.communicationMode, initialFetchTimeout, routeConfigName))

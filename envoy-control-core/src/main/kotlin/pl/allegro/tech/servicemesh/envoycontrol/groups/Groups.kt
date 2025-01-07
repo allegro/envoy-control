@@ -8,7 +8,7 @@ sealed class Group {
     abstract val serviceId: Int?
     abstract val discoveryServiceName: String?
     abstract val proxySettings: ProxySettings
-    abstract val pathNormalizationConfig: PathNormalizationConfig
+    abstract val pathNormalizationPolicy: PathNormalizationPolicy
     abstract val listenersConfig: ListenersConfig?
     abstract val compressionConfig: CompressionConfig
 }
@@ -19,7 +19,7 @@ data class ServicesGroup(
     override val serviceId: Int? = null,
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val pathNormalizationConfig: PathNormalizationConfig = PathNormalizationConfig(),
+    override val pathNormalizationPolicy: PathNormalizationPolicy = PathNormalizationPolicy(),
     override val listenersConfig: ListenersConfig? = null,
     override val compressionConfig: CompressionConfig = CompressionConfig(),
 ) : Group()
@@ -30,12 +30,12 @@ data class AllServicesGroup(
     override val serviceId: Int? = null,
     override val discoveryServiceName: String? = null,
     override val proxySettings: ProxySettings = ProxySettings(),
-    override val pathNormalizationConfig: PathNormalizationConfig = PathNormalizationConfig(),
+    override val pathNormalizationPolicy: PathNormalizationPolicy = PathNormalizationPolicy(),
     override val listenersConfig: ListenersConfig? = null,
     override val compressionConfig: CompressionConfig = CompressionConfig(),
 ) : Group()
 
-data class PathNormalizationConfig(
+data class PathNormalizationPolicy(
     val normalizationEnabled: Boolean? = null,
     val mergeSlashes: Boolean? = null,
     val pathWithEscapedSlashesAction: String? = null

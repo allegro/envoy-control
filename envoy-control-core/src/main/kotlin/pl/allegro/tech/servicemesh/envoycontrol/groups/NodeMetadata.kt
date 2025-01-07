@@ -73,8 +73,17 @@ data class ProxySettings(
     )
 }
 
-fun getPathNormalization(proto: Value?, snapshotProperties: SnapshotProperties): PathNormalizationConfig {
-    val defaultNormalizationConfig = PathNormalizationConfig(
+fun Value.toPathNormalization(snapshotProperties: SnapshotProperties): PathNormalizationPolicy {
+    return PathNormalizationPolicy(
+        normalizationEnabled = this.field("enabled")?.boolValue ?: snapshotProperties.pathNormalization.enabled,
+        mergeSlashes = this.field("mergeSlashes")?.boolValue ?: snapshotProperties.pathNormalization.mergeSlashes,
+        pathWithEscapedSlashesAction = this.field("escapedSlashesAction")?.stringValue
+            ?: snapshotProperties.pathNormalization.pathWithEscapedSlashesAction
+    )
+}
+
+fun getPathNormalization(proto: Value?, snapshotProperties: SnapshotProperties): PathNormalizationPolicy {
+    val defaultNormalizationConfig = PathNormalizationPolicy(
         snapshotProperties.pathNormalization.enabled,
         snapshotProperties.pathNormalization.mergeSlashes,
         snapshotProperties.pathNormalization.pathWithEscapedSlashesAction
@@ -82,7 +91,7 @@ fun getPathNormalization(proto: Value?, snapshotProperties: SnapshotProperties):
     if (proto == null) {
         return defaultNormalizationConfig
     }
-    return PathNormalizationConfig(
+    return PathNormalizationPolicy(
         normalizationEnabled = proto.field("enabled")?.boolValue ?: defaultNormalizationConfig.normalizationEnabled,
         mergeSlashes = proto.field("merge_slashes")?.boolValue ?: defaultNormalizationConfig.mergeSlashes,
         pathWithEscapedSlashesAction = proto.field("path_with_escaped_slashes_action")?.stringValue
@@ -357,6 +366,7 @@ fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
         rateLimitEndpoints = rateLimitEndpointsField.orEmpty().map(Value::toIncomingRateLimitEndpoint),
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
+        pathNormalizationPolicy = this?.field("pathNormalizationPolicy")?.toPathNormalization(properties),
         healthCheck = this?.field("healthCheck").toHealthCheck(),
         roles = this?.field("roles")?.list().orEmpty().map { Role(it) },
         timeoutPolicy = this?.field("timeoutPolicy").toIncomingTimeoutPolicy(),
@@ -402,7 +412,8 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
 
     if (isMoreThanOnePropertyDefined(paths, path, pathPrefix, pathRegex)) {
         throw NodeMetadataValidationException(
-            "Precisely one of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is allowed")
+            "Precisely one of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is allowed"
+        )
     }
 
     val methods = this.field("methods")?.list().orEmpty().map { it.stringValue }.toSet()
@@ -412,9 +423,13 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
 
     return when {
         paths.isNotEmpty() -> IncomingEndpoint(
-            paths, "", PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
+            paths, "", PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth
+        )
+
         path != null -> IncomingEndpoint(
-            paths, path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth)
+            paths, path, PathMatchingType.PATH, methods, clients, unlistedClientsPolicy, oauth
+        )
+
         pathPrefix != null -> IncomingEndpoint(
             paths, pathPrefix, PathMatchingType.PATH_PREFIX, methods, clients, unlistedClientsPolicy, oauth
         )
@@ -424,7 +439,8 @@ fun Value.toIncomingEndpoint(properties: SnapshotProperties): IncomingEndpoint {
         )
 
         else -> throw NodeMetadataValidationException(
-            "One of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is required")
+            "One of 'paths', 'path', 'pathPrefix' or 'pathRegex' field is required"
+        )
     }
 }
 
@@ -580,6 +596,7 @@ data class Incoming(
     val permissionsEnabled: Boolean = false,
     val healthCheck: HealthCheck = HealthCheck(),
     val roles: List<Role> = emptyList(),
+    val pathNormalizationPolicy: PathNormalizationPolicy? = null,
     val timeoutPolicy: TimeoutPolicy = TimeoutPolicy(
         idleTimeout = null, responseTimeout = null, connectionIdleTimeout = null
     ),
