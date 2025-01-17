@@ -188,7 +188,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             request.getTypeUrl());
         T group;
         group = groups.hash(request.v3Request().getNode());
-
+        request.v3Request().getNode().getId()
         // even though we're modifying, we take a readLock to allow multiple watches to be created in parallel since it
         // doesn't conflict
         readLock.lock();
@@ -213,7 +213,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
                 return watch;
             }
-            LOGGER.info("KSKSKS: version {}, requeterVersion {}", version, requesterVersion);
+            LOGGER.info("KSKSKS: version {}, requeterVersion {}, id {}, cluster {}", version, requesterVersion, request.v3Request().getNode().getId(), request.v3Request().getNode().getCluster());
             // If the requested version is up-to-date or missing a response, leave an open watch.
             if (version.equals(requesterVersion)) {
                 // If the request is not wildcard, we have pending resources and we have them, we should respond immediately.
