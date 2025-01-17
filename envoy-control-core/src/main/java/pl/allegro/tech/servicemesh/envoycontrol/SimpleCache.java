@@ -188,7 +188,6 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             request.getTypeUrl());
         T group;
         group = groups.hash(request.v3Request().getNode());
-        request.v3Request().getNode().getId()
         // even though we're modifying, we take a readLock to allow multiple watches to be created in parallel since it
         // doesn't conflict
         readLock.lock();
