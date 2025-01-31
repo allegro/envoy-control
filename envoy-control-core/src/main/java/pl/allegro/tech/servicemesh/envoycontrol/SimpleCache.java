@@ -59,6 +59,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
     private final Timer pushTimeCds;
     private final Timer pushTimeRds;
     private final Timer pushTimeLds;
+    private final Timer pushTimeUnknown;
 
     /**
      * Constructs a simple cache.
@@ -124,6 +125,19 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 Duration.ofSeconds(30)
             )
             .tags("type", "lds")
+            .register(meterRegistry);
+        this.pushTimeUnknown = Timer.builder("envoy_control_push_time")
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
+            .tags("type", "unknown")
             .register(meterRegistry);
     }
 
@@ -245,97 +259,96 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         boolean isWildcard,
         Consumer<DeltaResponse> responseConsumer,
         boolean hasClusterChanged) {
-        var start = System.currentTimeMillis();
-        Resources.ResourceType requestResourceType = request.getResourceType();
-        Preconditions.checkNotNull(requestResourceType, "unsupported type URL %s",
-            request.getTypeUrl());
-        T group;
-        group = groups.hash(request.v3Request().getNode());
-        // even though we're modifying, we take a readLock to allow multiple watches to be created in parallel since it
-        // doesn't conflict
-        readLock.lock();
-        try {
-            DeltaCacheStatusInfo<T> status = statuses.getOrAddDeltaStatusInfo(group, requestResourceType);
+        Timer timer = pushTimeUnknown;
+        switch (request.getResourceType()) {
+            case ENDPOINT:
+                timer = pushTimeEds;
+            case CLUSTER:
+                timer = pushTimeCds;
+                break;
+            case ROUTE:
+                timer = pushTimeRds;
+                break;
+            case LISTENER:
+                timer = pushTimeLds;
+                break;
+        }
+        return timer.record(() -> {
+            Resources.ResourceType requestResourceType = request.getResourceType();
+            Preconditions.checkNotNull(requestResourceType, "unsupported type URL %s",
+                request.getTypeUrl());
+            T group;
+            group = groups.hash(request.v3Request().getNode());
+            // even though we're modifying, we take a readLock to allow multiple watches to be created in parallel since it
+            // doesn't conflict
+            readLock.lock();
+            try {
+                DeltaCacheStatusInfo<T> status = statuses.getOrAddDeltaStatusInfo(group, requestResourceType);
 
-            status.setLastWatchRequestTime(System.currentTimeMillis());
+                status.setLastWatchRequestTime(System.currentTimeMillis());
 
-            U snapshot = snapshots.get(group);
-            String version = snapshot == null ? "" : snapshot.version(requestResourceType, Collections.emptyList());
+                U snapshot = snapshots.get(group);
+                String version = snapshot == null ? "" : snapshot.version(requestResourceType, Collections.emptyList());
 
-            DeltaWatch watch = new DeltaWatch(request,
-                ImmutableMap.copyOf(resourceVersions),
-                ImmutableSet.copyOf(pendingResources),
-                requesterVersion,
-                isWildcard,
-                responseConsumer);
+                DeltaWatch watch = new DeltaWatch(request,
+                    ImmutableMap.copyOf(resourceVersions),
+                    ImmutableSet.copyOf(pendingResources),
+                    requesterVersion,
+                    isWildcard,
+                    responseConsumer);
 
-            // If no snapshot, leave an open watch.
+                // If no snapshot, leave an open watch.
 
-            if (snapshot == null) {
-                openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
-                return watch;
-            }
-            LOGGER.info("KSKSKS: version {}, requeterVersion {}, id {}, cluster {}, resourceType {}", version, requesterVersion, request.v3Request().getNode().getId(), request.v3Request().getNode().getCluster(), requestResourceType);
-            // If the requested version is up-to-date or missing a response, leave an open watch.
-            if (version.equals(requesterVersion)) {
-                // If the request is not wildcard, we have pending resources and we have them, we should respond immediately.
-                if (!isWildcard && watch.pendingResources().size() != 0) {
-                    // If any of the pending resources are in the snapshot respond immediately. If not we'll fall back to
-                    // version comparisons.
-                    Map<String, VersionedResource<?>> resources = snapshot.versionedResources(request.getResourceType());
-                    Map<String, VersionedResource<?>> requestedResources = watch.pendingResources()
-                        .stream()
-                        .filter(resources::containsKey)
-                        .collect(Collectors.toMap(Function.identity(), resources::get));
-                    ResponseState responseState = respondDelta(watch,
-                        requestedResources,
-                        Collections.emptyList(),
-                        version,
-                        group);
-                    if (responseState.isFinished()) {
-                        return watch;
+                if (snapshot == null) {
+                    openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
+                    return watch;
+                }
+                LOGGER.info("KSKSKS: version {}, requeterVersion {}, id {}, cluster {}, resourceType {}", version, requesterVersion, request.v3Request().getNode().getId(), request.v3Request().getNode().getCluster(), requestResourceType);
+                // If the requested version is up-to-date or missing a response, leave an open watch.
+                if (version.equals(requesterVersion)) {
+                    // If the request is not wildcard, we have pending resources and we have them, we should respond immediately.
+                    if (!isWildcard && watch.pendingResources().size() != 0) {
+                        // If any of the pending resources are in the snapshot respond immediately. If not we'll fall back to
+                        // version comparisons.
+                        Map<String, VersionedResource<?>> resources = snapshot.versionedResources(request.getResourceType());
+                        Map<String, VersionedResource<?>> requestedResources = watch.pendingResources()
+                            .stream()
+                            .filter(resources::containsKey)
+                            .collect(Collectors.toMap(Function.identity(), resources::get));
+                        ResponseState responseState = respondDelta(watch,
+                            requestedResources,
+                            Collections.emptyList(),
+                            version,
+                            group);
+                        if (responseState.isFinished()) {
+                            return watch;
+                        }
+                    } else if (hasClusterChanged && requestResourceType.equals(Resources.ResourceType.ENDPOINT)) {
+                        ResponseState responseState = respondDelta(request, watch, snapshot, version, group);
+                        if (responseState.isFinished()) {
+                            return watch;
+                        }
                     }
-                } else if (hasClusterChanged && requestResourceType.equals(Resources.ResourceType.ENDPOINT)) {
-                    ResponseState responseState = respondDelta(request, watch, snapshot, version, group);
-                    if (responseState.isFinished()) {
-                        return watch;
-                    }
+
+                    openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
+
+                    return watch;
+                }
+
+                // Otherwise, version is different, the watch may be responded immediately
+                ResponseState responseState = respondDelta(request, watch, snapshot, version, group);
+
+                if (responseState.isFinished()) {
+                    return watch;
                 }
 
                 openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
 
                 return watch;
+            } finally {
+                readLock.unlock();
             }
-
-            // Otherwise, version is different, the watch may be responded immediately
-            ResponseState responseState = respondDelta(request, watch, snapshot, version, group);
-
-            if (responseState.isFinished()) {
-                return watch;
-            }
-
-            openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
-
-            return watch;
-        } finally {
-            readLock.unlock();
-            var time = Duration.ofMillis(System.currentTimeMillis() - start);
-            switch (request.getResourceType()) {
-                case ENDPOINT:
-                    pushTimeEds.record(time);
-                    break;
-                case CLUSTER:
-                    pushTimeCds.record(time);
-                    break;
-                case ROUTE:
-                    pushTimeRds.record(time);
-                    break;
-                case LISTENER:
-                    pushTimeLds.record(time);
-                    break;
-
-            }
-        }
+        });
     }
 
     private <V extends AbstractWatch<?, ?>> void openWatch(MutableStatusInfo<T, V> status,
