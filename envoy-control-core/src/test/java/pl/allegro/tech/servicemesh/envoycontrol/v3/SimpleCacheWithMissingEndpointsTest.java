@@ -11,6 +11,7 @@ import io.envoyproxy.controlplane.cache.v3.Snapshot;
 import io.envoyproxy.envoy.config.core.v3.Node;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
 
@@ -45,7 +46,7 @@ public class SimpleCacheWithMissingEndpointsTest extends SimpleCacheTest {
 
     @Test
     public void missingNamesListShouldReturnWatcherWithResponseInAdsMode() {
-        pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache<String> cache = new pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache<String> cache = new pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
 
