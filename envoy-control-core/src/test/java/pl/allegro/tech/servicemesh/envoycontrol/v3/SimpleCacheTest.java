@@ -18,6 +18,7 @@ import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -77,7 +78,7 @@ public class SimpleCacheTest {
 
     @Test
     public void invalidNamesListShouldReturnWatcherWithNoResponseInAdsMode() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT1);
 
@@ -100,7 +101,7 @@ public class SimpleCacheTest {
 
     @Test
     public void invalidNamesListShouldReturnWatcherWithResponseInXdsMode() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT1);
 
@@ -125,7 +126,7 @@ public class SimpleCacheTest {
 
     @Test
     public void successfullyWatchAllResourceTypesWithSetBeforeWatch() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT1);
 
@@ -155,7 +156,7 @@ public class SimpleCacheTest {
 
     @Test
     public void shouldSendEdsWhenClusterChangedButEdsVersionDidnt() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT1);
 
@@ -184,7 +185,7 @@ public class SimpleCacheTest {
 
     @Test
     public void successfullyWatchAllResourceTypesWithSetAfterWatch() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         Map<String, WatchAndTracker> watches = Resources.V3.TYPE_URLS.stream()
                 .collect(Collectors.toMap(
@@ -217,7 +218,7 @@ public class SimpleCacheTest {
 
     @Test
     public void successfullyWatchAllResourceTypesWithSetBeforeWatchWithRequestVersion() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT1);
 
@@ -274,7 +275,7 @@ public class SimpleCacheTest {
 
     @Test
     public void successfullyWatchAllResourceTypesWithSetBeforeWatchWithSameRequestVersionNewResourceHints() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
 
@@ -319,7 +320,7 @@ public class SimpleCacheTest {
 
     @Test
     public void successfullyWatchAllResourceTypesWithSetBeforeWatchWithSameRequestVersionNewResourceHintsNoChange() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT2);
 
@@ -361,7 +362,7 @@ public class SimpleCacheTest {
 
     @Test
     public void setSnapshotWithVersionMatchingRequestShouldLeaveWatchOpenWithoutAdditionalResponse() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT1);
 
@@ -403,7 +404,7 @@ public class SimpleCacheTest {
 
     @Test
     public void watchesAreReleasedAfterCancel() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         Map<String, WatchAndTracker> watches = Resources.V3.TYPE_URLS.stream()
                 .collect(Collectors.toMap(
@@ -440,7 +441,7 @@ public class SimpleCacheTest {
 
     @Test
     public void watchIsLeftOpenIfNotRespondedImmediately() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
         cache.setSnapshot(SingleNodeGroup.GROUP, Snapshot.create(
                 ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), VERSION1));
 
@@ -463,7 +464,7 @@ public class SimpleCacheTest {
 
     @Test
     public void getSnapshot() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT1);
 
@@ -472,7 +473,7 @@ public class SimpleCacheTest {
 
     @Test
     public void clearSnapshot() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT1);
 
@@ -483,7 +484,7 @@ public class SimpleCacheTest {
 
     @Test
     public void clearSnapshotWithWatches() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         cache.setSnapshot(SingleNodeGroup.GROUP, SNAPSHOT1);
 
@@ -515,7 +516,7 @@ public class SimpleCacheTest {
 
     @Test
     public void groups() {
-        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints(), new SimpleMeterRegistry());
 
         assertThat(cache.groups()).isEmpty();
 

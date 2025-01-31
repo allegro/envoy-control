@@ -143,7 +143,7 @@ class ControlPlane private constructor(
             val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
 
             val groupSnapshotScheduler = buildGroupSnapshotScheduler(groupSnapshotProperties)
-            val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
+            val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints, meterRegistry)
             val groupChangeWatcher = GroupChangeWatcher(cache, metrics, meterRegistry)
             val meteredConnectionsCallbacks = MetricsDiscoveryServerCallbacks(meterRegistry)
             val loggingDiscoveryServerCallbacks = LoggingDiscoveryServerCallbacks(
