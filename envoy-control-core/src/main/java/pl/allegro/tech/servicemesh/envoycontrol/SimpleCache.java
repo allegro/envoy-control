@@ -60,6 +60,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
     private final Timer pushTimeRds;
     private final Timer pushTimeLds;
     private final Timer pushTimeUnknown;
+    private final Timer setSnapshot;
 
     /**
      * Constructs a simple cache.
@@ -138,6 +139,18 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 Duration.ofSeconds(30)
             )
             .tags("type", "unknown")
+            .register(meterRegistry);
+        setSnapshot = Timer.builder("envoy_control_set_snapshot")
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
             .register(meterRegistry);
     }
 
@@ -259,20 +272,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         boolean isWildcard,
         Consumer<DeltaResponse> responseConsumer,
         boolean hasClusterChanged) {
-        Timer timer = pushTimeUnknown;
-        switch (request.getResourceType()) {
-            case ENDPOINT:
-                timer = pushTimeEds;
-            case CLUSTER:
-                timer = pushTimeCds;
-                break;
-            case ROUTE:
-                timer = pushTimeRds;
-                break;
-            case LISTENER:
-                timer = pushTimeLds;
-                break;
-        }
+        Timer timer = getTimer(request);
         return timer.record(() -> {
             Resources.ResourceType requestResourceType = request.getResourceType();
             Preconditions.checkNotNull(requestResourceType, "unsupported type URL %s",
@@ -351,6 +351,25 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         });
     }
 
+    private Timer getTimer(DeltaXdsRequest request) {
+        Timer timer = pushTimeUnknown;
+        switch (request.getResourceType()) {
+            case ENDPOINT:
+                timer = pushTimeEds;
+                break;
+            case CLUSTER:
+                timer = pushTimeCds;
+                break;
+            case ROUTE:
+                timer = pushTimeRds;
+                break;
+            case LISTENER:
+                timer = pushTimeLds;
+                break;
+        }
+        return timer;
+    }
+
     private <V extends AbstractWatch<?, ?>> void openWatch(MutableStatusInfo<T, V> status,
                                                            V watch,
                                                            String url,
@@ -403,27 +422,29 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
      */
     @Override
     public void setSnapshot(T group, U snapshot) {
-        // we take a writeLock to prevent watches from being created while we update the snapshot
-        Map<Resources.ResourceType, CacheStatusInfo<T>> status;
-        Map<Resources.ResourceType, DeltaCacheStatusInfo<T>> deltaStatus;
-        U previousSnapshot;
-        writeLock.lock();
-        try {
-            // Update the existing snapshot entry.
-            previousSnapshot = snapshots.put(group, snapshot);
-            status = statuses.getStatus(group);
-            deltaStatus = statuses.getDeltaStatus(group);
-        } finally {
-            writeLock.unlock();
-        }
+        setSnapshot.record(() -> {
+            // we take a writeLock to prevent watches from being created while we update the snapshot
+            Map<Resources.ResourceType, CacheStatusInfo<T>> status;
+            Map<Resources.ResourceType, DeltaCacheStatusInfo<T>> deltaStatus;
+            U previousSnapshot;
+            writeLock.lock();
+            try {
+                // Update the existing snapshot entry.
+                previousSnapshot = snapshots.put(group, snapshot);
+                status = statuses.getStatus(group);
+                deltaStatus = statuses.getDeltaStatus(group);
+            } finally {
+                writeLock.unlock();
+            }
 
-        if (status.isEmpty() && deltaStatus.isEmpty()) {
-            return;
-        }
+            if (status.isEmpty() && deltaStatus.isEmpty()) {
+                return;
+            }
 
-        // Responses should be in specific order and typeUrls has a list of resources in the right
-        // order.
-        respondWithSpecificOrder(group, previousSnapshot, snapshot, status, deltaStatus);
+            // Responses should be in specific order and typeUrls has a list of resources in the right
+            // order.
+            respondWithSpecificOrder(group, previousSnapshot, snapshot, status, deltaStatus);
+        });
     }
 
     /**
