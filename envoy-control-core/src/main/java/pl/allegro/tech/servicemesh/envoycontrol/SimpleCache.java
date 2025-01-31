@@ -9,6 +9,7 @@ import com.google.protobuf.Message;
 import io.envoyproxy.controlplane.cache.*;
 import io.envoyproxy.controlplane.cache.GroupCacheStatusInfo;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
@@ -70,71 +71,59 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         this.shouldSendMissingEndpoints = shouldSendMissingEndpoints;
         //             []float64{.01, .1, 1, 3, 5, 10, 20, 30},
         this.pushTimeEds = Timer.builder("envoy_control_push_time")
-            .publishPercentileHistogram()
-//            .serviceLevelObjectives(
-//                Duration.ofMillis(10),
-//                Duration.ofMillis(100),
-//                Duration.ofSeconds(1),
-//                Duration.ofSeconds(3),
-//                Duration.ofSeconds(5),
-//                Duration.ofSeconds(10),
-//                Duration.ofSeconds(20),
-//                Duration.ofSeconds(30)
-//            )
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
             .tags("type", "eds")
-            .minimumExpectedValue(Duration.ofMillis(10))
-            .maximumExpectedValue(Duration.ofSeconds(30))
             .register(meterRegistry);
 
         this.pushTimeRds = Timer.builder("envoy_control_push_time")
-            .publishPercentileHistogram()
-//            .serviceLevelObjectives(
-//                Duration.ofMillis(10),
-//                Duration.ofMillis(100),
-//                Duration.ofSeconds(1),
-//                Duration.ofSeconds(3),
-//                Duration.ofSeconds(5),
-//                Duration.ofSeconds(10),
-//                Duration.ofSeconds(20),
-//                Duration.ofSeconds(30)
-//            )
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
             .tags("type", "rds")
-            .minimumExpectedValue(Duration.ofMillis(10))
-            .maximumExpectedValue(Duration.ofSeconds(30))
             .register(meterRegistry);
 
         this.pushTimeCds = Timer.builder("envoy_control_push_time")
-            .publishPercentileHistogram()
-//            .serviceLevelObjectives(
-//                Duration.ofMillis(10),
-//                Duration.ofMillis(100),
-//                Duration.ofSeconds(1),
-//                Duration.ofSeconds(3),
-//                Duration.ofSeconds(5),
-//                Duration.ofSeconds(10),
-//                Duration.ofSeconds(20),
-//                Duration.ofSeconds(30)
-//            )
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
             .tags("type", "cds")
-            .minimumExpectedValue(Duration.ofMillis(10))
-            .maximumExpectedValue(Duration.ofSeconds(30))
             .register(meterRegistry);
 
         this.pushTimeLds = Timer.builder("envoy_control_push_time")
-            .publishPercentileHistogram()
-//            .serviceLevelObjectives(
-//                Duration.ofMillis(10),
-//                Duration.ofMillis(100),
-//                Duration.ofSeconds(1),
-//                Duration.ofSeconds(3),
-//                Duration.ofSeconds(5),
-//                Duration.ofSeconds(10),
-//                Duration.ofSeconds(20),
-//                Duration.ofSeconds(30)
-//            )
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
             .tags("type", "lds")
-            .minimumExpectedValue(Duration.ofMillis(10))
-            .maximumExpectedValue(Duration.ofSeconds(30))
             .register(meterRegistry);
     }
 
