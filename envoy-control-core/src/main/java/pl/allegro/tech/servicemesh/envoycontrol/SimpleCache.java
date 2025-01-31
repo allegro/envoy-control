@@ -9,10 +9,13 @@ import com.google.protobuf.Message;
 import io.envoyproxy.controlplane.cache.*;
 import io.envoyproxy.controlplane.cache.GroupCacheStatusInfo;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -20,8 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -53,15 +54,88 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
     private AtomicLong watchCount = new AtomicLong();
 
+    private final Timer pushTimeEds;
+    private final Timer pushTimeCds;
+    private final Timer pushTimeRds;
+    private final Timer pushTimeLds;
+
     /**
      * Constructs a simple cache.
      *
      * @param groups                     maps an envoy host to a node group
      * @param shouldSendMissingEndpoints if set to true it will respond with empty endpoints if there is no in snapshot
      */
-    public SimpleCache(NodeGroup<T> groups, boolean shouldSendMissingEndpoints) {
+    public SimpleCache(NodeGroup<T> groups, boolean shouldSendMissingEndpoints, MeterRegistry meterRegistry) {
         this.groups = groups;
         this.shouldSendMissingEndpoints = shouldSendMissingEndpoints;
+        //             []float64{.01, .1, 1, 3, 5, 10, 20, 30},
+        this.pushTimeEds = Timer.builder("envoy_control_push_time")
+            .publishPercentileHistogram()
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
+            .tags("type", "eds")
+//                            .minimumExpectedValue(Duration.ofMillis(10))
+//                            .maximumExpectedValue(Duration.ofSeconds(30))
+            .register(meterRegistry);
+
+        this.pushTimeRds = Timer.builder("envoy_control_push_time")
+            .publishPercentileHistogram()
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
+            .tags("type", "rds")
+//                            .minimumExpectedValue(Duration.ofMillis(10))
+//                            .maximumExpectedValue(Duration.ofSeconds(30))
+            .register(meterRegistry);
+
+        this.pushTimeCds = Timer.builder("envoy_control_push_time")
+            .publishPercentileHistogram()
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
+            .tags("type", "cds")
+//                            .minimumExpectedValue(Duration.ofMillis(10))
+//                            .maximumExpectedValue(Duration.ofSeconds(30))
+            .register(meterRegistry);
+
+        this.pushTimeLds = Timer.builder("envoy_control_push_time")
+            .publishPercentileHistogram()
+            .serviceLevelObjectives(
+                Duration.ofMillis(10),
+                Duration.ofMillis(100),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(30)
+            )
+            .tags("type", "lds")
+//                            .minimumExpectedValue(Duration.ofMillis(10))
+//                            .maximumExpectedValue(Duration.ofSeconds(30))
+            .register(meterRegistry);
     }
 
     /**
@@ -89,28 +163,28 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         }
     }
 
-  public Watch createWatch(
-      boolean ads,
-      XdsRequest request,
-      Set<String> knownResourceNames,
-      Consumer<Response> responseConsumer) {
-    return createWatch(ads, request, knownResourceNames, responseConsumer, false, false);
-  }
+    public Watch createWatch(
+        boolean ads,
+        XdsRequest request,
+        Set<String> knownResourceNames,
+        Consumer<Response> responseConsumer) {
+        return createWatch(ads, request, knownResourceNames, responseConsumer, false, false);
+    }
 
     /**
      * {@inheritDoc}
      */
     @Override
     public Watch createWatch(
-            boolean ads,
-            XdsRequest request,
-            Set<String> knownResourceNames,
-            Consumer<Response> responseConsumer,
-            boolean hasClusterChanged,
-            boolean allowDefaultEmptyEdsUpdate) {
-    Resources.ResourceType requestResourceType = request.getResourceType();
+        boolean ads,
+        XdsRequest request,
+        Set<String> knownResourceNames,
+        Consumer<Response> responseConsumer,
+        boolean hasClusterChanged,
+        boolean allowDefaultEmptyEdsUpdate) {
+        Resources.ResourceType requestResourceType = request.getResourceType();
         Preconditions.checkNotNull(requestResourceType, "unsupported type URL %s",
-                request.getTypeUrl());
+            request.getTypeUrl());
         T group;
         group = groups.hash(request.v3Request().getNode());
 
@@ -136,9 +210,9 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                     // If any of the newly requested resources are in the snapshot respond immediately. If not we'll fall back to
                     // version comparisons.
                     if (snapshot.resources(requestResourceType)
-                            .keySet()
-                            .stream()
-                            .anyMatch(newResourceHints::contains)) {
+                        .keySet()
+                        .stream()
+                        .anyMatch(newResourceHints::contains)) {
                         respond(watch, snapshot, group);
 
                         return watch;
@@ -182,7 +256,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         boolean isWildcard,
         Consumer<DeltaResponse> responseConsumer,
         boolean hasClusterChanged) {
-
+        var start = System.currentTimeMillis();
         Resources.ResourceType requestResourceType = request.getResourceType();
         Preconditions.checkNotNull(requestResourceType, "unsupported type URL %s",
             request.getTypeUrl());
@@ -209,7 +283,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             // If no snapshot, leave an open watch.
 
             if (snapshot == null) {
-                openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
+                openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
                 return watch;
             }
             LOGGER.info("KSKSKS: version {}, requeterVersion {}, id {}, cluster {}, resourceType {}", version, requesterVersion, request.v3Request().getNode().getId(), request.v3Request().getNode().getCluster(), requestResourceType);
@@ -239,7 +313,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                     }
                 }
 
-                openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
+                openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
 
                 return watch;
             }
@@ -251,11 +325,27 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 return watch;
             }
 
-            openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
+            openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
 
             return watch;
         } finally {
             readLock.unlock();
+            var time = Duration.ofMillis(System.currentTimeMillis() - start);
+            switch (request.getResourceType()) {
+                case ENDPOINT:
+                    pushTimeEds.record(time);
+                    break;
+                case CLUSTER:
+                    pushTimeCds.record(time);
+                    break;
+                case ROUTE:
+                    pushTimeRds.record(time);
+                    break;
+                case LISTENER:
+                    pushTimeLds.record(time);
+                    break;
+
+            }
         }
     }
 
@@ -410,9 +500,9 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
                     if (!watch.version().equals(version)) {
 
-                    List<String> removedResources = snapshotRemovedResources.stream()
-                        .filter(s -> watch.trackedResources().get(s) != null)
-                        .collect(Collectors.toList());
+                        List<String> removedResources = snapshotRemovedResources.stream()
+                            .filter(s -> watch.trackedResources().get(s) != null)
+                            .collect(Collectors.toList());
 
                         Map<String, VersionedResource<?>> changedResources = findChangedResources(watch, snapshotChangedResources);
 
@@ -454,8 +544,8 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
         if (!watch.request().getResourceNamesList().isEmpty() && watch.ads()) {
             Collection<String> missingNames = watch.request().getResourceNamesList().stream()
-                    .filter(name -> !snapshotResources.containsKey(name))
-                    .collect(Collectors.toList());
+                .filter(name -> !snapshotResources.containsKey(name))
+                .collect(Collectors.toList());
 
             if (!missingNames.isEmpty()) {
                 // In some cases Envoy might send EDS request with cluster names we don't have in snapshot.
@@ -469,28 +559,28 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 // If shouldSendMissingEndpoints is set to true, we will respond to such request anyway, to prevent
                 // such problems with Envoy.
                 if (shouldSendMissingEndpoints
-                        && watch.request().getResourceType().equals(Resources.ResourceType.ENDPOINT)) {
+                    && watch.request().getResourceType().equals(Resources.ResourceType.ENDPOINT)) {
                     LOGGER.info("adding missing resources [{}] to response for {} in ADS mode from node {} at version {}",
-                            String.join(", ", missingNames),
-                            watch.request().getTypeUrl(),
-                            group,
-                            snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList())
+                        String.join(", ", missingNames),
+                        watch.request().getTypeUrl(),
+                        group,
+                        snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList())
                     );
                     snapshotForMissingResources = new HashMap<>(missingNames.size());
                     for (String missingName : missingNames) {
                         snapshotForMissingResources.put(
-                                missingName,
-                                VersionedResource.create(ClusterLoadAssignment.newBuilder().setClusterName(missingName).build())
+                            missingName,
+                            VersionedResource.create(ClusterLoadAssignment.newBuilder().setClusterName(missingName).build())
                         );
                     }
                 } else {
                     LOGGER.info(
-                            "not responding in ADS mode for {} from node {} at version {} for request [{}] since [{}] not in snapshot",
-                            watch.request().getTypeUrl(),
-                            group,
-                            snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList()),
-                            String.join(", ", watch.request().getResourceNamesList()),
-                            String.join(", ", missingNames));
+                        "not responding in ADS mode for {} from node {} at version {} for request [{}] since [{}] not in snapshot",
+                        watch.request().getTypeUrl(),
+                        group,
+                        snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList()),
+                        String.join(", ", watch.request().getResourceNamesList()),
+                        String.join(", ", missingNames));
 
                     return false;
                 }
@@ -500,22 +590,22 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         String version = snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList());
 
         LOGGER.debug("responding for {} from node {} at version {} with version {}",
-                watch.request().getTypeUrl(),
-                group,
-                watch.request().getVersionInfo(),
-                version);
+            watch.request().getTypeUrl(),
+            group,
+            watch.request().getVersionInfo(),
+            version);
         Response response;
         if (!snapshotForMissingResources.isEmpty()) {
             snapshotForMissingResources.putAll(snapshotResources);
             response = createResponse(
-                    watch.request(),
-                    snapshotForMissingResources,
-                    version);
+                watch.request(),
+                snapshotForMissingResources,
+                version);
         } else {
             response = createResponse(
-                    watch.request(),
-                    snapshotResources,
-                    version);
+                watch.request(),
+                snapshotResources,
+                version);
         }
 
         try {
@@ -523,11 +613,11 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             return true;
         } catch (WatchCancelledException e) {
             LOGGER.error(
-                    "failed to respond for {} from node {} at version {} with version {} because watch was already cancelled",
-                    watch.request().getTypeUrl(),
-                    group,
-                    watch.request().getVersionInfo(),
-                    version);
+                "failed to respond for {} from node {} at version {} with version {} because watch was already cancelled",
+                watch.request().getTypeUrl(),
+                group,
+                watch.request().getVersionInfo(),
+                version);
         }
 
         return false;
