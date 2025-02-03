@@ -9,8 +9,11 @@ dependencies {
     api group: 'io.micrometer', name: 'micrometer-core'
 
     implementation group: 'com.google.re2j', name: 're2j', version: versions.re2j
-
+    api group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.25.1'
+    api group: 'com.google.auto.value', name: 'auto-value-annotations', version: '1.6.3'
+    api group: 'com.google.auto.value', name: 'auto-value', version: '1.6.3'
     api group: 'io.envoyproxy.controlplane', name: 'api', version: versions.java_controlplane
+    api group: 'io.envoyproxy.controlplane', name: 'cache', version: versions.java_controlplane
 
     implementation group: 'io.grpc', name: 'grpc-netty', version: versions.grpc
 
