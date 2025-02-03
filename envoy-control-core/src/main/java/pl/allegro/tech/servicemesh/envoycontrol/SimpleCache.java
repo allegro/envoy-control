@@ -352,22 +352,13 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
     }
 
     private Timer getTimer(DeltaXdsRequest request) {
-        Timer timer = pushTimeUnknown;
-        switch (request.getResourceType()) {
-            case ENDPOINT:
-                timer = pushTimeEds;
-                break;
-            case CLUSTER:
-                timer = pushTimeCds;
-                break;
-            case ROUTE:
-                timer = pushTimeRds;
-                break;
-            case LISTENER:
-                timer = pushTimeLds;
-                break;
-        }
-        return timer;
+        return switch (request.getResourceType()) {
+            case ENDPOINT -> pushTimeEds;
+            case CLUSTER -> pushTimeCds;
+            case ROUTE -> pushTimeRds;
+            case LISTENER -> pushTimeLds;
+            default -> pushTimeUnknown;
+        };
     }
 
     private <V extends AbstractWatch<?, ?>> void openWatch(MutableStatusInfo<T, V> status,
@@ -683,7 +674,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             version,
             group);
     }
-
+// tutaj i specific order oraz !!!consumer!!!
     private ResponseState respondDelta(DeltaWatch watch,
                                        Map<String, VersionedResource<?>> resources,
                                        List<String> removedResources,

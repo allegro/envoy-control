@@ -243,7 +243,8 @@ class ControlPlane private constructor(
                 compositeDiscoveryServerCallbacks,
                 groupChangeWatcher,
                 executorGroup,
-                cachedProtoResourcesSerializer
+                cachedProtoResourcesSerializer,
+                meterRegistry,
             )
         }
 

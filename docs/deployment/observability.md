@@ -16,7 +16,7 @@ and then run the `bin/envoy-control-runner` created from `distZip` task.
 
 ```xml
 
-<logger name="io.envoyproxy.controlplane.cache.SimpleCache" level="WARN"/>
+<logger name="io.envoyproxy.controlplane.io.envoyproxy.controlplane.cache.SimpleCache" level="WARN"/>
 <logger name="io.envoyproxy.controlplane.cache.DiscoveryServer" level="WARN"/>
 ```
 

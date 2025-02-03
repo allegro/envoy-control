@@ -10,7 +10,7 @@ dependencies {
 
     implementation group: 'com.google.re2j', name: 're2j', version: versions.re2j
 
-    api group: 'io.envoyproxy.controlplane', name: 'server', version: versions.java_controlplane
+    api group: 'io.envoyproxy.controlplane', name: 'api', version: versions.java_controlplane
 
     implementation group: 'io.grpc', name: 'grpc-netty', version: versions.grpc
 
