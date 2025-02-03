@@ -1,3 +1,5 @@
+@file:Suppress("MagicNumber")
+
 package pl.allegro.tech.servicemesh.envoycontrol.groups
 
 import io.envoyproxy.controlplane.cache.ConfigWatcher
