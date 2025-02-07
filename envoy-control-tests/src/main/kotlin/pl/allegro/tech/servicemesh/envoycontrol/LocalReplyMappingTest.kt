@@ -1,5 +1,8 @@
 package pl.allegro.tech.servicemesh.envoycontrol
 
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.assertj.core.api.Assertions.assertThat
@@ -65,6 +68,9 @@ class LocalReplyMappingTest {
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, service)
+
+        val objectMapper: ObjectMapper = ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 
     @Test
@@ -78,10 +84,12 @@ class LocalReplyMappingTest {
             val response = envoy.egressOperations.callService(
                 "service-1", headers = mapOf("x-service-tag" to "not-existing")
             )
-
-            assertThat(
-                response.body?.string()
-            ).contains("""{"body":"no healthy upstream","responseFlags":"UH","destination":"service-name: service-1, service-tag: not-existing"}""")
+            val json = objectMapper.readValue(response.body?.string(), JsonNode::class.java)
+            val expectedJson = objectMapper.readValue(
+                """{"body":"no healthy upstream","responseFlags":"UH","destination":"service-name: service-1, service-tag: not-existing"}""",
+                JsonNode::class.java
+            )
+            assertThat(json).isEqualTo(expectedJson)
             assertThat(response.header("content-type")).isEqualTo("application/envoy+json")
             assertThat(response).isUnreachable()
         }
@@ -117,7 +125,12 @@ class LocalReplyMappingTest {
         }
     }
 
-    private data class ApiResponse(val path: String, val body: String, val responseFlags: String, val destination: Destination)
+    private data class ApiResponse(
+        val path: String,
+        val body: String,
+        val responseFlags: String,
+        val destination: Destination
+    )
 
     private data class Destination(val serviceTag: String?, val path: String, val serviceName: String)
 }

@@ -22,9 +22,11 @@ class OutlierDetectionTest {
 
         @JvmField
         @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul, mapOf(
-            "envoy-control.envoy.snapshot.cluster-outlier-detection.enabled" to true
-        ))
+        val envoyControl = EnvoyControlExtension(
+            consul, mapOf(
+                "envoy-control.envoy.snapshot.cluster-outlier-detection.enabled" to true,
+            )
+        )
 
         @JvmField
         @RegisterExtension
@@ -34,18 +36,9 @@ class OutlierDetectionTest {
         @RegisterExtension
         val unhealthyService = EchoServiceExtension()
 
-        // necessary since Envoy 1.28.0 to keep the same behaviour (https://www.envoyproxy.io/docs/envoy/latest/version_history/v1.28/v1.28.0)
-        private val outlierEjectionConfig = """
-            layered_runtime:
-              layers:
-              - name: static_layer
-                static_layer:
-                  envoy.reloadable_features.check_mep_on_first_eject: false
-        """.trimIndent()
-
         @JvmField
         @RegisterExtension
-        val envoy = EnvoyExtension(envoyControl, config = RandomConfigFile.copy(configOverride = outlierEjectionConfig))
+        val envoy = EnvoyExtension(envoyControl, config = RandomConfigFile)
     }
 
     @Test
@@ -77,6 +70,7 @@ class OutlierDetectionTest {
     fun hasOutlierCheckFailed(cluster: String, unhealthyIp: String): Boolean {
         return envoy.container.admin()
             .hostStatus(cluster, unhealthyIp)
+            .also { println("HOST STATUS: ${it?.healthStatus}") }
             ?.healthStatus
             ?.failedOutlierCheck
             ?: false
