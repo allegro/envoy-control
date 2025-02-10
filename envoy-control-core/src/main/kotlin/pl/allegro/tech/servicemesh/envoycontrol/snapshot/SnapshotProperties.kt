@@ -205,6 +205,7 @@ class ClusterOutlierDetectionProperties {
     var successRateStdevFactor = 1900
     var consecutiveGatewayFailure = 5
     var enforcingConsecutiveGatewayFailure = 0
+    var alwaysEjectOneHost = true
 }
 
 class SecuredRoute {

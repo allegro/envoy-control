@@ -1,6 +1,7 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.clusters
 
 import com.google.protobuf.Any
+import com.google.protobuf.BoolValue
 import com.google.protobuf.Struct
 import com.google.protobuf.UInt32Value
 import com.google.protobuf.Value
@@ -610,6 +611,9 @@ class EnvoyClustersFactory(
                     )
                     .setEnforcingConsecutiveGatewayFailure(
                         UInt32Value.of(properties.clusterOutlierDetection.enforcingConsecutiveGatewayFailure)
+                    )
+                    .setAlwaysEjectOneHost(
+                        BoolValue.of(properties.clusterOutlierDetection.alwaysEjectOneHost)
                     )
             )
     }

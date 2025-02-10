@@ -25,7 +25,6 @@ class OutlierDetectionTest {
         val envoyControl = EnvoyControlExtension(
             consul, mapOf(
                 "envoy-control.envoy.snapshot.cluster-outlier-detection.enabled" to true,
-                "envoy-control.envoy.snapshot.cluster-outlier-detection.maxEjectionPercent" to 50
             )
         )
 
