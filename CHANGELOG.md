@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.22.7]
+### Changed
+- fixed running e2e tests locally on MacOS
+
 ## [0.22.6]
 ### Changed
 - Changed api for pathNormalization
