@@ -185,16 +185,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             ).withNetwork(network)
         }
 
-        fun createEnvoyContainerWithEcho3Certificate(configOverride: String = ""): EnvoyContainer {
-            val echo3EnvoyConfig = Echo3EnvoyAuthConfig.copy(configOverride = configOverride)
-
-            return EnvoyContainer(
-                echo3EnvoyConfig,
-                { localServiceContainer.ipAddress() },
-                envoyControl1.grpcPort
-            ).withNetwork(network)
-        }
-
         fun registerEnvoyControls(
             ec1RegisterPort: Int?,
             ec2RegisterPort: Int?,
