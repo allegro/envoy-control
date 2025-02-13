@@ -93,6 +93,9 @@ class JWTFilterTest {
                   incoming:
                     unlistedEndpointsPolicy: blockAndLog
                     endpoints: 
+                    - path: '/unprotected'
+                      clients: ['echo2']
+                      unlistedClientsPolicy: blockAndLog
                     - path: '/first-provider-protected'
                       clients: ['echo2']
                       unlistedClientsPolicy: blockAndLog
@@ -203,6 +206,22 @@ class JWTFilterTest {
             extension = oauthEnvoy
         )
         envoy.waitForReadyServices("oauth")
+    }
+
+    @Test
+    fun `should allow request without jwt for unprotected endpoint`() {
+
+        // given
+        registerEnvoyServiceAndWait()
+
+        // when
+        val response = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/unprotected"
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
     }
 
     @Test
