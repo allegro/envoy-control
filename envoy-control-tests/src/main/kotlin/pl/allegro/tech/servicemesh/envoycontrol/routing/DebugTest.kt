@@ -2,6 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.routing
 
 import io.micrometer.core.instrument.MeterRegistry
 import okhttp3.Response
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.extension.ExtensionContext
@@ -13,6 +14,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControl
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.Health
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.SnapshotDebugResponse
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 
 class DebugTest {
@@ -20,36 +22,19 @@ class DebugTest {
     companion object {
         // language=yaml
         private val config = """
-          static_resources:
-            listeners:
-            - name: egress
-              address: { socket_address: { address: 0.0.0.0, port_value: 5000 }}
-              filter_chains:
-              - filters:
-                - name: envoy.filters.network.http_connection_manager
-                  typed_config:
-                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                    stat_prefix: e
-                    route_config: {}
-            - name: ingress
-              address: { socket_address: { address: 0.0.0.0, port_value: 5001 }}
-              filter_chains:
-              - filters:
-                - name: envoy.filters.network.http_connection_manager
-                  typed_config:
-                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                    stat_prefix: i
-                    route_config: {}
-          
-          admin:
-            address: { socket_address: { address: 0.0.0.0, port_value: 10000 }}
+            {}
         """.trimIndent()
+
+        @JvmField
+        @RegisterExtension
+        val echoService = EchoServiceExtension()
 
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(
             envoyControl = FakeEnvoyControl(),
-            config = EnvoyConfig("envoy/empty.yaml", configOverride = config),
+            config = EnvoyConfig("envoy/debug/config_static.yaml", configOverride = config),
+            localService = echoService
         )
     }
 
@@ -57,6 +42,15 @@ class DebugTest {
     @ExtendWith
     fun debug() {
 
+        // envoy.waitForAvailableEndpoints()  // TODO: check it
+        // envoy.waitForReadyServices() // TODO: check it
+        // envoy.waitForClusterEndpointHealthy() // TODO: check it
+
+        val adminUrl = envoy.container.adminUrl()
+        val egressUrl = envoy.container.egressListenerUrl()
+
+
+        assertThat(1).isEqualTo(2)
 
     }
 }
