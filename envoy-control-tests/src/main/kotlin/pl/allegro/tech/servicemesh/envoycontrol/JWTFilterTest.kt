@@ -243,6 +243,19 @@ class JWTFilterTest {
     }
 
     @Test
+    fun `should allow request with malformed token for unprotected endpoint`() {
+        // when
+        val response = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/unprotected",
+            headers = mapOf("Authorization" to "Bearer malformed_token")
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
+    }
+
+    @Test
     fun `should reject request without jwt`() {
 
         // given
