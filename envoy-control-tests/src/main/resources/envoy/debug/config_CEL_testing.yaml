@@ -11,6 +11,21 @@ static_resources:
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 stat_prefix: e
+                access_log:
+                  name: envoy.access_loggers.stdout
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                    log_format:
+                      text_format: >
+                        [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+                        %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION%
+                        %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%"
+                        "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%" ; 
+                        CEL = '%CEL(xds.node.metadata.default_service_tag_preference)%' \n
+                      formatters:
+                      - name: envoy.formatter.cel
+                        typed_config: {"@type": "type.googleapis.com/envoy.extensions.formatter.cel.v3.Cel"}
+
                 route_config:
                   name: routes  # maybe not needed
                   virtual_hosts:
@@ -20,27 +35,6 @@ static_resources:
                         - match: { prefix: "/" }
                           route:
                             cluster: backend
-                  request_headers_to_add:
-                  - header:
-                      key: x-service-tag-preference-from-env
-                      # read from environment variable
-                      # Pros
-                      #   - unlike CEL, no warnings in docs that the feature is new
-                      # Cons:
-                      #   - Envoy dependent on external value that is not visible in envoy admin
-                      #     (but we can add it also to metadata anyway)
-                      #
-                      value: "%ENVIRONMENT(DEFAULT_SERVICE_TAG_PREFERENCE)%"
-                    append_action: ADD_IF_ABSENT
-                  - header:
-                      key: x-service-tag-preference-from-node-metadata
-                      # read from node.metadata.
-                      # Pros:
-                      #   - unlike environment variable, the value is visible in envoy admin
-                      # Cons:
-                      #   -CEL is not fully stable yet? https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/formatter/cel/v3/cel.proto.html
-                      value: "%CEL(xds.node.metadata.default_service_tag_preference)%"
-                    append_action: ADD_IF_ABSENT
                 http_filters:
                 - name: envoy.filters.http.router
                   typed_config:

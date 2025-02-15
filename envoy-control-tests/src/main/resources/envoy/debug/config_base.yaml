@@ -1,0 +1,61 @@
+static_resources:
+  listeners:
+    - name: egress
+      address: { socket_address: { address: 0.0.0.0, port_value: 5000 }}
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: e
+                access_log:
+                  name: envoy.access_loggers.stdout
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+#                    log_format:
+#                      text_format: >
+#                        [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+#                        %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION%
+#                        %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%"
+#                        "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%" ;
+#                        CEL = '%CEL(xds.node.metadata.default_service_tag_preference)%' \n
+#                      formatters:
+#                        - name: envoy.formatter.cel
+#                          typed_config: {"@type": "type.googleapis.com/envoy.extensions.formatter.cel.v3.Cel"}
+
+                route_config:
+                  name: routes  # maybe not needed
+                  virtual_hosts:
+                    - name: backend
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: "/" }
+                          route:
+                            cluster: backend
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    - name: ingress
+      address: { socket_address: { address: 0.0.0.0, port_value: 5001 }}
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: i
+                route_config: {}
+  clusters:
+    - name: backend
+      type: STATIC
+      load_assignment:
+        cluster_name: backend
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: LOCAL_SERVICE_IP
+                      port_value: 5678
+admin:
+  address: { socket_address: { address: 0.0.0.0, port_value: 10000 }}
