@@ -1,7 +1,8 @@
-@file:Suppress("DANGEROUS_CHARACTERS")
+@file:Suppress("DANGEROUS_CHARACTERS", "PrivatePropertyName")
 
 package pl.allegro.tech.servicemesh.envoycontrol.routing
 
+import com.fasterxml.jackson.core.JsonPointer
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
@@ -11,7 +12,6 @@ import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.assertj.core.api.StringAssert
-import org.awaitility.Awaitility
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -80,7 +80,21 @@ class DefaultServiceTagPreferenceTest : DebugTest() {
     }
 }
 
+private val baseConfig = ConfigYaml("/envoy/debug/config_base.yaml")
+
 class CELTest {
+
+    companion object {
+        private val `baseConfig with node metadata default_service_tag_preference` = baseConfig.modify {
+            //language=yaml
+            this += """
+              node:
+                metadata:
+                  default_service_tag_preference: lvte1|vte2|global
+            """.trimIndent()
+        }
+    }
+
     @Nested
     inner class AccessLog : AccessLogTest()
     open class AccessLogTest {
@@ -91,7 +105,7 @@ class CELTest {
             afterAll(contextMock)
         }
 
-        private val `config with CEL in accessLog` = ConfigYaml("/envoy/debug/config_base.yaml").modify {
+        private val `config with CEL in accessLog` = `baseConfig with node metadata default_service_tag_preference`.modify {
             listeners {
                 egress {
                     //language=yaml
@@ -105,12 +119,6 @@ class CELTest {
                     """.trimIndent()
                 }
             }
-            //language=yaml
-            this += """
-              node:
-                metadata:
-                  default_service_tag_preference: lvte1|vte2|global
-            """.trimIndent()
         }
 
         @Test
@@ -170,6 +178,43 @@ class CELTest {
         }
     }
 
+    @Nested
+    inner class Header : HeaderTest()
+    open class HeaderTest {
+
+        private val `config with request_headers_to_add with %CEL()%` = `baseConfig with node metadata default_service_tag_preference`
+            .modify {
+                listeners {
+                    egress {
+                        //language=yaml
+                        http.at("/route_config/request_headers_to_add") += """
+                          - header:
+                              key: x-service-tag-preference-from-node-metadata
+                              value: "%CEL(xds.node.metadata.default_service_tag_preference)%"
+                        """.trimIndent()
+                    }
+                }
+            }
+
+        @Test
+        fun `%CEL()% not working without additional config`() {
+            // given
+
+            val envoy = staticEnvoyExtension(config = `config with request_headers_to_add with %CEL()%`)
+                .asClosable()
+
+            // [2025-02-16 23:19:24.339][134][critical][main] [source/server/server.cc:414] error initializing config '  /tmp/tmp.5YgxPJYgps/envoy.yaml': Not supported field in StreamInfo: CEL
+
+            // expects
+            assertThatThrownBy { envoy.use { it.start() } }
+
+
+            // then
+            assertThat(3).isEqualTo(2)
+        }
+    }
+
+
     // @Nested
     // inner class Zupa : DDTest()
     //
@@ -199,6 +244,8 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
     private object S {
         val yaml = Yaml()
         val json = ObjectMapper()
+
+        fun parse(yaml: String): JsonNode = json.valueToTree(S.yaml.load(yaml))
     }
 
     constructor(path: String) : this(
@@ -224,46 +271,138 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
         return path
     }
 
-    inner class Modification : YamlNode(config) {
-        inner class Listeners {
-            inner class Listener(val key: String) {
-                private val node by lazy {
-                    config.requiredAt("/static_resources/listeners")
-                        .let { it as ArrayNode }
-                        .single { it["name"].asText() == key }
-                }
+    @DslMarker
+    annotation class Dsl
 
-                val http by lazy {
-                    node["filter_chains"].single()["filters"]
+    sealed interface Modification : YamlNode {
+        fun listeners(block: Listeners.() -> Unit)
+    }
+    interface Listeners : YamlNode {
+        fun egress(block: Listener.() -> Unit)
+    }
+
+    interface Listener : YamlNode{
+        val http: YamlNode
+    }
+
+    private inner class ModificationImpl private constructor(
+        private val node: YamlObjectNode
+    ) : Modification, YamlNode by node {
+
+        constructor() : this(node = YamlObjectNode(config))
+
+        fun (YamlNode).materializeArray(): YamlArrayNode = when(val n = this) {
+            is YamlArrayNode -> n
+            is MissingNode -> n.materializeArray()
+            else -> throw IllegalArgumentException("Cannot create array here")
+        }
+
+        fun (YamlNode).materializeObject(): YamlObjectNode = when(val n = this) {
+            is YamlObjectNode -> n
+            is MissingNode -> n.materializeObject()
+            else -> throw IllegalArgumentException("Cannot create object here")
+        }
+
+        override fun listeners(block: ConfigYaml.Listeners.() -> Unit) {
+            Listeners(node.at("/static_resources/listeners").materializeArray()).block()
+        }
+
+        private inner class Listeners(private val node: YamlArrayNode) : ConfigYaml.Listeners, YamlNode by node {
+            override fun egress(block: ConfigYaml.Listener.() -> Unit) {
+                Listener(parentNode = node, key = "egress").block()
+            }
+
+            private inner class Listener(node: YamlObjectNode) : ConfigYaml.Listener, YamlNode by node {
+
+                constructor(key: String, parentNode: YamlArrayNode) : this(
+                    node = YamlObjectNode(
+                        node = parentNode.node.single { it["name"].asText() == key } as ObjectNode
+                    )
+                )
+
+                override val http: YamlNode by lazy {
+                    node.node["filter_chains"].single()["filters"]
                         .single { it["name"].asText() == "envoy.filters.network.http_connection_manager" }
                         .get("typed_config")
-                        .let { YamlNode(it as ObjectNode) }
+                        .let { YamlObjectNode(it as ObjectNode) }
                 }
             }
+        }
 
-            fun egress(block: Listener.() -> Unit) {
-                val listener = Listener(key = "egress")
-                block(listener)
+    }
+
+    @Dsl
+    sealed interface YamlNode {
+        operator fun plusAssign(mergeYaml: String)
+        fun at(path: String): YamlNode
+    }
+
+    private abstract class ExistingNode(open val node: JsonNode) : YamlNode {
+        override fun at(path: String): YamlNode {
+            val pointer = JsonPointer.compile(path)
+            return node.at(pointer).let {
+                when {
+                    it.isMissingNode -> MissingNode(parentNode = this.node, pointer = pointer)
+                    it is ObjectNode -> YamlObjectNode(node = it)
+                    it is ArrayNode -> YamlArrayNode(node = it)
+                    else -> throw IllegalArgumentException("Unknown node type $it")
+                }
             }
         }
 
-        fun listeners(block: Listeners.() -> Unit) {
-            block(Listeners())
+        override fun plusAssign(mergeYaml: String) = plus(S.parse(mergeYaml))
+        abstract fun plus(mergeYaml: JsonNode)
+    }
+
+    private class YamlObjectNode(override val node: ObjectNode) : ExistingNode(node) {
+        override fun plus(mergeYaml: JsonNode) {
+            node.setAll<ObjectNode>(mergeYaml as ObjectNode)
+        }
+    }
+    private class YamlArrayNode(override val node: ArrayNode) : ExistingNode(node) {
+        override fun plus(mergeYaml: JsonNode) {
+            node.addAll(mergeYaml as ArrayNode)
         }
     }
 
-    open inner class YamlNode(private val jsonNode: ObjectNode) {
-        operator fun plusAssign(mergeYaml: String) {
-            val jsonToMerge = S.json.valueToTree(S.yaml.load(mergeYaml)) as ObjectNode
-            jsonNode.setAll<ObjectNode>(jsonToMerge)
+    private class MissingNode(private val parentNode: JsonNode, private val pointer: JsonPointer) : YamlNode {
+        private var existingNode: ExistingNode? = null
+
+        fun materializeArray(): YamlArrayNode {
+            existingNode?.let {
+                return it as YamlArrayNode
+            }
+            return YamlArrayNode(node = parentNode.withArray(pointer))
+                .also { existingNode = it }
         }
 
-        fun at(path: String): YamlNode = YamlNode(jsonNode = jsonNode.withObject(path))
+        fun materializeObject(): YamlObjectNode {
+            existingNode?.let {
+                return it as YamlObjectNode
+            }
+            return YamlObjectNode(node = parentNode.withObject(pointer))
+                .also { existingNode = it }
+        }
+
+        override fun plusAssign(mergeYaml: String) {
+            val parsed = S.parse(mergeYaml)
+            existingNode = when (parsed) {
+                is ArrayNode -> materializeArray()
+                is ObjectNode -> materializeObject()
+                else -> throw IllegalArgumentException("Unknown node type '$parsed'")
+            }.also {
+                it.plus(parsed)
+            }
+        }
+
+        override fun at(path: String): MissingNode =
+            MissingNode(parentNode = parentNode, pointer = pointer.append(JsonPointer.compile(path)))
     }
+
 
     fun modify(block: Modification.() -> Unit): ConfigYaml {
         val modified = ConfigYaml(config = config.deepCopy())
-        block(modified.Modification())
+        block(modified.ModificationImpl())
         return modified
     }
 }
