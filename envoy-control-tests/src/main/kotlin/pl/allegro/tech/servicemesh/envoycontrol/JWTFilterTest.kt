@@ -244,6 +244,9 @@ class JWTFilterTest {
 
     @Test
     fun `should allow request with malformed token for unprotected endpoint`() {
+        // given
+        registerEnvoyServiceAndWait()
+
         // when
         val response = echo2Envoy.egressOperations.callService(
             service = "echo",
