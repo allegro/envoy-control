@@ -1,4 +1,4 @@
-@file:Suppress("DANGEROUS_CHARACTERS", "PrivatePropertyName")
+@file:Suppress("DANGEROUS_CHARACTERS", "PrivatePropertyName", "ObjectPropertyName", "ObjectPrivatePropertyName")
 
 package pl.allegro.tech.servicemesh.envoycontrol.routing
 
@@ -22,6 +22,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import org.junit.jupiter.api.extension.TestInstances
 import org.junit.jupiter.api.parallel.ExecutionMode
 import org.testcontainers.containers.BindMode
+import org.testcontainers.shaded.org.bouncycastle.math.raw.Mod
 import org.yaml.snakeyaml.Yaml
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
@@ -33,7 +34,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.Health
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.SnapshotDebugResponse
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
 import pl.allegro.tech.servicemesh.envoycontrol.routing.Assertions.failsAtStartupWithError
+import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Configs.`baseConfig with node metadata default_service_tag_preference`
+import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Configs.`config that correctly logs %CEL()% in access log`
+import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Configs.`config with CEL in accessLog`
+import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`access log stdout config`
+import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`add CELL formatter to access log`
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.lang.reflect.AnnotatedElement
 import java.lang.reflect.Method
@@ -54,11 +61,6 @@ open class DebugTest {
 class DefaultServiceTagPreferenceTest : DebugTest() {
 
     companion object {
-        // // language=yaml
-        // private val config = """
-        // {}
-        // """.trimIndent()
-
         @JvmField
         @RegisterExtension
         val envoy = staticEnvoyExtension(
@@ -85,20 +87,64 @@ class DefaultServiceTagPreferenceTest : DebugTest() {
 private val baseConfig = ConfigYaml("/envoy/debug/config_base.yaml")
 
 class CELTest {
-
-
     companion object {
-        private val `baseConfig with node metadata default_service_tag_preference` = baseConfig.modify {
-            //language=yaml
-            this += """
+        private object Configs {
+            val `baseConfig with node metadata default_service_tag_preference` = baseConfig.modify {
+                //language=yaml
+                this += """
               node:
                 metadata:
                   default_service_tag_preference: lvte1|vte2|global
             """.trimIndent()
+            }
+
+            val `config with CEL in accessLog` = `baseConfig with node metadata default_service_tag_preference`.modify {
+                `access log stdout config`(this)
+                listeners {
+                    egress {
+                        //language=yaml
+                        http.at("/access_log/typed_config/log_format") += """
+                          text_format: "CEL = '%CEL(xds.node.metadata.default_service_tag_preference)%'\n"
+                        """.trimIndent()
+                    }
+                }
+            }
+
+            val `config that correctly logs %CEL()% in access log` = `config with CEL in accessLog`
+                .modify(`add CELL formatter to access log`)
         }
 
         private val `CEL failure log` =
             "[critical].*error initializing config .* Not supported field in StreamInfo: CEL".toRegex()
+
+        private object Modifications {
+            val `access log stdout config`: ConfigYaml.Modification.() -> Unit = {
+                listeners {
+                    egress {
+                        //language=yaml
+                        http += """
+                            access_log:
+                              name: envoy.access_loggers.stdout
+                              typed_config:
+                                "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                        """.trimIndent()
+                    }
+                }
+            }
+            val `add CELL formatter to access log`: ConfigYaml.Modification.() -> Unit = {
+                listeners {
+                    egress {
+                        //language=yaml
+                        http.at("/access_log/typed_config/log_format") += """
+                          formatters:
+                          - name: envoy.formatter.cel
+                            typed_config: {"@type": "type.googleapis.com/envoy.extensions.formatter.cel.v3.Cel"}                            
+                        """.trimIndent()
+                    }
+                }
+            }
+
+        }
     }
 
     @Nested
@@ -111,21 +157,6 @@ class CELTest {
             afterAll(contextMock)
         }
 
-        private val `config with CEL in accessLog` = `baseConfig with node metadata default_service_tag_preference`.modify {
-            listeners {
-                egress {
-                    //language=yaml
-                    http += """
-                        access_log:
-                          name: envoy.access_loggers.stdout
-                          typed_config:
-                            "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
-                            log_format:
-                              text_format: "CEL = '%CEL(xds.node.metadata.default_service_tag_preference)%'\n"
-                    """.trimIndent()
-                }
-            }
-        }
 
         @Test
         fun `use %CEL()% in access log without any other config fails`() {
@@ -141,20 +172,7 @@ class CELTest {
         @Test
         fun `use %CEL()% in access log with explicitly enabled CEL formatter works`() {
             // given
-            val config = `config with CEL in accessLog`.modify {
-                listeners {
-                    egress {
-                        //language=yaml
-                        http.at("/access_log/typed_config/log_format") += """
-                          formatters:
-                          - name: envoy.formatter.cel
-                            typed_config: {"@type": "type.googleapis.com/envoy.extensions.formatter.cel.v3.Cel"}                            
-                        """.trimIndent()
-                    }
-                }
-            }
-
-            val envoy = staticEnvoyExtension(config = config).asClosable()
+            val envoy = staticEnvoyExtension(config = `config that correctly logs %CEL()% in access log`).asClosable()
             val expectedAccessLog = "CEL = 'lvte1|vte2|global'"
 
             envoy.use {
@@ -178,25 +196,55 @@ class CELTest {
     inner class Header : HeaderTest()
     open class HeaderTest {
 
-        private val `config with request_headers_to_add with %CEL()%` = `baseConfig with node metadata default_service_tag_preference`
-            .modify {
-                listeners {
-                    egress {
-                        //language=yaml
-                        http.at("/route_config/request_headers_to_add") += """
+        private val `request_headers_to_add with %CEL()%`: ConfigYaml.Modification.() -> Unit = {
+            listeners {
+                egress {
+                    //language=yaml
+                    http.at("/route_config/request_headers_to_add") += """
                           - header:
                               key: x-service-tag-preference-from-node-metadata
                               value: "%CEL(xds.node.metadata.default_service_tag_preference)%"
                         """.trimIndent()
-                    }
                 }
             }
+        }
+
+        private val `config with request_headers_to_add with %CEL()%` = `baseConfig with node metadata default_service_tag_preference`
+            .modify(`request_headers_to_add with %CEL()%`)
 
         @Test
         fun `%CEL()% not working without additional config`() {
             // given
-
             val envoy = staticEnvoyExtension(config = `config with request_headers_to_add with %CEL()%`)
+                .asClosable()
+
+            // expects
+            assertThat(envoy).failsAtStartupWithError(`CEL failure log`)
+        }
+
+        @Test
+        fun `%CEL%() not working with CEL formatter added in access log`() {
+            // given
+            val config = `config with request_headers_to_add with %CEL()%`
+                .modify {
+                    `access log stdout config`(this)
+                    `add CELL formatter to access log`(this)
+                }
+
+            val envoy = staticEnvoyExtension(config = config)
+                .asClosable()
+
+            // expects
+            assertThat(envoy).failsAtStartupWithError(`CEL failure log`)
+        }
+
+        @Test
+        fun `%CEL%() not working even when %CEL()% in access log is configured and working`() {
+            // given
+            val config = `config that correctly logs %CEL()% in access log`
+                .modify(`request_headers_to_add with %CEL()%`)
+
+            val envoy = staticEnvoyExtension(config = config)
                 .asClosable()
 
             // expects
