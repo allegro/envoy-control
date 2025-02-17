@@ -1,4 +1,6 @@
-@file:Suppress("DANGEROUS_CHARACTERS", "PrivatePropertyName", "ObjectPropertyName", "ObjectPrivatePropertyName")
+@file:Suppress("DANGEROUS_CHARACTERS", "PrivatePropertyName", "ObjectPropertyName", "ObjectPrivatePropertyName",
+    "ClassName"
+)
 
 package pl.allegro.tech.servicemesh.envoycontrol.routing
 
@@ -41,6 +43,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Config
 import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`access log stdout config`
 import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`add CELL formatter to access log`
 import pl.allegro.tech.servicemesh.envoycontrol.routing.EchoExtension.echoService
+import pl.allegro.tech.servicemesh.envoycontrol.routing.HeaderFromEnvironmentTest.`environment variable present test`.Companion
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.io.ObjectInputFilter.Config
 import java.lang.reflect.AnnotatedElement
@@ -247,10 +250,8 @@ class CELTest {
 
 class HeaderFromEnvironmentTest {
 
-    @Test
-    fun `%ENVIRONMENT() in header works`() {
-        // given
-        val config = baseConfig.modify {
+    companion object {
+        private val config = baseConfig.modify {
             listeners {
                 egress {
                     //language=yaml
@@ -258,22 +259,68 @@ class HeaderFromEnvironmentTest {
                           - header:
                               key: x-service-tag-preference-from-env
                               value: "%ENVIRONMENT(DEFAULT_SERVICE_TAG_PREFERENCE)%"
+                            append_action: ADD_IF_ABSENT   
                         """.trimIndent()
                 }
             }
         }
-        val envoy = staticEnvoyExtension(config = config, localService = echoService)
-            .apply { container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "lvte2|vte3|global") }
-            .asClosable()
+    }
 
-        // when
-        val response = envoy.use {
-            it.start()
-            it.extension.egressOperations.callService("echo").asHttpsEchoResponse()
+
+    @Nested
+    inner class `environment variable present`: `environment variable present test`()
+    open class `environment variable present test` {
+
+        companion object {
+            @JvmField
+            @RegisterExtension
+            val envoy = staticEnvoyExtension(config = config, localService = echoService)
+                .apply { container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "lvte2|vte3|global") }
         }
 
-        // then
-        assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "lvte2|vte3|global")
+        @Test
+        fun `%ENVIRONMENT()% in header works`() {
+
+            // when
+            val response = envoy.egressOperations.callService("echo").asHttpsEchoResponse()
+
+            // then
+            assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "lvte2|vte3|global")
+        }
+
+        @Test
+        fun `should not override header from request`() {
+            // when
+            val response = envoy.egressOperations.callService(
+                service = "echo",
+                headers = mapOf("x-service-tag-preference-from-env" to "override-in-request")
+            ).asHttpsEchoResponse()
+
+            // then
+            assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "override-in-request")
+        }
+    }
+
+
+    @Nested
+    inner class `environment variable not set` : `environment variable not set test`()
+    open class `environment variable not set test` {
+
+        companion object {
+            @JvmField
+            @RegisterExtension
+            val envoy = staticEnvoyExtension(config = config, localService = echoService)
+        }
+
+        @Test
+        fun `it sets the header to '-' value`() {
+            // when
+            val response = envoy.egressOperations.callService("echo").asHttpsEchoResponse()
+
+            // then
+            assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "-")
+        }
+
     }
 }
 
@@ -290,12 +337,6 @@ private object Assertions {
         assertThat(failureLogs, StringAssert::class.java)
             .first().containsPattern(expectedFailureLog.pattern)
     })
-}
-
-class A : (Int) -> Unit {
-    override fun invoke(p1: Int) {
-        TODO("Not yet implemented")
-    }
 }
 
 private class ConfigYaml private constructor(private val config: ObjectNode) {
