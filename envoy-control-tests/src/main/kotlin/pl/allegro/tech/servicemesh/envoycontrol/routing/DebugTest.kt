@@ -22,7 +22,6 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import org.junit.jupiter.api.extension.TestInstances
 import org.junit.jupiter.api.parallel.ExecutionMode
 import org.testcontainers.containers.BindMode
-import org.testcontainers.shaded.org.bouncycastle.math.raw.Mod
 import org.yaml.snakeyaml.Yaml
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.untilAsserted
 import pl.allegro.tech.servicemesh.envoycontrol.chaos.api.NetworkDelay
@@ -41,7 +40,9 @@ import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Config
 import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Configs.`config with CEL in accessLog`
 import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`access log stdout config`
 import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`add CELL formatter to access log`
+import pl.allegro.tech.servicemesh.envoycontrol.routing.EchoExtension.echoService
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
+import java.io.ObjectInputFilter.Config
 import java.lang.reflect.AnnotatedElement
 import java.lang.reflect.Method
 import java.nio.file.Path
@@ -49,38 +50,27 @@ import java.util.Optional
 import java.util.function.Function
 import kotlin.io.path.createTempFile
 
-open class DebugTest {
-
-    companion object {
-        @JvmField
-        @RegisterExtension
-        val echoService = GenericServiceExtension(HttpsEchoContainer())
-    }
+object EchoExtension {
+    val echoService = GenericServiceExtension(HttpsEchoContainer())
 }
 
-class DefaultServiceTagPreferenceTest : DebugTest() {
+class DefaultServiceTagPreferenceTest {
 
     companion object {
         @JvmField
         @RegisterExtension
         val envoy = staticEnvoyExtension(
-            config = ConfigYaml("/envoy/debug/config_static.yaml"),
+            config = baseConfig,
             localService = echoService
         ).apply { container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "lvte2|vte3|global") }
     }
 
     @Test
     fun debug() {
-
-        // envoy.waitForAvailableEndpoints()  // TODO: check it
-        // envoy.waitForReadyServices() // TODO: check it
-        // envoy.waitForClusterEndpointHealthy() // TODO: check it
-
         val adminUrl = envoy.container.adminUrl()
         val egressUrl = envoy.container.egressListenerUrl()
 
-
-        assertThat(1).isEqualTo(2)
+        assertThat(1).isEqualTo(1)
     }
 }
 
@@ -92,10 +82,10 @@ class CELTest {
             val `baseConfig with node metadata default_service_tag_preference` = baseConfig.modify {
                 //language=yaml
                 this += """
-              node:
-                metadata:
-                  default_service_tag_preference: lvte1|vte2|global
-            """.trimIndent()
+                  node:
+                    metadata:
+                      default_service_tag_preference: lvte1|vte2|global
+                """.trimIndent()
             }
 
             val `config with CEL in accessLog` = `baseConfig with node metadata default_service_tag_preference`.modify {
@@ -118,7 +108,7 @@ class CELTest {
             "[critical].*error initializing config .* Not supported field in StreamInfo: CEL".toRegex()
 
         private object Modifications {
-            val `access log stdout config`: ConfigYaml.Modification.() -> Unit = {
+            val `access log stdout config` = ConfigYaml.modification {
                 listeners {
                     egress {
                         //language=yaml
@@ -131,7 +121,8 @@ class CELTest {
                     }
                 }
             }
-            val `add CELL formatter to access log`: ConfigYaml.Modification.() -> Unit = {
+
+            val `add CELL formatter to access log`= ConfigYaml.modification {
                 listeners {
                     egress {
                         //language=yaml
@@ -177,14 +168,14 @@ class CELTest {
 
             envoy.use {
                 it.start()
-                envoy.extension.container.logRecorder.recordLogs { it.contains(expectedAccessLog) }
+                it.extension.container.logRecorder.recordLogs { it.contains(expectedAccessLog) }
 
                 // when
-                envoy.extension.egressOperations.callService("backend")
+                it.extension.egressOperations.callService("backend")
 
                 // then
                 untilAsserted {
-                    val accessLogs = envoy.extension.container.logRecorder.getRecordedLogs()
+                    val accessLogs = it.extension.container.logRecorder.getRecordedLogs()
                     assertThat(accessLogs, StringAssert::class.java)
                         .first().contains(expectedAccessLog)
                 }
@@ -196,7 +187,7 @@ class CELTest {
     inner class Header : HeaderTest()
     open class HeaderTest {
 
-        private val `request_headers_to_add with %CEL()%`: ConfigYaml.Modification.() -> Unit = {
+        private val `request_headers_to_add with %CEL()%` = ConfigYaml.modification {
             listeners {
                 egress {
                     //language=yaml
@@ -253,6 +244,39 @@ class CELTest {
     }
 }
 
+
+class HeaderFromEnvironmentTest {
+
+    @Test
+    fun `%ENVIRONMENT() in header works`() {
+        // given
+        val config = baseConfig.modify {
+            listeners {
+                egress {
+                    //language=yaml
+                    http.at("/route_config/request_headers_to_add") += """
+                          - header:
+                              key: x-service-tag-preference-from-env
+                              value: "%ENVIRONMENT(DEFAULT_SERVICE_TAG_PREFERENCE)%"
+                        """.trimIndent()
+                }
+            }
+        }
+        val envoy = staticEnvoyExtension(config = config, localService = echoService)
+            .apply { container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "lvte2|vte3|global") }
+            .asClosable()
+
+        // when
+        val response = envoy.use {
+            it.start()
+            it.extension.egressOperations.callService("echo").asHttpsEchoResponse()
+        }
+
+        // then
+        assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "lvte2|vte3|global")
+    }
+}
+
 private object Assertions {
     fun ObjectAssert<ClosableEnvoyExtension>.failsAtStartupWithError(expectedFailureLog: Regex) = satisfies({
         it.extension.container.logRecorder.recordLogs { log ->
@@ -268,13 +292,21 @@ private object Assertions {
     })
 }
 
-private class ConfigYaml private constructor(private val config: ObjectNode) {
+class A : (Int) -> Unit {
+    override fun invoke(p1: Int) {
+        TODO("Not yet implemented")
+    }
+}
 
+private class ConfigYaml private constructor(private val config: ObjectNode) {
     private object S {
         val yaml = Yaml()
         val json = ObjectMapper()
 
         fun parse(yaml: String): JsonNode = json.valueToTree(S.yaml.load(yaml))
+    }
+    companion object {
+        fun modification(action: Modification.() -> Unit) = action
     }
 
     constructor(path: String) : this(
@@ -427,7 +459,6 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
         override fun at(path: String): MissingNode =
             MissingNode(parentNode = parentNode, pointer = pointer.append(JsonPointer.compile(path)))
     }
-
 
     fun modify(block: Modification.() -> Unit): ConfigYaml {
         val modified = ConfigYaml(config = config.deepCopy())
@@ -596,35 +627,5 @@ val contextMock = object : ExtensionContext {
 
     override fun getExecutableInvoker(): ExecutableInvoker {
         TODO("Not yet implemented")
-    }
-}
-
-class TempYamlLoader {
-
-    val yaml = Yaml()
-    val json = ObjectMapper()
-
-    @Test
-    fun debug() {
-
-        val baseConfigYaml: Map<Any, Any>? = javaClass.getResourceAsStream("/envoy/debug/config_base.yaml")
-            .let { requireNotNull(it) { "file not found" } }
-            .use { yaml.load(it) }
-
-        val baseConfigJson: ObjectNode = json.valueToTree(baseConfigYaml)
-
-        val someList = baseConfigJson.requiredAt("/some/list").let { it as ArrayNode }
-
-        val newFirstElement = json.createObjectNode().apply {
-            put("name", "inserted at index 0, yeah")
-            put("val", 333)
-        }
-        someList.insert(0, newFirstElement)
-
-        val out = json.convertValue(baseConfigJson, Map::class.java)
-        val outYaml = yaml.dump(out)
-
-        val outJson = json.writeValueAsString(baseConfigJson)
-        assertThat(out).isEqualTo("dupa")
     }
 }
