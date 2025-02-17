@@ -1,4 +1,5 @@
-@file:Suppress("DANGEROUS_CHARACTERS", "PrivatePropertyName", "ObjectPropertyName", "ObjectPrivatePropertyName",
+@file:Suppress(
+    "DANGEROUS_CHARACTERS", "PrivatePropertyName", "ObjectPropertyName", "ObjectPrivatePropertyName",
     "ClassName"
 )
 
@@ -43,9 +44,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Config
 import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`access log stdout config`
 import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`add CELL formatter to access log`
 import pl.allegro.tech.servicemesh.envoycontrol.routing.EchoExtension.echoService
-import pl.allegro.tech.servicemesh.envoycontrol.routing.HeaderFromEnvironmentTest.`environment variable present test`.Companion
+import pl.allegro.tech.servicemesh.envoycontrol.routing.HeaderFromEnvironmentTest.`environment variable not set test`.Companion
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
-import java.io.ObjectInputFilter.Config
 import java.lang.reflect.AnnotatedElement
 import java.lang.reflect.Method
 import java.nio.file.Path
@@ -125,7 +125,7 @@ class CELTest {
                 }
             }
 
-            val `add CELL formatter to access log`= ConfigYaml.modification {
+            val `add CELL formatter to access log` = ConfigYaml.modification {
                 listeners {
                     egress {
                         //language=yaml
@@ -137,7 +137,6 @@ class CELTest {
                     }
                 }
             }
-
         }
     }
 
@@ -151,7 +150,6 @@ class CELTest {
             afterAll(contextMock)
         }
 
-
         @Test
         fun `use %CEL()% in access log without any other config fails`() {
             // given
@@ -159,9 +157,7 @@ class CELTest {
 
             // expects
             assertThat(envoy).failsAtStartupWithError(`CEL failure log`)
-
         }
-
 
         @Test
         fun `use %CEL()% in access log with explicitly enabled CEL formatter works`() {
@@ -203,8 +199,9 @@ class CELTest {
             }
         }
 
-        private val `config with request_headers_to_add with %CEL()%` = `baseConfig with node metadata default_service_tag_preference`
-            .modify(`request_headers_to_add with %CEL()%`)
+        private val `config with request_headers_to_add with %CEL()%` =
+            `baseConfig with node metadata default_service_tag_preference`
+                .modify(`request_headers_to_add with %CEL()%`)
 
         @Test
         fun `%CEL()% not working without additional config`() {
@@ -247,7 +244,6 @@ class CELTest {
     }
 }
 
-
 class HeaderFromEnvironmentTest {
 
     companion object {
@@ -255,7 +251,7 @@ class HeaderFromEnvironmentTest {
             listeners {
                 egress {
                     //language=yaml
-                    http.at("/route_config/request_headers_to_add") += """
+                    http.at("/route_config/request_headers_to_add") set """
                           - header:
                               key: x-service-tag-preference-from-env
                               value: "%ENVIRONMENT(DEFAULT_SERVICE_TAG_PREFERENCE)%"
@@ -266,9 +262,8 @@ class HeaderFromEnvironmentTest {
         }
     }
 
-
     @Nested
-    inner class `environment variable present`: `environment variable present test`()
+    inner class `environment variable present` : `environment variable present test`()
     open class `environment variable present test` {
 
         companion object {
@@ -297,10 +292,12 @@ class HeaderFromEnvironmentTest {
             ).asHttpsEchoResponse()
 
             // then
-            assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "override-in-request")
+            assertThat(response.requestHeaders).containsEntry(
+                "x-service-tag-preference-from-env",
+                "override-in-request"
+            )
         }
     }
-
 
     @Nested
     inner class `environment variable not set` : `environment variable not set test`()
@@ -320,7 +317,68 @@ class HeaderFromEnvironmentTest {
             // then
             assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "-")
         }
+    }
 
+    @Nested
+    inner class `keep_empty_value=false and env var not set` : `keep_empty_value=false test`()
+    open class `keep_empty_value=false test` {
+
+        companion object {
+            private val `config with keep_empty_value=false` = config.modify {
+                listeners {
+                    egress {
+                        //language=yaml
+                        http.at("/route_config/request_headers_to_add/0") += """
+                            keep_empty_value: false
+                        """.trimIndent()
+                    }
+                }
+            }
+
+            @JvmField
+            @RegisterExtension
+            val envoy = staticEnvoyExtension(config = `config with keep_empty_value=false`, localService = echoService)
+        }
+
+        @Test
+        fun `still sets the header to '-' value`() {
+            // when
+            val response = envoy.egressOperations.callService("echo").asHttpsEchoResponse()
+
+            // then
+            assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "-")
+        }
+    }
+
+    @Nested
+    inner class `keep_empty_value=true and env var not set` : `keep_empty_value=true test`()
+    open class `keep_empty_value=true test` {
+
+        companion object {
+            private val `config with keep_empty_value=false` = config.modify {
+                listeners {
+                    egress {
+                        //language=yaml
+                        http.at("/route_config/request_headers_to_add/0") += """
+                            keep_empty_value: true
+                        """.trimIndent()
+                    }
+                }
+            }
+
+            @JvmField
+            @RegisterExtension
+            val envoy = staticEnvoyExtension(config = `config with keep_empty_value=false`, localService = echoService)
+        }
+
+        @Test
+        fun `still sets the header to '-' value`() {
+            // when
+            val response = envoy.egressOperations.callService("echo").asHttpsEchoResponse()
+
+            // then
+            assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "-")
+        }
     }
 }
 
@@ -346,6 +404,7 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
 
         fun parse(yaml: String): JsonNode = json.valueToTree(S.yaml.load(yaml))
     }
+
     companion object {
         fun modification(action: Modification.() -> Unit) = action
     }
@@ -379,11 +438,12 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
     sealed interface Modification : YamlNode {
         fun listeners(block: Listeners.() -> Unit)
     }
+
     interface Listeners : YamlNode {
         fun egress(block: Listener.() -> Unit)
     }
 
-    interface Listener : YamlNode{
+    interface Listener : YamlNode {
         val http: YamlNode
     }
 
@@ -393,13 +453,13 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
 
         constructor() : this(node = YamlObjectNode(config))
 
-        fun (YamlNode).materializeArray(): YamlArrayNode = when(val n = this) {
+        fun (YamlNode).materializeArray(): YamlArrayNode = when (val n = this) {
             is YamlArrayNode -> n
             is MissingNode -> n.materializeArray()
             else -> throw IllegalArgumentException("Cannot create array here")
         }
 
-        fun (YamlNode).materializeObject(): YamlObjectNode = when(val n = this) {
+        fun (YamlNode).materializeObject(): YamlObjectNode = when (val n = this) {
             is YamlObjectNode -> n
             is MissingNode -> n.materializeObject()
             else -> throw IllegalArgumentException("Cannot create object here")
@@ -430,16 +490,24 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
                 }
             }
         }
-
     }
 
     @Dsl
     sealed interface YamlNode {
         operator fun plusAssign(mergeYaml: String)
+        infix fun set(yaml: String)
         fun at(path: String): YamlNode
     }
 
-    private abstract class ExistingNode(open val node: JsonNode) : YamlNode {
+    private abstract class YamlNodeBase : YamlNode {
+        override fun set(yaml: String) = set(S.parse(yaml))
+        abstract fun set(yaml: JsonNode)
+
+        override fun plusAssign(mergeYaml: String) = plusAssign(S.parse(mergeYaml))
+        abstract fun plusAssign(mergeYaml: JsonNode)
+    }
+
+    private abstract class ExistingNode(open val node: JsonNode) : YamlNodeBase() {
         override fun at(path: String): YamlNode {
             val pointer = JsonPointer.compile(path)
             return node.at(pointer).let {
@@ -451,24 +519,33 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
                 }
             }
         }
-
-        override fun plusAssign(mergeYaml: String) = plus(S.parse(mergeYaml))
-        abstract fun plus(mergeYaml: JsonNode)
+        override fun set(yaml: JsonNode) {
+            node.removeAll { true }
+            plusAssign(yaml)
+        }
     }
 
     private class YamlObjectNode(override val node: ObjectNode) : ExistingNode(node) {
-        override fun plus(mergeYaml: JsonNode) {
+
+        override fun plusAssign(mergeYaml: JsonNode) {
             node.setAll<ObjectNode>(mergeYaml as ObjectNode)
         }
     }
+
     private class YamlArrayNode(override val node: ArrayNode) : ExistingNode(node) {
-        override fun plus(mergeYaml: JsonNode) {
+        override fun plusAssign(mergeYaml: JsonNode) {
             node.addAll(mergeYaml as ArrayNode)
         }
     }
 
-    private class MissingNode(private val parentNode: JsonNode, private val pointer: JsonPointer) : YamlNode {
+    private class MissingNode(private val parentNode: JsonNode, private val pointer: JsonPointer) : YamlNodeBase() {
         private var existingNode: ExistingNode? = null
+
+
+        override fun set(yaml: JsonNode) = materialize(yaml).set(yaml)
+        override fun plusAssign(mergeYaml: JsonNode) = materialize(mergeYaml).plusAssign(mergeYaml)
+        override fun at(path: String): MissingNode =
+            MissingNode(parentNode = parentNode, pointer = pointer.append(JsonPointer.compile(path)))
 
         fun materializeArray(): YamlArrayNode {
             existingNode?.let {
@@ -486,19 +563,11 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
                 .also { existingNode = it }
         }
 
-        override fun plusAssign(mergeYaml: String) {
-            val parsed = S.parse(mergeYaml)
-            existingNode = when (parsed) {
-                is ArrayNode -> materializeArray()
-                is ObjectNode -> materializeObject()
-                else -> throw IllegalArgumentException("Unknown node type '$parsed'")
-            }.also {
-                it.plus(parsed)
-            }
+        private fun materialize(yaml: JsonNode): ExistingNode = when (yaml) {
+            is ArrayNode -> materializeArray()
+            is ObjectNode -> materializeObject()
+            else -> throw IllegalArgumentException("Unknown node type '$yaml'")
         }
-
-        override fun at(path: String): MissingNode =
-            MissingNode(parentNode = parentNode, pointer = pointer.append(JsonPointer.compile(path)))
     }
 
     fun modify(block: Modification.() -> Unit): ConfigYaml {
