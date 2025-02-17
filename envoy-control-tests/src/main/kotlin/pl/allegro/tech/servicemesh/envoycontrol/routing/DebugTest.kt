@@ -11,6 +11,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.ObjectAssert
 import org.assertj.core.api.StringAssert
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -32,6 +33,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.Health
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.SnapshotDebugResponse
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.GenericServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.routing.Assertions.failsAtStartupWithError
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.lang.reflect.AnnotatedElement
 import java.lang.reflect.Method
@@ -84,6 +86,7 @@ private val baseConfig = ConfigYaml("/envoy/debug/config_base.yaml")
 
 class CELTest {
 
+
     companion object {
         private val `baseConfig with node metadata default_service_tag_preference` = baseConfig.modify {
             //language=yaml
@@ -93,6 +96,9 @@ class CELTest {
                   default_service_tag_preference: lvte1|vte2|global
             """.trimIndent()
         }
+
+        private val `CEL failure log` =
+            "[critical].*error initializing config .* Not supported field in StreamInfo: CEL".toRegex()
     }
 
     @Nested
@@ -126,21 +132,11 @@ class CELTest {
             // given
             val envoy = staticEnvoyExtension(config = `config with CEL in accessLog`).asClosable()
 
-            val expectedFailureLog =
-                "[critical].*error initializing config .* Not supported field in StreamInfo: CEL".toRegex()
-            envoy.extension.container.logRecorder.recordLogs {
-                expectedFailureLog.containsMatchIn(it)
-                // [2025-02-14 19:27:20.111][134][critical][main] [source/server/server.cc:414] error initializing config '  /tmp/tmp.ZXJQoHVwcp/envoy.yaml': Not supported field in StreamInfo: CEL
-            }
-
             // expects
-            assertThatThrownBy { envoy.use { it.start() } }
+            assertThat(envoy).failsAtStartupWithError(`CEL failure log`)
 
-            val failureLogs = envoy.extension.container.logRecorder.getRecordedLogs()
-
-            assertThat(failureLogs, StringAssert::class.java)
-                .first().containsPattern(expectedFailureLog.pattern)
         }
+
 
         @Test
         fun `use %CEL()% in access log with explicitly enabled CEL formatter works`() {
@@ -203,40 +199,25 @@ class CELTest {
             val envoy = staticEnvoyExtension(config = `config with request_headers_to_add with %CEL()%`)
                 .asClosable()
 
-            // [2025-02-16 23:19:24.339][134][critical][main] [source/server/server.cc:414] error initializing config '  /tmp/tmp.5YgxPJYgps/envoy.yaml': Not supported field in StreamInfo: CEL
-
             // expects
-            assertThatThrownBy { envoy.use { it.start() } }
-
-
-            // then
-            assertThat(3).isEqualTo(2)
+            assertThat(envoy).failsAtStartupWithError(`CEL failure log`)
         }
     }
+}
 
+private object Assertions {
+    fun ObjectAssert<ClosableEnvoyExtension>.failsAtStartupWithError(expectedFailureLog: Regex) = satisfies({
+        it.extension.container.logRecorder.recordLogs { log ->
+            expectedFailureLog.containsMatchIn(log)
+        }
 
-    // @Nested
-    // inner class Zupa : DDTest()
-    //
-    // @Test
-    // fun buga() {
-    //     assertThat("").isEqualTo("fwef")
-    // }
-    //
-    // open class DDTest {
-    //
-    //     companion object {
-    //         @JvmField
-    //         @RegisterExtension
-    //         val echoService = GenericServiceExtension(HttpsEchoContainer())
-    //     }
-    //
-    //     @Test
-    //     fun ogaBoga() {
-    //         assertThat(echoService.container().ipAddress()).isEqualTo("122")
-    //         assertThat(3).isEqualTo(5)
-    //     }
-    // }
+        assertThatThrownBy { it.use(ClosableEnvoyExtension::start) }
+
+        val failureLogs = it.extension.container.logRecorder.getRecordedLogs()
+
+        assertThat(failureLogs, StringAssert::class.java)
+            .first().containsPattern(expectedFailureLog.pattern)
+    })
 }
 
 private class ConfigYaml private constructor(private val config: ObjectNode) {
@@ -407,36 +388,6 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
     }
 }
 
-class TempYamlLoader {
-
-    val yaml = Yaml()
-    val json = ObjectMapper()
-
-    @Test
-    fun debug() {
-
-        val baseConfigYaml: Map<Any, Any>? = javaClass.getResourceAsStream("/envoy/debug/config_base.yaml")
-            .let { requireNotNull(it) { "file not found" } }
-            .use { yaml.load(it) }
-
-        val baseConfigJson: ObjectNode = json.valueToTree(baseConfigYaml)
-
-        val someList = baseConfigJson.requiredAt("/some/list").let { it as ArrayNode }
-
-        val newFirstElement = json.createObjectNode().apply {
-            put("name", "inserted at index 0, yeah")
-            put("val", 333)
-        }
-        someList.insert(0, newFirstElement)
-
-        val out = json.convertValue(baseConfigJson, Map::class.java)
-        val outYaml = yaml.dump(out)
-
-        val outJson = json.writeValueAsString(baseConfigJson)
-        assertThat(out).isEqualTo("dupa")
-    }
-}
-
 private fun staticEnvoyExtension(
     config: ConfigYaml,
     localService: GenericServiceExtension<HttpsEchoContainer>? = null
@@ -597,5 +548,35 @@ val contextMock = object : ExtensionContext {
 
     override fun getExecutableInvoker(): ExecutableInvoker {
         TODO("Not yet implemented")
+    }
+}
+
+class TempYamlLoader {
+
+    val yaml = Yaml()
+    val json = ObjectMapper()
+
+    @Test
+    fun debug() {
+
+        val baseConfigYaml: Map<Any, Any>? = javaClass.getResourceAsStream("/envoy/debug/config_base.yaml")
+            .let { requireNotNull(it) { "file not found" } }
+            .use { yaml.load(it) }
+
+        val baseConfigJson: ObjectNode = json.valueToTree(baseConfigYaml)
+
+        val someList = baseConfigJson.requiredAt("/some/list").let { it as ArrayNode }
+
+        val newFirstElement = json.createObjectNode().apply {
+            put("name", "inserted at index 0, yeah")
+            put("val", 333)
+        }
+        someList.insert(0, newFirstElement)
+
+        val out = json.convertValue(baseConfigJson, Map::class.java)
+        val outYaml = yaml.dump(out)
+
+        val outJson = json.writeValueAsString(baseConfigJson)
+        assertThat(out).isEqualTo("dupa")
     }
 }
