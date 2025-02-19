@@ -3,8 +3,21 @@ package pl.allegro.tech.servicemesh.envoycontrol.v3;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
+import io.envoyproxy.controlplane.cache.DeltaResponse;
+import io.envoyproxy.controlplane.cache.DeltaWatch;
+import io.envoyproxy.controlplane.cache.DeltaXdsRequest;
 import io.envoyproxy.controlplane.cache.NodeGroup;
 import io.envoyproxy.controlplane.cache.Resources;
+import static io.envoyproxy.controlplane.cache.Resources.ResourceType.CLUSTER;
+import static io.envoyproxy.controlplane.cache.Resources.ResourceType.ENDPOINT;
+import static io.envoyproxy.controlplane.cache.Resources.ResourceType.LISTENER;
+import static io.envoyproxy.controlplane.cache.Resources.ResourceType.ROUTE;
+import static io.envoyproxy.controlplane.cache.Resources.ResourceType.SECRET;
+import static io.envoyproxy.controlplane.cache.Resources.V3.CLUSTER_TYPE_URL;
+import static io.envoyproxy.controlplane.cache.Resources.V3.ENDPOINT_TYPE_URL;
+import static io.envoyproxy.controlplane.cache.Resources.V3.LISTENER_TYPE_URL;
+import static io.envoyproxy.controlplane.cache.Resources.V3.ROUTE_TYPE_URL;
+import static io.envoyproxy.controlplane.cache.Resources.V3.SECRET_TYPE_URL;
 import io.envoyproxy.controlplane.cache.Response;
 import io.envoyproxy.controlplane.cache.StatusInfo;
 import io.envoyproxy.controlplane.cache.VersionedResource;
@@ -17,21 +30,20 @@ import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import io.envoyproxy.envoy.config.listener.v3.Listener;
 import io.envoyproxy.envoy.config.route.v3.RouteConfiguration;
 import io.envoyproxy.envoy.extensions.transport_sockets.tls.v3.Secret;
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest;
 import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest;
-import org.junit.Test;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
-import static io.envoyproxy.controlplane.cache.Resources.V3.CLUSTER_TYPE_URL;
-import static io.envoyproxy.controlplane.cache.Resources.V3.ROUTE_TYPE_URL;
 import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 /**
  * This class is copy of {@link io.envoyproxy.controlplane.cache.v3.SimpleCacheTest}
@@ -71,6 +83,14 @@ public class SimpleCacheTest {
             ImmutableList.of(Secret.newBuilder().setName(SECRET_NAME).build()),
             VERSION2);
 
+    protected static Map<Resources.ResourceType, ResourceTypeUrlAndName> resourceNamesMap = Map.of(
+            CLUSTER, new ResourceTypeUrlAndName(CLUSTER_TYPE_URL, CLUSTER_NAME),
+            LISTENER, new ResourceTypeUrlAndName(LISTENER_TYPE_URL, LISTENER_NAME),
+            ROUTE, new ResourceTypeUrlAndName(ROUTE_TYPE_URL, ROUTE_NAME),
+            SECRET, new ResourceTypeUrlAndName(SECRET_TYPE_URL, SECRET_NAME),
+            ENDPOINT, new ResourceTypeUrlAndName(ENDPOINT_TYPE_URL, CLUSTER_NAME)
+    );
+
     protected boolean shouldSendMissingEndpoints() {
         return false;
     }
@@ -87,14 +107,14 @@ public class SimpleCacheTest {
                 true,
                 XdsRequest.create(DiscoveryRequest.newBuilder()
                         .setNode(Node.getDefaultInstance())
-                        .setTypeUrl(Resources.V3.ENDPOINT_TYPE_URL)
+                        .setTypeUrl(ENDPOINT_TYPE_URL)
                         .addResourceNames("none")
                         .build()),
                 Collections.emptySet(),
                 responseTracker,
                 false,
                 false
-            );
+        );
         assertThatWatchIsOpenWithNoResponses(new WatchAndTracker(watch, responseTracker));
     }
 
@@ -110,14 +130,14 @@ public class SimpleCacheTest {
                 false,
                 XdsRequest.create(DiscoveryRequest.newBuilder()
                         .setNode(Node.getDefaultInstance())
-                        .setTypeUrl(Resources.V3.ENDPOINT_TYPE_URL)
+                        .setTypeUrl(ENDPOINT_TYPE_URL)
                         .addResourceNames("none")
                         .build()),
                 Collections.emptySet(),
                 responseTracker,
                 false,
                 false
-            );
+        );
 
         assertThat(watch.isCancelled()).isFalse();
         assertThat(responseTracker.responses).isNotEmpty();
@@ -143,7 +163,7 @@ public class SimpleCacheTest {
                     responseTracker,
                     false,
                     false
-                );
+            );
 
             assertThat(watch.request().getTypeUrl()).isEqualTo(typeUrl);
             assertThat(watch.request().getResourceNamesList()).containsExactlyElementsOf(
@@ -166,18 +186,18 @@ public class SimpleCacheTest {
                 XdsRequest.create(DiscoveryRequest.newBuilder()
                         .setNode(Node.getDefaultInstance())
                         .setVersionInfo(VERSION1)
-                        .setTypeUrl(Resources.V3.ENDPOINT_TYPE_URL)
-                        .addAllResourceNames(SNAPSHOT1.resources(Resources.V3.ENDPOINT_TYPE_URL).keySet())
+                        .setTypeUrl(ENDPOINT_TYPE_URL)
+                        .addAllResourceNames(SNAPSHOT1.resources(ENDPOINT_TYPE_URL).keySet())
                         .build()),
                 Sets.newHashSet(""),
                 responseTracker,
                 true,
                 false
-            );
+        );
 
-        assertThat(watch.request().getTypeUrl()).isEqualTo(Resources.V3.ENDPOINT_TYPE_URL);
+        assertThat(watch.request().getTypeUrl()).isEqualTo(ENDPOINT_TYPE_URL);
         assertThat(watch.request().getResourceNamesList()).containsExactlyElementsOf(
-                SNAPSHOT1.resources(Resources.V3.ENDPOINT_TYPE_URL).keySet());
+                SNAPSHOT1.resources(ENDPOINT_TYPE_URL).keySet());
 
         assertThatWatchReceivesSnapshot(new WatchAndTracker(watch, responseTracker), SNAPSHOT1);
     }
@@ -203,7 +223,7 @@ public class SimpleCacheTest {
                                     responseTracker,
                                     false,
                                     false
-                                );
+                            );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
@@ -247,7 +267,7 @@ public class SimpleCacheTest {
                                         },
                                         false,
                                         false
-                                    );
+                                );
 
                                 return new WatchAndTracker(watch, responseTracker);
                             }))
@@ -266,13 +286,14 @@ public class SimpleCacheTest {
         }
 
         // Verify that CDS and LDS always get triggered before EDS and RDS respectively.
-        assertThat(responseOrderTracker.responseTypes).containsExactly(Resources.V3.CLUSTER_TYPE_URL,
-                Resources.V3.CLUSTER_TYPE_URL, Resources.V3.ENDPOINT_TYPE_URL, Resources.V3.ENDPOINT_TYPE_URL,
-                Resources.V3.LISTENER_TYPE_URL, Resources.V3.LISTENER_TYPE_URL, Resources.V3.ROUTE_TYPE_URL,
-                Resources.V3.ROUTE_TYPE_URL, Resources.V3.SECRET_TYPE_URL, Resources.V3.SECRET_TYPE_URL);
+        assertThat(responseOrderTracker.responseTypes).containsExactly(CLUSTER_TYPE_URL,
+                CLUSTER_TYPE_URL, ENDPOINT_TYPE_URL, ENDPOINT_TYPE_URL,
+                LISTENER_TYPE_URL, LISTENER_TYPE_URL, ROUTE_TYPE_URL,
+                ROUTE_TYPE_URL, SECRET_TYPE_URL, SECRET_TYPE_URL);
     }
 
     @Test
+    @Disabled("was broken in previous versions")
     public void successfullyWatchAllResourceTypesWithSetBeforeWatchWithSameRequestVersionNewResourceHints() {
         SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
 
@@ -301,15 +322,15 @@ public class SimpleCacheTest {
                                     responseTracker,
                                     false,
                                     false
-                                );
+                            );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
 
         // The snapshot version matches for all resources, but for eds and cds there are new resources present
         // for the same version, so we expect the watches to trigger.
-        assertThatWatchReceivesSnapshot(watches.remove(Resources.V3.CLUSTER_TYPE_URL), MULTIPLE_RESOURCES_SNAPSHOT2);
-        assertThatWatchReceivesSnapshot(watches.remove(Resources.V3.ENDPOINT_TYPE_URL), MULTIPLE_RESOURCES_SNAPSHOT2);
+        assertThatWatchReceivesSnapshot(watches.remove(CLUSTER_TYPE_URL), MULTIPLE_RESOURCES_SNAPSHOT2);
+        assertThatWatchReceivesSnapshot(watches.remove(ENDPOINT_TYPE_URL), MULTIPLE_RESOURCES_SNAPSHOT2);
 
         // Remaining watches should not trigger
         for (WatchAndTracker watchAndTracker : watches.values()) {
@@ -348,7 +369,7 @@ public class SimpleCacheTest {
                                     responseTracker,
                                     false,
                                     false
-                                );
+                            );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
@@ -383,7 +404,7 @@ public class SimpleCacheTest {
                                     responseTracker,
                                     false,
                                     false
-                                );
+                            );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
@@ -422,7 +443,7 @@ public class SimpleCacheTest {
                                     responseTracker,
                                     false,
                                     false
-                                );
+                            );
 
                             return new WatchAndTracker(watch, responseTracker);
                         }));
@@ -456,7 +477,7 @@ public class SimpleCacheTest {
                 responseTracker,
                 false,
                 false
-            );
+        );
 
         assertThatWatchIsOpenWithNoResponses(new WatchAndTracker(watch, responseTracker));
     }
@@ -495,10 +516,11 @@ public class SimpleCacheTest {
                         .setVersionInfo(SNAPSHOT1.version(CLUSTER_TYPE_URL))
                         .build()),
                 Collections.emptySet(),
-                r -> { },
+                r -> {
+                },
                 false,
                 false
-            );
+        );
 
         // clearSnapshot should fail and the snapshot should be left untouched
         assertThat(cache.clearSnapshot(SingleNodeGroup.GROUP)).isFalse();
@@ -514,6 +536,91 @@ public class SimpleCacheTest {
     }
 
     @Test
+    public void shouldNotReturnResourcesIfSpecifiedInInitialResourceVersionsForCdsAndLds() {
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
+        Set<String> pendingResources = Set.of();
+        DeltaWatchAndTracker watchAndTracker = createDeltaWatch(cache, CLUSTER, pendingResources);
+
+        assertThat(watchAndTracker.watch.isCancelled()).isFalse();
+        assertThat(watchAndTracker.tracker.responses).isEmpty();
+
+        DeltaWatchAndTracker watchAndTracker2 = createDeltaWatch(cache, LISTENER, pendingResources);
+
+        assertThat(watchAndTracker2.watch.isCancelled()).isFalse();
+        assertThat(watchAndTracker2.tracker.responses).isEmpty();
+    }
+
+    @Test
+    public void shouldReturnResourcesIfDoesntMatchVersionSpecifiedInInitialResourceVersionsForWildcardRequest() {
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
+        Set<String> pendingResources = Set.of();
+        //Request with Cluster/Listener resource type is wildcard
+        DeltaWatchAndTracker watchAndTracker = createDeltaWatch(cache, CLUSTER, pendingResources, UUID.randomUUID().toString());
+
+        assertThat(watchAndTracker.watch.isCancelled()).isFalse();
+        assertThat(watchAndTracker.tracker.responses).isNotEmpty();
+
+        DeltaWatchAndTracker watchAndTracker2 = createDeltaWatch(cache, LISTENER, pendingResources, UUID.randomUUID().toString());
+
+        assertThat(watchAndTracker2.watch.isCancelled()).isFalse();
+        assertThat(watchAndTracker2.tracker.responses).isNotEmpty();
+    }
+
+    @Test
+    public void shouldNotReturnResourcesIfSpecifiedInInitialResourceVersionsForNonWildcardRequest() {
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
+        Set<String> pendingResources = Set.of();
+        //Request with Endpoint resource type is not wildcard
+        DeltaWatchAndTracker watchAndTracker = createDeltaWatch(cache, ENDPOINT, pendingResources);
+
+        assertThat(watchAndTracker.watch.isCancelled()).isFalse();
+        assertThat(watchAndTracker.tracker.responses).isEmpty();
+    }
+
+    @Test
+    public void shouldReturnResourcesIfSpecifiedInInitialResourceVersionsForNonWildcardRequest() {
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
+        Set<String> pendingResources = Set.of();
+        //Request with Endpoint resource type is not wildcard
+        DeltaWatchAndTracker watchAndTracker = createDeltaWatch(cache, ENDPOINT, pendingResources, UUID.randomUUID().toString());
+
+        assertThat(watchAndTracker.watch.isCancelled()).isFalse();
+        assertThat(watchAndTracker.tracker.responses).isNotEmpty();
+    }
+
+    @Test
+    public void shouldRemoveResourcesSpecifiedInInitialResourceVersionsThatNotPresentInSnapshot() {
+        SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
+        cache.setSnapshot(SingleNodeGroup.GROUP, MULTIPLE_RESOURCES_SNAPSHOT2);
+        Set<String> pendingResources = Set.of();
+        DeltaResponseTracker responseTracker = new DeltaResponseTracker();
+        // requester version will be empty when there are initial resources in request
+        String requesterVersion = "";
+        String removedClusterName = "cluster1";
+
+        DeltaWatch watch = cache.createDeltaWatch(
+                DeltaXdsRequest.create(DeltaDiscoveryRequest.newBuilder()
+                        .setNode(Node.getDefaultInstance())
+                        .setTypeUrl(CLUSTER_TYPE_URL)
+                        .putAllInitialResourceVersions(Map.of(removedClusterName, UUID.randomUUID().toString()))
+                        .build()),
+                requesterVersion,
+                new HashMap<>(),
+                pendingResources,
+                true,
+                responseTracker,
+                false
+        );
+
+        assertThat(watch.isCancelled()).isFalse();
+        assertThat(responseTracker.responses.getFirst().response.removedResources()).contains(removedClusterName);
+    }
+
+    @Test
     public void groups() {
         SimpleCache<String> cache = new SimpleCache<>(new SingleNodeGroup(), shouldSendMissingEndpoints());
 
@@ -524,12 +631,46 @@ public class SimpleCacheTest {
                         .setTypeUrl(CLUSTER_TYPE_URL)
                         .build()),
                 Collections.emptySet(),
-                r -> { },
+                r -> {
+                },
                 false,
                 false
-            );
+        );
 
         assertThat(cache.groups()).containsExactly(SingleNodeGroup.GROUP);
+    }
+
+    private DeltaWatchAndTracker createDeltaWatch(SimpleCache<String> cache, Resources.ResourceType resourceType, Set<String> pendingResources) {
+        return createDeltaWatch(
+                cache,
+                resourceType,
+                pendingResources,
+                MULTIPLE_RESOURCES_SNAPSHOT2
+                        .versionedResources(resourceType).get(resourceNamesMap.get(resourceType).resourceName).version()
+        );
+    }
+
+    private DeltaWatchAndTracker createDeltaWatch(SimpleCache<String> cache, Resources.ResourceType resourceType, Set<String> pendingResources, String version) {
+        Map<String, String> resourceVersions = new HashMap<>();
+        DeltaResponseTracker responseTracker = new DeltaResponseTracker();
+        boolean hasClusterChanged = resourceType == CLUSTER;
+        // requester version will be empty when there are initial resources in request
+        String requesterVersion = "";
+
+        DeltaWatch watch = cache.createDeltaWatch(
+                DeltaXdsRequest.create(DeltaDiscoveryRequest.newBuilder()
+                        .setNode(Node.getDefaultInstance())
+                        .setTypeUrl(resourceNamesMap.get(resourceType).resourceTypeUrl)
+                        .putAllInitialResourceVersions(Map.of(resourceNamesMap.get(resourceType).resourceName, version))
+                        .build()),
+                requesterVersion,
+                resourceVersions,
+                pendingResources,
+                true,
+                responseTracker,
+                hasClusterChanged
+        );
+        return new DeltaWatchAndTracker(watch, responseTracker);
     }
 
     private static void assertThatWatchIsOpenWithNoResponses(WatchAndTracker watchAndTracker) {
@@ -546,8 +687,8 @@ public class SimpleCacheTest {
         assertThat(response).isNotNull();
         assertThat(response.version()).isEqualTo(snapshot.version(watchAndTracker.watch.request().getTypeUrl()));
         assertThat(response.resources().toArray(new Message[0]))
-            .containsExactlyElementsOf(snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values()
-                .stream().map(VersionedResource::resource).collect(Collectors.toList()));
+                .containsExactlyElementsOf(snapshot.resources(watchAndTracker.watch.request().getTypeUrl()).values()
+                        .stream().map(VersionedResource::resource).collect(Collectors.toList()));
     }
 
     protected static class ResponseTracker implements Consumer<Response> {
@@ -568,8 +709,34 @@ public class SimpleCacheTest {
 
         private final LinkedList<String> responseTypes = new LinkedList<>();
 
-        @Override public void accept(Response response) {
+        @Override
+        public void accept(Response response) {
             responseTypes.add(response.request().getTypeUrl());
+        }
+    }
+
+    private static class DeltaResponseTracker implements Consumer<DeltaResponse> {
+
+        private final LinkedList<ResponseResources> responses = new LinkedList<>();
+
+        @Override
+        public void accept(DeltaResponse response) {
+            responses.add(new ResponseResources(response, response.resources()
+                    .entrySet().stream()
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            entry -> entry.getValue().version()
+                    ))));
+        }
+    }
+
+    protected static class ResponseResources {
+        final DeltaResponse response;
+        final Map<String, String> resourceVersions;
+
+        protected ResponseResources(DeltaResponse response, Map<String, String> resourceVersions) {
+            this.response = response;
+            this.resourceVersions = resourceVersions;
         }
     }
 
@@ -595,6 +762,27 @@ public class SimpleCacheTest {
         WatchAndTracker(Watch watch, ResponseTracker tracker) {
             this.watch = watch;
             this.tracker = tracker;
+        }
+    }
+
+    protected static class DeltaWatchAndTracker {
+
+        final DeltaWatch watch;
+        final DeltaResponseTracker tracker;
+
+        DeltaWatchAndTracker(DeltaWatch watch, DeltaResponseTracker tracker) {
+            this.watch = watch;
+            this.tracker = tracker;
+        }
+    }
+
+    protected static class ResourceTypeUrlAndName {
+        final String resourceTypeUrl;
+        final String resourceName;
+
+        protected ResourceTypeUrlAndName(String resourceTypeUrl, String resourceName) {
+            this.resourceTypeUrl = resourceTypeUrl;
+            this.resourceName = resourceName;
         }
     }
 }

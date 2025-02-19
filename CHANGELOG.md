@@ -2,6 +2,11 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
+
+## [0.22.12]
+### Changed
+- Implemented handling of initialResourcesVersions in DeltaRequest for ADS
+
 ## [0.22.11]
 ### Changed
 - bump control plane version to 1.0.48 to support envoy 1.33.0 version
