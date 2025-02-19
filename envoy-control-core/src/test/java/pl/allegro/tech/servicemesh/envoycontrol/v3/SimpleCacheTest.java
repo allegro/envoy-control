@@ -45,7 +45,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-
+/**
+ * This class is copy of {@link io.envoyproxy.controlplane.cache.v3.SimpleCacheTest}
+ */
 public class SimpleCacheTest {
 
     private static final boolean ADS = ThreadLocalRandom.current().nextBoolean();
