@@ -2,6 +2,9 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
+## [0.22.9]
+### Changed
+- Implemented handling of initialResourcesVersions in DeltaRequest for ADS
 
 ## [0.22.9]
 ### Changed
