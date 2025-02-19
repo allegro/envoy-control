@@ -44,7 +44,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Config
 import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`access log stdout config`
 import pl.allegro.tech.servicemesh.envoycontrol.routing.CELTest.Companion.Modifications.`add CELL formatter to access log`
 import pl.allegro.tech.servicemesh.envoycontrol.routing.EchoExtension.echoService
-import pl.allegro.tech.servicemesh.envoycontrol.routing.HeaderFromEnvironmentTest.`environment variable not set test`.Companion
+import pl.allegro.tech.servicemesh.envoycontrol.routing.HeaderFromEnvironmentTest.`environment variable present test`
+import pl.allegro.tech.servicemesh.envoycontrol.routing.HeaderFromEnvironmentTest.`environment variable present test`.Companion
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
 import java.lang.reflect.AnnotatedElement
 import java.lang.reflect.Method
@@ -251,7 +252,7 @@ class HeaderFromEnvironmentTest {
             listeners {
                 egress {
                     //language=yaml
-                    http.at("/route_config/request_headers_to_add") set """
+                    http.at("/route_config/request_headers_to_add") setYaml """
                           - header:
                               key: x-service-tag-preference-from-env
                               value: "%ENVIRONMENT(DEFAULT_SERVICE_TAG_PREFERENCE)%"
@@ -293,8 +294,7 @@ class HeaderFromEnvironmentTest {
 
             // then
             assertThat(response.requestHeaders).containsEntry(
-                "x-service-tag-preference-from-env",
-                "override-in-request"
+                "x-service-tag-preference-from-env", "override-in-request"
             )
         }
     }
@@ -355,7 +355,7 @@ class HeaderFromEnvironmentTest {
     open class `keep_empty_value=true test` {
 
         companion object {
-            private val `config with keep_empty_value=false` = config.modify {
+            private val `config with keep_empty_value=true` = config.modify {
                 listeners {
                     egress {
                         //language=yaml
@@ -368,7 +368,7 @@ class HeaderFromEnvironmentTest {
 
             @JvmField
             @RegisterExtension
-            val envoy = staticEnvoyExtension(config = `config with keep_empty_value=false`, localService = echoService)
+            val envoy = staticEnvoyExtension(config = `config with keep_empty_value=true`, localService = echoService)
         }
 
         @Test
@@ -379,6 +379,71 @@ class HeaderFromEnvironmentTest {
             // then
             assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-env", "-")
         }
+    }
+}
+
+class HeaderFromEnvironmentLuaTest {
+
+    private companion object {
+
+        //language=lua
+        private val luaScript = """
+          function envoy_on_request(handle)
+            local defaultServiceTagPreference = os.getenv("DEFAULT_SERVICE_TAG_PREFERENCE")
+            handle:logInfo("DEFAULT_SERVICE_TAG_PREFERENCE = "..defaultServiceTagPreference)
+            
+            if not handle:headers():get("x-service-tag-preference-from-lua") then
+              handle:headers():add("x-service-tag-preference-from-lua", defaultServiceTagPreference)
+            end
+          end
+          
+          function envoy_on_response(handle)
+          end
+        """.trimIndent()
+
+        private val config = baseConfig.modify {
+            listeners {
+                egress {
+                    //language=yaml
+                    http.at("/http_filters/0").before setYaml """
+                        name: lua
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+                    """.trimIndent()
+
+                    http.at("/http_filters/0/typed_config/inline_code") set luaScript
+                }
+            }
+        }
+
+        @JvmField
+        @RegisterExtension
+        val envoy = staticEnvoyExtension(config = config, localService = echoService)
+            .apply { container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "lvte7|vte8|global") }
+    }
+
+    @Test
+    fun `set header from environment in lua script`() {
+
+        // when
+        val response = envoy.egressOperations.callService("echo").asHttpsEchoResponse()
+
+        // then
+        assertThat(response.requestHeaders).containsEntry("x-service-tag-preference-from-lua", "lvte7|vte8|global")
+    }
+
+    @Test
+    fun `should not override header from request`() {
+        // when
+        val response = envoy.egressOperations.callService(
+            service = "echo",
+            headers = mapOf("x-service-tag-preference-from-lua" to "override-in-request")
+        ).asHttpsEchoResponse()
+
+        // then
+        assertThat(response.requestHeaders).containsEntry(
+            "x-service-tag-preference-from-lua", "override-in-request"
+        )
     }
 }
 
@@ -451,7 +516,7 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
         private val node: YamlObjectNode
     ) : Modification, YamlNode by node {
 
-        constructor() : this(node = YamlObjectNode(config))
+        constructor() : this(node = YamlObjectNode(node = config, abs = Abs.root))
 
         fun (YamlNode).materializeArray(): YamlArrayNode = when (val n = this) {
             is YamlArrayNode -> n
@@ -477,16 +542,19 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
             private inner class Listener(node: YamlObjectNode) : ConfigYaml.Listener, YamlNode by node {
 
                 constructor(key: String, parentNode: YamlArrayNode) : this(
-                    node = YamlObjectNode(
-                        node = parentNode.node.single { it["name"].asText() == key } as ObjectNode
-                    )
+                    node = kotlin.run {
+                        val indexedNode = parentNode.node.withIndex().single { it.value["name"].asText() == key }
+                        parentNode.at("/${indexedNode.index}") as YamlObjectNode
+                    }
                 )
 
                 override val http: YamlNode by lazy {
-                    node.node["filter_chains"].single()["filters"]
-                        .single { it["name"].asText() == "envoy.filters.network.http_connection_manager" }
-                        .get("typed_config")
-                        .let { YamlObjectNode(it as ObjectNode) }
+                    node.at("/filter_chains")
+                        .let { it as YamlArrayNode }
+                        .single().at("/filters")
+                        .let { it as YamlArrayNode }
+                        .single { it.node["name"].asText() == "envoy.filters.network.http_connection_manager" }
+                        .at("/typed_config")
                 }
             }
         }
@@ -495,63 +563,141 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
     @Dsl
     sealed interface YamlNode {
         operator fun plusAssign(mergeYaml: String)
-        infix fun set(yaml: String)
+        infix fun set(scalar: String)
+        infix fun setYaml(yaml: String)
         fun at(path: String): YamlNode
+        val before: YamlNode
+    }
+
+    private class Abs private constructor(private val root: YamlNodeBase?, val path: JsonPointer) {
+        companion object {
+            val root = Abs(root = null, path = JsonPointer.empty())
+        }
+        fun root(node: YamlNodeBase) = root ?: node
+        fun append(node: YamlNodeBase, tail: JsonPointer) = Abs(root = root(node), path = path.append(tail))
+
     }
 
     private abstract class YamlNodeBase : YamlNode {
-        override fun set(yaml: String) = set(S.parse(yaml))
-        abstract fun set(yaml: JsonNode)
+        abstract val abs: Abs
+
+        override fun setYaml(yaml: String) = setYaml(S.parse(yaml))
+        abstract fun setYaml(yaml: JsonNode)
 
         override fun plusAssign(mergeYaml: String) = plusAssign(S.parse(mergeYaml))
         abstract fun plusAssign(mergeYaml: JsonNode)
+        override fun at(path: String): YamlNodeBase = at(JsonPointer.compile(path))
+        abstract fun at(path: JsonPointer): YamlNodeBase
+        abstract fun insertAt(index: Int): YamlNode
+
+        override val before: YamlNode
+            get() {
+                val index = abs.path.last()?.matchingIndex?.takeIf { it >= 0 }
+                if (index == null) {
+                    throw IllegalArgumentException("cannot insert anything before here")
+                }
+                return abs.root(this).at(abs.path.head()).insertAt(index)
+            }
     }
 
-    private abstract class ExistingNode(open val node: JsonNode) : YamlNodeBase() {
-        override fun at(path: String): YamlNode {
-            val pointer = JsonPointer.compile(path)
-            return node.at(pointer).let {
+    private abstract class ExistingNode : YamlNodeBase() {
+        abstract val node: JsonNode
+
+        override fun setYaml(yaml: JsonNode) {
+            node.removeAll { true }
+            plusAssign(yaml)
+        }
+
+        override fun at(path: JsonPointer): YamlNodeBase {
+            return node.at(path).let {
+                val absChild = this.abs.append(this, path)
                 when {
-                    it.isMissingNode -> MissingNode(parentNode = this.node, pointer = pointer)
-                    it is ObjectNode -> YamlObjectNode(node = it)
-                    it is ArrayNode -> YamlArrayNode(node = it)
+                    it.isMissingNode -> MissingNode(parentNode = this, relativePointer = path, abs = absChild)
+                    it is ObjectNode -> YamlObjectNode(node = it, abs = absChild)
+                    it is ArrayNode -> YamlArrayNode(node = it, abs = absChild)
                     else -> throw IllegalArgumentException("Unknown node type $it")
                 }
             }
         }
-        override fun set(yaml: JsonNode) {
-            node.removeAll { true }
-            plusAssign(yaml)
+
+        override fun set(scalar: String) {
+            TODO("Not yet implemented")
         }
     }
 
-    private class YamlObjectNode(override val node: ObjectNode) : ExistingNode(node) {
+    private class YamlObjectNode(override val node: ObjectNode, override val abs: Abs) : ExistingNode() {
 
         override fun plusAssign(mergeYaml: JsonNode) {
             node.setAll<ObjectNode>(mergeYaml as ObjectNode)
         }
-    }
 
-    private class YamlArrayNode(override val node: ArrayNode) : ExistingNode(node) {
-        override fun plusAssign(mergeYaml: JsonNode) {
-            node.addAll(mergeYaml as ArrayNode)
+        override fun insertAt(index: Int): YamlNode {
+            throw UnsupportedOperationException("Cannot insert at - this is an object, not array")
         }
     }
 
-    private class MissingNode(private val parentNode: JsonNode, private val pointer: JsonPointer) : YamlNodeBase() {
+    private class YamlArrayNode(override val node: ArrayNode, override val abs: Abs) :
+        ExistingNode(), Iterable<ExistingNode> {
+
+        override fun plusAssign(mergeYaml: JsonNode) {
+            node.addAll(mergeYaml as ArrayNode)
+        }
+
+        override fun insertAt(index: Int): YamlNode {
+            node.insert(index, node.nullNode())
+            val indexSegment = JsonPointer.compile("/${index}")
+            return MissingNode(
+                parentNode = this,
+                relativePointer = indexSegment,
+                abs = abs.append(this, indexSegment)
+            )
+        }
+
+        override fun iterator(): Iterator<ExistingNode> {
+            return object : Iterator<ExistingNode> {
+                private val iter = node.iterator().withIndex()
+                override fun hasNext(): Boolean = iter.hasNext()
+                override fun next(): ExistingNode =
+                    at(JsonPointer.empty().appendIndex(iter.next().index)) as ExistingNode
+            }
+        }
+    }
+
+    private class MissingNode(
+        private val parentNode: ExistingNode,
+        private val relativePointer: JsonPointer,
+        override val abs: Abs
+    ) : YamlNodeBase() { // (path = parentNode.path.append(relativePointer)) {
+
         private var existingNode: ExistingNode? = null
 
-
-        override fun set(yaml: JsonNode) = materialize(yaml).set(yaml)
+        override fun setYaml(yaml: JsonNode) = materialize(yaml).setYaml(yaml)
         override fun plusAssign(mergeYaml: JsonNode) = materialize(mergeYaml).plusAssign(mergeYaml)
-        override fun at(path: String): MissingNode =
-            MissingNode(parentNode = parentNode, pointer = pointer.append(JsonPointer.compile(path)))
+        override fun at(path: JsonPointer): YamlNodeBase {
+            val absChild = this.abs.append(this, path)
+            return MissingNode(parentNode = parentNode, relativePointer = relativePointer.append(path), abs = absChild)
+        }
+
+        override fun insertAt(index: Int): YamlNode = materializeArray().insertAt(index)
+
+        override fun set(scalar: String) {
+            if (existingNode != null) {
+                throw IllegalArgumentException("cannot set it to string, it's already a node")
+            }
+
+            val head = relativePointer.head()
+                ?: throw IllegalStateException("something wong - it shouldn't have happen")
+            val tail = relativePointer.last()
+
+            parentNode.node.withObject(relativePointer.head())
+                .put(tail.matchingProperty, scalar)
+        }
 
         fun materializeArray(): YamlArrayNode {
             existingNode?.let {
                 return it as YamlArrayNode
             }
-            return YamlArrayNode(node = parentNode.withArray(pointer))
+            return YamlArrayNode(node = parentNode.node.withArray(relativePointer), abs = abs)
                 .also { existingNode = it }
         }
 
@@ -559,7 +705,7 @@ private class ConfigYaml private constructor(private val config: ObjectNode) {
             existingNode?.let {
                 return it as YamlObjectNode
             }
-            return YamlObjectNode(node = parentNode.withObject(pointer))
+            return YamlObjectNode(node = parentNode.node.withObject(relativePointer), abs = abs)
                 .also { existingNode = it }
         }
 
