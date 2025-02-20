@@ -7,6 +7,7 @@ import com.google.protobuf.util.Durations
 import io.envoyproxy.envoy.config.core.v3.HeaderValue
 import io.envoyproxy.envoy.config.core.v3.HeaderValueOption
 import io.envoyproxy.envoy.config.core.v3.Metadata
+import io.envoyproxy.envoy.config.core.v3.RoutingPriority
 import io.envoyproxy.envoy.config.route.v3.HeaderMatcher
 import io.envoyproxy.envoy.config.route.v3.RateLimit
 import io.envoyproxy.envoy.config.route.v3.RetryPolicy
@@ -49,6 +50,7 @@ class EnvoyIngressRoutesFactory(
         idleTimeout: Duration?,
         clusterName: String = "local_service",
         serviceName: String = "",
+        priority: RoutingPriority = RoutingPriority.DEFAULT,
         rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList()
     ): RouteAction.Builder {
         val timeoutResponse = responseTimeout ?: Durations.fromMillis(
@@ -59,6 +61,7 @@ class EnvoyIngressRoutesFactory(
             .setCluster(clusterName)
             .setTimeout(timeoutResponse)
             .setIdleTimeout(timeoutIdle)
+            .setPriority(priority)
             .addIngressRateLimits(serviceName, rateLimitEndpoints)
     }
 
@@ -73,19 +76,25 @@ class EnvoyIngressRoutesFactory(
                 .addHeaders(createHeaderMatcher(endpoint.pathMatchingType, endpoint.path))
 
             if (endpoint.methods.isNotEmpty()) {
-                match.addHeaders(HeaderMatcher.newBuilder()
-                    .setRe2Match(endpoint.methods.joinToString(
-                        separator = "|",
-                        transform = { "^$it\$" }))
-                    .setName(":method")
+                match.addHeaders(
+                    HeaderMatcher.newBuilder()
+                        .setRe2Match(
+                            endpoint.methods.joinToString(
+                                separator = "|",
+                                transform = { "^$it\$" })
+                        )
+                        .setName(":method")
                 )
             }
             if (endpoint.clients.isNotEmpty() && endpoint.clients != allClients) {
-                match.addHeaders(HeaderMatcher.newBuilder()
-                    .setRe2Match(endpoint.clients.joinToString(
-                        separator = "|",
-                        transform = { "^${it.compositeName()}\$" }))
-                    .setName(properties.incomingPermissions.serviceNameHeader)
+                match.addHeaders(
+                    HeaderMatcher.newBuilder()
+                        .setRe2Match(
+                            endpoint.clients.joinToString(
+                                separator = "|",
+                                transform = { "^${it.compositeName()}\$" })
+                        )
+                        .setName(properties.incomingPermissions.serviceNameHeader)
                 )
             }
             addRateLimits(
@@ -171,11 +180,29 @@ class EnvoyIngressRoutesFactory(
         .map { HttpMethod.valueOf(it.key) to retryPolicy(it.value) }
         .toMap()
 
-    private fun ingressRoutes(localRouteAction: RouteAction.Builder, group: Group): List<Route> {
+    private fun ingressRoutes(proxySettings: ProxySettings, group: Group): List<Route> {
+        return ingressRoute(proxySettings, group, RoutingPriority.HIGH, "/status/") +
+            ingressRoute(proxySettings, group, RoutingPriority.DEFAULT, "/")
+    }
+
+    private fun ingressRoute(
+        proxySettings: ProxySettings,
+        group: Group,
+        priority: RoutingPriority,
+        prefix: String
+    ): List<Route> {
+        val localRouteAction = clusterRouteAction(
+            proxySettings.incoming.timeoutPolicy.responseTimeout,
+            proxySettings.incoming.timeoutPolicy.idleTimeout,
+            priority = priority,
+            serviceName = group.serviceName,
+            rateLimitEndpoints = proxySettings.incoming.rateLimitEndpoints
+        )
+
         val nonRetryRoute = Route.newBuilder()
             .setMatch(
                 RouteMatch.newBuilder()
-                    .setPrefix("/")
+                    .setPrefix(prefix)
             )
             .setRoute(localRouteAction)
         val retryRoutes = perMethodRetryPolicies
@@ -184,7 +211,7 @@ class EnvoyIngressRoutesFactory(
                     .setMatch(
                         RouteMatch.newBuilder()
                             .addHeaders(httpMethodMatcher(method))
-                            .setPrefix("/")
+                            .setPrefix(prefix)
                     )
                     .setRoute(clusterRouteActionWithRetryPolicy(retryPolicy, localRouteAction))
             }
@@ -228,6 +255,7 @@ class EnvoyIngressRoutesFactory(
             true -> {
                 statusClusters + endpoints
             }
+
             false ->
                 emptyList()
         }
@@ -275,16 +303,10 @@ class EnvoyIngressRoutesFactory(
     }
 
     private fun generateSecuredIngressRoutes(proxySettings: ProxySettings, group: Group): List<Route> {
-        val localRouteAction = clusterRouteAction(
-            proxySettings.incoming.timeoutPolicy.responseTimeout,
-            proxySettings.incoming.timeoutPolicy.idleTimeout,
-            serviceName = group.serviceName,
-            rateLimitEndpoints = proxySettings.incoming.rateLimitEndpoints
-        )
 
         val customHealthCheckRoute = customHealthCheckRoute(proxySettings)
 
-        return customHealthCheckRoute + ingressRoutes(localRouteAction, group)
+        return customHealthCheckRoute + ingressRoutes(proxySettings, group)
     }
 
     private fun statusRouteVirtualClusterEnabled() =
