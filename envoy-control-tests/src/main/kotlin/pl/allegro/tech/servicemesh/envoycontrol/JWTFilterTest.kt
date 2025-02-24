@@ -4,7 +4,7 @@ import okhttp3.FormBody
 import okhttp3.Headers.Companion.headersOf
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -93,6 +93,9 @@ class JWTFilterTest {
                   incoming:
                     unlistedEndpointsPolicy: blockAndLog
                     endpoints: 
+                    - path: '/unprotected'
+                      clients: ['echo2']
+                      unlistedClientsPolicy: blockAndLog
                     - path: '/first-provider-protected'
                       clients: ['echo2']
                       unlistedClientsPolicy: blockAndLog
@@ -203,6 +206,56 @@ class JWTFilterTest {
             extension = oauthEnvoy
         )
         envoy.waitForReadyServices("oauth")
+    }
+
+    @Test
+    fun `should allow request without jwt for unprotected endpoint`() {
+
+        // given
+        registerEnvoyServiceAndWait()
+
+        // when
+        val response = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/unprotected"
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
+    }
+
+    @Test
+    fun `should allow request with expired token for unprotected endpoint`() {
+        // given
+        val invalidToken = this::class.java.classLoader
+            .getResource("oauth/invalid_jwks_token")!!.readText()
+        registerEnvoyServiceAndWait()
+
+        // when
+        val response = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/unprotected",
+            headers = mapOf("Authorization" to "Bearer $invalidToken")
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
+    }
+
+    @Test
+    fun `should allow request with malformed token for unprotected endpoint`() {
+        // given
+        registerEnvoyServiceAndWait()
+
+        // when
+        val response = echo2Envoy.egressOperations.callService(
+            service = "echo",
+            pathAndQuery = "/unprotected",
+            headers = mapOf("Authorization" to "Bearer malformed_token")
+        )
+
+        // then
+        assertThat(response).isOk().isFrom(service)
     }
 
     @Test
@@ -545,7 +598,7 @@ class JWTFilterTest {
              "authorities":["$authority"]
         }"""
         return OkHttpClient().newCall(
-            Request.Builder().put(RequestBody.create(MediaType.JSON_MEDIA_TYPE, body))
+            Request.Builder().put(body.toRequestBody(MediaType.JSON_MEDIA_TYPE))
                 .url("http://localhost:${oAuthServer.container().port()}/$provider/client").build()
         )
             .execute().close()
