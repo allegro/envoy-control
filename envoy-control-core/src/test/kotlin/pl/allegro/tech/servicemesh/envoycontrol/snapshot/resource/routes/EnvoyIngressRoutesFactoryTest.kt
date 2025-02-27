@@ -29,7 +29,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeadersToRemove
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasSingleVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ingresStatusRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressServiceRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPrefix
@@ -88,6 +89,7 @@ internal class EnvoyIngressRoutesFactoryTest {
     private val currentZone = "dc1"
 
     @Test
+    @Suppress("LongMethod")
     fun `should create route config with health check and response timeout defined`() {
         // given
         val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
@@ -164,7 +166,22 @@ internal class EnvoyIngressRoutesFactoryTest {
                     },
                     *adminRoutes,
                     {
-                        ingressRoute()
+                        ingresStatusRoute()
+                        matchingOnMethod("GET")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
+                    },
+                    {
+                        ingresStatusRoute()
+                        matchingOnMethod("HEAD")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
+                    },
+                    {
+                        ingresStatusRoute()
+                        matchingOnAnyMethod()
+                        hasNoRetryPolicy()
+                    },
+                    {
+                        ingressServiceRoute()
                         matchingOnMethod("GET")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
                         hasRateLimitsInOrder(
@@ -190,12 +207,12 @@ internal class EnvoyIngressRoutesFactoryTest {
                         )
                     },
                     {
-                        ingressRoute()
+                        ingressServiceRoute()
                         matchingOnMethod("HEAD")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
                     },
                     {
-                        ingressRoute()
+                        ingressServiceRoute()
                         matchingOnAnyMethod()
                         hasNoRetryPolicy()
                     }
