@@ -60,7 +60,7 @@ class RoutingHeadersTest : TestBase(echoService, envoy) {
     }
 
     @Test
-    fun `should return upstream service tags in response if service-tag preference was used`() =
+    fun `should add upstream service tags to a response`() =
         upstreamServiceTagsInResponseTest { echoResponse ->
             // then
             assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEqualTo(listOf("""["ipsum","lorem","one"]"""))
@@ -83,7 +83,7 @@ class UpstreamTagHeadersDisabledTest : TestBase(echoService, envoy) {
     }
 
     @Test
-    fun `should not add upstream service tags in response`() = upstreamServiceTagsInResponseTest { echoResponse ->
+    fun `should not add upstream service tags to a response`() = upstreamServiceTagsInResponseTest { echoResponse ->
         assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEmpty()
     }
 }
