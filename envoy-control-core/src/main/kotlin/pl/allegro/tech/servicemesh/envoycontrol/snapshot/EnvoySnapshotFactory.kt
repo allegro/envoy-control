@@ -321,8 +321,7 @@ class EnvoySnapshotFactory(
                 egressRoutesFactory.createEgressRouteConfig(
                     serviceName = group.serviceName,
                     routes = egressRouteSpecification,
-                    addUpstreamAddressHeader = group.listenersConfig.orDefault().addUpstreamExternalAddressHeader,
-                    addUpstreamServiceTagsHeader = group.listenersConfig.orDefault().addUpstreamServiceTags
+                    addUpstreamAddressHeader = group.listenersConfig.orDefault().addUpstreamExternalAddressHeader
                 )
             )
         }

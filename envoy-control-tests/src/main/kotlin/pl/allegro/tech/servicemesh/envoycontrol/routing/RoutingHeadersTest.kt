@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.routing
 
+import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -13,55 +14,19 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContaine
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
 
-class ServiceTagPreferenceTest {
-
+class RoutingHeadersTest : TestBase(echoService, envoy) {
     companion object {
-        private val properties = mapOf(
-            "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
-            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true
-        )
-
         @JvmField
         @RegisterExtension
-        val consul = ConsulExtension()
-
-        @JvmField
-        @RegisterExtension
-        val envoyControl = EnvoyControlExtension(consul, properties)
+        val envoyControl = EnvoyControlExtension(consul, properties(addUpstreamServiceTagsHeader = true))
 
         @JvmField
         @RegisterExtension
         val echoService = GenericServiceExtension(HttpsEchoContainer())
 
-        // language=yaml
-        private var proxySettings = """
-            node:
-              metadata:
-                proxy_settings:
-                  outgoing:
-                    routingPolicy:
-                      autoServiceTag: true
-                      serviceTagPreference: ["ipsum", "lorem"]
-                      fallbackToAnyInstance: true
-                    dependencies:
-                      - service: "echo" 
-                      - service: "echo-disabled"
-                        routingPolicy:
-                          autoServiceTag: false
-                      - service: "echo-one-tag"  
-                        routingPolicy:
-                          serviceTagPreference: ["one"]
-                      - service: "echo-no-tag"  
-                        routingPolicy:
-                          serviceTagPreference: []
-                      
-        """.trimIndent()
-
         @JvmField
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl, config = RandomConfigFile.copy(configOverride = proxySettings))
-
-        private val allTags = listOf("ipsum", "lorem", "one")
     }
 
     @Test
@@ -95,25 +60,85 @@ class ServiceTagPreferenceTest {
     }
 
     @Test
-    fun `should return upstream service tags in response if service-tag preference was used`() {
+    fun `should add upstream service tags to a response`() =
+        upstreamServiceTagsInResponseTest { echoResponse ->
+            // then
+            assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEqualTo(listOf("""["ipsum","lorem","one"]"""))
+        }
+}
+
+class UpstreamTagHeadersDisabledTest : TestBase(echoService, envoy) {
+    companion object {
+        @JvmField
+        @RegisterExtension
+        val envoyControl = EnvoyControlExtension(consul, properties(addUpstreamServiceTagsHeader = false))
+
+        @JvmField
+        @RegisterExtension
+        val echoService = GenericServiceExtension(HttpsEchoContainer())
+
+        @JvmField
+        @RegisterExtension
+        val envoy = EnvoyExtension(envoyControl, config = RandomConfigFile.copy(configOverride = proxySettings))
+    }
+
+    @Test
+    fun `should not add upstream service tags to a response`() = upstreamServiceTagsInResponseTest { echoResponse ->
+        assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEmpty()
+    }
+}
+
+abstract class TestBase(private val echoService: ServiceExtension<*>, private val envoy: EnvoyExtension) {
+    companion object {
+        fun properties(addUpstreamServiceTagsHeader: Boolean = false) = mapOf(
+            "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.add-upstream-service-tags-header" to addUpstreamServiceTagsHeader
+        )
+
+        // language=yaml
+        val proxySettings = """
+            node:
+              metadata:
+                proxy_settings:
+                  outgoing:
+                    routingPolicy:
+                      autoServiceTag: true
+                      serviceTagPreference: ["ipsum", "lorem"]
+                      fallbackToAnyInstance: true
+                    dependencies:
+                      - service: "echo" 
+                      - service: "echo-disabled"
+                        routingPolicy:
+                          autoServiceTag: false
+                      - service: "echo-one-tag"  
+                        routingPolicy:
+                          serviceTagPreference: ["one"]
+                      - service: "echo-no-tag"  
+                        routingPolicy:
+                          serviceTagPreference: []
+        """.trimIndent()
+
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension()
+
+        val allTags = listOf("ipsum", "lorem", "one")
+    }
+
+    protected fun upstreamServiceTagsInResponseTest(assertions: (echoResponse: Response) -> Unit) {
         // given
-        listOf("echo", "echo-disabled").forEach { service ->
-            consul.server.operations.registerService(name = service, extension = echoService, tags = allTags)
-        }
-        listOf("echo", "echo-disabled").forEach { service ->
-            waitForEndpointReady(service, echoService, envoy)
-        }
+        consul.server.operations.registerService(name = "echo", extension = echoService, tags = allTags)
+        waitForEndpointReady("echo", echoService, envoy)
 
         // when
         val echoResponse = envoy.egressOperations.callService("echo")
-        val echoDisabledResponse = envoy.egressOperations.callService("echo-disabled")
 
         // then
-        assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEqualTo(listOf("""["ipsum","lorem","one"]"""))
-        assertThat(echoDisabledResponse.headers("x-envoy-upstream-service-tags")).isEmpty()
+        assertions(echoResponse)
     }
 
-    private fun waitForEndpointReady(
+    protected fun waitForEndpointReady(
         serviceName: String,
         serviceInstance: ServiceExtension<*>,
         envoy: EnvoyExtension
