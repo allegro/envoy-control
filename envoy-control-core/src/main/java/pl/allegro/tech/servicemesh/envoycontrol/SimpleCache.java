@@ -7,7 +7,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Message;
 import io.envoyproxy.controlplane.cache.*;
-import io.envoyproxy.controlplane.cache.GroupCacheStatusInfo;
 import io.envoyproxy.envoy.config.endpoint.v3.ClusterLoadAssignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,15 +19,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.envoyproxy.controlplane.cache.Resources.RESOURCE_TYPES_IN_ORDER;
@@ -206,11 +203,18 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 requesterVersion,
                 isWildcard,
                 responseConsumer);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Created delta watch for resource type: {}, Node cluster: {}, Requested version: {}," +
+                        " Initial resource versions: {}, Pending resources: {}, tracked resources: {}",
+                    requestResourceType,
+                    request.v3Request().getNode().getCluster(), requesterVersion, request.v3Request().getInitialResourceVersionsMap(),
+                    pendingResources,
+                    watch.trackedResources());
+            }
 
             // If no snapshot, leave an open watch.
-
             if (snapshot == null) {
-                openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
+                openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
                 return watch;
             }
 
@@ -240,7 +244,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                     }
                 }
 
-                openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
+                openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
 
                 return watch;
             }
@@ -252,7 +256,7 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 return watch;
             }
 
-            openWatch(status, watch, request.getTypeUrl(),  watch.trackedResources().keySet(), group, requesterVersion);
+            openWatch(status, watch, request.getTypeUrl(), watch.trackedResources().keySet(), group, requesterVersion);
 
             return watch;
         } finally {
@@ -499,12 +503,6 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
         }
 
         String version = snapshot.version(watch.request().getResourceType(), watch.request().getResourceNamesList());
-
-        LOGGER.debug("responding for {} from node {} at version {} with version {}",
-                watch.request().getTypeUrl(),
-                group,
-                watch.request().getVersionInfo(),
-                version);
         Response response;
         if (!snapshotForMissingResources.isEmpty()) {
             snapshotForMissingResources.putAll(snapshotResources);
@@ -536,14 +534,17 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
 
     private List<String> findRemovedResources(DeltaWatch watch, Map<String, VersionedResource<?>> snapshotResources) {
         // remove resources for which client has a tracked version but do not exist in snapshot
-        return watch.trackedResources().keySet()
-            .stream()
+        return Stream.concat(
+            watch.trackedResources().keySet().stream(),
+            watch.request().getInitialResourceVersionsMap().keySet().stream()
+        ).distinct()
             .filter(s -> !snapshotResources.containsKey(s))
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private Map<String, VersionedResource<?>> findChangedResources(DeltaWatch watch,
                                                                    Map<String, VersionedResource<?>> snapshotResources) {
+        boolean hasInitialResourceVersions = !watch.request().getInitialResourceVersionsMap().isEmpty();
         return snapshotResources.entrySet()
             .stream()
             .filter(entry -> {
@@ -553,11 +554,19 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
                 String resourceVersion = watch.trackedResources().get(entry.getKey());
                 if (resourceVersion == null) {
                     // resource is not tracked, should respond it only if watch is wildcard
-                    return watch.isWildcard();
+                    // or if initialResourceVersions is present and resource isn't known to a client
+                    return (watch.isWildcard() || hasInitialResourceVersions) && !isResourceKnownToClient(watch, entry);
                 }
                 return !entry.getValue().version().equals(resourceVersion);
             })
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private boolean isResourceKnownToClient(DeltaWatch watch, Map.Entry<String, VersionedResource<?>> entry) {
+        String emptyVersion = "";
+        String resourceVersion = entry.getValue().version();
+        return watch.request().getInitialResourceVersionsMap().getOrDefault(entry.getKey(), emptyVersion)
+            .equals(resourceVersion) && !resourceVersion.equals(emptyVersion);
     }
 
     private ResponseState respondDelta(DeltaXdsRequest request, DeltaWatch watch, U snapshot, String version, T group) {
@@ -586,6 +595,14 @@ public class SimpleCache<T, U extends Snapshot> implements SnapshotCache<T, U> {
             resources,
             removedResources,
             version);
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Delta response for resource type: {}, resources: {}",
+                watch.request().getResourceType(),
+                resources.entrySet().stream()
+                    .map(entry -> entry.getKey() + " " + entry.getValue().version())
+                    .toList());
+        }
 
         try {
             watch.respond(response);
