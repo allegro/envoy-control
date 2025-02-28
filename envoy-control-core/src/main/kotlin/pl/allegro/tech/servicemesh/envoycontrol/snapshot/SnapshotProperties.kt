@@ -278,6 +278,7 @@ class ServiceTagsProperties {
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
     var autoServiceTagEnabled = false
     var rejectRequestsWithDuplicatedAutoServiceTag = true
+    var addUpstreamServiceTagsHeader: Boolean = false
 
     fun isAutoServiceTagEffectivelyEnabled() = enabled && autoServiceTagEnabled
 }

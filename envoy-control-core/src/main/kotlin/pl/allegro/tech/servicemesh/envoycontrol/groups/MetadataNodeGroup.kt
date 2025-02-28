@@ -5,7 +5,6 @@ import com.google.protobuf.Value
 import io.envoyproxy.controlplane.cache.NodeGroup
 import io.envoyproxy.envoy.config.core.v3.BuildVersion
 import io.envoyproxy.envoy.type.v3.SemanticVersion
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ListenersConfig.AddUpstreamServiceTagsCondition
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
@@ -125,11 +124,6 @@ class MetadataNodeGroup(
             logger.warn("Node $id has access log enabled without filters configurations.")
         }
 
-        val addUpstreamServiceTags = mapAddUpstreamServiceTags(
-            addUpstreamServiceTagsFlag = metadata.fieldsMap["add_upstream_service_tags"]?.boolValue,
-            envoyVersion = envoyVersion
-        )
-
         val hasStaticSecretsDefined = metadata.fieldsMap["has_static_secrets_defined"]?.boolValue
             ?: ListenersConfig.defaultHasStaticSecretsDefined
         val useTransparentProxy = metadata.fieldsMap["use_transparent_proxy"]?.boolValue
@@ -149,26 +143,11 @@ class MetadataNodeGroup(
             enableLuaScript,
             accessLogPath,
             addUpstreamExternalAddressHeader,
-            addUpstreamServiceTags,
             addJwtFailureStatus,
             accessLogFilterSettings,
             hasStaticSecretsDefined,
             useTransparentProxy
         )
-    }
-
-    private fun mapAddUpstreamServiceTags(
-        addUpstreamServiceTagsFlag: Boolean?,
-        envoyVersion: BuildVersion
-    ): AddUpstreamServiceTagsCondition {
-        if (envoyVersion.version < MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA) {
-            return AddUpstreamServiceTagsCondition.NEVER
-        }
-        return when (addUpstreamServiceTagsFlag) {
-            true -> AddUpstreamServiceTagsCondition.ALWAYS
-            false -> AddUpstreamServiceTagsCondition.NEVER
-            null -> ListenersConfig.defaultAddUpstreamServiceTagsIfSupported
-        }
     }
 
     private fun createV3Group(node: NodeV3): Group {

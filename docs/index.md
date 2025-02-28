@@ -16,9 +16,9 @@ Data Plane that is platform agnostic.
 * [Local reply modification](features/local_reply_mapper.md)
 
 ## Why another Control Plane?
-Our use case for Service Mesh is running 800 microservices on [Mesos](https://mesos.apache.org/) / [Marathon](https://mesosphere.github.io/marathon/) stack.
-Some of these services are run on Virtual Machines using the [OpenStack](https://www.openstack.org/) platform.
-Most current solutions on the market assume that the platform is [Kubernetes](https://kubernetes.io/).
+In the past, our use case for Service Mesh was running 800 microservices on [Mesos](https://mesos.apache.org/) / Marathon stack.
+Some of these services were run on Virtual Machines using the [OpenStack](https://www.openstack.org/) platform.
+Most solutions on the market at that time assumed that the platform is [Kubernetes](https://kubernetes.io/).
 After evaluating current solutions on the market we decided to build our own Control Plane.
 [See comparision](ec_vs_other_software.md) with other popular alternatives.
 
