@@ -4,9 +4,7 @@ Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [0.22.11]
 ### Changed
-- changes for `x-envoy-upstream-service-tags` response header:
-  - add configuration property to enable it for all envoys
-  - remove support for enabling it per envoy
+- bump control plane version to 1.0.48 to support envoy 1.33.0 version
 
 ## [0.22.10]
 ### Changed
