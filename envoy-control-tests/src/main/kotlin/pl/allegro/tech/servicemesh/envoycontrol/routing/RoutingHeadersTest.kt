@@ -60,6 +60,12 @@ class RoutingHeadersTest : TestBase(echoService, envoy) {
     }
 
     @Test
+    fun `should not override service-tag preference header already set in the request`() {
+        // TODO(implement)
+        throw NotImplementedError("Service tag preference header already set")
+    }
+
+    @Test
     fun `should add upstream service tags to a response`() =
         upstreamServiceTagsInResponseTest { echoResponse ->
             // then
