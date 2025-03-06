@@ -234,8 +234,14 @@ fun Route.hasRetryPolicy() {
     assertThat(this.route.hasRetryPolicy()).isTrue()
 }
 
-fun Route.ingressRoute() {
+fun Route.ingressServiceRoute() {
     this.matchingOnPrefix("/")
+        .publicAccess()
+        .toCluster("local_service")
+}
+
+fun Route.ingresStatusRoute() {
+    this.matchingOnPrefix("/status/")
         .publicAccess()
         .toCluster("local_service")
 }
