@@ -19,6 +19,8 @@ import org.assertj.core.api.StringAssert
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.extension.AfterAllCallback
+import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExecutableInvoker
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -884,4 +886,77 @@ val contextMock = object : ExtensionContext {
     override fun getExecutableInvoker(): ExecutableInvoker {
         TODO("Not yet implemented")
     }
+}
+
+
+
+
+
+
+
+class DebugExtensionsTest() {
+    companion object {
+        @JvmField
+        @RegisterExtension
+        val extension = DebugExtension("main")
+    }
+
+    @Nested
+    inner class NestedTest : NestedTestB()
+    open class NestedTestB {
+
+        companion object {
+            @JvmField
+            @RegisterExtension
+            val subextension = DebugExtension("sub")
+        }
+
+        @Test
+        fun `unfortunately extension's beforeAll is called twice instead of once`() {
+            println(extension.report())
+            assertThat(extension.beforeAllCalled).isEqualTo(2)
+            assertThat(extension.beforeAllCalledGuarded).isEqualTo(1)
+
+            println(subextension.report())
+            assertThat(subextension.beforeAllCalled).isEqualTo(1)
+            assertThat(subextension.beforeAllCalledGuarded).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `when running only this test extension's beforeAll is called once`() {
+        println(extension.report())
+        assertThat(extension.beforeAllCalled).isEqualTo(1)
+        assertThat(extension.beforeAllCalledGuarded).isEqualTo(1)
+    }
+}
+
+class DebugExtension(val name: String) : BeforeAllCallback, AfterAllCallback {
+    var beforeAllCalled = 0
+    var beforeAllCalledGuarded = 0
+    var afterAllCalled = 0
+
+    var contextId: String? = null
+    var terminated = false
+
+    override fun beforeAll(p0: ExtensionContext?) {
+        beforeAllCalled++
+        if (contextId != null) {
+            return
+        }
+        contextId = p0?.uniqueId
+        beforeAllCalledGuarded++
+    }
+
+    override fun afterAll(p0: ExtensionContext?) {
+        afterAllCalled++
+        if (terminated) {
+            throw IllegalStateException("CALLED AFTER TERMINATED!")
+        }
+        if (p0?.uniqueId == contextId) {
+            terminated = true
+        }
+    }
+
+    fun report(): String = "DebugExtension[$name] called: [beforeAll: $beforeAllCalled, afterAll: $afterAllCalled]"
 }
