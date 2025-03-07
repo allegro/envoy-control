@@ -181,15 +181,22 @@ class EnvoyIngressRoutesFactory(
         .toMap()
 
     private fun ingressRoutes(proxySettings: ProxySettings, group: Group): List<Route> {
-        return ingressRoute(proxySettings, group, RoutingPriority.HIGH, "/status/") +
-            ingressRoute(proxySettings, group, RoutingPriority.DEFAULT, "/")
+        val defaultRoute = ingressRoute(proxySettings, group, RoutingPriority.DEFAULT, PathMatchingType.PATH_PREFIX,"/")
+        if (properties.routes.status.separatedRouteWhiteList.enabledFor(group.serviceName)) {
+            val statusRoutes = statusEndpointsMatch.flatMap {
+                ingressRoute(proxySettings, group, RoutingPriority.HIGH, it.matchingType, it.path)
+            }
+            return statusRoutes + defaultRoute
+        }
+        return defaultRoute
     }
 
     private fun ingressRoute(
         proxySettings: ProxySettings,
         group: Group,
         priority: RoutingPriority,
-        prefix: String
+        matchingType: PathMatchingType,
+        path: String
     ): List<Route> {
         val localRouteAction = clusterRouteAction(
             proxySettings.incoming.timeoutPolicy.responseTimeout,
@@ -201,17 +208,15 @@ class EnvoyIngressRoutesFactory(
 
         val nonRetryRoute = Route.newBuilder()
             .setMatch(
-                RouteMatch.newBuilder()
-                    .setPrefix(prefix)
+                routeMatcher(matchingType, path)
             )
             .setRoute(localRouteAction)
         val retryRoutes = perMethodRetryPolicies
             .map { (method, retryPolicy) ->
                 Route.newBuilder()
                     .setMatch(
-                        RouteMatch.newBuilder()
+                        routeMatcher(matchingType, path)
                             .addHeaders(httpMethodMatcher(method))
-                            .setPrefix(prefix)
                     )
                     .setRoute(clusterRouteActionWithRetryPolicy(retryPolicy, localRouteAction))
             }
@@ -220,6 +225,17 @@ class EnvoyIngressRoutesFactory(
         }
     }
 
+    private fun routeMatcher(
+        matchingType: PathMatchingType,
+        path: String
+    ): RouteMatch.Builder {
+        return when (matchingType) {
+            PathMatchingType.PATH -> RouteMatch.newBuilder().setPath(path)
+            PathMatchingType.PATH_PREFIX -> RouteMatch.newBuilder().setPrefix(path)
+            PathMatchingType.PATH_REGEX -> RouteMatch.newBuilder()
+                .setSafeRegex(RegexMatcher.newBuilder().setRegex(path))
+        }
+    }
     private fun customHealthCheckRoute(proxySettings: ProxySettings): List<Route> {
         if (proxySettings.incoming.healthCheck.hasCustomHealthCheck()) {
             val healthCheckRouteAction = clusterRouteAction(
