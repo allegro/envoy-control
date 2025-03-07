@@ -318,20 +318,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
         }
     }
 
-    protected fun callServiceRepeatedly(
-        service: String,
-        stats: CallStats,
-        minRepeat: Int = 1,
-        maxRepeat: Int = 100,
-        repeatUntil: (ResponseWithBody) -> Boolean = { false },
-        headers: Map<String, String> = mapOf(),
-        pathAndQuery: String = "",
-        assertNoErrors: Boolean = true,
-        fromEnvoy: EnvoyContainer = envoyContainer1
-    ): CallStats = EgressOperations(fromEnvoy).callServiceRepeatedly(
-            service, stats, minRepeat, maxRepeat, repeatUntil, headers, pathAndQuery, assertNoErrors
-    )
-
     private fun waitForEchoServices(instances: Int) {
         untilAsserted {
             assertThat(envoyContainer1.admin().numOfEndpoints(clusterName = "echo")).isEqualTo(instances)

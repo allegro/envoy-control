@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
+import org.assertj.core.api.Assertions.assertThat
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
 class CallStats(private val serviceExtensions: List<EchoServiceExtension>) {
@@ -15,7 +16,8 @@ class CallStats(private val serviceExtensions: List<EchoServiceExtension>) {
         serviceExtensions
             .map { it.container() }
             .firstOrNull { response.isFrom(it) }
-            ?.let { containerHits.compute(it.containerId) { _, i -> i?.inc() } }
+            .let { it ?: throw AssertionError("response from unknown instance") }
+            .let { containerHits.compute(it.containerId) { _, i -> i?.inc() } }
         if (!response.isOk()) failedHits++
         totalHits++
     }
