@@ -3,7 +3,7 @@ function parseServiceTagPreferenceToFallbackList(preferenceString)
     local fallbackList = {}
     local i = 1
     for tag in string.gmatch(preferenceString, "[^|]+") do
-        fallbackList["%SERVICE_TAG_METADATA_KEY%"] = tag
+        fallbackList[i] = {["%SERVICE_TAG_METADATA_KEY%"] =  tag}
         i = i + 1
     end
     return fallbackList
@@ -17,7 +17,7 @@ function envoy_on_request(handle)
     -- TODO: test overriding
 
     if serviceTag and serviceTag ~= "" then
-        local dynMetadata = request_handle:streamInfo():dynamicMetadata()
+        local dynMetadata = handle:streamInfo():dynamicMetadata()
         dynMetadata:set("envoy.lb", "%SERVICE_TAG_METADATA_KEY%", serviceTag)
         return
     end
@@ -29,7 +29,7 @@ function envoy_on_request(handle)
     end
 
     if next(fallbackList) ~= nil then
-        local dynMetadata = request_handle:streamInfo():dynamicMetadata()
+        local dynMetadata = handle:streamInfo():dynamicMetadata()
         dynMetadata:set("envoy.lb", "fallback_list", fallbackList)
     end
 

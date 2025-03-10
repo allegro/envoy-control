@@ -291,6 +291,7 @@ class ServiceTagPreferenceProperties {
     var defaultPreferenceFallback = "global"
 
     fun isEnabledFor(service: String) = enableForAll || enableForServices.contains(service)
+    fun isEnabledForSome() = enableForAll || enableForServices.isNotEmpty()
 }
 
 class StringMatcher {
