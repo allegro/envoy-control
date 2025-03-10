@@ -14,8 +14,6 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
     companion object {
         // TODO: [service-tag]: remove
         const val AUTO_SERVICE_TAG_PREFERENCE_METADATA = "auto_service_tag_preference"
-        const val SERVICE_TAG_METADATA_KEY_METADATA = "service_tag_metadata_key"
-        const val REJECT_REQUEST_SERVICE_TAG_DUPLICATE = "reject_request_service_tag_duplicate"
 
         private val placeholderFormat = "%([0-9a-z_]+)%".toRegex(RegexOption.IGNORE_CASE)
         private val replacementFormat = "[a-z0-9_-]+".toRegex(RegexOption.IGNORE_CASE)
@@ -33,21 +31,6 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
         { _, _ -> luaEgressAutoServiceTagsFilter }
     )
 
-    private fun luaEgressServiceTagPreferenceFilter(group: Group): HttpFilter? =
-        when (properties.preferenceRouting.isEnabledFor(group.serviceName)) {
-            true -> luaEgressServiceTagPreferenceFilter
-            false -> null
-        }
-
-    val luaEgressAutoServiceTagsFilter: HttpFilter? = properties.isAutoServiceTagEffectivelyEnabled()
-        .takeIf { it }
-        ?.let {
-            createLuaFilter(
-                luaFile = "lua/egress_auto_service_tags.lua",
-                filterName = "envoy.lua.auto_service_tags"
-            )
-        }
-
     private val headerToMetadataFilterRulePreferenceDisabled = Config.Rule.newBuilder()
         .setHeader(properties.header)
         .setRemove(false)
@@ -59,6 +42,28 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
                 .build()
         )
         .build()
+
+    private fun luaEgressServiceTagPreferenceFilter(group: Group): HttpFilter? =
+        when (properties.preferenceRouting.isEnabledFor(group.serviceName)) {
+            true -> luaEgressServiceTagPreferenceFilter
+            false -> null
+        }
+
+    private val luaEgressAutoServiceTagsFilter: HttpFilter? = run {
+        val autoServiceTagEnabled = properties.isAutoServiceTagEffectivelyEnabled()
+        val rejectRequests = properties.rejectRequestsWithDuplicatedAutoServiceTag
+        if (autoServiceTagEnabled && rejectRequests) {
+            createLuaFilter(
+                luaFile = "lua/egress_auto_service_tags.lua",
+                filterName = "envoy.lua.auto_service_tags",
+                variables = mapOf(
+                    "SERVICE_TAG_METADATA_KEY" to properties.metadataKey,
+                )
+            )
+        } else {
+            null
+        }
+    }
 
     private val luaEgressServiceTagPreferenceFilter = createLuaFilter(
         luaFile = "lua/egress_service_tag_preference.lua",
@@ -83,7 +88,7 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
             val key = match.groupValues[1]
             val replacement = variables[key]
                 ?: throw IllegalArgumentException("Missing replacement for placeholder: $key")
-            require(replacement.matches(replacementFormat)) { "invalid replacement format: $replacement" }
+            require(replacement.matches(replacementFormat)) { "invalid replacement format: '$replacement'" }
             replacement
         }
 
