@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [0.22.11]
 ### Changed
-- white list for enabling separated routes for status endpoints
+- whitelist for enabling separated routes for status endpoints
     
 ## [0.22.10]
 ### Changed

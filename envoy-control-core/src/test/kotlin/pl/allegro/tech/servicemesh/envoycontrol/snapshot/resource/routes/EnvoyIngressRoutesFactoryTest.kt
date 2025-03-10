@@ -29,8 +29,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeadersToRemove
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasSingleVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ingresStatusRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressServiceRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressStatusRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPrefix
@@ -175,17 +175,17 @@ internal class EnvoyIngressRoutesFactoryTest {
                     },
                     *adminRoutes,
                     {
-                        ingresStatusRoute()
+                        ingressStatusRoute()
                         matchingOnMethod("GET")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
                     },
                     {
-                        ingresStatusRoute()
+                        ingressStatusRoute()
                         matchingOnMethod("HEAD")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
                     },
                     {
-                        ingresStatusRoute()
+                        ingressStatusRoute()
                         matchingOnAnyMethod()
                         hasNoRetryPolicy()
                     },
@@ -233,7 +233,7 @@ internal class EnvoyIngressRoutesFactoryTest {
 
     @Test
     @Suppress("LongMethod")
-    fun `should create not create routes for status endpoints if the service is not whitelisted`() {
+    fun `should not create routes for status endpoints if the service is not whitelisted`() {
         // given
         val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
             routes.status.apply {
@@ -300,7 +300,7 @@ internal class EnvoyIngressRoutesFactoryTest {
 
     @Test
     @Suppress("LongMethod")
-    fun `should create create routes for status endpoints when whitelist contains wildcard`() {
+    fun `should create routes for status endpoints when whitelist contains wildcard`() {
         // given
         val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
             routes.status.apply {
@@ -346,17 +346,17 @@ internal class EnvoyIngressRoutesFactoryTest {
                 hasOnlyRoutesInOrder(
                     *adminRoutes,
                     {
-                        ingresStatusRoute()
+                        ingressStatusRoute()
                         matchingOnMethod("GET")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
                     },
                     {
-                        ingresStatusRoute()
+                        ingressStatusRoute()
                         matchingOnMethod("HEAD")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
                     },
                     {
-                        ingresStatusRoute()
+                        ingressStatusRoute()
                         matchingOnAnyMethod()
                         hasNoRetryPolicy()
                     },
