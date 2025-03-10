@@ -7,6 +7,7 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.HttpFilterFactory
 
 class EnvoyDefaultFilters(
     private val snapshotProperties: SnapshotProperties,
@@ -30,15 +31,8 @@ class EnvoyDefaultFilters(
 
     private val compressionFilterFactory = CompressionFilterFactory(snapshotProperties)
 
-    private val defaultServiceTagHeaderToMetadataFilterRules = serviceTagFilterFactory.headerToMetadataFilterRules()
-    private val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagHeaderToMetadataFilterRules)
-    private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
-    private val defaultHeaderToMetadataFilter = { _: Group, _: GlobalSnapshot -> headerToMetadataHttpFilter }
-    private val defaultAutoServiceTagFilter = { _: Group, _: GlobalSnapshot ->
-        if (snapshotProperties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
-            serviceTagFilterFactory.luaEgressAutoServiceTagsFilter()
-        } else null
-    }
+    private val defaultHeaderToMetadataFilter = { group: Group, _: GlobalSnapshot -> headerToMetadataEgressHttpFilter(group) }
+    private val defaultServiceTagFilters = serviceTagFilterFactory.egressFilters()
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
 
     /**
@@ -77,9 +71,9 @@ class EnvoyDefaultFilters(
         compressionFilterFactory.brotliCompressionFilter(group)
     }
 
-    val defaultEgressFilters = listOf(
+    val defaultEgressFilters: List<HttpFilterFactory> = listOf(
         defaultHeaderToMetadataFilter,
-        defaultAutoServiceTagFilter,
+        *defaultServiceTagFilters,
         defaultGzipCompressionFilter,
         defaultBrotliCompressionFilter,
         defaultEnvoyRouterHttpFilter,
@@ -139,31 +133,17 @@ class EnvoyDefaultFilters(
         luaFilterFactory.ingressScriptsMetadata(group, customLuaMetadata, currentZone)
     }
 
-    private fun headerToMetadataConfig(
-        rules: List<Config.Rule>,
-        key: String = snapshotProperties.loadBalancing.canary.metadataKey
-    ): Config.Builder {
-        val headerToMetadataConfig = Config.newBuilder()
-            .addRequestRules(
-                Config.Rule.newBuilder()
-                    .setHeader("x-canary")
-                    .setRemove(false)
-                    .setOnHeaderPresent(
-                        Config.KeyValuePair.newBuilder()
-                            .setKey(key)
-                            .setMetadataNamespace("envoy.lb")
-                            .setType(Config.ValueType.STRING)
-                            .build()
-                    )
-                    .build()
-            )
-
-        rules.forEach {
-            headerToMetadataConfig.addRequestRules(it)
-        }
-
-        return headerToMetadataConfig
-    }
+    private val canaryHeaderToMetadataRule = Config.Rule.newBuilder()
+        .setHeader("x-canary")
+        .setRemove(false)
+        .setOnHeaderPresent(
+            Config.KeyValuePair.newBuilder()
+                .setKey(snapshotProperties.loadBalancing.canary.metadataKey)
+                .setMetadataNamespace("envoy.lb")
+                .setType(Config.ValueType.STRING)
+                .build()
+        )
+        .build()
 
     private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter
         .newBuilder()
@@ -176,14 +156,18 @@ class EnvoyDefaultFilters(
         )
         .build()
 
-    private fun headerToMetadataHttpFilter(headerToMetadataConfig: Config.Builder): HttpFilter {
+    private fun headerToMetadataEgressHttpFilter(group: Group): HttpFilter {
+        val headerToMetadataConfig = Config.newBuilder()
+            .addRequestRules(canaryHeaderToMetadataRule)
+
+        serviceTagFilterFactory.headerToMetadataFilterRule(group)?.also {
+            headerToMetadataConfig.addRequestRules(it)
+        }
+
+        val config = headerToMetadataConfig.build()
         return HttpFilter.newBuilder()
             .setName("envoy.filters.http.header_to_metadata")
-            .setTypedConfig(
-                Any.pack(
-                    headerToMetadataConfig.build()
-                )
-            )
+            .setTypedConfig(Any.pack(config))
             .build()
     }
 

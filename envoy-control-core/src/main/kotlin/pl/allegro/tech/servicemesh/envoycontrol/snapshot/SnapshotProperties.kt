@@ -273,10 +273,7 @@ class ServiceTagsProperties {
     var enabled = false
     var metadataKey = "tag"
     var header = "x-service-tag"
-    var preferenceHeader = "x-service-tag-preference"
-    var preferenceRoutingEnabled = false
-    var preferenceDefaultEnv = "DEFAULT_SERVICE_TAG_PREFERENCE"
-    var preferenceDefaultFallback = "global"
+    var preferenceRouting = ServiceTagPreferenceProperties()
     var routingExcludedTags: MutableList<StringMatcher> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
     var autoServiceTagEnabled = false
@@ -284,6 +281,16 @@ class ServiceTagsProperties {
     var addUpstreamServiceTagsHeader: Boolean = false
 
     fun isAutoServiceTagEffectivelyEnabled() = enabled && autoServiceTagEnabled
+}
+
+class ServiceTagPreferenceProperties {
+    var enableForAll = false
+    var enableForServices: List<String> = emptyList()
+    var header = "x-service-tag-preference"
+    var defaultPreferenceEnv = "DEFAULT_SERVICE_TAG_PREFERENCE"
+    var defaultPreferenceFallback = "global"
+
+    fun isEnabledFor(service: String) = enableForAll || enableForServices.contains(service)
 }
 
 class StringMatcher {

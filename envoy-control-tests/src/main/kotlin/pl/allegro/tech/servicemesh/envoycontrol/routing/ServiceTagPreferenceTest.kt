@@ -103,6 +103,17 @@ class ServiceTagPreferenceTest {
         throw NotImplementedError()
     }
 
+    /**
+     * TODO:
+     *   * add and pass default x-service-tag-preference header upstream
+     *   * pass request x-service-tag-preference upstream
+     *   * service whitelist test
+     *   * disabled test
+     *   * x-service-tag header based routing works without changes when preference routing is enabled
+     *   * everything works with autoServiceTag enabled
+     *
+     */
+
     private val repeat = 10
 
     private fun EnvoyExtension.callServiceRepeatedly(service: String): CallStats =

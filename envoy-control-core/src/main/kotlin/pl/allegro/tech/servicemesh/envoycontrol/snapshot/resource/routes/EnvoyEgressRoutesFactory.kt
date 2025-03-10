@@ -183,10 +183,12 @@ class EnvoyEgressRoutesFactory(
                 HeaderValueOption.newBuilder()
                     .setHeader(
                         HeaderValue.newBuilder()
-                            .setKey(properties.routing.serviceTags.preferenceHeader)
+                            .setKey(properties.routing.serviceTags.preferenceRouting.header)
                             .setValue(tagsPreferenceJoined)
                     )
-                    .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
+                    // Pass request service tag preference if exists, to make it compatible with preference routing.
+                    // TODO[PROM-6055]: Ultimately, autoServiceTag feature should be removed
+                    .setAppendAction(HeaderValueOption.HeaderAppendAction.ADD_IF_ABSENT)
                     .setKeepEmptyValue(false)
             )
         }
