@@ -34,7 +34,11 @@ class EnvoyDefaultFilters(
     private val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagHeaderToMetadataFilterRules)
     private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
     private val defaultHeaderToMetadataFilter = { _: Group, _: GlobalSnapshot -> headerToMetadataHttpFilter }
-    private val defaultServiceTagFilter = { _: Group, _: GlobalSnapshot -> serviceTagFilterFactory.luaEgressFilter() }
+    private val defaultAutoServiceTagFilter = { _: Group, _: GlobalSnapshot ->
+        if (snapshotProperties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
+            serviceTagFilterFactory.luaEgressAutoServiceTagsFilter()
+        } else null
+    }
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
 
     /**
@@ -75,7 +79,7 @@ class EnvoyDefaultFilters(
 
     val defaultEgressFilters = listOf(
         defaultHeaderToMetadataFilter,
-        defaultServiceTagFilter,
+        defaultAutoServiceTagFilter,
         defaultGzipCompressionFilter,
         defaultBrotliCompressionFilter,
         defaultEnvoyRouterHttpFilter,

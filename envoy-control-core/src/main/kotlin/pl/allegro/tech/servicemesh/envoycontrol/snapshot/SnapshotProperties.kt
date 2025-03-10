@@ -274,6 +274,9 @@ class ServiceTagsProperties {
     var metadataKey = "tag"
     var header = "x-service-tag"
     var preferenceHeader = "x-service-tag-preference"
+    var preferenceRoutingEnabled = false
+    var preferenceDefaultEnv = "DEFAULT_SERVICE_TAG_PREFERENCE"
+    var preferenceDefaultFallback = "global"
     var routingExcludedTags: MutableList<StringMatcher> = mutableListOf()
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
     var autoServiceTagEnabled = false

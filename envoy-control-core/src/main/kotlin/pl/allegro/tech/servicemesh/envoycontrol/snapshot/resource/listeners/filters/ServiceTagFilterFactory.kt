@@ -14,8 +14,8 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
         const val REJECT_REQUEST_SERVICE_TAG_DUPLICATE = "reject_request_service_tag_duplicate"
     }
 
-    private val luaEgressScript: String = this::class.java.classLoader
-        .getResource("lua/egress_service_tags.lua")!!.readText()
+    private val luaEgressAutoServiceTagsScript: String = this::class.java.classLoader
+        .getResource("lua/egress_auto_service_tags.lua")!!.readText()
 
     fun headerToMetadataFilterRules(): List<Config.Rule> {
         return listOf(
@@ -33,12 +33,12 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
         )
     }
 
-    fun luaEgressFilter(): HttpFilter = HttpFilter.newBuilder()
-        .setName("envoy.lua.servicetags")
+    fun luaEgressAutoServiceTagsFilter(): HttpFilter = HttpFilter.newBuilder()
+        .setName("envoy.lua.autoservicetags")
         .setTypedConfig(
             Any.pack(
                 Lua.newBuilder()
-                    .setInlineCode(luaEgressScript)
+                    .setInlineCode(luaEgressAutoServiceTagsScript)
                     .build()
             )
         ).build()

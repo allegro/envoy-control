@@ -18,6 +18,8 @@ class ServiceTagPreferenceTest {
             "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true,  // TODO: testing with false?
             "envoy-control.envoy.snapshot.routing.service-tags.add-upstream-service-tags-header" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.preference-header" to "x-service-tags-preference",
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-default-env" to "DEFAULT_SERVICE_TAG_PREFERENCE",
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-default-fallback" to "global",
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing-enabled" to true  // TODO: add property
         )
 

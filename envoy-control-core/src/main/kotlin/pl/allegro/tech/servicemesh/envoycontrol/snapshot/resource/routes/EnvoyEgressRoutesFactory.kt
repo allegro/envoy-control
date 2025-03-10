@@ -164,6 +164,7 @@ class EnvoyEgressRoutesFactory(
             )
         }
 
+        // TODO: don't add it if preference routing is enabled? Should be added by lua script
         if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
             addServiceTagHeaders(routeSpecification, virtualHost)
         }
