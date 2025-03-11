@@ -461,7 +461,7 @@ data class ResetHeader(val name: String, val format: String)
 typealias ProviderName = String
 typealias TokenField = String
 
-data class FeatureWhiteList(val services: List<String>) {
+data class FeatureWhiteList(var services: List<String>) {
     fun enabledFor(serviceName: String): Boolean {
         return services.contains("*") || services.contains(serviceName)
     }
