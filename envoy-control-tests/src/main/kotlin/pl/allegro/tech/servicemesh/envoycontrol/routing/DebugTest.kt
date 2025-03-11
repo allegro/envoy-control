@@ -16,9 +16,11 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.assertj.core.api.ObjectAssert
 import org.assertj.core.api.StringAssert
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExecutableInvoker
@@ -899,6 +901,12 @@ class DebugExtensionsTest() {
         @JvmField
         @RegisterExtension
         val extension = DebugExtension("main")
+
+        @JvmStatic
+        @BeforeAll
+        fun parentBeforeAll() {
+            println("PARENT BEFORE ALL")
+        }
     }
 
     @Nested
@@ -909,10 +917,17 @@ class DebugExtensionsTest() {
             @JvmField
             @RegisterExtension
             val subextension = DebugExtension("sub")
+
+            @JvmStatic
+            @BeforeAll
+            fun nestedBeforeAll() {
+                println("NESTED BEFORE ALL")
+            }
         }
 
         @Test
-        fun `unfortunately extension's beforeAll is called twice instead of once`() {
+        fun `unfortunately extension's beforeAll is called twice instead of once`(ctx: TestReporter) {
+            ctx.publishEntry("Tylko")
             println(extension.report())
             assertThat(extension.beforeAllCalled).isEqualTo(2)
             assertThat(extension.beforeAllCalledGuarded).isEqualTo(1)
