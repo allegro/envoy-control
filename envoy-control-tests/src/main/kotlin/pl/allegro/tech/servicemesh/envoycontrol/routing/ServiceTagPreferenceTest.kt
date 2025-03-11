@@ -19,7 +19,7 @@ class ServiceTagPreferenceTest {
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true,  // TODO: testing with false?
             "envoy-control.envoy.snapshot.routing.service-tags.add-upstream-service-tags-header" to true,
-            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.header" to "x-service-tags-preference",
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.header" to "x-service-tag-preference",
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-env" to "DEFAULT_SERVICE_TAG_PREFERENCE",
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-fallback" to "global",
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to true
@@ -70,10 +70,11 @@ class ServiceTagPreferenceTest {
         @JvmStatic
         @BeforeAll
         fun registerServices() {
-            consul.server.operations.registerService(name = "echo", extension = echoGlobal, tags = listOf("global", "other-1"))
-            consul.server.operations.registerService(name = "echo", extension = echoVte12, tags = listOf("vte12", "other-2"))
-            consul.server.operations.registerService(name = "echo", extension = echoVte12Lvte1, tags = listOf("lvte1", "other-3"))
-            consul.server.operations.registerService(name = "echo", extension = echoVte33, tags = listOf("vte33", "other-3"))
+            val consulOps = consul.server.operations
+            consulOps.registerService(name = "echo", extension = echoGlobal, tags = listOf("global", "other-1"))
+            consulOps.registerService(name = "echo", extension = echoVte12, tags = listOf("vte12", "other-2"))
+            consulOps.registerService(name = "echo", extension = echoVte12Lvte1, tags = listOf("lvte1", "other-3"))
+            consulOps.registerService(name = "echo", extension = echoVte33, tags = listOf("vte33", "other-3"))
 
             listOf(envoyGlobal, envoyVte12, envoyVte12Lvte1).forEach { envoy ->
                 allServices.forEach { service ->
@@ -85,7 +86,7 @@ class ServiceTagPreferenceTest {
 
     @Test
     fun `requests are routed according to default service tag preference`() {
-        // expects
+
         envoyGlobal.callServiceRepeatedly(service = "echo")
             .assertAllResponsesOkAndFrom(instance = echoGlobal)
 
@@ -98,8 +99,18 @@ class ServiceTagPreferenceTest {
 
     @Test
     fun `x-service-tag-preference from request overrides default one`() {
-        // TODO: implement
-        throw NotImplementedError()
+
+        envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "lvte1|vte12|global")
+            .assertAllResponsesOkAndFrom(instance = echoVte12Lvte1)
+
+        envoyVte12.callServiceRepeatedly(service = "echo", serviceTagPreference = "global")
+            .assertAllResponsesOkAndFrom(instance = echoGlobal)
+
+        envoyVte12.callServiceRepeatedly(service = "echo", serviceTagPreference = "lvte1|vte12|global")
+            .assertAllResponsesOkAndFrom(instance = echoVte12Lvte1)
+
+        envoyVte12Lvte1.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte12|global")
+            .assertAllResponsesOkAndFrom(instance = echoVte12)
     }
 
     @Test
@@ -122,16 +133,25 @@ class ServiceTagPreferenceTest {
 
     private val repeat = 10
 
-    private fun EnvoyExtension.callServiceRepeatedly(service: String): CallStats =
+    private fun EnvoyExtension.callServiceRepeatedly(service: String, serviceTagPreference: String? = null): CallStats =
         this.egressOperations.callServiceRepeatedly(
-            service = service, stats = CallStats(allServices), minRepeat = repeat, maxRepeat = repeat
+            service = service, stats = CallStats(allServices), minRepeat = repeat, maxRepeat = repeat,
+            headers = buildMap {
+                if (serviceTagPreference != null) {
+                    put("x-service-tag-preference", serviceTagPreference)
+                }
+            }
         )
 
     private fun CallStats.assertAllResponsesOkAndFrom(instance: EchoServiceExtension) {
         assertThat(failedHits).isEqualTo(0)
         assertThat(hits(instance))
             .describedAs {
-                "hits: {global: ${hits(echoGlobal)}, vte12: ${hits(echoVte12)}, lvte1: ${hits(echoVte12Lvte1)}, vte33: ${hits(echoVte33)}}"
+                "hits: {global: ${hits(echoGlobal)}, vte12: ${hits(echoVte12)}, lvte1: ${hits(echoVte12Lvte1)}, vte33: ${
+                    hits(
+                        echoVte33
+                    )
+                }}"
             }
             .isEqualTo(totalHits).isEqualTo(repeat)
     }
