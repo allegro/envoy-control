@@ -8,7 +8,7 @@ import org.testcontainers.containers.Network
 import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.BeforeAndAfterAllOnce
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
-class ConsulExtension : BeforeAndAfterAllOnce, AfterEachCallback {
+class ConsulExtension(private val deregisterAfterEach: Boolean = true) : BeforeAndAfterAllOnce, AfterEachCallback {
 
     companion object {
         private val SHARED_CONSUL = ConsulSetup(
@@ -27,10 +27,13 @@ class ConsulExtension : BeforeAndAfterAllOnce, AfterEachCallback {
     }
 
     override fun afterEach(context: ExtensionContext) {
-        server.operations.deregisterAll()
+        if (deregisterAfterEach) {
+            server.operations.deregisterAll()
+        }
     }
 
     override fun afterAllOnce(context: ExtensionContext) {
+        server.operations.deregisterAll()
     }
 
     override val ctx: BeforeAndAfterAllOnce.Context = BeforeAndAfterAllOnce.Context()

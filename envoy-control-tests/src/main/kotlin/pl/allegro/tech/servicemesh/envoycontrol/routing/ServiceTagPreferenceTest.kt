@@ -27,7 +27,7 @@ class ServiceTagPreferenceTest {
 
         @JvmField
         @RegisterExtension
-        val consul = ConsulExtension()
+        val consul = ConsulExtension(deregisterAfterEach = false)
 
         @JvmField
         @RegisterExtension
@@ -66,22 +66,25 @@ class ServiceTagPreferenceTest {
         val echoVte33 = EchoServiceExtension()
 
         val allServices = listOf(echoGlobal, echoVte12, echoVte12Lvte1, echoVte33)
+
+        @JvmStatic
+        @BeforeAll
+        fun registerServices() {
+            consul.server.operations.registerService(name = "echo", extension = echoGlobal, tags = listOf("global", "other-1"))
+            consul.server.operations.registerService(name = "echo", extension = echoVte12, tags = listOf("vte12", "other-2"))
+            consul.server.operations.registerService(name = "echo", extension = echoVte12Lvte1, tags = listOf("lvte1", "other-3"))
+            consul.server.operations.registerService(name = "echo", extension = echoVte33, tags = listOf("vte33", "other-3"))
+
+            listOf(envoyGlobal, envoyVte12, envoyVte12Lvte1).forEach { envoy ->
+                allServices.forEach { service ->
+                    envoy.waitForClusterEndpointHealthy("echo", service.container().ipAddress())
+                }
+            }
+        }
     }
 
     @Test
     fun `requests are routed according to default service tag preference`() {
-        // given
-        consul.server.operations.registerService(name = "echo", extension = echoGlobal, tags = listOf("global", "other-1"))
-        consul.server.operations.registerService(name = "echo", extension = echoVte12, tags = listOf("vte12", "other-2"))
-        consul.server.operations.registerService(name = "echo", extension = echoVte12Lvte1, tags = listOf("lvte1", "other-3"))
-        consul.server.operations.registerService(name = "echo", extension = echoVte33, tags = listOf("vte33", "other-3"))
-
-        listOf(envoyGlobal, envoyVte12, envoyVte12Lvte1).forEach { envoy ->
-            allServices.forEach { service ->
-                envoy.waitForClusterEndpointHealthy("echo", service.container().ipAddress())
-            }
-        }
-
         // expects
         envoyGlobal.callServiceRepeatedly(service = "echo")
             .assertAllResponsesOkAndFrom(instance = echoGlobal)
