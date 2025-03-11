@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.routing
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
@@ -115,8 +114,16 @@ class ServiceTagPreferenceTest {
 
     @Test
     fun `x-service-tag overrides x-service-tag-preference`() {
-        // TODO: implement
-        throw NotImplementedError()
+
+        envoyGlobal.callServiceRepeatedly(service = "echo", serviceTag = "vte12")
+            .assertAllResponsesOkAndFrom(instance = echoVte12)
+
+        envoyVte12.callServiceRepeatedly(
+            service = "echo",
+            serviceTag = "global",
+            serviceTagPreference = "lvte1|vte12|global"
+        )
+            .assertAllResponsesOkAndFrom(instance = echoGlobal)
     }
 
     /**
@@ -124,6 +131,7 @@ class ServiceTagPreferenceTest {
      *   * add and pass default x-service-tag-preference header upstream
      *     * even if service-tag is used
      *   * pass request x-service-tag-preference upstream
+     *     * even if service-tag is used
      *   * service whitelist test
      *   * disabled test
      *   * x-service-tag header based routing works without changes when preference routing is enabled
@@ -133,12 +141,19 @@ class ServiceTagPreferenceTest {
 
     private val repeat = 10
 
-    private fun EnvoyExtension.callServiceRepeatedly(service: String, serviceTagPreference: String? = null): CallStats =
+    private fun EnvoyExtension.callServiceRepeatedly(
+        service: String,
+        serviceTagPreference: String? = null,
+        serviceTag: String? = null
+    ): CallStats =
         this.egressOperations.callServiceRepeatedly(
             service = service, stats = CallStats(allServices), minRepeat = repeat, maxRepeat = repeat,
             headers = buildMap {
                 if (serviceTagPreference != null) {
                     put("x-service-tag-preference", serviceTagPreference)
+                }
+                if (serviceTag != null) {
+                    put("x-service-tag", serviceTag)
                 }
             }
         )
