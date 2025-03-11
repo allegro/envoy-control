@@ -119,7 +119,6 @@ internal class EnvoyIngressRoutesFactoryTest {
                     value = "/status/wrapper/"
                 }
             })
-
         }, currentZone = currentZone)
         val responseTimeout = Durations.fromSeconds(777)
         val idleTimeout = Durations.fromSeconds(61)
@@ -230,7 +229,6 @@ internal class EnvoyIngressRoutesFactoryTest {
             }
     }
 
-
     @Test
     @Suppress("LongMethod")
     fun `should not create routes for status endpoints if the service is not whitelisted`() {
@@ -254,20 +252,18 @@ internal class EnvoyIngressRoutesFactoryTest {
                 method = "GET"
             })
         }, currentZone = currentZone)
-        val proxySettingsOneEndpoint = ProxySettings(
-
-        )
+        val proxySettings = ProxySettings()
         val group = ServicesGroup(
             communicationMode = CommunicationMode.XDS,
             serviceName = "service_1",
             discoveryServiceName = "service_1",
-            proxySettings = proxySettingsOneEndpoint
+            proxySettings = proxySettings
         )
 
         // when
         val routeConfig = routesFactory.createSecuredIngressRouteConfig(
             "service_1",
-            proxySettingsOneEndpoint,
+            proxySettings,
             group
         )
 
@@ -321,20 +317,18 @@ internal class EnvoyIngressRoutesFactoryTest {
                 method = "GET"
             })
         }, currentZone = currentZone)
-        val proxySettingsOneEndpoint = ProxySettings(
-
-        )
+        val proxySettings = ProxySettings()
         val group = ServicesGroup(
             communicationMode = CommunicationMode.XDS,
             serviceName = "service_1",
             discoveryServiceName = "service_1",
-            proxySettings = proxySettingsOneEndpoint
+            proxySettings = proxySettings
         )
 
         // when
         val routeConfig = routesFactory.createSecuredIngressRouteConfig(
             "service_1",
-            proxySettingsOneEndpoint,
+            proxySettings,
             group
         )
 

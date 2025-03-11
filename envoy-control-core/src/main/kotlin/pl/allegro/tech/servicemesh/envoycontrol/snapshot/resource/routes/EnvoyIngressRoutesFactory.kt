@@ -181,7 +181,8 @@ class EnvoyIngressRoutesFactory(
         .toMap()
 
     private fun ingressRoutes(proxySettings: ProxySettings, group: Group): List<Route> {
-        val defaultRoute = ingressRoute(proxySettings, group, RoutingPriority.DEFAULT, PathMatchingType.PATH_PREFIX,"/")
+        val defaultRoute =
+            ingressRoute(proxySettings, group, RoutingPriority.DEFAULT, PathMatchingType.PATH_PREFIX, "/")
         if (properties.routes.status.separatedRouteWhiteList.enabledFor(group.serviceName)) {
             val statusRoutes = statusEndpointsMatch.flatMap {
                 ingressRoute(proxySettings, group, RoutingPriority.HIGH, it.matchingType, it.path)
