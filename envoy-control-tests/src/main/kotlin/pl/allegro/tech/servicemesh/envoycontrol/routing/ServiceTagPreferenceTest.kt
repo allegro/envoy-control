@@ -1,7 +1,9 @@
 package pl.allegro.tech.servicemesh.envoycontrol.routing
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
@@ -106,6 +108,7 @@ class ServiceTagPreferenceTest {
     /**
      * TODO:
      *   * add and pass default x-service-tag-preference header upstream
+     *     * even if service-tag is used
      *   * pass request x-service-tag-preference upstream
      *   * service whitelist test
      *   * disabled test

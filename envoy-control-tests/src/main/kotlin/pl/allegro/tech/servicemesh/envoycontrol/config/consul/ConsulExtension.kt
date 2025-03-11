@@ -5,9 +5,10 @@ import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
+import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.BeforeAndAfterAllOnce
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
-class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
+class ConsulExtension : BeforeAndAfterAllOnce, AfterEachCallback {
 
     companion object {
         private val SHARED_CONSUL = ConsulSetup(
@@ -18,15 +19,10 @@ class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
 
     val server = SHARED_CONSUL
     private val logger by logger()
-    private var started = false
 
-    override fun beforeAll(context: ExtensionContext) {
-        if (started) {
-            return
-        }
+    override fun beforeAllOnce(context: ExtensionContext) {
         logger.info("Consul extension is starting.")
         server.container.start()
-        started = true
         logger.info("Consul extension started.")
     }
 
@@ -34,6 +30,8 @@ class ConsulExtension : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
         server.operations.deregisterAll()
     }
 
-    override fun afterAll(context: ExtensionContext) {
+    override fun afterAllOnce(context: ExtensionContext) {
     }
+
+    override val ctx: BeforeAndAfterAllOnce.Context = BeforeAndAfterAllOnce.Context()
 }

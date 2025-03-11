@@ -14,5 +14,4 @@ data class ResponseWithBody(val response: Response) {
 
     fun isFrom(echoContainer: EchoContainer) = body.contains(echoContainer.response)
     fun isOk() = response.isSuccessful
-    fun bodyJsonField(field: String) = objectMapper.readTree(body).at(field)
 }

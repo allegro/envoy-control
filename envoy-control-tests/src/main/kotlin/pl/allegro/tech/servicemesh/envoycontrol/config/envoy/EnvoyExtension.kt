@@ -14,6 +14,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtensionBase
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.BeforeAndAfterAllOnce
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -23,7 +24,7 @@ class EnvoyExtension(
     private val localService: ServiceExtension<*>? = null,
     config: EnvoyConfig = RandomConfigFile,
     private val wrapperService: ServiceExtension<*>? = null
-) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
+) : BeforeAndAfterAllOnce, AfterEachCallback {
 
     companion object {
         val logger by logger()
@@ -39,7 +40,7 @@ class EnvoyExtension(
     val ingressOperations: IngressOperations = IngressOperations(container)
     val egressOperations: EgressOperations = EgressOperations(container)
 
-    override fun beforeAll(context: ExtensionContext) {
+    override fun beforeAllOnce(context: ExtensionContext) {
         localService?.beforeAll(context)
         wrapperService?.beforeAll(context)
         envoyControl.beforeAll(context)
@@ -58,9 +59,11 @@ class EnvoyExtension(
         }
     }
 
-    override fun afterAll(context: ExtensionContext) {
+    override fun afterAllOnce(context: ExtensionContext) {
         container.stop()
     }
+
+    override val ctx: BeforeAndAfterAllOnce.Context = BeforeAndAfterAllOnce.Context()
 
     override fun afterEach(context: ExtensionContext?) {
         container.admin().resetCounters()
