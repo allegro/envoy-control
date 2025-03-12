@@ -9,6 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerExtension
 
 class ServiceTagPreferenceTest {
 
@@ -32,21 +33,17 @@ class ServiceTagPreferenceTest {
         @RegisterExtension
         val envoyControl: EnvoyControlExtension = EnvoyControlExtension(consul = consul, properties = properties)
 
-        @JvmField
-        @RegisterExtension
         val envoyGlobal = EnvoyExtension(envoyControl = envoyControl)
-
-        @JvmField
-        @RegisterExtension
         val envoyVte12 = EnvoyExtension(envoyControl = envoyControl).also {
             it.container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "vte12|global")
         }
-
-        @JvmField
-        @RegisterExtension
         val envoyVte12Lvte1 = EnvoyExtension(envoyControl = envoyControl).also {
             it.container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "lvte1|vte12|global")
         }
+
+        @JvmField
+        @RegisterExtension
+        val envoys = ContainerExtension.Parallel(envoyGlobal, envoyVte12, envoyVte12Lvte1)
 
         @JvmField
         @RegisterExtension
