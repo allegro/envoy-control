@@ -29,8 +29,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.hasRequestHeadersToRemove
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasResponseHeaderToAdd
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasSingleVirtualHostThat
 import pl.allegro.tech.servicemesh.envoycontrol.groups.hasStatusVirtualClusters
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ingresStatusRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressServiceRoute
+import pl.allegro.tech.servicemesh.envoycontrol.groups.ingressStatusRoute
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnAnyMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnMethod
 import pl.allegro.tech.servicemesh.envoycontrol.groups.matchingOnPrefix
@@ -41,6 +41,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.publicAccess
 import pl.allegro.tech.servicemesh.envoycontrol.groups.toCluster
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.CustomRuteProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.EndpointMatch
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.FeatureWhiteList
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalRetryPoliciesProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.LocalRetryPolicyProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SecuredRoute
@@ -93,8 +94,15 @@ internal class EnvoyIngressRoutesFactoryTest {
     fun `should create route config with health check and response timeout defined`() {
         // given
         val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
-            routes.status.enabled = true
-            routes.status.endpoints = mutableListOf(EndpointMatch())
+            routes.status.apply {
+                enabled = true
+                endpoints = mutableListOf(EndpointMatch().apply {
+                    path = "/status/"
+                    matchingType = PathMatchingType.PATH_PREFIX
+                })
+                createVirtualCluster = true
+                separatedRouteWhiteList = FeatureWhiteList(listOf("service_1"))
+            }
             routes.status.createVirtualCluster = true
             localService.retryPolicy = retryPolicyProps
             routes.admin.publicAccessEnabled = true
@@ -166,17 +174,17 @@ internal class EnvoyIngressRoutesFactoryTest {
                     },
                     *adminRoutes,
                     {
-                        ingresStatusRoute()
+                        ingressStatusRoute()
                         matchingOnMethod("GET")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
                     },
                     {
-                        ingresStatusRoute()
+                        ingressStatusRoute()
                         matchingOnMethod("HEAD")
                         matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
                     },
                     {
-                        ingresStatusRoute()
+                        ingressStatusRoute()
                         matchingOnAnyMethod()
                         hasNoRetryPolicy()
                     },
@@ -221,6 +229,150 @@ internal class EnvoyIngressRoutesFactoryTest {
             }
     }
 
+    @Test
+    @Suppress("LongMethod")
+    fun `should not create routes for status endpoints if the service is not whitelisted`() {
+        // given
+        val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
+            routes.status.apply {
+                enabled = true
+                endpoints = mutableListOf(EndpointMatch().apply {
+                    path = "/status/"
+                    matchingType = PathMatchingType.PATH_PREFIX
+                })
+                createVirtualCluster = true
+                separatedRouteWhiteList = FeatureWhiteList(listOf("service_123"))
+            }
+            routes.status.createVirtualCluster = true
+            localService.retryPolicy = retryPolicyProps
+            routes.admin.publicAccessEnabled = true
+            routes.admin.token = "test_token"
+            routes.admin.securedPaths.add(SecuredRoute().apply {
+                pathPrefix = "/config_dump"
+                method = "GET"
+            })
+        }, currentZone = currentZone)
+        val proxySettings = ProxySettings()
+        val group = ServicesGroup(
+            communicationMode = CommunicationMode.XDS,
+            serviceName = "service_1",
+            discoveryServiceName = "service_1",
+            proxySettings = proxySettings
+        )
+
+        // when
+        val routeConfig = routesFactory.createSecuredIngressRouteConfig(
+            "service_1",
+            proxySettings,
+            group
+        )
+
+        // then
+        routeConfig
+            .hasSingleVirtualHostThat {
+                hasStatusVirtualClusters()
+                hasOneDomain("*")
+                hasOnlyRoutesInOrder(
+                    *adminRoutes,
+                    {
+                        ingressServiceRoute()
+                        matchingOnMethod("GET")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
+                    },
+                    {
+                        ingressServiceRoute()
+                        matchingOnMethod("HEAD")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
+                    },
+                    {
+                        ingressServiceRoute()
+                        matchingOnAnyMethod()
+                        hasNoRetryPolicy()
+                    }
+                )
+                matchingRetryPolicy(retryPolicyProps.default)
+            }
+    }
+
+    @Test
+    @Suppress("LongMethod")
+    fun `should create routes for status endpoints when whitelist contains wildcard`() {
+        // given
+        val routesFactory = EnvoyIngressRoutesFactory(SnapshotProperties().apply {
+            routes.status.apply {
+                enabled = true
+                endpoints = mutableListOf(EndpointMatch().apply {
+                    path = "/status/"
+                    matchingType = PathMatchingType.PATH_PREFIX
+                })
+                createVirtualCluster = true
+                separatedRouteWhiteList = FeatureWhiteList(listOf("service_123", "*"))
+            }
+            routes.status.createVirtualCluster = true
+            localService.retryPolicy = retryPolicyProps
+            routes.admin.publicAccessEnabled = true
+            routes.admin.token = "test_token"
+            routes.admin.securedPaths.add(SecuredRoute().apply {
+                pathPrefix = "/config_dump"
+                method = "GET"
+            })
+        }, currentZone = currentZone)
+        val proxySettings = ProxySettings()
+        val group = ServicesGroup(
+            communicationMode = CommunicationMode.XDS,
+            serviceName = "service_1",
+            discoveryServiceName = "service_1",
+            proxySettings = proxySettings
+        )
+
+        // when
+        val routeConfig = routesFactory.createSecuredIngressRouteConfig(
+            "service_1",
+            proxySettings,
+            group
+        )
+
+        // then
+        routeConfig
+            .hasSingleVirtualHostThat {
+                hasStatusVirtualClusters()
+                hasOneDomain("*")
+                hasOnlyRoutesInOrder(
+                    *adminRoutes,
+                    {
+                        ingressStatusRoute()
+                        matchingOnMethod("GET")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
+                    },
+                    {
+                        ingressStatusRoute()
+                        matchingOnMethod("HEAD")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
+                    },
+                    {
+                        ingressStatusRoute()
+                        matchingOnAnyMethod()
+                        hasNoRetryPolicy()
+                    },
+                    {
+                        ingressServiceRoute()
+                        matchingOnMethod("GET")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["GET"]!!)
+                    },
+                    {
+                        ingressServiceRoute()
+                        matchingOnMethod("HEAD")
+                        matchingRetryPolicy(retryPolicyProps.perHttpMethod["HEAD"]!!)
+                    },
+                    {
+                        ingressServiceRoute()
+                        matchingOnAnyMethod()
+                        hasNoRetryPolicy()
+                    }
+                )
+                matchingRetryPolicy(retryPolicyProps.default)
+            }
+    }
     @Test
     fun `should create route config with headers to remove and add`() {
         // given

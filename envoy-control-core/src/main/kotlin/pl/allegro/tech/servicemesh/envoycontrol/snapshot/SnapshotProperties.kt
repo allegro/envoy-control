@@ -223,6 +223,7 @@ class AdminRouteProperties {
 
 class StatusRouteProperties {
     var enabled = false
+    var separatedRouteWhiteList = FeatureWhiteList(emptyList())
     var endpoints: MutableList<EndpointMatch> = mutableListOf()
     var createVirtualCluster = false
 }
@@ -460,3 +461,9 @@ data class ResetHeader(val name: String, val format: String)
 
 typealias ProviderName = String
 typealias TokenField = String
+
+data class FeatureWhiteList(var services: List<String>) {
+    fun enabledFor(serviceName: String): Boolean {
+        return services.contains("*") || services.contains(serviceName)
+    }
+}

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Changed
 - bump control plane version to 1.0.48 to support envoy 1.33.0 version
 
+## [0.22.11]
+### Changed
+- whitelist for enabling separated routes for status endpoints
+    
 ## [0.22.10]
 ### Changed
 - changes for `x-envoy-upstream-service-tags` response header:
