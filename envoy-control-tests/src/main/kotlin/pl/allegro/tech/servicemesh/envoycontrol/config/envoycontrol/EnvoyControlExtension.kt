@@ -9,22 +9,39 @@ import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.util.concurrent.TimeUnit
 
 interface EnvoyControlExtensionBase : BeforeAndAfterAllOnce {
-     val app: EnvoyControlTestApp
+    val app: EnvoyControlTestApp
 }
 
-class EnvoyControlExtension(private val consul: ConsulExtension, override val app: EnvoyControlTestApp)
-    : EnvoyControlExtensionBase {
+class EnvoyControlExtension(
+    private val consul: ConsulExtension,
+    override val app: EnvoyControlTestApp,
+    private val dependencies: List<BeforeAndAfterAllOnce> = emptyList()
+) :
+    EnvoyControlExtensionBase {
 
     private val logger by logger()
 
-    constructor(consul: ConsulExtension, properties: Map<String, Any> = mapOf())
-        : this(consul, EnvoyControlRunnerTestApp(
-                    propertiesProvider = { properties },
-                    consulPort = consul.server.port
-        ))
+    constructor(consul: ConsulExtension, properties: Map<String, Any> = mapOf()) : this(
+        consul = consul,
+        propertiesProvider = { properties }
+    )
+
+    constructor(
+        consul: ConsulExtension,
+        dependencies: List<BeforeAndAfterAllOnce> = emptyList(),
+        propertiesProvider: () -> Map<String, Any>
+    ) : this(
+        consul = consul,
+        app = EnvoyControlRunnerTestApp(
+            propertiesProvider = propertiesProvider,
+            consulPort = consul.server.port
+        ),
+        dependencies = dependencies
+    )
 
     override fun beforeAllOnce(context: ExtensionContext) {
         consul.beforeAll(context)
+        dependencies.forEach { it.beforeAll(context) }
         logger.info("Envoy control extension is starting.")
         app.run()
         waitUntilHealthy()

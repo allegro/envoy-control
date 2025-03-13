@@ -55,27 +55,29 @@ class JWTFilterTest {
         @JvmField
         @RegisterExtension
         val envoyControl = EnvoyControlExtension(
-            consul,
-            mapOf(
-                "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true,
-                "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
-                "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
-                "envoy-control.envoy.snapshot.jwt.providers" to mapOf(
-                    "first-provider" to OAuthProvider(
-                        jwksUri = URI.create("http://oauth/first-provider/jwks"),
-                        clusterName = "oauth",
-                        matchings = mapOf("first-provider-prefix" to "authorities")
-                    ),
-                    "second-provider" to OAuthProvider(
-                        jwksUri = URI.create(oAuthServer.getJwksAddress("second-provider")),
-                        createCluster = true,
-                        clusterName = "second-provider",
-                        clusterPort = oAuthServer.container().oAuthPort(),
-                        matchings = mapOf("second-provider-prefix" to "authorities")
+            consul = consul,
+            dependencies = listOf(oAuthServer),
+            propertiesProvider = {
+                mapOf(
+                    "envoy-control.envoy.snapshot.outgoing-permissions.enabled" to true,
+                    "envoy-control.envoy.snapshot.incoming-permissions.enabled" to true,
+                    "envoy-control.envoy.snapshot.incoming-permissions.overlapping-paths-fix" to true,
+                    "envoy-control.envoy.snapshot.jwt.providers" to mapOf(
+                        "first-provider" to OAuthProvider(
+                            jwksUri = URI.create("http://oauth/first-provider/jwks"),
+                            clusterName = "oauth",
+                            matchings = mapOf("first-provider-prefix" to "authorities")
+                        ),
+                        "second-provider" to OAuthProvider(
+                            jwksUri = URI.create(oAuthServer.getJwksAddress("second-provider")),
+                            createCluster = true,
+                            clusterName = "second-provider",
+                            clusterPort = oAuthServer.container().oAuthPort(),
+                            matchings = mapOf("second-provider-prefix" to "authorities")
+                        )
                     )
                 )
-            )
-        )
+            })
 
         @JvmField
         @RegisterExtension

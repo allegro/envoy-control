@@ -8,8 +8,11 @@ interface BeforeAndAfterAllOnce : BeforeAllCallback, AfterAllCallback {
     fun beforeAllOnce(context: ExtensionContext)
     fun afterAllOnce(context: ExtensionContext)
     override fun beforeAll(context: ExtensionContext) {
-        if (ctx.id != null) {
+        if (ctx.id != null && !ctx.terminated) {
             return
+        }
+        if (ctx.terminated) {
+            ctx.terminated = false
         }
         ctx.id = context.uniqueId
         beforeAllOnce(context)
