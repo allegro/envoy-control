@@ -3,7 +3,6 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.service
 import org.testcontainers.containers.Network
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.images.builder.ImageFromDockerfile
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
 
 class OAuthServerContainer :

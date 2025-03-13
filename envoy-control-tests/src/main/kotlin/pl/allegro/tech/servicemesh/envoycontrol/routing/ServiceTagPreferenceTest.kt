@@ -12,9 +12,10 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.UpstreamService
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
 import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerExtension
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.assertAllResponsesOkAndFrom
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.callServiceRepeatedly
@@ -51,26 +52,16 @@ class ServiceTagPreferenceTest {
         val envoyVte12Lvte1 = EnvoyExtension(envoyControl = envoyControl).also {
             it.container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "lvte1|vte12|global")
         }
+        val echoGlobal = HttpsEchoExtension()
+        val echoVte12 = HttpsEchoExtension()
+        val echoVte12Lvte1 = HttpsEchoExtension()
+        val echoVte33 = HttpsEchoExtension()
 
         @JvmField
         @RegisterExtension
-        val envoys = ContainerExtension.Parallel(envoyGlobal, envoyVte12, envoyVte12Lvte1)
-
-        @JvmField
-        @RegisterExtension
-        val echoGlobal = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
-        val echoVte12 = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
-        val echoVte12Lvte1 = EchoServiceExtension()
-
-        @JvmField
-        @RegisterExtension
-        val echoVte33 = EchoServiceExtension()
+        val containers = ContainerExtension.Parallel(
+            envoyGlobal, envoyVte12, envoyVte12Lvte1, echoGlobal, echoVte12, echoVte12Lvte1, echoVte33
+        )
 
         val allServices = listOf(echoGlobal, echoVte12, echoVte12Lvte1, echoVte33)
     }
@@ -83,7 +74,7 @@ class ServiceTagPreferenceTest {
                 registerInstance(name = "echo", tags = listOf("global", "other-1"), echoGlobal)
                 registerInstance(name = "echo", tags = listOf("vte12", "other-2"), echoVte12)
                 registerInstance(name = "echo", tags = listOf("lvte1", "other-3"), echoVte12Lvte1)
-                registerInstance(name = "echo", tags = listOf("vte33", "other-3"), echoVte33)
+                registerInstance(name = "echo", tags = listOf("vte33", "other-3", "cz"), echoVte33)
 
                 listOf(envoyGlobal, envoyVte12, envoyVte12Lvte1).forEach { envoy ->
                     allServices.forEach { service ->
@@ -93,6 +84,7 @@ class ServiceTagPreferenceTest {
             }
         }
     }
+
     @Order(1)
     @Nested
     inner class WhenAllServicesAreUp : WhenAllServicesAreUpSetup() {
@@ -125,6 +117,8 @@ class ServiceTagPreferenceTest {
 
             envoyGlobal.callServiceRepeatedly(service = "echo", serviceTag = "vte12")
                 .assertAllResponsesOkAndFrom(instance = echoVte12)
+            envoyVte12.callServiceRepeatedly(service = "echo", serviceTag = "cz")
+                .assertAllResponsesOkAndFrom(instance = echoVte33)
 
             envoyVte12.callServiceRepeatedly(
                 service = "echo",
@@ -132,6 +126,15 @@ class ServiceTagPreferenceTest {
                 serviceTagPreference = "lvte1|vte12|global"
             )
                 .assertAllResponsesOkAndFrom(instance = echoGlobal)
+        }
+
+        @Test
+        fun `x-service-tag-preference is passed upstream`() {
+
+            envoyGlobal.egressOperations.callService(service = "echo").asHttpsEchoResponse().let {
+                assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "global")
+            }
+            // TODO[PROM-5262]: more!
         }
     }
 
@@ -144,6 +147,7 @@ class ServiceTagPreferenceTest {
             }
         }
     }
+
     @Order(2)
     @Nested
     inner class ThenLvteInstanceIsDown : ThenLvteInstanceIsDownSetup() {
@@ -208,11 +212,13 @@ class ServiceTagPreferenceTest {
             val id = consul.server.operations.registerService(name = name, tags = tags, extension = extension)
             consulRegisteredServicesIds[extension] = id
         }
+
         fun deregisterInstance(extension: ServiceExtension<*>) {
             val removed = consulRegisteredServicesIds.remove(extension)
             requireNotNull(removed) { "Extension was already unregistered!" }
             consul.server.operations.deregisterService(removed)
         }
+
         val consulRegisteredServicesIds: MutableMap<ServiceExtension<*>, String> = mutableMapOf()
     }
 }

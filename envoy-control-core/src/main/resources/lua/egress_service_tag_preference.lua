@@ -9,8 +9,8 @@ function parseServiceTagPreferenceToFallbackList(preferenceString)
     return fallbackList
 end
 
-local defaultServiceTagPreferenceFallbackList = parseServiceTagPreferenceToFallbackList(
-    os.getenv("%DEFAULT_SERVICE_TAG_PREFERENCE_ENV%") or "%DEFAULT_SERVICE_TAG_PREFERENCE_FALLBACK%")
+local defaultServiceTagPreference = os.getenv("%DEFAULT_SERVICE_TAG_PREFERENCE_ENV%") or "%DEFAULT_SERVICE_TAG_PREFERENCE_FALLBACK%"
+local defaultServiceTagPreferenceFallbackList = parseServiceTagPreferenceToFallbackList(defaultServiceTagPreference)
 
 function envoy_on_request(handle)
     local serviceTag = handle:headers():get("%SERVICE_TAG_HEADER%")
@@ -26,6 +26,8 @@ function envoy_on_request(handle)
     local requestPreference = handle:headers():getAtIndex("%SERVICE_TAG_PREFERENCE_HEADER%", 0)
     if requestPreference then
         fallbackList = parseServiceTagPreferenceToFallbackList(requestPreference)
+    else
+        handle:headers():replace("%SERVICE_TAG_PREFERENCE_HEADER%", defaultServiceTagPreference)
     end
 
     if next(fallbackList) ~= nil then

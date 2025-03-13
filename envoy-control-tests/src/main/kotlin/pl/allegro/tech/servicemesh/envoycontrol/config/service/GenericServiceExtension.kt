@@ -21,5 +21,4 @@ open class GenericServiceExtension<T : ServiceContainer>(private val container: 
     }
 
     override val ctx: BeforeAndAfterAllOnce.Context = BeforeAndAfterAllOnce.Context()
-
 }

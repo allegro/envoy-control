@@ -27,12 +27,12 @@ class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http
     override fun port() = PORT
     override fun id(): String = containerId
 
-    override fun isSourceOf(response: ResponseWithBody) = HttpsEchoResponse(response.response).isFrom(this)
+    override fun isSourceOf(response: ResponseWithBody) = HttpsEchoResponse(response).isFrom(this)
 }
 
 class HttpsEchoResponse(val response: ResponseWithBody) {
     companion object {
-        val objectMapper = ObjectMapper()
+        val objectMapper: ObjectMapper = ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 
@@ -47,7 +47,6 @@ class HttpsEchoResponse(val response: ResponseWithBody) {
     fun isFrom(container: HttpsEchoContainer): Boolean {
         return container.containerName() == hostname
     }
-
 }
 
 fun Response.asHttpsEchoResponse() = HttpsEchoResponse(this)

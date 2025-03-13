@@ -24,7 +24,6 @@ class EchoContainer(val response: String = UUID.randomUUID().toString()) :
     override fun isSourceOf(response: ResponseWithBody) = response.body.contains(this.response)
     override fun id(): String = containerId
 
-
     companion object {
         const val PORT = 5678
     }
