@@ -1,17 +1,18 @@
 package pl.allegro.tech.servicemesh.envoycontrol.server.callbacks
 
+import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as V3DeltaDiscoveryRequest
+import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as V3DiscoveryRequest
 import io.envoyproxy.controlplane.cache.Resources
 import io.envoyproxy.controlplane.server.DiscoveryServerCallbacks
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
+import java.util.concurrent.atomic.AtomicInteger
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTIONS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.CONNECTION_TYPE_TAG
 import pl.allegro.tech.servicemesh.envoycontrol.utils.DISCOVERY_REQ_TYPE_TAG
+import pl.allegro.tech.servicemesh.envoycontrol.utils.RECONNECTION_REQUESTS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.REQUESTS_METRIC
 import pl.allegro.tech.servicemesh.envoycontrol.utils.STREAM_TYPE_TAG
-import java.util.concurrent.atomic.AtomicInteger
-import io.envoyproxy.envoy.service.discovery.v3.DeltaDiscoveryRequest as V3DeltaDiscoveryRequest
-import io.envoyproxy.envoy.service.discovery.v3.DiscoveryRequest as V3DiscoveryRequest
 
 class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) : DiscoveryServerCallbacks {
 
@@ -84,6 +85,15 @@ class MetricsDiscoveryServerCallbacks(private val meterRegistry: MeterRegistry) 
             )
         )
             .increment()
+        if (request.initialResourceVersionsMap.isNotEmpty()) {
+            meterRegistry.counter(
+                RECONNECTION_REQUESTS_METRIC,
+                Tags.of(
+                    STREAM_TYPE_TAG, StreamType.fromTypeUrl(request.typeUrl).name.lowercase(),
+                )
+            )
+                .increment()
+        }
     }
 
     override fun onStreamCloseWithError(streamId: Long, typeUrl: String, error: Throwable) {
