@@ -10,8 +10,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
 import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 @Suppress("MagicNumber")
-val MIN_ENVOY_VERSION_SUPPORTING_UPSTREAM_METADATA = envoyVersion(1, 24)
-@Suppress("MagicNumber")
 val MIN_ENVOY_VERSION_SUPPORTING_JWT_FAILURE_STATUS = envoyVersion(1, 26)
 
 class MetadataNodeGroup(

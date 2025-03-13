@@ -14,8 +14,8 @@ class CallStats(private val upstreamServices: List<UpstreamService>) {
     fun addResponse(response: ResponseWithBody) {
         upstreamServices
             .firstOrNull { it.isSourceOf(response) }
-            .let { it ?: throw AssertionError("response from unknown instance") }
-            .let { containerHits.compute(it.id()) { _, i -> i?.inc() } }
+            .let { it ?: if (response.isOk()) throw AssertionError("response from unknown instance") else null }
+            ?.let { containerHits.compute(it.id()) { _, i -> i?.inc() } }
         if (!response.isOk()) failedHits++
         totalHits++
     }
