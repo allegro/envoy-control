@@ -61,7 +61,8 @@ class RoutingHeadersTest : TestBase(echoService, envoy) {
 
     @Test
     fun `should not override service-tag preference header already set in the request`() {
-        // TODO(implement)
+        // TODO[PROM-5262](implement)
+        @Suppress("NotImplementedDeclaration")
         throw NotImplementedError("Service tag preference header already set")
     }
 
