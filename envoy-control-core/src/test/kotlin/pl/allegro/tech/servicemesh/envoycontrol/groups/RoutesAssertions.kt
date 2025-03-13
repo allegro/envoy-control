@@ -240,7 +240,7 @@ fun Route.ingressServiceRoute() {
         .toCluster("local_service")
 }
 
-fun Route.ingresStatusRoute() {
+fun Route.ingressStatusRoute() {
     this.matchingOnPrefix("/status/")
         .publicAccess()
         .toCluster("local_service")
