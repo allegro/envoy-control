@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
@@ -910,9 +911,20 @@ class DebugExtensionsTest() {
     }
 
     @Nested
-    inner class NestedTest : NestedTestB()
-    open class NestedTestB {
+    inner class NestedTest : NestedTestB() {
+        @Test
+        fun `In nested class`(ctx: TestReporter) {
+            ctx.publishEntry("Tylko")
+            println(extension.report())
+            assertThat(extension.beforeAllCalled).isEqualTo(2)
+            assertThat(extension.beforeAllCalledGuarded).isEqualTo(1)
 
+            println(subextension.report())
+            assertThat(subextension.beforeAllCalled).isEqualTo(1)
+            assertThat(subextension.beforeAllCalledGuarded).isEqualTo(1)
+        }
+    }
+    open class NestedTestB {
         companion object {
             @JvmField
             @RegisterExtension
@@ -923,18 +935,6 @@ class DebugExtensionsTest() {
             fun nestedBeforeAll() {
                 println("NESTED BEFORE ALL")
             }
-        }
-
-        @Test
-        fun `unfortunately extension's beforeAll is called twice instead of once`(ctx: TestReporter) {
-            ctx.publishEntry("Tylko")
-            println(extension.report())
-            assertThat(extension.beforeAllCalled).isEqualTo(2)
-            assertThat(extension.beforeAllCalledGuarded).isEqualTo(1)
-
-            println(subextension.report())
-            assertThat(subextension.beforeAllCalled).isEqualTo(1)
-            assertThat(subextension.beforeAllCalledGuarded).isEqualTo(1)
         }
     }
 
