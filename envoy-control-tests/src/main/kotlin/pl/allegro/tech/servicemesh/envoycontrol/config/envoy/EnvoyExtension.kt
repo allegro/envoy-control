@@ -23,7 +23,7 @@ class EnvoyExtension(
     private val localService: ServiceExtension<*>? = null,
     config: EnvoyConfig = RandomConfigFile,
     private val wrapperService: ServiceExtension<*>? = null
-) : ContainerExtension() , AfterEachCallback {
+) : ContainerExtension(), AfterEachCallback {
 
     companion object {
         val logger by logger()

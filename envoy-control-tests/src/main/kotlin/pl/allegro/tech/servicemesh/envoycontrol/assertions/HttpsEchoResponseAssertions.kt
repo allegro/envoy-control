@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.assertions
 
-import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.ObjectAssert
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoContainer

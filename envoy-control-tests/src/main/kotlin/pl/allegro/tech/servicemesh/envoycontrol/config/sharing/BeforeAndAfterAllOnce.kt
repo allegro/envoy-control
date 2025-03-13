@@ -16,7 +16,8 @@ interface BeforeAndAfterAllOnce : BeforeAllCallback, AfterAllCallback {
     }
 
     override fun afterAll(context: ExtensionContext) {
-        require(!ctx.terminated) { "afterAll called after termination. It should not happen, test hierarchy ordering bug" }
+        require(!ctx.terminated) { "" +
+            "afterAll called after termination. It should not happen, test hierarchy ordering bug" }
         // terminate only on the last test context, which is the first context beforeAll() was called with.
         if (context.uniqueId == ctx.id) {
             ctx.terminated = true
