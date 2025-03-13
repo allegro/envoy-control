@@ -31,7 +31,8 @@ class EnvoyDefaultFilters(
 
     private val compressionFilterFactory = CompressionFilterFactory(snapshotProperties)
 
-    private val defaultHeaderToMetadataFilter = { group: Group, _: GlobalSnapshot -> headerToMetadataEgressHttpFilter(group) }
+    private val defaultHeaderToMetadataFilter = { group: Group, _: GlobalSnapshot ->
+        headerToMetadataEgressHttpFilter(group) }
     private val defaultServiceTagFilters = serviceTagFilterFactory.egressFilters()
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
 

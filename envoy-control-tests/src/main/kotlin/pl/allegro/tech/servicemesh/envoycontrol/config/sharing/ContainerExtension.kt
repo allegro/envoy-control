@@ -1,6 +1,5 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.sharing
 
-import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.lifecycle.Startables
 import pl.allegro.tech.servicemesh.envoycontrol.config.testcontainers.GenericContainer
@@ -21,6 +20,10 @@ abstract class ContainerExtension : BeforeAndAfterAllOnce {
             container.start()
             waitUntilHealthy()
         }
+    }
+
+    override fun afterAllOnce(context: ExtensionContext) {
+        container.stop()
     }
 
     private fun logAndThrowError(action: ContainerExtension.() -> Unit) = try {

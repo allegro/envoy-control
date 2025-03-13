@@ -4,7 +4,7 @@ import org.junit.jupiter.api.extension.ExtensionContext
 import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.BeforeAndAfterAllOnce
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 
-class GenericServiceExtension<T : ServiceContainer>(private val container: T) : ServiceExtension<T> {
+open class GenericServiceExtension<T : ServiceContainer>(private val container: T) : ServiceExtension<T> {
 
     private val logger by logger()
 

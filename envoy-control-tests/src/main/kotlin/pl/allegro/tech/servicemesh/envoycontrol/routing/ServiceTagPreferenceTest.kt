@@ -9,6 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.UpstreamService
 import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerExtension
 
 class ServiceTagPreferenceTest {
@@ -155,15 +156,15 @@ class ServiceTagPreferenceTest {
             }
         )
 
-    private fun CallStats.assertAllResponsesOkAndFrom(instance: EchoServiceExtension) {
+    private fun CallStats.assertAllResponsesOkAndFrom(instance: UpstreamService) {
         assertThat(failedHits).isEqualTo(0)
         assertThat(hits(instance))
             .describedAs {
-                "hits: {global: ${hits(echoGlobal)}, vte12: ${hits(echoVte12)}, lvte1: ${hits(echoVte12Lvte1)}, vte33: ${
-                    hits(
-                        echoVte33
-                    )
-                }}"
+                "hits: {" +
+                    "global: ${hits(echoGlobal)}, " +
+                    "vte12: ${hits(echoVte12)}, " +
+                    "lvte1: ${hits(echoVte12Lvte1)}, " +
+                    "vte33: ${hits(echoVte33)}}"
             }
             .isEqualTo(totalHits).isEqualTo(repeat)
     }

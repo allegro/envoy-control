@@ -51,10 +51,6 @@ class EnvoyExtension(
         }
     }
 
-    override fun afterAllOnce(context: ExtensionContext) {
-        container.stop()
-    }
-
     override val ctx: BeforeAndAfterAllOnce.Context = BeforeAndAfterAllOnce.Context()
 
     override fun afterEach(context: ExtensionContext?) {

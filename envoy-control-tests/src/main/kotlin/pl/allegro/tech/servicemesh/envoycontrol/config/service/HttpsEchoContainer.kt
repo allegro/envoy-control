@@ -6,9 +6,10 @@ import com.fasterxml.jackson.module.kotlin.convertValue
 import okhttp3.Response
 import org.testcontainers.containers.Network
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.SSLGenericContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 
 class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http-https-echo@$hash"),
-    ServiceContainer {
+    ServiceContainer, UpstreamService {
 
     companion object {
         // We need to use hash because the image doesn't use tags and the tests will fail if there is an older version
@@ -24,21 +25,29 @@ class HttpsEchoContainer : SSLGenericContainer<HttpsEchoContainer>("mendhak/http
     }
 
     override fun port() = PORT
+    override fun id(): String = containerId
+
+    override fun isSourceOf(response: ResponseWithBody) = HttpsEchoResponse(response.response).isFrom(this)
 }
 
-class HttpsEchoResponse(val response: Response) {
+class HttpsEchoResponse(val response: ResponseWithBody) {
     companion object {
         val objectMapper = ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     }
 
-    val body = response.use { it.body?.string() } ?: ""
+    constructor(response: Response) : this(ResponseWithBody(response))
 
     val requestHeaders by lazy<Map<String, String>> {
-        objectMapper.convertValue(objectMapper.readTree(body).at("/headers"))
+        objectMapper.convertValue(objectMapper.readTree(response.body).at("/headers"))
     }
 
-    val hostname by lazy { objectMapper.readTree(body).at("/os/hostname").textValue() }
+    val hostname by lazy { objectMapper.readTree(response.body).at("/os/hostname").textValue() }
+
+    fun isFrom(container: HttpsEchoContainer): Boolean {
+        return container.containerName() == hostname
+    }
+
 }
 
 fun Response.asHttpsEchoResponse() = HttpsEchoResponse(this)

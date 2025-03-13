@@ -212,12 +212,10 @@ class EnvoyEgressRoutesFactory(
         val routingPolicy = routeSpecification.settings.routingPolicy
         if (routingPolicy.autoServiceTag) {
             val serviceTagsListProto = Values.of(routingPolicy.serviceTagPreference.map { Values.of(it) })
-            val rejectServiceTagDuplicateProto = Values.of(
-                properties.routing.serviceTags.rejectRequestsWithDuplicatedAutoServiceTag
-            )
             routeBuilder.metadata = Metadata.newBuilder()
                 .putFilterMetadata(
-                    // TODO[PROM-5262]: probably doesn't work because the metadata is published under different namespace
+                    // TODO[PROM-5262]: probably doesn't work because the metadata is published under
+                    //  different namespace
                     "envoy.filters.http.lua",
                     Structs.of(
                         ServiceTagFilterFactory.AUTO_SERVICE_TAG_PREFERENCE_METADATA, serviceTagsListProto,
