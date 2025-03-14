@@ -145,7 +145,7 @@ class ServiceTagPreferenceTest {
             }
 
             envoyVte12.callService(service = "echo", serviceTag = "cz").asHttpsEchoResponse().let {
-                assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "vte66|global")
+                assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "vte12|global")
             }
             // TODO[PROM-5262]: more!
         }
@@ -178,8 +178,8 @@ class ServiceTagPreferenceTest {
 
     /**
      * TODO:
-     *   * add and pass default x-service-tag-preference header upstream
-     *     * even if service-tag is used
+     *   * [DONE] add and pass default x-service-tag-preference header upstream
+     *     * [DONE] even if service-tag is used
      *   * pass request x-service-tag-preference upstream
      *     * even if service-tag is used
      *   * service whitelist test

@@ -14,27 +14,26 @@ local defaultServiceTagPreferenceFallbackList = parseServiceTagPreferenceToFallb
 
 function envoy_on_request(handle)
     local serviceTag = handle:headers():get("%SERVICE_TAG_HEADER%")
-    -- TODO: test overriding
+
+    local requestPreference = handle:headers():getAtIndex("%SERVICE_TAG_PREFERENCE_HEADER%", 0)
+    if not requestPreference then
+        handle:headers():replace("%SERVICE_TAG_PREFERENCE_HEADER%", defaultServiceTagPreference)
+    end
 
     if serviceTag and serviceTag ~= "" then
         local dynMetadata = handle:streamInfo():dynamicMetadata()
         dynMetadata:set("envoy.lb", "%SERVICE_TAG_METADATA_KEY%", serviceTag)
-        return
-    end
-
-    local fallbackList = defaultServiceTagPreferenceFallbackList
-    local requestPreference = handle:headers():getAtIndex("%SERVICE_TAG_PREFERENCE_HEADER%", 0)
-    if requestPreference then
-        fallbackList = parseServiceTagPreferenceToFallbackList(requestPreference)
     else
-        handle:headers():replace("%SERVICE_TAG_PREFERENCE_HEADER%", defaultServiceTagPreference)
-    end
+        local fallbackList = defaultServiceTagPreferenceFallbackList
+        if requestPreference then
+            fallbackList = parseServiceTagPreferenceToFallbackList(requestPreference)
+        end
 
-    if next(fallbackList) ~= nil then
-        local dynMetadata = handle:streamInfo():dynamicMetadata()
-        dynMetadata:set("envoy.lb", "fallback_list", fallbackList)
+        if next(fallbackList) ~= nil then
+            local dynMetadata = handle:streamInfo():dynamicMetadata()
+            dynMetadata:set("envoy.lb", "fallback_list", fallbackList)
+        end
     end
-
 end
 
 
