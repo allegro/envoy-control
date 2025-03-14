@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.routing
 
+import okhttp3.Response
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.ClassOrderer.OrderAnnotation
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
@@ -18,6 +20,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.UpstreamService
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
 import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerExtension
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.assertAllResponsesOkAndFrom
+import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.callService
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.callServiceRepeatedly
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.deregisterInstance
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.registerInstance
@@ -131,8 +134,18 @@ class ServiceTagPreferenceTest {
         @Test
         fun `x-service-tag-preference is passed upstream`() {
 
-            envoyGlobal.egressOperations.callService(service = "echo").asHttpsEchoResponse().let {
+            envoyGlobal.callService(service = "echo").asHttpsEchoResponse().let {
                 assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "global")
+            }
+            envoyVte12Lvte1.callService(service = "echo").asHttpsEchoResponse().let {
+                assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "lvte1|vte12|global")
+            }
+            envoyGlobal.callService(service = "echo", serviceTagPreference = "vte66|global").asHttpsEchoResponse().let {
+                assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "vte66|global")
+            }
+
+            envoyVte12.callService(service = "echo", serviceTag = "cz").asHttpsEchoResponse().let {
+                assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "vte66|global")
             }
             // TODO[PROM-5262]: more!
         }
@@ -173,10 +186,31 @@ class ServiceTagPreferenceTest {
      *   * disabled test
      *   * x-service-tag header based routing works without changes when preference routing is enabled
      *   * everything works with autoServiceTag enabled - especially request preference overriding default preference header sent to upstream
+     *   * x-envoy-upstream-service-tags : move or copy the test here?
      *
      */
 
     private object Extensions {
+
+        fun EnvoyExtension.callService(
+            service: String,
+            serviceTagPreference: String? = null,
+            serviceTag: String? = null
+        ): Response =
+            this.egressOperations.callService(
+                service = service,
+                headers = headers(serviceTagPreference = serviceTagPreference, serviceTag = serviceTag),
+            )
+
+        private fun headers(serviceTagPreference: String?, serviceTag: String?) = buildMap {
+            if (serviceTagPreference != null) {
+                put("x-service-tag-preference", serviceTagPreference)
+            }
+            if (serviceTag != null) {
+                put("x-service-tag", serviceTag)
+            }
+        }
+
         private const val REPEAT = 10
         fun EnvoyExtension.callServiceRepeatedly(
             service: String,
@@ -185,14 +219,7 @@ class ServiceTagPreferenceTest {
         ): CallStats =
             this.egressOperations.callServiceRepeatedly(
                 service = service, stats = CallStats(allServices), minRepeat = REPEAT, maxRepeat = REPEAT,
-                headers = buildMap {
-                    if (serviceTagPreference != null) {
-                        put("x-service-tag-preference", serviceTagPreference)
-                    }
-                    if (serviceTag != null) {
-                        put("x-service-tag", serviceTag)
-                    }
-                }
+                headers = headers(serviceTagPreference = serviceTagPreference, serviceTag = serviceTag)
             )
 
         fun CallStats.assertAllResponsesOkAndFrom(instance: UpstreamService) {
