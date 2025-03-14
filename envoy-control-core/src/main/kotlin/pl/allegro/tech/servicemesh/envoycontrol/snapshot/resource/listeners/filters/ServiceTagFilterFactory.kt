@@ -12,7 +12,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.Http
 class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
 
     companion object {
-        // TODO: [service-tag]: remove
         const val AUTO_SERVICE_TAG_PREFERENCE_METADATA = "auto_service_tag_preference"
 
         private val placeholderFormat = "%([0-9a-z_]+)%".toRegex(RegexOption.IGNORE_CASE)

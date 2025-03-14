@@ -3,7 +3,6 @@ function envoy_on_request(handle)
 end
 
 function rejectServiceTagDuplicatingAutoServiceTag(handle)
-    -- TODO[PROM-5262]: probably doesn't work because the metadata is published under different namespace
     local autoServiceTagPreference = handle:metadata():get("auto_service_tag_preference")
     if autoServiceTagPreference == nil then
         return

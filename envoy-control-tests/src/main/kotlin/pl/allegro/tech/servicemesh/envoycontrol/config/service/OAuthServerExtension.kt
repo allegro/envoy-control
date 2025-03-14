@@ -6,11 +6,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerPool
 
 class OAuthServerExtension : ServiceExtension<OAuthServerContainer> {
 
-    // TODO: why?
-    // init {
-    //     beforeAll(null)
-    // }
-
     private var container: OAuthServerContainer? = null
 
     override fun container(): OAuthServerContainer = container!!

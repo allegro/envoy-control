@@ -31,7 +31,7 @@ class ServiceTagPreferenceTest {
 
         val properties = mapOf(
             "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
-            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true, // TODO: testing with false?
+            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.add-upstream-service-tags-header" to true,
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.header" to "x-service-tag-preference",
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-env" to "DEFAULT_SERVICE_TAG_PREFERENCE",
@@ -194,6 +194,7 @@ class ServiceTagPreferenceTest {
      *   * [DONE] everything works with autoServiceTag enabled - especially request preference overriding default preference header sent to upstream
      *   * x-envoy-upstream-service-tags : move or copy the test here?
      *   * change docs preferences table
+     *   * test with MIN envoy version
      */
 
     private object Extensions {

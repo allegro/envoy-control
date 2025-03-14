@@ -164,12 +164,20 @@ class EnvoyEgressRoutesFactory(
             )
         }
 
-        // TODO: don't add it if preference routing is enabled? Should be added by lua script
-        if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
+        if (shouldAddServiceTagPreferenceHeader()) {
             addServiceTagHeaders(routeSpecification, virtualHost)
         }
 
         return virtualHost.build()
+    }
+
+    private fun shouldAddServiceTagPreferenceHeader(): Boolean {
+        val autoServiceTagEnabled = properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()
+        val preferenceRoutingEnabledForAll = properties.routing.serviceTags.preferenceRouting.enableForAll
+
+        // when preference routing is enabled, lua script takes care of adding preference header
+        // Adding it also on virtual host header is then redundant and potentially increases number of Groups
+        return autoServiceTagEnabled && !preferenceRoutingEnabledForAll
     }
 
     private fun addServiceTagHeaders(
@@ -187,7 +195,8 @@ class EnvoyEgressRoutesFactory(
                             .setValue(tagsPreferenceJoined)
                     )
                     // Pass request service tag preference if exists, to make it compatible with preference routing.
-                    // TODO[PROM-6055]: Ultimately, autoServiceTag feature should be removed
+                    // TODO[PROM-6055]: Ultimately, autoServiceTag feature should be removed, when preference routing
+                    //  will handle all cases
                     .setAppendAction(HeaderValueOption.HeaderAppendAction.ADD_IF_ABSENT)
                     .setKeepEmptyValue(false)
             )
@@ -214,8 +223,6 @@ class EnvoyEgressRoutesFactory(
             val serviceTagsListProto = Values.of(routingPolicy.serviceTagPreference.map { Values.of(it) })
             routeBuilder.metadata = Metadata.newBuilder()
                 .putFilterMetadata(
-                    // TODO[PROM-5262]: probably doesn't work because the metadata is published under
-                    //  different namespace
                     "envoy.filters.http.lua",
                     Structs.of(
                         ServiceTagFilterFactory.AUTO_SERVICE_TAG_PREFERENCE_METADATA, serviceTagsListProto,
