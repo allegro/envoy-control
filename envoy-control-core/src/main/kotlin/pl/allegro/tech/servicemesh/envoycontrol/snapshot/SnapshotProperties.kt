@@ -301,7 +301,7 @@ class ServiceTagPreferenceProperties {
             return false
         }
         val disabled = disableForServices.contains(service)
-        return  !disabled
+        return !disabled
     }
     fun isEnabledForSome() = enableForAll || enableForServices.isNotEmpty()
 }

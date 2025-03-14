@@ -19,33 +19,13 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.UpstreamService
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
 import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerExtension
-import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.assertAllResponsesOkAndFrom
-import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.assertResponsesFromRandomInstances
-import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.callService
-import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.callServiceRepeatedly
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.deregisterInstance
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.registerInstance
 
 @TestClassOrder(OrderAnnotation::class)
-class ServiceTagPreferenceTest {
+class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allServices) {
 
     companion object {
-
-        val properties = mapOf(
-            "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
-            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true,
-            "envoy-control.envoy.snapshot.routing.service-tags.add-upstream-service-tags-header" to true,
-            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.header" to "x-service-tag-preference",
-            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-env" to "DEFAULT_SERVICE_TAG_PREFERENCE",
-            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-fallback" to "global",
-            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to true,
-            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.disable-for-services" to listOf("disabled-service")
-        )
-
-        @JvmField
-        @RegisterExtension
-        val consul = ConsulExtension(deregisterAfterEach = false)
-
         @JvmField
         @RegisterExtension
         val envoyControl: EnvoyControlExtension = EnvoyControlExtension(consul = consul, properties = properties)
@@ -164,7 +144,7 @@ class ServiceTagPreferenceTest {
         }
 
         @Test
-        fun `preference routing is disabled for specified service`() {
+        fun `preference routing is disabled for selected service`() {
             envoyGlobal.callServiceRepeatedly(service = "echo")
                 .assertAllResponsesOkAndFrom(echoGlobal)
             envoyGlobalDisabled.callServiceRepeatedly(service = "echo")
@@ -199,16 +179,16 @@ class ServiceTagPreferenceTest {
 
     /**
      * TODO:
-     *   * [DONE] add and pass default x-service-tag-preference header upstream
-     *     * [DONE] even if service-tag is used
-     *   * [DONE] pass request x-service-tag-preference upstream
-     *     * [DONE] even if service-tag is used
+     *   + [DONE] add and pass default x-service-tag-preference header upstream
+     *     + [DONE] even if service-tag is used
+     *   + [DONE] pass request x-service-tag-preference upstream
+     *     + [DONE] even if service-tag is used
      *   * test with 503 (no instances for given preference)
      *     * + verify service-tag-preference response field [AEC]
-     *   * [DONE] blacklist (+ add varnish)
-     *      + [DONE] test
-     *   * service whitelist test
-     *   * disabled test
+     *   + [DONE] blacklist (+ add varnish)
+     *    + [DONE] test
+     *   * [DONE] service whitelist test
+     *   * [ABANDONED] disabled test. Abandoned because other tests test that.
      *   * x-service-tag header based routing works without changes when preference routing is enabled
      *   * [DONE] everything works with autoServiceTag enabled - especially request preference overriding default preference header sent to upstream
      *   * x-envoy-upstream-service-tags : move or copy the test here?
@@ -216,59 +196,14 @@ class ServiceTagPreferenceTest {
      *   * test with MIN envoy version
      */
 
+    override fun CallStats.report() =
+        "hits: {" +
+            "global: ${hits(echoGlobal)}, " +
+            "vte12: ${hits(echoVte12)}, " +
+            "lvte1: ${hits(echoVte12Lvte1)}, " +
+            "vte33: ${hits(echoVte33)}}"
+
     private object Extensions {
-
-        fun EnvoyExtension.callService(
-            service: String,
-            serviceTagPreference: String? = null,
-            serviceTag: String? = null
-        ): Response =
-            this.egressOperations.callService(
-                service = service,
-                headers = headers(serviceTagPreference = serviceTagPreference, serviceTag = serviceTag),
-            )
-
-        private fun headers(serviceTagPreference: String?, serviceTag: String?) = buildMap {
-            if (serviceTagPreference != null) {
-                put("x-service-tag-preference", serviceTagPreference)
-            }
-            if (serviceTag != null) {
-                put("x-service-tag", serviceTag)
-            }
-        }
-
-        private const val REPEAT = 10
-        fun EnvoyExtension.callServiceRepeatedly(
-            service: String,
-            serviceTagPreference: String? = null,
-            serviceTag: String? = null
-        ): CallStats =
-            this.egressOperations.callServiceRepeatedly(
-                service = service, stats = CallStats(allServices), minRepeat = REPEAT, maxRepeat = REPEAT,
-                headers = headers(serviceTagPreference = serviceTagPreference, serviceTag = serviceTag)
-            )
-
-        fun CallStats.assertAllResponsesOkAndFrom(instance: UpstreamService) {
-            assertThat(failedHits).isEqualTo(0)
-            assertThat(hits(instance))
-                .describedAs { report() }
-                .isEqualTo(totalHits).isEqualTo(REPEAT)
-        }
-
-        fun CallStats.assertResponsesFromRandomInstances() {
-            assertThat(failedHits).isEqualTo(0)
-            assertThat(allServices).describedAs { report() }.allSatisfy {
-                assertThat(hits(it)).isGreaterThan(0)
-            }
-        }
-
-        private fun CallStats.report() =
-            "hits: {" +
-                "global: ${hits(echoGlobal)}, " +
-                "vte12: ${hits(echoVte12)}, " +
-                "lvte1: ${hits(echoVte12Lvte1)}, " +
-                "vte33: ${hits(echoVte33)}}"
-
         fun registerInstance(name: String, tags: List<String>, extension: ServiceExtension<*>) {
             val id = consul.server.operations.registerService(name = name, tags = tags, extension = extension)
             consulRegisteredServicesIds[extension] = id
@@ -282,4 +217,124 @@ class ServiceTagPreferenceTest {
 
         val consulRegisteredServicesIds: MutableMap<ServiceExtension<*>, String> = mutableMapOf()
     }
+}
+
+class ServiceTagPreferenceEnableForServicesTest :
+    ServiceTagPreferenceTestBase(allServices = listOf(echoGlobal, echoVte3)) {
+
+    companion object {
+        @JvmField
+        @RegisterExtension
+        val envoyControl: EnvoyControlExtension = EnvoyControlExtension(
+            consul = consul, properties = properties + mapOf(
+                "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to false,
+                "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-services" to listOf("enabled-service")
+            )
+        )
+
+        val echoGlobal = HttpsEchoExtension() // TODO: change to EchoExtension
+        val echoVte3 = HttpsEchoExtension()
+        val envoyGlobal = EnvoyExtension(envoyControl = envoyControl)
+        val envoyGlobalEnabled = EnvoyExtension(
+            envoyControl = envoyControl, config = RandomConfigFile.copy(serviceName = "enabled-service")
+        )
+        val allServices = listOf(echoGlobal, echoVte3)
+
+        @JvmField
+        @RegisterExtension
+        val containers = ContainerExtension.Parallel(echoGlobal, echoVte3, envoyGlobal, envoyGlobalEnabled)
+
+        @JvmStatic
+        @BeforeAll
+        fun registerServices() {
+            consul.server.operations.registerService(name = "echo", tags = listOf("global"), extension = echoGlobal)
+            consul.server.operations.registerService(name = "echo", tags = listOf("vte3"), extension = echoVte3)
+
+            listOf(envoyGlobal, envoyGlobalEnabled).forEach { envoy ->
+                allServices.forEach { service ->
+                    envoy.waitForClusterEndpointHealthy("echo", service.container().ipAddress())
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `preference routing enabled only for selected service`() {
+
+        envoyGlobal.callServiceRepeatedly(service = "echo")
+            .assertResponsesFromRandomInstances()
+        envoyGlobalEnabled.callServiceRepeatedly(service = "echo")
+            .assertAllResponsesOkAndFrom(echoGlobal)
+    }
+
+    override fun CallStats.report() =
+        "hits: {" +
+            "global: ${hits(echoGlobal)}, " +
+            "vte3: ${hits(echoVte3)}}"
+}
+
+abstract class ServiceTagPreferenceTestBase(val allServices: List<UpstreamService>) {
+    companion object {
+        val properties = mapOf(
+            "envoy-control.envoy.snapshot.routing.service-tags.enabled" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.auto-service-tag-enabled" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.add-upstream-service-tags-header" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.header" to "x-service-tag-preference",
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-env" to "DEFAULT_SERVICE_TAG_PREFERENCE",
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-fallback" to "global",
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.disable-for-services" to listOf("disabled-service")
+        )
+
+        @JvmField
+        @RegisterExtension
+        val consul = ConsulExtension(deregisterAfterEach = false)
+    }
+
+    private val REPEAT = 10
+    fun EnvoyExtension.callServiceRepeatedly(
+        service: String,
+        serviceTagPreference: String? = null,
+        serviceTag: String? = null
+    ): CallStats =
+        this.egressOperations.callServiceRepeatedly(
+            service = service, stats = CallStats(allServices), minRepeat = REPEAT, maxRepeat = REPEAT,
+            headers = headers(serviceTagPreference = serviceTagPreference, serviceTag = serviceTag)
+        )
+
+    private fun headers(serviceTagPreference: String?, serviceTag: String?) = buildMap {
+        if (serviceTagPreference != null) {
+            put("x-service-tag-preference", serviceTagPreference)
+        }
+        if (serviceTag != null) {
+            put("x-service-tag", serviceTag)
+        }
+    }
+
+    fun EnvoyExtension.callService(
+        service: String,
+        serviceTagPreference: String? = null,
+        serviceTag: String? = null
+    ): Response =
+        this.egressOperations.callService(
+            service = service,
+            headers = headers(serviceTagPreference = serviceTagPreference, serviceTag = serviceTag),
+        )
+
+    fun CallStats.assertAllResponsesOkAndFrom(instance: UpstreamService) {
+        assertThat(failedHits).isEqualTo(0)
+        assertThat(hits(instance))
+            .describedAs { report() }
+            .isEqualTo(totalHits).isEqualTo(REPEAT)
+    }
+
+    fun CallStats.assertResponsesFromRandomInstances() {
+        assertThat(failedHits).isEqualTo(0)
+        assertThat(allServices).hasSizeGreaterThan(1)
+        assertThat(allServices).describedAs { report() }.allSatisfy {
+            assertThat(hits(it)).isGreaterThan(0)
+        }
+    }
+
+    abstract fun CallStats.report(): String
 }
