@@ -497,6 +497,7 @@ class EnvoyClustersFactory(
     private fun Cluster.Builder.configureLbSubsets(): Cluster.Builder {
         val canaryEnabled = properties.loadBalancing.canary.enabled
         val tagsEnabled = properties.routing.serviceTags.enabled
+        val tagPreferenceEnabled = properties.routing.serviceTags.preferenceRouting.isEnabledForSome()
 
         if (!canaryEnabled && !tagsEnabled) {
             return this
@@ -532,6 +533,9 @@ class EnvoyClustersFactory(
                 }
                 if (tagsEnabled && canaryEnabled) {
                     addTagsAndCanarySelector()
+                }
+                if (tagPreferenceEnabled) {
+                    setMetadataFallbackPolicy(Cluster.LbSubsetConfig.LbSubsetMetadataFallbackPolicy.FALLBACK_LIST)
                 }
             }
         )

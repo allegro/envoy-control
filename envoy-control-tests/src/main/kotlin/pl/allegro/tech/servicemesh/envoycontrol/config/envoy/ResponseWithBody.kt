@@ -1,18 +1,10 @@
 package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import okhttp3.Response
-import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
+import pl.allegro.tech.servicemesh.envoycontrol.config.service.UpstreamService
 
 data class ResponseWithBody(val response: Response) {
-
-    companion object {
-        private val objectMapper by lazy { ObjectMapper() }
-    }
-
-    val body = response.body?.string() ?: ""
-
-    fun isFrom(echoContainer: EchoContainer) = body.contains(echoContainer.response)
+    val body = response.use { it.body?.string() } ?: ""
+    fun isFrom(upstreamService: UpstreamService) = upstreamService.isSourceOf(this)
     fun isOk() = response.isSuccessful
-    fun bodyJsonField(field: String) = objectMapper.readTree(body).at(field)
 }

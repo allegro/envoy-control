@@ -12,12 +12,10 @@ import org.awaitility.Awaitility.await
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import pl.allegro.tech.servicemesh.envoycontrol.config.containers.ToxiproxyContainer
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EgressOperations
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyContainer
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.HttpResponseCloser.addToCloseableResponses
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.IngressOperations
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoContainer
@@ -27,13 +25,13 @@ import java.util.concurrent.TimeUnit
 
 data class EnvoyConfig(
     val filePath: String,
-    val serviceName: String = "echo",
+    val serviceName: String = "echo2",
     val configOverride: String = "",
     val trustedCa: String = "/app/root-ca.crt",
     val certificateChain: String = "/app/fullchain_echo.pem",
     val privateKey: String = "/app/privkey.pem"
 )
-val AdsAllDependencies = EnvoyConfig("envoy/config_ads_all_dependencies.yaml")
+val AdsAllDependencies = EnvoyConfig("envoy/config_ads_all_dependencies.yaml", serviceName = "test-service")
 val AdsCustomHealthCheck = EnvoyConfig("envoy/config_ads_custom_health_check.yaml")
 val AdsDynamicForwardProxy = EnvoyConfig("envoy/config_ads_dynamic_forward_proxy.yaml")
 val FaultyConfig = EnvoyConfig("envoy/bad_config.yaml")
@@ -54,7 +52,7 @@ val DeltaAdsAllDependencies = AdsAllDependencies.copy(
 """.trimIndent()
 )
 
-val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml")
+val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml", serviceName = "echo")
 val Echo2EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
     serviceName = "echo2",
     certificateChain = "/app/fullchain_echo2.pem",
@@ -317,20 +315,6 @@ abstract class EnvoyControlTestConfiguration : BaseEnvoyTest() {
             return lastResult!!
         }
     }
-
-    protected fun callServiceRepeatedly(
-        service: String,
-        stats: CallStats,
-        minRepeat: Int = 1,
-        maxRepeat: Int = 100,
-        repeatUntil: (ResponseWithBody) -> Boolean = { false },
-        headers: Map<String, String> = mapOf(),
-        pathAndQuery: String = "",
-        assertNoErrors: Boolean = true,
-        fromEnvoy: EnvoyContainer = envoyContainer1
-    ): CallStats = EgressOperations(fromEnvoy).callServiceRepeatedly(
-            service, stats, minRepeat, maxRepeat, repeatUntil, headers, pathAndQuery, assertNoErrors
-    )
 
     private fun waitForEchoServices(instances: Int) {
         untilAsserted {

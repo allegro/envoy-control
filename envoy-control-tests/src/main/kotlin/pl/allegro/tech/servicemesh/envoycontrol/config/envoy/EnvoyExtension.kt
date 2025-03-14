@@ -2,9 +2,7 @@ package pl.allegro.tech.servicemesh.envoycontrol.config.envoy
 
 import org.assertj.core.api.Assertions.assertThat
 import org.awaitility.Awaitility
-import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.AfterEachCallback
-import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.testcontainers.containers.Network
 import pl.allegro.tech.servicemesh.envoycontrol.assertions.isOk
@@ -14,6 +12,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyConfig
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtensionBase
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.BeforeAndAfterAllOnce
+import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerExtension
 import pl.allegro.tech.servicemesh.envoycontrol.logger
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -23,13 +23,13 @@ class EnvoyExtension(
     private val localService: ServiceExtension<*>? = null,
     config: EnvoyConfig = RandomConfigFile,
     private val wrapperService: ServiceExtension<*>? = null
-) : BeforeAllCallback, AfterAllCallback, AfterEachCallback {
+) : ContainerExtension(), AfterEachCallback {
 
     companion object {
         val logger by logger()
     }
 
-    val container: EnvoyContainer = EnvoyContainer(
+    override val container: EnvoyContainer = EnvoyContainer(
         config,
         { localService?.container()?.ipAddress() ?: "127.0.0.1" },
         envoyControl.app.grpcPort,
@@ -39,28 +39,19 @@ class EnvoyExtension(
     val ingressOperations: IngressOperations = IngressOperations(container)
     val egressOperations: EgressOperations = EgressOperations(container)
 
-    override fun beforeAll(context: ExtensionContext) {
+    override fun preconditions(context: ExtensionContext) {
         localService?.beforeAll(context)
         wrapperService?.beforeAll(context)
         envoyControl.beforeAll(context)
-        try {
-            container.start()
-            waitUntilHealthy()
-        } catch (e: Exception) {
-            logger.error("Logs from failed container: ${container.logs}")
-            throw e
-        }
     }
 
-    private fun waitUntilHealthy() {
+    override fun waitUntilHealthy() {
         Awaitility.await().atMost(1, TimeUnit.MINUTES).untilAsserted {
             assertThat(container.admin().isIngressReady())
         }
     }
 
-    override fun afterAll(context: ExtensionContext) {
-        container.stop()
-    }
+    override val ctx: BeforeAndAfterAllOnce.Context = BeforeAndAfterAllOnce.Context()
 
     override fun afterEach(context: ExtensionContext?) {
         container.admin().resetCounters()
