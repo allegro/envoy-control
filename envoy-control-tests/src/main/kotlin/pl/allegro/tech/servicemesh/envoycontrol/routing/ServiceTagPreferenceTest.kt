@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestClassOrder
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.assertions.isUnreachable
 import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
@@ -144,6 +145,13 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
         }
 
         @Test
+        fun `returns 503 when there is no instance fulfilling the preference`() {
+            envoyGlobal.callService(service = "echo", serviceTagPreference = "vte77").let {
+                assertThat(it).isUnreachable()
+            }
+        }
+
+        @Test
         fun `preference routing is disabled for selected service`() {
             envoyGlobal.callServiceRepeatedly(service = "echo")
                 .assertAllResponsesOkAndFrom(echoGlobal)
@@ -183,7 +191,7 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
      *     + [DONE] even if service-tag is used
      *   + [DONE] pass request x-service-tag-preference upstream
      *     + [DONE] even if service-tag is used
-     *   * test with 503 (no instances for given preference)
+     *   * [DONE]test with 503 (no instances for given preference)
      *     * + verify service-tag-preference response field [AEC]
      *   + [DONE] blacklist (+ add varnish)
      *    + [DONE] test
@@ -232,7 +240,7 @@ class ServiceTagPreferenceEnableForServicesTest :
             )
         )
 
-        val echoGlobal = HttpsEchoExtension() // TODO: change to EchoExtension
+        val echoGlobal = HttpsEchoExtension()
         val echoVte3 = HttpsEchoExtension()
         val envoyGlobal = EnvoyExtension(envoyControl = envoyControl)
         val envoyGlobalEnabled = EnvoyExtension(

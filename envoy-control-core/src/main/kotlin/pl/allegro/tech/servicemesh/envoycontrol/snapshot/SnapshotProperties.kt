@@ -277,6 +277,7 @@ class ServiceTagsProperties {
     var header = "x-service-tag"
     var preferenceRouting = ServiceTagPreferenceProperties()
     var routingExcludedTags: MutableList<StringMatcher> = mutableListOf()
+    // TODO[PROM-6067]: remove service tag combinations feature
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
     var autoServiceTagEnabled = false
     var rejectRequestsWithDuplicatedAutoServiceTag = true
