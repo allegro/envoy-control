@@ -12,7 +12,6 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.HttpsEchoExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.ServiceExtension
@@ -147,6 +146,11 @@ class ServiceTagPreferenceTest {
             envoyVte12.callService(service = "echo", serviceTag = "cz").asHttpsEchoResponse().let {
                 assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "vte12|global")
             }
+
+            envoyVte12.callService(service = "echo", serviceTag = "cz", serviceTagPreference = "lvte1|vte12|global")
+                .asHttpsEchoResponse().let {
+                    assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "lvte1|vte12|global")
+                }
             // TODO[PROM-5262]: more!
         }
     }
@@ -180,8 +184,8 @@ class ServiceTagPreferenceTest {
      * TODO:
      *   * [DONE] add and pass default x-service-tag-preference header upstream
      *     * [DONE] even if service-tag is used
-     *   * pass request x-service-tag-preference upstream
-     *     * even if service-tag is used
+     *   * [DONE] pass request x-service-tag-preference upstream
+     *     * [DONE] even if service-tag is used
      *   * service whitelist test
      *   * disabled test
      *   * x-service-tag header based routing works without changes when preference routing is enabled
