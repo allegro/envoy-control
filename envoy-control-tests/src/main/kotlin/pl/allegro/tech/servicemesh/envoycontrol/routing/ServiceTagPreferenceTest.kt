@@ -93,6 +93,7 @@ class ServiceTagPreferenceTest {
 
         @Test
         fun `requests are routed according to default service tag preference`() {
+
             envoyGlobal.callServiceRepeatedly(service = "echo")
                 .assertAllResponsesOkAndFrom(instance = echoGlobal)
             envoyVte12.callServiceRepeatedly(service = "echo")
@@ -191,7 +192,7 @@ class ServiceTagPreferenceTest {
      *   * x-service-tag header based routing works without changes when preference routing is enabled
      *   * everything works with autoServiceTag enabled - especially request preference overriding default preference header sent to upstream
      *   * x-envoy-upstream-service-tags : move or copy the test here?
-     *
+     *   * change docs preferences table
      */
 
     private object Extensions {

@@ -29,15 +29,19 @@ class RoutingHeadersTest : TestBase(echoService, envoy) {
         val envoy = EnvoyExtension(envoyControl, config = RandomConfigFile.copy(configOverride = proxySettings))
     }
 
-    @Test
-    fun `should add correct x-service-tag-preference header to upstream request`() {
-        // given
+    private fun registerServices() {
         listOf("echo", "echo-disabled", "echo-one-tag", "echo-no-tag").forEach { service ->
             consul.server.operations.registerService(name = service, extension = echoService, tags = allTags)
         }
         listOf("echo", "echo-disabled", "echo-one-tag", "echo-no-tag").forEach { service ->
             waitForEndpointReady(service, echoService, envoy)
         }
+    }
+
+    @Test
+    fun `should add correct x-service-tag-preference header to upstream request`() {
+        // given
+        registerServices()
 
         // when
         val echoResponse = envoy.egressOperations.callService("echo").asHttpsEchoResponse()
@@ -61,9 +65,18 @@ class RoutingHeadersTest : TestBase(echoService, envoy) {
 
     @Test
     fun `should not override service-tag preference header already set in the request`() {
-        // TODO[PROM-5262](implement)
-        @Suppress("NotImplementedDeclaration")
-        throw NotImplementedError("Service tag preference header already set")
+        // given
+        registerServices()
+
+        // when
+        val echoResponse = envoy.egressOperations.callService(
+            service = "echo",
+            headers = mapOf("x-service-tag-preference" to "custom|ipsum|lorem")
+        ).asHttpsEchoResponse()
+
+        // then
+        assertThat(echoResponse).isOk()
+        assertThat(echoResponse.requestHeaders).containsEntry("x-service-tag-preference", "custom|ipsum|lorem")
     }
 
     @Test
