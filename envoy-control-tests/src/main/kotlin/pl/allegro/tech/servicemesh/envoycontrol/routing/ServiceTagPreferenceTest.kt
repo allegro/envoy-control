@@ -187,10 +187,11 @@ class ServiceTagPreferenceTest {
      *     * [DONE] even if service-tag is used
      *   * [DONE] pass request x-service-tag-preference upstream
      *     * [DONE] even if service-tag is used
+     *   * test with 503 (no instances for given preference) + verify service-tag-preference response field
      *   * service whitelist test
      *   * disabled test
      *   * x-service-tag header based routing works without changes when preference routing is enabled
-     *   * everything works with autoServiceTag enabled - especially request preference overriding default preference header sent to upstream
+     *   * [DONE] everything works with autoServiceTag enabled - especially request preference overriding default preference header sent to upstream
      *   * x-envoy-upstream-service-tags : move or copy the test here?
      *   * change docs preferences table
      */
