@@ -25,13 +25,13 @@ import java.util.concurrent.TimeUnit
 
 data class EnvoyConfig(
     val filePath: String,
-    val serviceName: String = "echo",
+    val serviceName: String = "echo2",
     val configOverride: String = "",
     val trustedCa: String = "/app/root-ca.crt",
     val certificateChain: String = "/app/fullchain_echo.pem",
     val privateKey: String = "/app/privkey.pem"
 )
-val AdsAllDependencies = EnvoyConfig("envoy/config_ads_all_dependencies.yaml")
+val AdsAllDependencies = EnvoyConfig("envoy/config_ads_all_dependencies.yaml", serviceName = "test-service")
 val AdsCustomHealthCheck = EnvoyConfig("envoy/config_ads_custom_health_check.yaml")
 val AdsDynamicForwardProxy = EnvoyConfig("envoy/config_ads_dynamic_forward_proxy.yaml")
 val FaultyConfig = EnvoyConfig("envoy/bad_config.yaml")
@@ -52,7 +52,7 @@ val DeltaAdsAllDependencies = AdsAllDependencies.copy(
 """.trimIndent()
 )
 
-val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml")
+val Echo1EnvoyAuthConfig = EnvoyConfig("envoy/config_auth.yaml", serviceName = "echo")
 val Echo2EnvoyAuthConfig = Echo1EnvoyAuthConfig.copy(
     serviceName = "echo2",
     certificateChain = "/app/fullchain_echo2.pem",

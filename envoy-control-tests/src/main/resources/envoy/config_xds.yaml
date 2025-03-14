@@ -33,7 +33,7 @@ node:
     access_log_enabled: false
     add_upstream_external_address_header: true
     resources_dir: "/etc/envoy/extra"
-    service_name: "echo2"
+    service_name: "SERVICE_NAME"
     proxy_settings:
       incoming:
         endpoints:

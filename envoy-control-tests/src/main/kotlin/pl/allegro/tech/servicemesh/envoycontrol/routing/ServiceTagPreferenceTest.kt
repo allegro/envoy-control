@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestClassOrder
 import org.junit.jupiter.api.extension.RegisterExtension
+import pl.allegro.tech.servicemesh.envoycontrol.config.RandomConfigFile
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.CallStats
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
@@ -36,7 +37,8 @@ class ServiceTagPreferenceTest {
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.header" to "x-service-tag-preference",
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-env" to "DEFAULT_SERVICE_TAG_PREFERENCE",
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-fallback" to "global",
-            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to true
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to true,
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.disable-for-services" to true
         )
 
         @JvmField
@@ -48,6 +50,10 @@ class ServiceTagPreferenceTest {
         val envoyControl: EnvoyControlExtension = EnvoyControlExtension(consul = consul, properties = properties)
 
         val envoyGlobal = EnvoyExtension(envoyControl = envoyControl)
+        val envoyGlobalBlacklisted = EnvoyExtension(
+            envoyControl = envoyControl,
+            config = RandomConfigFile.copy(serviceName = "blacklisted-service")
+        )
         val envoyVte12 = EnvoyExtension(envoyControl = envoyControl).also {
             it.container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "vte12|global")
         }
@@ -187,7 +193,10 @@ class ServiceTagPreferenceTest {
      *     * [DONE] even if service-tag is used
      *   * [DONE] pass request x-service-tag-preference upstream
      *     * [DONE] even if service-tag is used
-     *   * test with 503 (no instances for given preference) + verify service-tag-preference response field
+     *   * test with 503 (no instances for given preference)
+     *     * + verify service-tag-preference response field [AEC]
+     *   * blacklist (+ add varnish)
+     *      + test
      *   * service whitelist test
      *   * disabled test
      *   * x-service-tag header based routing works without changes when preference routing is enabled

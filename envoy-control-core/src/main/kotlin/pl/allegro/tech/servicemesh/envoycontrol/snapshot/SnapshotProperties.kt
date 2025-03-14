@@ -282,6 +282,8 @@ class ServiceTagsProperties {
     var rejectRequestsWithDuplicatedAutoServiceTag = true
     var addUpstreamServiceTagsHeader: Boolean = false
 
+    // TODO[PROM-6055]: Ultimately, autoServiceTag feature should be removed, when preference routing
+    //  will handle all cases
     fun isAutoServiceTagEffectivelyEnabled() = enabled && autoServiceTagEnabled
 }
 
