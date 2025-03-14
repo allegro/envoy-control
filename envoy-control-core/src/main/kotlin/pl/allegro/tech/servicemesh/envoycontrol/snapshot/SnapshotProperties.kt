@@ -290,11 +290,19 @@ class ServiceTagsProperties {
 class ServiceTagPreferenceProperties {
     var enableForAll = false
     var enableForServices: List<String> = emptyList()
+    var disableForServices: List<String> = emptyList()
     var header = "x-service-tag-preference"
     var defaultPreferenceEnv = "DEFAULT_SERVICE_TAG_PREFERENCE"
     var defaultPreferenceFallback = "global"
 
-    fun isEnabledFor(service: String) = enableForAll || enableForServices.contains(service)
+    fun isEnabledFor(service: String): Boolean {
+        val enabled = enableForAll || enableForServices.contains(service)
+        if (!enabled) {
+            return false
+        }
+        val disabled = disableForServices.contains(service)
+        return  !disabled
+    }
     fun isEnabledForSome() = enableForAll || enableForServices.isNotEmpty()
 }
 

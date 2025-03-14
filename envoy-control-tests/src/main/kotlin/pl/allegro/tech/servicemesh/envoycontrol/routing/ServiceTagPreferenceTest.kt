@@ -20,6 +20,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.UpstreamService
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.asHttpsEchoResponse
 import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.ContainerExtension
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.assertAllResponsesOkAndFrom
+import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.assertResponsesFromRandomInstances
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.callService
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.callServiceRepeatedly
 import pl.allegro.tech.servicemesh.envoycontrol.routing.ServiceTagPreferenceTest.Extensions.deregisterInstance
@@ -38,7 +39,7 @@ class ServiceTagPreferenceTest {
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-env" to "DEFAULT_SERVICE_TAG_PREFERENCE",
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.default-preference-fallback" to "global",
             "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to true,
-            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.disable-for-services" to true
+            "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.disable-for-services" to listOf("disabled-service")
         )
 
         @JvmField
@@ -50,9 +51,9 @@ class ServiceTagPreferenceTest {
         val envoyControl: EnvoyControlExtension = EnvoyControlExtension(consul = consul, properties = properties)
 
         val envoyGlobal = EnvoyExtension(envoyControl = envoyControl)
-        val envoyGlobalBlacklisted = EnvoyExtension(
+        val envoyGlobalDisabled = EnvoyExtension(
             envoyControl = envoyControl,
-            config = RandomConfigFile.copy(serviceName = "blacklisted-service")
+            config = RandomConfigFile.copy(serviceName = "disabled-service")
         )
         val envoyVte12 = EnvoyExtension(envoyControl = envoyControl).also {
             it.container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "vte12|global")
@@ -68,7 +69,8 @@ class ServiceTagPreferenceTest {
         @JvmField
         @RegisterExtension
         val containers = ContainerExtension.Parallel(
-            envoyGlobal, envoyVte12, envoyVte12Lvte1, echoGlobal, echoVte12, echoVte12Lvte1, echoVte33
+            envoyGlobal, envoyVte12, envoyVte12Lvte1, envoyGlobalDisabled,
+            echoGlobal, echoVte12, echoVte12Lvte1, echoVte33
         )
 
         val allServices = listOf(echoGlobal, echoVte12, echoVte12Lvte1, echoVte33)
@@ -160,6 +162,14 @@ class ServiceTagPreferenceTest {
                 }
             // TODO[PROM-5262]: more!
         }
+
+        @Test
+        fun `preference routing is disabled for specified service`() {
+            envoyGlobal.callServiceRepeatedly(service = "echo")
+                .assertAllResponsesOkAndFrom(echoGlobal)
+            envoyGlobalDisabled.callServiceRepeatedly(service = "echo")
+                .assertResponsesFromRandomInstances()
+        }
     }
 
     open class ThenLvteInstanceIsDownSetup {
@@ -195,8 +205,8 @@ class ServiceTagPreferenceTest {
      *     * [DONE] even if service-tag is used
      *   * test with 503 (no instances for given preference)
      *     * + verify service-tag-preference response field [AEC]
-     *   * blacklist (+ add varnish)
-     *      + test
+     *   * [DONE] blacklist (+ add varnish)
+     *      + [DONE] test
      *   * service whitelist test
      *   * disabled test
      *   * x-service-tag header based routing works without changes when preference routing is enabled
@@ -241,15 +251,23 @@ class ServiceTagPreferenceTest {
         fun CallStats.assertAllResponsesOkAndFrom(instance: UpstreamService) {
             assertThat(failedHits).isEqualTo(0)
             assertThat(hits(instance))
-                .describedAs {
-                    "hits: {" +
-                        "global: ${hits(echoGlobal)}, " +
-                        "vte12: ${hits(echoVte12)}, " +
-                        "lvte1: ${hits(echoVte12Lvte1)}, " +
-                        "vte33: ${hits(echoVte33)}}"
-                }
+                .describedAs { report() }
                 .isEqualTo(totalHits).isEqualTo(REPEAT)
         }
+
+        fun CallStats.assertResponsesFromRandomInstances() {
+            assertThat(failedHits).isEqualTo(0)
+            assertThat(allServices).describedAs { report() }.allSatisfy {
+                assertThat(hits(it)).isGreaterThan(0)
+            }
+        }
+
+        private fun CallStats.report() =
+            "hits: {" +
+                "global: ${hits(echoGlobal)}, " +
+                "vte12: ${hits(echoVte12)}, " +
+                "lvte1: ${hits(echoVte12Lvte1)}, " +
+                "vte33: ${hits(echoVte33)}}"
 
         fun registerInstance(name: String, tags: List<String>, extension: ServiceExtension<*>) {
             val id = consul.server.operations.registerService(name = name, tags = tags, extension = extension)
