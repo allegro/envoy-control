@@ -81,7 +81,7 @@ class LuaFilterFactory(private val snapshotProperties: SnapshotProperties) {
     fun ingressCurrentZoneHeaderFilter(): HttpFilter = ingressCurrentZoneHeaderFilter
 
     companion object {
-        private val placeholderFormat = "%([0-9a-z_]+)%".toRegex(RegexOption.IGNORE_CASE)
+        private val placeholderFormat = "\"%([0-9a-z_]+)%\"".toRegex(RegexOption.IGNORE_CASE)
         private val replacementFormat = "[a-z0-9_-]+".toRegex(RegexOption.IGNORE_CASE)
 
         fun createLuaFilter(
@@ -96,7 +96,7 @@ class LuaFilterFactory(private val snapshotProperties: SnapshotProperties) {
                 val replacement = variables[key]
                     ?: throw IllegalArgumentException("Missing replacement for placeholder: $key")
                 require(replacement.matches(replacementFormat)) { "invalid replacement format: '$replacement'" }
-                replacement
+                "\"${replacement}\""
             }
 
             return HttpFilter.newBuilder()
