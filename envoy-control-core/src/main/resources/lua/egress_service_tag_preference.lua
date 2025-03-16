@@ -13,17 +13,13 @@ local defaultServiceTagPreference = os.getenv("%DEFAULT_SERVICE_TAG_PREFERENCE_E
 local defaultServiceTagPreferenceFallbackList = parseServiceTagPreferenceToFallbackList(defaultServiceTagPreference)
 
 function envoy_on_request(handle)
-    local serviceTag = handle:headers():get("%SERVICE_TAG_HEADER%")
-
     local requestPreference = handle:headers():getAtIndex("%SERVICE_TAG_PREFERENCE_HEADER%", 0)
     if not requestPreference then
         handle:headers():replace("%SERVICE_TAG_PREFERENCE_HEADER%", defaultServiceTagPreference)
     end
 
-    if serviceTag and serviceTag ~= "" then
-        local dynMetadata = handle:streamInfo():dynamicMetadata()
-        dynMetadata:set("envoy.lb", "%SERVICE_TAG_METADATA_KEY%", serviceTag)
-    else
+    local serviceTag = handle:headers():get("%SERVICE_TAG_HEADER%")
+    if not serviceTag or serviceTag == "" then
         local fallbackList = defaultServiceTagPreferenceFallbackList
         if requestPreference then
             fallbackList = parseServiceTagPreferenceToFallbackList(requestPreference)

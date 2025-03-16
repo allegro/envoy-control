@@ -81,7 +81,14 @@ class RoutingHeadersTest : TestBase(echoService, envoy) {
 
     @Test
     fun `should add upstream service tags to a response`() =
-        upstreamServiceTagsInResponseTest { echoResponse ->
+        upstreamServiceTagsInResponseTest(service = "echo") { echoResponse ->
+            // then
+            assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEqualTo(listOf("""["ipsum","lorem","one"]"""))
+        }
+
+    @Test
+    fun `should add upstream service tags to a response even if autoServiceTag is disabled`() =
+        upstreamServiceTagsInResponseTest(service = "echo-disabled") { echoResponse ->
             // then
             assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEqualTo(listOf("""["ipsum","lorem","one"]"""))
         }
@@ -103,9 +110,10 @@ class UpstreamTagHeadersDisabledTest : TestBase(echoService, envoy) {
     }
 
     @Test
-    fun `should not add upstream service tags to a response`() = upstreamServiceTagsInResponseTest { echoResponse ->
-        assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEmpty()
-    }
+    fun `should not add upstream service tags to a response`() =
+        upstreamServiceTagsInResponseTest(service = "echo") { echoResponse ->
+            assertThat(echoResponse.headers("x-envoy-upstream-service-tags")).isEmpty()
+        }
 }
 
 abstract class TestBase(private val echoService: ServiceExtension<*>, private val envoy: EnvoyExtension) {
@@ -146,13 +154,13 @@ abstract class TestBase(private val echoService: ServiceExtension<*>, private va
         val allTags = listOf("ipsum", "lorem", "one")
     }
 
-    protected fun upstreamServiceTagsInResponseTest(assertions: (echoResponse: Response) -> Unit) {
+    protected fun upstreamServiceTagsInResponseTest(service: String, assertions: (echoResponse: Response) -> Unit) {
         // given
-        consul.server.operations.registerService(name = "echo", extension = echoService, tags = allTags)
-        waitForEndpointReady("echo", echoService, envoy)
+        consul.server.operations.registerService(name = service, extension = echoService, tags = allTags)
+        waitForEndpointReady(service, echoService, envoy)
 
         // when
-        val echoResponse = envoy.egressOperations.callService("echo")
+        val echoResponse = envoy.egressOperations.callService(service)
 
         // then
         assertions(echoResponse)

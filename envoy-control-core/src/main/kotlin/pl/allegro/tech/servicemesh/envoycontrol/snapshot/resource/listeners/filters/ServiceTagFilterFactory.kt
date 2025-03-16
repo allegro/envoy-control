@@ -18,29 +18,26 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
         private val replacementFormat = "[a-z0-9_-]+".toRegex(RegexOption.IGNORE_CASE)
     }
 
-    fun headerToMetadataFilterRule(group: Group): Config.Rule? {
-        if (properties.preferenceRouting.isEnabledFor(group.serviceName)) {
-            return null
-        }
-        return headerToMetadataFilterRulePreferenceDisabled
+    fun headerToMetadataFilterRules(): List<Config.Rule> {
+        return listOf(
+            Config.Rule.newBuilder()
+                .setHeader(properties.header)
+                .setRemove(false)
+                .setOnHeaderPresent(
+                    Config.KeyValuePair.newBuilder()
+                        .setKey(properties.metadataKey)
+                        .setMetadataNamespace("envoy.lb")
+                        .setType(Config.ValueType.STRING)
+                        .build()
+                )
+                .build()
+        )
     }
 
     fun egressFilters(): Array<HttpFilterFactory> = arrayOf(
         { group: Group, _ -> luaEgressServiceTagPreferenceFilter(group) },
         { _, _ -> luaEgressAutoServiceTagsFilter }
     )
-
-    private val headerToMetadataFilterRulePreferenceDisabled = Config.Rule.newBuilder()
-        .setHeader(properties.header)
-        .setRemove(false)
-        .setOnHeaderPresent(
-            Config.KeyValuePair.newBuilder()
-                .setKey(properties.metadataKey)
-                .setMetadataNamespace("envoy.lb")
-                .setType(Config.ValueType.STRING)
-                .build()
-        )
-        .build()
 
     private fun luaEgressServiceTagPreferenceFilter(group: Group): HttpFilter? =
         when (properties.preferenceRouting.isEnabledFor(group.serviceName)) {
@@ -64,7 +61,7 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
         }
     }
 
-    private val luaEgressServiceTagPreferenceFilter = createLuaFilter(
+    private val luaEgressServiceTagPreferenceFilter: HttpFilter = createLuaFilter(
         luaFile = "lua/egress_service_tag_preference.lua",
         filterName = "envoy.lua.service_tag_preference",
         variables = mapOf(
