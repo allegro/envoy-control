@@ -16,6 +16,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtens
 import pl.allegro.tech.servicemesh.envoycontrol.routing.RoutingPolicyTestBase.Companion.consul
 import pl.allegro.tech.servicemesh.envoycontrol.routing.RoutingPolicyTestBase.Companion.ipsumEchoService
 import pl.allegro.tech.servicemesh.envoycontrol.routing.RoutingPolicyTestBase.Companion.otherEchoService
+import pl.allegro.tech.servicemesh.envoycontrol.routing.RoutingPolicyTestBase.TagOrPreference.TAG
+import pl.allegro.tech.servicemesh.envoycontrol.routing.RoutingPolicyTestBase.TagOrPreference.TAG_PREFERENCE
 import java.time.Duration
 
 abstract class RoutingPolicyTestBase(
@@ -98,7 +100,13 @@ abstract class RoutingPolicyTestBase(
     }
 
     @Test
-    fun `should consider client side service-tag`() {
+    fun `should consider client side service-tag`() = clientSideServiceTagOrTagPreference(TAG)
+
+    enum class TagOrPreference {
+        TAG, TAG_PREFERENCE
+    }
+
+    fun clientSideServiceTagOrTagPreference(tagOrPreference: TagOrPreference) {
         // given
         val ipsumBetaEchoService = ipsumEchoService
         val ipsumAlphaEchoService = otherEchoService
@@ -123,9 +131,14 @@ abstract class RoutingPolicyTestBase(
         waitForEndpointReady("echo", ipsumAlphaEchoService, autoServiceTagEnabledEnvoy)
         waitForEndpointReady("echo", ipsumAlphaEchoService, autoServiceTagDisabledEnvoy)
 
+        val (tag, preference) = when (tagOrPreference) {
+            TAG -> "beta" to null
+            TAG_PREFERENCE -> null to "beta"
+        }
+
         // when
-        val statsAutoServiceTag = callEchoTenTimes(autoServiceTagEnabledEnvoy, tag = "beta")
-        val statsNoAutoServiceTag = callEchoTenTimes(autoServiceTagDisabledEnvoy, tag = "beta")
+        val statsAutoServiceTag = callEchoTenTimes(autoServiceTagEnabledEnvoy, tag = tag, tagPreference = preference)
+        val statsNoAutoServiceTag = callEchoTenTimes(autoServiceTagDisabledEnvoy, tag = tag, tagPreference = preference)
 
         // then
         statsAutoServiceTag.let { stats ->
@@ -209,7 +222,8 @@ abstract class RoutingPolicyTestBase(
     protected fun callEchoTenTimes(
         envoy: EnvoyExtension,
         assertNoErrors: Boolean = true,
-        tag: String? = null
+        tag: String? = null,
+        tagPreference: String? = null,
     ): CallStats {
         val stats = callStats()
         envoy.egressOperations.callServiceRepeatedly(
@@ -217,7 +231,14 @@ abstract class RoutingPolicyTestBase(
             stats = stats,
             maxRepeat = 10,
             assertNoErrors = assertNoErrors,
-            headers = tag?.let { mapOf("x-service-tag" to it) } ?: emptyMap(),
+            headers = buildMap {
+                if (tag != null) {
+                    put("x-service-tag", tag)
+                }
+                if (tagPreference != null) {
+                    put("x-service-tag-preference", tagPreference)
+                }
+            }
         )
         return stats
     }
@@ -444,4 +465,7 @@ class RoutingPolicyWithServiceTagPreferenceEnabledTest : RoutingPolicyTestBase(
             it.container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "ipsum|lorem")
         }
     }
+
+    @Test
+    fun `should consider client side service-tag-preference`() = clientSideServiceTagOrTagPreference(TAG_PREFERENCE)
 }

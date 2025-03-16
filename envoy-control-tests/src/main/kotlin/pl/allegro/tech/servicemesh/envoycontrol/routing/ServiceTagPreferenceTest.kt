@@ -188,15 +188,16 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
     /**
      * TODO:
      *   + [DONE] add and pass default x-service-tag-preference header upstream
-     *     + [DONE] even if service-tag is used
+     *   [DONE]  * even if service-tag is used
      *   + [DONE] pass request x-service-tag-preference upstream
-     *     + [DONE] even if service-tag is used
+     *   [DONE] * even if service-tag is used
      *   * [DONE]test with 503 (no instances for given preference)
      *     * + verify service-tag-preference response field [AEC]
      *   + [DONE] blacklist (+ add varnish)
-     *    + [DONE] test
+     *   [DONE] * test
      *   * [DONE] service whitelist test
      *   * [ABANDONED] disabled test. Abandoned because other tests test that.
+     *   [DONE] * RoutingPolicyPreferenceEnabledTest - preference enabled sanity check - set preference to "lorem"
      *   * x-service-tag header based routing works without changes when preference routing is enabled
      *   * [DONE] everything works with autoServiceTag enabled - especially request preference overriding default preference header sent to upstream
      *   * x-envoy-upstream-service-tags : move or copy the test here?
