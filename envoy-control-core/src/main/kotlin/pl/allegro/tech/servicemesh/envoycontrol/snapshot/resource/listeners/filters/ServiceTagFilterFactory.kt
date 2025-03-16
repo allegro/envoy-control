@@ -1,21 +1,16 @@
 package pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters
 
-import com.google.protobuf.Any
-import io.envoyproxy.envoy.config.core.v3.DataSource
 import io.envoyproxy.envoy.extensions.filters.http.header_to_metadata.v3.Config
-import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ServiceTagsProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.HttpFilterFactory
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filters.LuaFilterFactory.Companion.createLuaFilter
 
 class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
 
     companion object {
         const val AUTO_SERVICE_TAG_PREFERENCE_METADATA = "auto_service_tag_preference"
-
-        private val placeholderFormat = "%([0-9a-z_]+)%".toRegex(RegexOption.IGNORE_CASE)
-        private val replacementFormat = "[a-z0-9_-]+".toRegex(RegexOption.IGNORE_CASE)
     }
 
     fun headerToMetadataFilterRules(): List<Config.Rule> {
@@ -72,31 +67,4 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
             "DEFAULT_SERVICE_TAG_PREFERENCE_FALLBACK" to properties.preferenceRouting.defaultPreferenceFallback,
         )
     )
-
-    private fun createLuaFilter(
-        luaFile: String,
-        filterName: String,
-        variables: Map<String, String> = emptyMap()
-    ): HttpFilter {
-        val scriptTemplate = this::class.java.classLoader.getResource(luaFile)!!.readText()
-
-        val script = scriptTemplate.replace(placeholderFormat) { match ->
-            val key = match.groupValues[1]
-            val replacement = variables[key]
-                ?: throw IllegalArgumentException("Missing replacement for placeholder: $key")
-            require(replacement.matches(replacementFormat)) { "invalid replacement format: '$replacement'" }
-            replacement
-        }
-
-        return HttpFilter.newBuilder()
-            .setName(filterName)
-            .setTypedConfig(
-                Any.pack(
-                    Lua.newBuilder().setDefaultSourceCode(
-                        DataSource.newBuilder()
-                            .setInlineString(script)
-                    ).build()
-                )
-            ).build()
-    }
 }

@@ -141,7 +141,6 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
                 .asHttpsEchoResponse().let {
                     assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "lvte1|vte12|global")
                 }
-            // TODO[PROM-5262]: more!
         }
 
         @Test

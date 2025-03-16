@@ -4,6 +4,7 @@ import com.google.protobuf.Any
 import com.google.protobuf.ListValue
 import com.google.protobuf.Struct
 import com.google.protobuf.Value
+import io.envoyproxy.envoy.config.core.v3.DataSource
 import io.envoyproxy.envoy.config.core.v3.Metadata
 import io.envoyproxy.envoy.extensions.filters.http.lua.v3.Lua
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
@@ -15,14 +16,8 @@ import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.filt
 
 class LuaFilterFactory(private val snapshotProperties: SnapshotProperties) {
 
-    private val ingressRbacLoggingScript: String = this::class.java.classLoader
-        .getResource("lua/ingress_rbac_logging.lua")!!.readText()
-
     private val ingressRbacLoggingFilter: HttpFilter? = if (snapshotProperties.incomingPermissions.enabled) {
-        HttpFilter.newBuilder()
-            .setName("envoy.lua")
-            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressRbacLoggingScript).build()))
-            .build()
+        createLuaFilter(luaFile = "lua/ingress_rbac_logging.lua", filterName = "envoy.lua")
     } else {
         null
     }
@@ -32,28 +27,15 @@ class LuaFilterFactory(private val snapshotProperties: SnapshotProperties) {
     fun ingressRbacLoggingFilter(group: Group): HttpFilter? =
         ingressRbacLoggingFilter.takeIf { group.proxySettings.incoming.permissionsEnabled }
 
-    private val ingressClientNameHeaderScript: String = this::class.java.classLoader
-        .getResource("lua/ingress_client_name_header.lua")!!.readText()
-
     private val ingressClientNameHeaderFilter: HttpFilter =
-        HttpFilter.newBuilder()
-            .setName("ingress.client.lua")
-            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressClientNameHeaderScript).build()))
-            .build()
-
-    private val ingressCurrentZoneHeaderScript: String = this::class.java.classLoader
-        .getResource("lua/ingress_current_zone_header.lua")!!.readText()
+        createLuaFilter(luaFile = "lua/ingress_client_name_header.lua", filterName = "ingress.client.lua")
 
     private val ingressCurrentZoneHeaderFilter: HttpFilter =
-        HttpFilter.newBuilder()
-            .setName("ingress.zone.lua")
-            .setTypedConfig(Any.pack(Lua.newBuilder().setInlineCode(ingressCurrentZoneHeaderScript).build()))
-            .build()
+        createLuaFilter(luaFile = "lua/ingress_current_zone_header.lua", filterName = "ingress.zone.lua")
 
-    private val sanUriWildcardRegexForLua = SanUriMatcherFactory(
-        snapshotProperties.incomingPermissions.tlsAuthentication
-    )
-        .sanUriWildcardRegexForLua
+    private val sanUriWildcardRegexForLua =
+        SanUriMatcherFactory(snapshotProperties.incomingPermissions.tlsAuthentication)
+            .sanUriWildcardRegexForLua
 
     fun ingressScriptsMetadata(
         group: Group,
@@ -97,6 +79,38 @@ class LuaFilterFactory(private val snapshotProperties: SnapshotProperties) {
         ingressClientNameHeaderFilter.takeIf { trustedClientIdentityHeader.isNotEmpty() }
 
     fun ingressCurrentZoneHeaderFilter(): HttpFilter = ingressCurrentZoneHeaderFilter
+
+    companion object {
+        private val placeholderFormat = "%([0-9a-z_]+)%".toRegex(RegexOption.IGNORE_CASE)
+        private val replacementFormat = "[a-z0-9_-]+".toRegex(RegexOption.IGNORE_CASE)
+
+        fun createLuaFilter(
+            luaFile: String,
+            filterName: String,
+            variables: Map<String, String> = emptyMap()
+        ): HttpFilter {
+            val scriptTemplate = this::class.java.classLoader.getResource(luaFile)!!.readText()
+
+            val script = scriptTemplate.replace(placeholderFormat) { match ->
+                val key = match.groupValues[1]
+                val replacement = variables[key]
+                    ?: throw IllegalArgumentException("Missing replacement for placeholder: $key")
+                require(replacement.matches(replacementFormat)) { "invalid replacement format: '$replacement'" }
+                replacement
+            }
+
+            return HttpFilter.newBuilder()
+                .setName(filterName)
+                .setTypedConfig(
+                    Any.pack(
+                        Lua.newBuilder().setDefaultSourceCode(
+                            DataSource.newBuilder()
+                                .setInlineString(script)
+                        ).build()
+                    )
+                ).build()
+        }
+    }
 }
 
 sealed class LuaMetadataProperty<T>(open val value: T) {
@@ -157,7 +171,8 @@ sealed class LuaMetadataProperty<T>(open val value: T) {
 
         override fun toValue(): Value {
             return Value.newBuilder()
-                .setStructValue(Struct.newBuilder()
+                .setStructValue(
+                    Struct.newBuilder()
                     .apply {
                         value.forEach {
                             putFields(
