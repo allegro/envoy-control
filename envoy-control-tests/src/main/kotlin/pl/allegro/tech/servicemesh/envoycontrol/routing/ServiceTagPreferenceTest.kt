@@ -201,8 +201,8 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
      *   [ABANDONED] x-service-tag header based routing works without changes when preference routing is enabled. Abandoned because we test x-service-tag routing in this file
      *   * [DONE] everything works with autoServiceTag enabled - especially request preference overriding default preference header sent to upstream
      *   * [DONE] x-envoy-upstream-service-tags : move or copy the test here?. DONE: added a test in RoutingHeadersTest for a dependency for which autoServiceTag is disabled
-     *   * change docs preferences table
-     *   * test with MIN envoy version
+     *   * [DONE] change docs preferences table
+     *   * [DONE] test with MIN envoy version. Done: routing tests pass, all tests not. IncomingPermissionsPathMatchingTest - it fails for the long time probably
      */
 
     override fun CallStats.report() =

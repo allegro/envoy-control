@@ -4,9 +4,15 @@ Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ## [0.22.11]
 ### Changed
+- add service tag preference routing
+- optimize auto service tag routing (don't send config to envoys if disabled, reduce number of metadata ser per route)
+- fix and refactor e2e tests
+
+## [0.22.10]
+### Changed
 - bump control plane version to 1.0.48 to support envoy 1.33.0 version
 
-## [0.22.11]
+## [0.22.10]
 ### Changed
 - whitelist for enabling separated routes for status endpoints
     

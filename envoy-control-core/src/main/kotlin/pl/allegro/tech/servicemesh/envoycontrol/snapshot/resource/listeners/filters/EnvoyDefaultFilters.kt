@@ -161,6 +161,7 @@ class EnvoyDefaultFilters(
 
         return headerToMetadataConfig
     }
+
     private fun envoyRouterHttpFilter(): HttpFilter = HttpFilter
         .newBuilder()
         .setName("envoy.filters.http.router")
