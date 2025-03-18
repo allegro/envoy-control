@@ -25,6 +25,8 @@ class ServerProperties {
     var reportProtobufCacheMetrics = false
     var logFullRequest = false
     var logFullResponse = false
+    // todo #920 remove after deploying and testing on production
+    var enableInitialResourcesHandling = true
 }
 
 enum class ExecutorType {

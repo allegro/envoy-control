@@ -54,6 +54,7 @@ import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import pl.allegro.tech.servicemesh.envoycontrol.v3.SimpleCacheNoInitialResourcesHandling
 
 class ControlPlane private constructor(
     val grpcServer: Server,
@@ -143,7 +144,14 @@ class ControlPlane private constructor(
             val groupSnapshotProperties = properties.server.groupSnapshotUpdateScheduler
 
             val groupSnapshotScheduler = buildGroupSnapshotScheduler(groupSnapshotProperties)
-            val cache = SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
+            val cache: SnapshotCache<Group, Snapshot> = if (properties.server.enableInitialResourcesHandling) {
+                SimpleCache(nodeGroup, properties.envoy.snapshot.shouldSendMissingEndpoints)
+            } else {
+                SimpleCacheNoInitialResourcesHandling(
+                    nodeGroup,
+                    properties.envoy.snapshot.shouldSendMissingEndpoints
+                )
+            }
             val groupChangeWatcher = GroupChangeWatcher(cache, metrics, meterRegistry)
             val meteredConnectionsCallbacks = MetricsDiscoveryServerCallbacks(meterRegistry)
             val loggingDiscoveryServerCallbacks = LoggingDiscoveryServerCallbacks(
@@ -248,7 +256,7 @@ class ControlPlane private constructor(
         }
 
         private fun buildSnapshotCollectingCallback(
-            cache: SimpleCache<Group>
+            cache: SnapshotCache<Group, Snapshot>
         ): SnapshotCollectingCallback<Group, Snapshot> {
             val cleanupProperties = properties.server.snapshotCleanup
             return SnapshotCollectingCallback(
