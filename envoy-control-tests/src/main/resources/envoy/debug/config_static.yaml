@@ -1,0 +1,70 @@
+node:
+  metadata:
+    default_service_tag_preference: lvte1|vte2|global
+static_resources:
+  listeners:
+    - name: egress
+      address: { socket_address: { address: 0.0.0.0, port_value: 5000 }}
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: e
+                route_config:
+                  name: routes  # maybe not needed
+                  virtual_hosts:
+                    - name: backend
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: "/" }
+                          route:
+                            cluster: backend
+                  request_headers_to_add:
+                  - header:
+                      key: x-service-tag-preference-from-env
+                      # read from environment variable
+                      # Pros
+                      #   - unlike CEL, no warnings in docs that the feature is new
+                      # Cons:
+                      #   - Envoy dependent on external value that is not visible in envoy admin
+                      #     (but we can add it also to metadata anyway)
+                      #
+                      value: "%ENVIRONMENT(DEFAULT_SERVICE_TAG_PREFERENCE)%"
+                    append_action: ADD_IF_ABSENT
+                  - header:
+                      key: x-service-tag-preference-from-node-metadata
+                      # read from node.metadata.
+                      # Pros:
+                      #   - unlike environment variable, the value is visible in envoy admin
+                      # Cons:
+                      #   -CEL is not fully stable yet? https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/formatter/cel/v3/cel.proto.html
+                      value: "%CEL(xds.node.metadata.default_service_tag_preference)%"
+                    append_action: ADD_IF_ABSENT
+                http_filters:
+                - name: envoy.filters.http.router
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    - name: ingress
+      address: { socket_address: { address: 0.0.0.0, port_value: 5001 }}
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: i
+                route_config: {}
+  clusters:
+    - name: backend
+      type: STATIC
+      load_assignment:
+        cluster_name: backend
+        endpoints:
+        - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: LOCAL_SERVICE_IP
+                  port_value: 5678
+admin:
+  address: { socket_address: { address: 0.0.0.0, port_value: 10000 }}
