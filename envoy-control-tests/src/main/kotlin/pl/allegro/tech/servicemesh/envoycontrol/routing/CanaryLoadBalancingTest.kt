@@ -61,7 +61,7 @@ open class CanaryLoadBalancingTest {
         val stats = callEchoServiceRepeatedly(
             minRepeat = 30,
             maxRepeat = 200,
-            repeatUntil = { response -> response.isFrom(canaryContainer().container()) }
+            repeatUntil = { response -> response.isFrom(canaryContainer()) }
         )
 
         // then
@@ -129,7 +129,7 @@ open class CanaryLoadBalancingTest {
         val stats = callEchoServiceRepeatedly(
             minRepeat = 30,
             maxRepeat = 200,
-            repeatUntil = { response -> response.isFrom(canaryContainer().container()) }
+            repeatUntil = { response -> response.isFrom(canaryContainer()) }
         )
 
         // then

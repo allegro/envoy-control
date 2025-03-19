@@ -7,6 +7,7 @@ import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.resource.listeners.HttpFilterFactory
 
 class EnvoyDefaultFilters(
     private val snapshotProperties: SnapshotProperties,
@@ -34,7 +35,7 @@ class EnvoyDefaultFilters(
     private val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagHeaderToMetadataFilterRules)
     private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
     private val defaultHeaderToMetadataFilter = { _: Group, _: GlobalSnapshot -> headerToMetadataHttpFilter }
-    private val defaultServiceTagFilter = { _: Group, _: GlobalSnapshot -> serviceTagFilterFactory.luaEgressFilter() }
+    private val defaultServiceTagFilters = serviceTagFilterFactory.egressFilters()
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
 
     /**
@@ -73,9 +74,9 @@ class EnvoyDefaultFilters(
         compressionFilterFactory.brotliCompressionFilter(group)
     }
 
-    val defaultEgressFilters = listOf(
+    val defaultEgressFilters: List<HttpFilterFactory> = listOf(
         defaultHeaderToMetadataFilter,
-        defaultServiceTagFilter,
+        *defaultServiceTagFilters,
         defaultGzipCompressionFilter,
         defaultBrotliCompressionFilter,
         defaultEnvoyRouterHttpFilter,

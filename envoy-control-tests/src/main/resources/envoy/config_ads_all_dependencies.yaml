@@ -29,7 +29,7 @@ node:
     preserve_external_request_id: true
     access_log_enabled: false
     resources_dir: "/etc/envoy/extra"
-    service_name: test-service
+    service_name: "SERVICE_NAME"
     proxy_settings:
       outgoing:
         dependencies:
