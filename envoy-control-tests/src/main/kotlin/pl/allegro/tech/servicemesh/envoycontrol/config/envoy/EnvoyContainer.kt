@@ -39,7 +39,7 @@ class EnvoyContainer(
         const val INGRESS_LISTENER_CONTAINER_PORT = 5001
         private const val ADMIN_PORT = 10000
 
-        private const val MIN_SUPPORTED_ENVOY_VERSION = "v1.24.6"
+        private const val MIN_SUPPORTED_ENVOY_VERSION = "v1.30.4"
         private const val MAX_SUPPORTED_ENVOY_VERSION = "v1.33.0"
 
         val DEFAULT_IMAGE = run {
