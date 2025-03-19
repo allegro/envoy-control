@@ -2,38 +2,37 @@
 
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
-## [0.22.11]
+
+## [0.22.12]
 ### Changed
 - add service tag preference routing
 - optimize auto service tag routing (don't send config to envoys if disabled, reduce number of metadata ser per route)
 - fix and refactor e2e tests
 
-## [0.22.10]
+## [0.22.11]
 ### Changed
-- bump control plane version to 1.0.48 to support envoy 1.33.0 version
+- Implemented handling of initialResourcesVersions in DeltaRequest for ADS
 
 ## [0.22.10]
 ### Changed
 - whitelist for enabling separated routes for status endpoints
-    
-## [0.22.10]
+
+## [0.22.9]
+### Changed
+- bump control plane version to 1.0.48 to support envoy 1.33.0 version
+ 
+## [0.22.8]
 ### Changed
 - changes for `x-envoy-upstream-service-tags` response header:
     - add configuration property to enable it for all envoys
     - remove support for enabling it per envoy
 
-## [0.22.9]
-### Changed
-- separated ingress route for /status* paths
-
-## [0.22.8]
-### Changed
-- added tests for missing and malformed JWT token scenarios
-
 ## [0.22.7]
 ### Changed
 - fixed running e2e tests locally on MacOS
 - minor cleaning and updating
+- added tests for missing and malformed JWT token scenarios
+- separated ingress route for /status* paths
 
 ## [0.22.6]
 ### Changed
