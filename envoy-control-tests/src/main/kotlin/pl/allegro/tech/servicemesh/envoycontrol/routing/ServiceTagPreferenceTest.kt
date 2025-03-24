@@ -184,26 +184,6 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
         }
     }
 
-    /**
-     * TODO:
-     *   + [DONE] add and pass default x-service-tag-preference header upstream
-     *   [DONE]  * even if service-tag is used
-     *   + [DONE] pass request x-service-tag-preference upstream
-     *   [DONE] * even if service-tag is used
-     *   * [DONE]test with 503 (no instances for given preference)
-     *     * + verify service-tag-preference response field [AEC]
-     *   + [DONE] blacklist (+ add varnish)
-     *   [DONE] * test
-     *   * [DONE] service whitelist test
-     *   * [ABANDONED] disabled test. Abandoned because other tests test that.
-     *   [DONE] * RoutingPolicyPreferenceEnabledTest - preference enabled sanity check - set preference to "lorem"
-     *   [ABANDONED] x-service-tag header based routing works without changes when preference routing is enabled. Abandoned because we test x-service-tag routing in this file
-     *   * [DONE] everything works with autoServiceTag enabled - especially request preference overriding default preference header sent to upstream
-     *   * [DONE] x-envoy-upstream-service-tags : move or copy the test here?. DONE: added a test in RoutingHeadersTest for a dependency for which autoServiceTag is disabled
-     *   * [DONE] change docs preferences table
-     *   * [DONE] test with MIN envoy version. Done: routing tests pass, all tests not. IncomingPermissionsPathMatchingTest - it fails for the long time probably
-     */
-
     override fun CallStats.report() =
         "hits: {" +
             "global: ${hits(echoGlobal)}, " +
@@ -279,6 +259,70 @@ class ServiceTagPreferenceEnableForServicesTest :
         "hits: {" +
             "global: ${hits(echoGlobal)}, " +
             "vte3: ${hits(echoVte3)}}"
+}
+
+@TestClassOrder(OrderAnnotation::class)
+class ServiceTagPreferenceFallbackToAnyTest : ServiceTagPreferenceTestBase(allServices = listOf(echoGlobal, echoVte3)) {
+    companion object {
+        @JvmField
+        @RegisterExtension
+        val envoyControl: EnvoyControlExtension = EnvoyControlExtension(
+            consul = consul, properties = properties + mapOf(
+                "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to true,
+                "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.fallback-to-any.enable-for-services-with-default-preference" to true,
+            )
+        )
+        val envoyGlobal = EnvoyExtension(envoyControl = envoyControl)
+        val envoyVte2 = EnvoyExtension(envoyControl = envoyControl).also {
+            it.container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "vte2|global")
+        }
+        val echoVte5 = HttpsEchoExtension()
+        val echoVte6 = HttpsEchoExtension()
+
+        @JvmField
+        @RegisterExtension
+        val containers = ContainerExtension.Parallel(envoyGlobal, envoyVte2, echoVte5, echoVte6)
+    }
+
+
+    @Order(1)
+    @Nested
+    inner class WhenThereIsNoGlobalInstance() {
+
+    }
+
+    @Test
+    fun `global instance should fallback to any`() {
+
+        envoyGlobal.callServiceRepeatedly(service = "echo")
+            .assertResponsesFromRandomInstances()
+        envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte100|global")
+            .assertResponsesFromRandomInstances()
+    }
+
+    @Test
+    fun `not global instance should NOT fallback to any`() {
+
+        envoyGlobal.callServiceRepeatedly(service = "echo")
+    }
+
+    @Test
+    fun `global instance should NOT fallback to any when service-tag is used`() {
+
+        envoyGlobal.callServiceRepeatedly(service = "echo")
+            .assertResponsesFromRandomInstances()
+        envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte100|global")
+            .assertResponsesFromRandomInstances()
+    }
+
+    @Test
+    fun `global instance should route to instance according to preference if matching instance is found`() {
+
+    }
+
+    override fun CallStats.report(): String {
+        TODO("Not yet implemented")
+    }
 }
 
 abstract class ServiceTagPreferenceTestBase(val allServices: List<UpstreamService>) {
