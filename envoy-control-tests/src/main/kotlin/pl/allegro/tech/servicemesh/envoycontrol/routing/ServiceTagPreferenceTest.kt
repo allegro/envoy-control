@@ -262,7 +262,7 @@ class ServiceTagPreferenceEnableForServicesTest :
 }
 
 @TestClassOrder(OrderAnnotation::class)
-class ServiceTagPreferenceFallbackToAnyTest : ServiceTagPreferenceTestBase(allServices = listOf(echoGlobal, echoVte3)) {
+class ServiceTagPreferenceFallbackToAnyTest : ServiceTagPreferenceTestBase(allServices = allServices) {
     companion object {
         @JvmField
         @RegisterExtension
@@ -278,51 +278,98 @@ class ServiceTagPreferenceFallbackToAnyTest : ServiceTagPreferenceTestBase(allSe
         }
         val echoVte5 = HttpsEchoExtension()
         val echoVte6 = HttpsEchoExtension()
+        val echoGlobal = HttpsEchoExtension()
+
+        val allServices = listOf(echoGlobal, echoVte5, echoVte6)
 
         @JvmField
         @RegisterExtension
-        val containers = ContainerExtension.Parallel(envoyGlobal, envoyVte2, echoVte5, echoVte6)
+        val containers = ContainerExtension.Parallel(envoyGlobal, envoyVte2, echoVte5, echoVte6, echoGlobal)
     }
 
+    open class WhenThereIsNoGlobalInstanceSetup {
+        companion object {
+            @JvmStatic
+            @BeforeAll
+            fun registerServices() {
+                consul.server.operations.registerService(name = "echo", tags = listOf("vte5"), extension = echoVte5)
+                consul.server.operations.registerService(name = "echo", tags = listOf("vte6"), extension = echoVte6)
+
+                listOf(envoyGlobal, envoyVte2).forEach { envoy ->
+                    listOf(echoVte5, echoVte6).forEach { service ->
+                        envoy.waitForClusterEndpointHealthy("echo", service.container().ipAddress())
+                    }
+                }
+            }
+        }
+    }
 
     @Order(1)
     @Nested
-    inner class WhenThereIsNoGlobalInstance() {
+    inner class WhenThereIsNoGlobalInstance : WhenThereIsNoGlobalInstanceSetup() {
+        @Test
+        fun `global instance should fallback to any`() {
 
+            envoyGlobal.callServiceRepeatedly(service = "echo")
+                .assertResponsesFromRandomInstances()
+            envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte100|global")
+                .assertResponsesFromRandomInstances()
+        }
+
+        @Test
+        fun `not global instance should NOT fallback to any`() {
+
+            envoyVte2.callService(service = "echo").let {
+                assertThat(it).isUnreachable()
+            }
+        }
+
+        @Test
+        fun `global instance should NOT fallback to any when service-tag is used`() {
+
+            envoyGlobal.callService(service = "echo", serviceTag = "vte100").let {
+                assertThat(it).isUnreachable()
+            }
+        }
+
+        @Test
+        fun `global instance should route to instance according to preference if matching instance is found`() {
+
+            envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte6")
+                .assertAllResponsesOkAndFrom(echoVte6)
+        }
     }
 
-    @Test
-    fun `global instance should fallback to any`() {
-
-        envoyGlobal.callServiceRepeatedly(service = "echo")
-            .assertResponsesFromRandomInstances()
-        envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte100|global")
-            .assertResponsesFromRandomInstances()
+    open class ThenGlobalInstanceAppearsSetup {
+        companion object {
+            @JvmStatic
+            @BeforeAll
+            fun registerServices() {
+                consul.server.operations.registerService(name = "echo", tags = listOf("global"), extension = echoGlobal)
+                listOf(envoyGlobal, envoyVte2).forEach { envoy ->
+                    allServices.forEach { service ->
+                        envoy.waitForClusterEndpointHealthy("echo", service.container().ipAddress())
+                    }
+                }
+            }
+        }
     }
 
-    @Test
-    fun `not global instance should NOT fallback to any`() {
-
-        envoyGlobal.callServiceRepeatedly(service = "echo")
+    @Order(2)
+    @Nested
+    inner class ThenGlobalInstanceAppears : ThenGlobalInstanceAppearsSetup() {
+        @Test
+        fun `global envoy should switch to global instance`() {
+            envoyGlobal.callServiceRepeatedly(service = "echo")
+                .assertAllResponsesOkAndFrom(echoGlobal)
+        }
     }
 
-    @Test
-    fun `global instance should NOT fallback to any when service-tag is used`() {
-
-        envoyGlobal.callServiceRepeatedly(service = "echo")
-            .assertResponsesFromRandomInstances()
-        envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte100|global")
-            .assertResponsesFromRandomInstances()
-    }
-
-    @Test
-    fun `global instance should route to instance according to preference if matching instance is found`() {
-
-    }
-
-    override fun CallStats.report(): String {
-        TODO("Not yet implemented")
-    }
+    override fun CallStats.report() =
+        "hits: {" +
+            "global: ${hits(echoGlobal)}, " +
+            "vte5: ${hits(echoVte5)}, " +
+            "vte6: ${hits(echoVte6)}}"
 }
 
 abstract class ServiceTagPreferenceTestBase(val allServices: List<UpstreamService>) {
