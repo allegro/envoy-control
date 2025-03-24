@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.22.13]
+### Changed
+- service tag preference routing: add option to fallback-to-any
+
 ## [0.22.12]
 ### Changed
 - add service tag preference routing
