@@ -82,7 +82,7 @@ class LuaFilterFactory(private val snapshotProperties: SnapshotProperties) {
 
     companion object {
         private val placeholderFormat = "\"%([0-9a-z_]+)%\"".toRegex(RegexOption.IGNORE_CASE)
-        private val replacementFormat = "[a-z0-9_-]+".toRegex(RegexOption.IGNORE_CASE)
+        private val replacementFormat = "[a-z0-9_-]*".toRegex(RegexOption.IGNORE_CASE)
 
         fun createLuaFilter(
             luaFile: String,

@@ -269,7 +269,7 @@ class ServiceTagPreferenceFallbackToAnyTest : ServiceTagPreferenceTestBase(allSe
         val envoyControl: EnvoyControlExtension = EnvoyControlExtension(
             consul = consul, properties = properties + mapOf(
                 "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to true,
-                "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.fallback-to-any.enable-for-services-with-default-preference" to true,
+                "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.fallback-to-any.enable-for-services-with-default-preference-equal-to" to "global",
             )
         )
         val envoyGlobal = EnvoyExtension(envoyControl = envoyControl)
@@ -311,9 +311,9 @@ class ServiceTagPreferenceFallbackToAnyTest : ServiceTagPreferenceTestBase(allSe
         fun `global instance should fallback to any`() {
 
             envoyGlobal.callServiceRepeatedly(service = "echo")
-                .assertResponsesFromRandomInstances()
+                .assertResponsesFromRandomInstances(listOf(echoVte5, echoVte6))
             envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte100|global")
-                .assertResponsesFromRandomInstances()
+                .assertResponsesFromRandomInstances(listOf(echoVte5, echoVte6))
         }
 
         @Test
@@ -427,10 +427,10 @@ abstract class ServiceTagPreferenceTestBase(val allServices: List<UpstreamServic
             .isEqualTo(totalHits).isEqualTo(REPEAT)
     }
 
-    fun CallStats.assertResponsesFromRandomInstances() {
+    fun CallStats.assertResponsesFromRandomInstances(instances: List<UpstreamService> = allServices) {
         assertThat(failedHits).isEqualTo(0)
-        assertThat(allServices).hasSizeGreaterThan(1)
-        assertThat(allServices).describedAs { report() }.allSatisfy {
+        assertThat(instances).hasSizeGreaterThan(1)
+        assertThat(instances).describedAs { report() }.allSatisfy {
             assertThat(hits(it)).isGreaterThan(0)
         }
     }
