@@ -336,28 +336,24 @@ class ServiceTagPreferenceFallbackToAnyTest : ServiceTagPreferenceTestBase(allSe
         }
     }
 
-    open class ThenGlobalInstanceAppearsSetup {
-        companion object {
-            @JvmStatic
-            @BeforeAll
-            fun registerServices() {
-                consul.server.operations.registerService(name = "echo", tags = listOf("global"), extension = echoGlobal)
-                listOf(envoyGlobal, envoyVte2).forEach { envoy ->
-                    allServices.forEach { service ->
-                        envoy.waitForClusterEndpointHealthy("echo", service.container().ipAddress())
-                    }
-                }
-            }
-        }
-    }
-
     @Order(2)
     @Nested
-    inner class ThenGlobalInstanceAppears : ThenGlobalInstanceAppearsSetup() {
+    inner class ThenGlobalInstanceAppears {
         @Test
         fun `global envoy should switch to global instance`() {
+            registerGlobal()
+
             envoyGlobal.callServiceRepeatedly(service = "echo")
                 .assertAllResponsesOkAndFrom(echoGlobal)
+        }
+
+        fun registerGlobal() {
+            consul.server.operations.registerService(name = "echo", tags = listOf("global"), extension = echoGlobal)
+            listOf(envoyGlobal, envoyVte2).forEach { envoy ->
+                ServiceTagPreferenceFallbackToAnyTest.allServices.forEach { service ->
+                    envoy.waitForClusterEndpointHealthy("echo", service.container().ipAddress())
+                }
+            }
         }
     }
 
