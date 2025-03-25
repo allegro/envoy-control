@@ -27,7 +27,7 @@ local defaultServiceTagPreferenceFallbackList = parseServiceTagPreferenceToFallb
 function envoy_on_request(handle)
     local requestPreference = handle:headers():getAtIndex("%SERVICE_TAG_PREFERENCE_HEADER%", 0)
     if not requestPreference then
-        handle:headers():replace("%SERVICE_TAG_PREFERENCE_HEADER%", defaultServiceTagPreference)
+        handle:headers():add("%SERVICE_TAG_PREFERENCE_HEADER%", defaultServiceTagPreference)
     end
 
     local serviceTag = handle:headers():get("%SERVICE_TAG_HEADER%")

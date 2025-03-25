@@ -159,28 +159,24 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
         }
     }
 
-    open class ThenLvteInstanceIsDownSetup {
-        companion object {
-            @JvmStatic
-            @BeforeAll
-            fun deregisterLvte() {
-                deregisterInstance(echoVte12Lvte1)
-            }
-        }
-    }
-
     @Order(2)
     @Nested
-    inner class ThenLvteInstanceIsDown : ThenLvteInstanceIsDownSetup() {
+    inner class ThenLvteInstanceIsDown {
 
         @Test
         fun `LVTE request falls back to base VTE instance`() {
+            deregisterLvte()
+
             envoyGlobal.callServiceRepeatedly(service = "echo")
                 .assertAllResponsesOkAndFrom(instance = echoGlobal)
             envoyVte12.callServiceRepeatedly(service = "echo")
                 .assertAllResponsesOkAndFrom(instance = echoVte12)
             envoyVte12Lvte1.callServiceRepeatedly(service = "echo")
                 .assertAllResponsesOkAndFrom(instance = echoVte12)
+        }
+
+        fun deregisterLvte() {
+            deregisterInstance(echoVte12Lvte1)
         }
     }
 
