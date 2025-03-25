@@ -164,14 +164,23 @@ class EnvoyEgressRoutesFactory(
             )
         }
 
-        if (properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()) {
-            addServiceTagHeaders(routeSpecification, virtualHost)
+        if (shouldAddServiceTagPreferenceHeader()) {
+            addServiceTagPreferenceHeaders(routeSpecification, virtualHost)
         }
 
         return virtualHost.build()
     }
 
-    private fun addServiceTagHeaders(
+    private fun shouldAddServiceTagPreferenceHeader(): Boolean {
+        val autoServiceTagEnabled = properties.routing.serviceTags.isAutoServiceTagEffectivelyEnabled()
+        val preferenceRoutingEnabledForAll = properties.routing.serviceTags.preferenceRouting.enableForAll
+
+        // when preference routing is enabled, lua script takes care of adding preference header
+        // Adding it also on virtual host header is then redundant and potentially increases number of Groups
+        return autoServiceTagEnabled && !preferenceRoutingEnabledForAll
+    }
+
+    private fun addServiceTagPreferenceHeaders(
         routeSpecification: RouteSpecification,
         virtualHost: VirtualHost.Builder,
     ) {
@@ -182,10 +191,13 @@ class EnvoyEgressRoutesFactory(
                 HeaderValueOption.newBuilder()
                     .setHeader(
                         HeaderValue.newBuilder()
-                            .setKey(properties.routing.serviceTags.preferenceHeader)
+                            .setKey(properties.routing.serviceTags.preferenceRouting.header)
                             .setValue(tagsPreferenceJoined)
                     )
-                    .setAppendAction(HeaderValueOption.HeaderAppendAction.OVERWRITE_IF_EXISTS_OR_ADD)
+                    // Pass request service tag preference if exists, to make it compatible with preference routing.
+                    // TODO[PROM-6055]: Ultimately, autoServiceTag feature should be removed, when preference routing
+                    //  will handle all cases
+                    .setAppendAction(HeaderValueOption.HeaderAppendAction.ADD_IF_ABSENT)
                     .setKeepEmptyValue(false)
             )
         }
@@ -209,17 +221,11 @@ class EnvoyEgressRoutesFactory(
         val routingPolicy = routeSpecification.settings.routingPolicy
         if (routingPolicy.autoServiceTag) {
             val serviceTagsListProto = Values.of(routingPolicy.serviceTagPreference.map { Values.of(it) })
-            val serviceTagMetadataKeyProto = Values.of(properties.routing.serviceTags.metadataKey)
-            val rejectServiceTagDuplicateProto = Values.of(
-                properties.routing.serviceTags.rejectRequestsWithDuplicatedAutoServiceTag
-            )
             routeBuilder.metadata = Metadata.newBuilder()
                 .putFilterMetadata(
                     "envoy.filters.http.lua",
                     Structs.of(
                         ServiceTagFilterFactory.AUTO_SERVICE_TAG_PREFERENCE_METADATA, serviceTagsListProto,
-                        ServiceTagFilterFactory.SERVICE_TAG_METADATA_KEY_METADATA, serviceTagMetadataKeyProto,
-                        ServiceTagFilterFactory.REJECT_REQUEST_SERVICE_TAG_DUPLICATE, rejectServiceTagDuplicateProto
                     )
                 )
                 .build()

@@ -6,6 +6,7 @@ import org.awaitility.Awaitility
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulClusterSetup
+import pl.allegro.tech.servicemesh.envoycontrol.config.sharing.BeforeAndAfterAllOnce
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -15,8 +16,6 @@ class EnvoyControlClusteredExtension(
     private val dependencies: List<ExtensionDependency> = listOf()
 ) :
     EnvoyControlExtensionBase {
-
-    private var started = false
 
     constructor(
         consul: ConsulClusterSetup,
@@ -28,17 +27,13 @@ class EnvoyControlClusteredExtension(
         dependencies
     )
 
-    override fun beforeAll(context: ExtensionContext) {
-        if (started) {
-            return
-        }
+    override fun beforeAllOnce(context: ExtensionContext) {
 
         dependencies.forEach { it.beforeAll(context) }
         app.run()
         waitUntilHealthy()
         val id = UUID.randomUUID().toString()
         consul.operations.registerService(id, app.appName, "localhost", app.appPort)
-        started = true
     }
 
     private fun waitUntilHealthy() {
@@ -47,9 +42,11 @@ class EnvoyControlClusteredExtension(
         }
     }
 
-    override fun afterAll(context: ExtensionContext) {
+    override fun afterAllOnce(context: ExtensionContext) {
         app.stop()
     }
+
+    override val ctx: BeforeAndAfterAllOnce.Context = BeforeAndAfterAllOnce.Context()
 }
 
 typealias ExtensionDependency = BeforeAllCallback

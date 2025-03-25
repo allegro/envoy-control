@@ -275,14 +275,39 @@ class ServiceTagsProperties {
     var enabled = false
     var metadataKey = "tag"
     var header = "x-service-tag"
-    var preferenceHeader = "x-service-tag-preference"
+    var preferenceRouting = ServiceTagPreferenceProperties()
     var routingExcludedTags: MutableList<StringMatcher> = mutableListOf()
+    // TODO[PROM-6067]: remove service tag combinations feature
     var allowedTagsCombinations: MutableList<ServiceTagsCombinationsProperties> = mutableListOf()
     var autoServiceTagEnabled = false
     var rejectRequestsWithDuplicatedAutoServiceTag = true
     var addUpstreamServiceTagsHeader: Boolean = false
 
+    // TODO[PROM-6055]: Ultimately, autoServiceTag feature should be removed, when preference routing
+    //  will handle all cases
     fun isAutoServiceTagEffectivelyEnabled() = enabled && autoServiceTagEnabled
+    fun shouldRejectRequestsWithDuplicatedAutoServiceTag() =
+        isAutoServiceTagEffectivelyEnabled() && rejectRequestsWithDuplicatedAutoServiceTag
+}
+
+class ServiceTagPreferenceProperties {
+    var enableForAll = false
+    // TODO(PROM-6088): remove this option: ultimately all services should use it
+    var enableForServices: List<String> = emptyList()
+    var disableForServices: List<String> = emptyList()
+    var header = "x-service-tag-preference"
+    var defaultPreferenceEnv = "DEFAULT_SERVICE_TAG_PREFERENCE"
+    var defaultPreferenceFallback = "global"
+
+    fun isEnabledFor(service: String): Boolean {
+        val enabled = enableForAll || enableForServices.contains(service)
+        if (!enabled) {
+            return false
+        }
+        val disabled = disableForServices.contains(service)
+        return !disabled
+    }
+    fun isEnabledForSome() = enableForAll || enableForServices.isNotEmpty()
 }
 
 class StringMatcher {

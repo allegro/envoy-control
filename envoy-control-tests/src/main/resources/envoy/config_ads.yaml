@@ -19,7 +19,7 @@ node:
   cluster: test-cluster
   id: test-id
   metadata:
-    service_name: "echo2"
+    service_name: "SERVICE_NAME"
     ads: true
     ingress_host: "0.0.0.0"
     ingress_port: 5001
