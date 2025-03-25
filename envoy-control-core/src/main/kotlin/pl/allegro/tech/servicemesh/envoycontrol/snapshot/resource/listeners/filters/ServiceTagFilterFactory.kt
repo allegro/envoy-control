@@ -35,15 +35,14 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
     )
 
     private fun luaEgressServiceTagPreferenceFilter(group: Group): HttpFilter? =
-        when (properties.preferenceRouting.isEnabledFor(group.serviceName)) {
-            true -> luaEgressServiceTagPreferenceFilter
-            false -> null
+        if (properties.preferenceRouting.isEnabledFor(group.serviceName)) {
+            luaEgressServiceTagPreferenceFilter
+        } else {
+            null
         }
 
-    private val luaEgressAutoServiceTagsFilter: HttpFilter? = run {
-        val autoServiceTagEnabled = properties.isAutoServiceTagEffectivelyEnabled()
-        val rejectRequests = properties.rejectRequestsWithDuplicatedAutoServiceTag
-        if (autoServiceTagEnabled && rejectRequests) {
+    private val luaEgressAutoServiceTagsFilter: HttpFilter? =
+        if (properties.shouldRejectRequestsWithDuplicatedAutoServiceTag()) {
             createLuaFilter(
                 luaFile = "lua/egress_auto_service_tags.lua",
                 filterName = "envoy.lua.auto_service_tags",
@@ -54,7 +53,6 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
         } else {
             null
         }
-    }
 
     private val luaEgressServiceTagPreferenceFilter: HttpFilter = createLuaFilter(
         luaFile = "lua/egress_service_tag_preference.lua",

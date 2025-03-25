@@ -286,10 +286,13 @@ class ServiceTagsProperties {
     // TODO[PROM-6055]: Ultimately, autoServiceTag feature should be removed, when preference routing
     //  will handle all cases
     fun isAutoServiceTagEffectivelyEnabled() = enabled && autoServiceTagEnabled
+    fun shouldRejectRequestsWithDuplicatedAutoServiceTag() =
+        isAutoServiceTagEffectivelyEnabled() && rejectRequestsWithDuplicatedAutoServiceTag
 }
 
 class ServiceTagPreferenceProperties {
     var enableForAll = false
+    // TODO(PROM-6088): remove this option: ultimately all services should use it
     var enableForServices: List<String> = emptyList()
     var disableForServices: List<String> = emptyList()
     var header = "x-service-tag-preference"

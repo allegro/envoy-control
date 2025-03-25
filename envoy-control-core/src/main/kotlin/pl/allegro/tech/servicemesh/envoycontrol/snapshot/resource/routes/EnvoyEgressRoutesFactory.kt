@@ -165,7 +165,7 @@ class EnvoyEgressRoutesFactory(
         }
 
         if (shouldAddServiceTagPreferenceHeader()) {
-            addServiceTagHeaders(routeSpecification, virtualHost)
+            addServiceTagPreferenceHeaders(routeSpecification, virtualHost)
         }
 
         return virtualHost.build()
@@ -180,7 +180,7 @@ class EnvoyEgressRoutesFactory(
         return autoServiceTagEnabled && !preferenceRoutingEnabledForAll
     }
 
-    private fun addServiceTagHeaders(
+    private fun addServiceTagPreferenceHeaders(
         routeSpecification: RouteSpecification,
         virtualHost: VirtualHost.Builder,
     ) {
