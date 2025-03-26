@@ -257,6 +257,113 @@ class ServiceTagPreferenceEnableForServicesTest :
             "vte3: ${hits(echoVte3)}}"
 }
 
+@TestClassOrder(OrderAnnotation::class)
+class ServiceTagPreferenceFallbackToAnyTest : ServiceTagPreferenceTestBase(allServices = allServices) {
+    companion object {
+        @JvmField
+        @RegisterExtension
+        val envoyControl: EnvoyControlExtension = EnvoyControlExtension(
+            consul = consul, properties = properties + mapOf(
+                "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.enable-for-all" to true,
+                "envoy-control.envoy.snapshot.routing.service-tags.preference-routing.fallback-to-any.enable-for-services-with-default-preference-equal-to" to "global",
+            )
+        )
+        val envoyGlobal = EnvoyExtension(envoyControl = envoyControl)
+        val envoyVte2 = EnvoyExtension(envoyControl = envoyControl).also {
+            it.container.withEnv("DEFAULT_SERVICE_TAG_PREFERENCE", "vte2|global")
+        }
+        val echoVte5 = HttpsEchoExtension()
+        val echoVte6 = HttpsEchoExtension()
+        val echoGlobal = HttpsEchoExtension()
+
+        val allServices = listOf(echoGlobal, echoVte5, echoVte6)
+
+        @JvmField
+        @RegisterExtension
+        val containers = ContainerExtension.Parallel(envoyGlobal, envoyVte2, echoVte5, echoVte6, echoGlobal)
+    }
+
+    open class WhenThereIsNoGlobalInstanceSetup {
+        companion object {
+            @JvmStatic
+            @BeforeAll
+            fun registerServices() {
+                consul.server.operations.registerService(name = "echo", tags = listOf("vte5"), extension = echoVte5)
+                consul.server.operations.registerService(name = "echo", tags = listOf("vte6"), extension = echoVte6)
+
+                listOf(envoyGlobal, envoyVte2).forEach { envoy ->
+                    listOf(echoVte5, echoVte6).forEach { service ->
+                        envoy.waitForClusterEndpointHealthy("echo", service.container().ipAddress())
+                    }
+                }
+            }
+        }
+    }
+
+    @Order(1)
+    @Nested
+    inner class WhenThereIsNoGlobalInstance : WhenThereIsNoGlobalInstanceSetup() {
+        @Test
+        fun `global instance should fallback to any`() {
+
+            envoyGlobal.callServiceRepeatedly(service = "echo")
+                .assertResponsesFromRandomInstances(listOf(echoVte5, echoVte6))
+            envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte100|global")
+                .assertResponsesFromRandomInstances(listOf(echoVte5, echoVte6))
+        }
+
+        @Test
+        fun `not global instance should NOT fallback to any`() {
+
+            envoyVte2.callService(service = "echo").let {
+                assertThat(it).isUnreachable()
+            }
+        }
+
+        @Test
+        fun `global instance should NOT fallback to any when service-tag is used`() {
+
+            envoyGlobal.callService(service = "echo", serviceTag = "vte100").let {
+                assertThat(it).isUnreachable()
+            }
+        }
+
+        @Test
+        fun `global instance should route to instance according to preference if matching instance is found`() {
+
+            envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte6")
+                .assertAllResponsesOkAndFrom(echoVte6)
+        }
+    }
+
+    @Order(2)
+    @Nested
+    inner class ThenGlobalInstanceAppears {
+        @Test
+        fun `global envoy should switch to global instance`() {
+            registerGlobal()
+
+            envoyGlobal.callServiceRepeatedly(service = "echo")
+                .assertAllResponsesOkAndFrom(echoGlobal)
+        }
+
+        fun registerGlobal() {
+            consul.server.operations.registerService(name = "echo", tags = listOf("global"), extension = echoGlobal)
+            listOf(envoyGlobal, envoyVte2).forEach { envoy ->
+                ServiceTagPreferenceFallbackToAnyTest.allServices.forEach { service ->
+                    envoy.waitForClusterEndpointHealthy("echo", service.container().ipAddress())
+                }
+            }
+        }
+    }
+
+    override fun CallStats.report() =
+        "hits: {" +
+            "global: ${hits(echoGlobal)}, " +
+            "vte5: ${hits(echoVte5)}, " +
+            "vte6: ${hits(echoVte6)}}"
+}
+
 abstract class ServiceTagPreferenceTestBase(val allServices: List<UpstreamService>) {
     companion object {
         val properties = mapOf(
@@ -312,10 +419,10 @@ abstract class ServiceTagPreferenceTestBase(val allServices: List<UpstreamServic
             .isEqualTo(totalHits).isEqualTo(REPEAT)
     }
 
-    fun CallStats.assertResponsesFromRandomInstances() {
+    fun CallStats.assertResponsesFromRandomInstances(instances: List<UpstreamService> = allServices) {
         assertThat(failedHits).isEqualTo(0)
-        assertThat(allServices).hasSizeGreaterThan(1)
-        assertThat(allServices).describedAs { report() }.allSatisfy {
+        assertThat(instances).hasSizeGreaterThan(1)
+        assertThat(instances).describedAs { report() }.allSatisfy {
             assertThat(hits(it)).isGreaterThan(0)
         }
     }

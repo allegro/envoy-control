@@ -5,7 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [0.22.12]
 ### Changed
-- add service tag preference routing
+- add service tag preference routing 
+  - add option to fallback-to-any
 - optimize auto service tag routing (don't send config to envoys if disabled, reduce number of metadata ser per route)
 - fix and refactor e2e tests
 

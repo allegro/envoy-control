@@ -1,4 +1,14 @@
 
+local defaultServiceTagPreference = os.getenv("%DEFAULT_SERVICE_TAG_PREFERENCE_ENV%") or "%DEFAULT_SERVICE_TAG_PREFERENCE_FALLBACK%"
+
+local fallbackToAnyIfDefaultPreferenceEqualTo = "%FALLBACK_TO_ANY_IF_DEFAULT_PREFERENCE_EQUAL_TO%"
+local fallbackToAny = false
+if fallbackToAnyIfDefaultPreferenceEqualTo ~= "" then
+    if fallbackToAnyIfDefaultPreferenceEqualTo == defaultServiceTagPreference then
+        fallbackToAny = true
+    end
+end
+
 function parseServiceTagPreferenceToFallbackList(preferenceString)
     local fallbackList = {}
     local i = 1
@@ -6,10 +16,12 @@ function parseServiceTagPreferenceToFallbackList(preferenceString)
         fallbackList[i] = {["%SERVICE_TAG_METADATA_KEY%"] =  tag}
         i = i + 1
     end
+    if fallbackToAny then
+        fallbackList[i] = {}
+    end
     return fallbackList
 end
 
-local defaultServiceTagPreference = os.getenv("%DEFAULT_SERVICE_TAG_PREFERENCE_ENV%") or "%DEFAULT_SERVICE_TAG_PREFERENCE_FALLBACK%"
 local defaultServiceTagPreferenceFallbackList = parseServiceTagPreferenceToFallbackList(defaultServiceTagPreference)
 
 function envoy_on_request(handle)

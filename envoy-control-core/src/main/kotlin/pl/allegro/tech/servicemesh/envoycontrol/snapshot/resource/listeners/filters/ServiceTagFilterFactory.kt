@@ -63,6 +63,8 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
             "SERVICE_TAG_PREFERENCE_HEADER" to properties.preferenceRouting.header,
             "DEFAULT_SERVICE_TAG_PREFERENCE_ENV" to properties.preferenceRouting.defaultPreferenceEnv,
             "DEFAULT_SERVICE_TAG_PREFERENCE_FALLBACK" to properties.preferenceRouting.defaultPreferenceFallback,
+            "FALLBACK_TO_ANY_IF_DEFAULT_PREFERENCE_EQUAL_TO" to
+                (properties.preferenceRouting.fallbackToAny.enableForServicesWithDefaultPreferenceEqualTo ?: "")
         )
     )
 }

@@ -298,6 +298,7 @@ class ServiceTagPreferenceProperties {
     var header = "x-service-tag-preference"
     var defaultPreferenceEnv = "DEFAULT_SERVICE_TAG_PREFERENCE"
     var defaultPreferenceFallback = "global"
+    var fallbackToAny = FallbackToAny()
 
     fun isEnabledFor(service: String): Boolean {
         val enabled = enableForAll || enableForServices.contains(service)
@@ -308,6 +309,10 @@ class ServiceTagPreferenceProperties {
         return !disabled
     }
     fun isEnabledForSome() = enableForAll || enableForServices.isNotEmpty()
+
+    class FallbackToAny {
+        var enableForServicesWithDefaultPreferenceEqualTo : String? = null
+    }
 }
 
 class StringMatcher {
