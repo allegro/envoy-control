@@ -34,9 +34,20 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
         { _, _ -> luaEgressAutoServiceTagsFilter }
     )
 
+    fun ingressFilters(): Array<HttpFilterFactory> = arrayOf(
+        { group: Group, _ -> luaIngressServiceTagPreferenceFilter(group) },
+    )
+
     private fun luaEgressServiceTagPreferenceFilter(group: Group): HttpFilter? =
         if (properties.preferenceRouting.isEnabledFor(group.serviceName)) {
             luaEgressServiceTagPreferenceFilter
+        } else {
+            null
+        }
+
+    private fun luaIngressServiceTagPreferenceFilter(group: Group): HttpFilter? =
+        if (properties.preferenceRouting.isEnabledFor(group.serviceName)) {
+            luaIngressServiceTagPreferenceFilter
         } else {
             null
         }
@@ -65,6 +76,16 @@ class ServiceTagFilterFactory(private val properties: ServiceTagsProperties) {
             "DEFAULT_SERVICE_TAG_PREFERENCE_FALLBACK" to properties.preferenceRouting.defaultPreferenceFallback,
             "FALLBACK_TO_ANY_IF_DEFAULT_PREFERENCE_EQUAL_TO" to
                 (properties.preferenceRouting.fallbackToAny.enableForServicesWithDefaultPreferenceEqualTo ?: "")
+        )
+    )
+
+    private val luaIngressServiceTagPreferenceFilter: HttpFilter = createLuaFilter(
+        luaFile = "lua/ingress_service_tag_preference.lua",
+        filterName = "ingress.lua.service_tag_preference",
+        variables = mapOf(
+            "SERVICE_TAG_PREFERENCE_HEADER" to properties.preferenceRouting.header,
+            "DEFAULT_SERVICE_TAG_PREFERENCE_ENV" to properties.preferenceRouting.defaultPreferenceEnv,
+            "DEFAULT_SERVICE_TAG_PREFERENCE_FALLBACK" to properties.preferenceRouting.defaultPreferenceFallback
         )
     )
 }
