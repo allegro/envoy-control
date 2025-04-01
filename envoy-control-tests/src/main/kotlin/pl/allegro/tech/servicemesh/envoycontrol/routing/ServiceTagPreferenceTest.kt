@@ -92,16 +92,22 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
         }
 
         @Test
-        fun `x-service-tag-preference from request overrides default one`() {
+        fun `more specific x-service-tag-preference from request overrides default one`() {
 
             envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "lvte1|vte12|global")
                 .assertAllResponsesOkAndFrom(instance = echoVte12Lvte1)
-            envoyVte12.callServiceRepeatedly(service = "echo", serviceTagPreference = "global")
-                .assertAllResponsesOkAndFrom(instance = echoGlobal)
             envoyVte12.callServiceRepeatedly(service = "echo", serviceTagPreference = "lvte1|vte12|global")
                 .assertAllResponsesOkAndFrom(instance = echoVte12Lvte1)
-            envoyVte12Lvte1.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte12|global")
+            envoyGlobal.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte12|global")
                 .assertAllResponsesOkAndFrom(instance = echoVte12)
+        }
+
+        @Test
+        fun `less specific x-service-tag-preference from request don't override default one`() {
+            envoyVte12.callServiceRepeatedly(service = "echo", serviceTagPreference = "global")
+                .assertAllResponsesOkAndFrom(instance = echoVte12)
+            envoyVte12Lvte1.callServiceRepeatedly(service = "echo", serviceTagPreference = "vte12|global")
+                .assertAllResponsesOkAndFrom(instance = echoVte12Lvte1)
         }
 
         @Test
