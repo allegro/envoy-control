@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.22.13]
+### Changed
+- establish x-service-tag-preference on ingress: use the request one if it's more specific, otherwise the default one
+
 ## [0.22.12]
 ### Changed
 - add service tag preference routing 
