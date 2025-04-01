@@ -362,7 +362,7 @@ fun Value?.toIncoming(properties: SnapshotProperties): Incoming {
     val endpointsField = this?.field("endpoints")?.list()
     val rateLimitEndpointsField = this?.field("rateLimitEndpoints")?.list()
     return Incoming(
-        endpoints = endpointsField.orEmpty().map { it.toIncomingEndpoint(properties) },
+        endpoints = endpointsField?.let { it.map { endpoint -> endpoint.toIncomingEndpoint(properties) } },
         rateLimitEndpoints = rateLimitEndpointsField.orEmpty().map(Value::toIncomingRateLimitEndpoint),
         // if there is no endpoint field defined in metadata, we allow for all traffic
         permissionsEnabled = endpointsField != null,
@@ -591,7 +591,7 @@ private fun Value?.toCustomDataValue(): Any? {
 }
 
 data class Incoming(
-    val endpoints: List<IncomingEndpoint> = emptyList(),
+    val endpoints: List<IncomingEndpoint>? = null,
     val rateLimitEndpoints: List<IncomingRateLimitEndpoint> = emptyList(),
     val permissionsEnabled: Boolean = false,
     val healthCheck: HealthCheck = HealthCheck(),

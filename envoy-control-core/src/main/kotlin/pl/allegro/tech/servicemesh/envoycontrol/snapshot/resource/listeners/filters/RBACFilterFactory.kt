@@ -88,7 +88,7 @@ class RBACFilterFactory(
         roles: List<Role>
     ): List<EndpointWithPolicy> {
         val principalCache = mutableMapOf<ClientWithSelector, List<Principal>>()
-        return incomingPermissions.endpoints.map { incomingEndpoint ->
+        return incomingPermissions.endpoints?.map { incomingEndpoint ->
             val (clientsWithNegatedSelectors, clientsWithNotNegatedSelectors) =
                 resolveClientsWithSelectors(incomingEndpoint, roles).partition { it.negated }
             val notNegatedPrincipals = clientsWithNotNegatedSelectors
@@ -131,7 +131,7 @@ class RBACFilterFactory(
             val combinedPermissions = rBACFilterPermissions.createCombinedPermissions(incomingEndpoint)
             policy.addPermissions(combinedPermissions)
             EndpointWithPolicy(incomingEndpoint, policy)
-        }
+        } ?: emptyList()
     }
 
     private fun getPrincipals(

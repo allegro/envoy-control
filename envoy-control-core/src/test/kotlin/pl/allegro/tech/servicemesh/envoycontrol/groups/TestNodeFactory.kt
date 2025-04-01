@@ -155,6 +155,36 @@ fun accessLogBooleanFilterProto(value: Boolean? = null, fieldName: String): Valu
     }
 }
 
+fun proxySettingsLol(
+    incomingSettings: Boolean,
+    serviceDependencies: Set<String> = emptySet(),
+    idleTimeout: String? = null,
+    responseTimeout: String? = null,
+    connectionIdleTimeout: String? = null,
+): Value = struct {
+    if (incomingSettings) {
+        putFields("incoming", struct {
+            putFields("timeoutPolicy", struct {
+                idleTimeout?.let {
+                    putFields("idleTimeout", string(it))
+                }
+                responseTimeout?.let {
+                    putFields("responseTimeout", string(it))
+                }
+                connectionIdleTimeout?.let {
+                    putFields("connectionIdleTimeout", string(it))
+                }
+            })
+        })
+    }
+    if (serviceDependencies.isNotEmpty()) {
+        putFields("outgoing", outgoingDependenciesProto {
+            withServices(serviceDependencies.toList(), idleTimeout, responseTimeout)
+        })
+    }
+}
+
+
 fun proxySettingsProto(
     incomingSettings: Boolean,
     path: String? = null,

@@ -429,7 +429,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                 )), roles = listOf(Role("role-1", setOf(ClientWithSelector.create("client1"), ClientWithSelector.create("client2"))))
         )
         val expectedRbacBuilder = getRBACFilter(expectedTwoClientsSimpleEndpointPermissionsJson(
-            "${incomingPermission.endpoints[0]}", "${incomingPermission.endpoints[1]}"
+            "${incomingPermission.endpoints?.get(0)}", "${incomingPermission.endpoints?.get(1)}"
         ))
 
         // when
@@ -459,7 +459,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                 )), roles = listOf(Role("role-1", setOf(ClientWithSelector.create("client1"))), Role("role-2", setOf(ClientWithSelector.create("client2"))))
         )
         val expectedRbacBuilder = getRBACFilter(expectedTwoClientsSimpleEndpointPermissionsJson(
-            "${incomingPermission.endpoints[0]}", "${incomingPermission.endpoints[1]}"
+            "${incomingPermission.endpoints?.get(0)}", "${incomingPermission.endpoints?.get(1)}"
         ))
 
         // when
@@ -503,7 +503,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
                         setOf()
                 ))
         )
-        val expectedPolicies = expectedDenyForAllEndpointPermissions(policyName = "${incomingPermission.endpoints[0]}")
+        val expectedPolicies = expectedDenyForAllEndpointPermissions(policyName = "${incomingPermission.endpoints?.get(0)}")
         val expectedRbacBuilder = getRBACFilter(expectedPolicies)
 
         // when
@@ -555,7 +555,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
             ))
         )
 
-        val expectedShadow = expectedDenyForAllEndpointPermissions(policyName = "${incomingPermissions.endpoints[0]}")
+        val expectedShadow = expectedDenyForAllEndpointPermissions(policyName = "${incomingPermissions.endpoints?.get(0)}")
         val expectedRbacBuilder = getRBACFilterWithShadowRules(expectedActual, expectedShadow)
 
         // when
@@ -597,7 +597,7 @@ internal class RBACFilterFactoryTest : RBACFilterFactoryTestUtils {
             ))
         )
 
-        val expectedShadow = expectedDenyForAllEndpointPermissions(policyName = "${incomingPermissions.endpoints[0]}")
+        val expectedShadow = expectedDenyForAllEndpointPermissions(policyName = "${incomingPermissions.endpoints?.get(0)}")
         val expectedRbacBuilder = getRBACFilterWithShadowRules(expectedActual, expectedShadow)
 
         // when

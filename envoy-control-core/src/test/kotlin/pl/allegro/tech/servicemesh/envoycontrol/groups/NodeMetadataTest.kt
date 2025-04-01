@@ -645,6 +645,20 @@ class NodeMetadataTest {
     }
 
     @Test
+    fun `should keep endpoints null`() {
+        // given
+        val proto = proxySettingsLol(
+            incomingSettings = true,
+            idleTimeout = "500s",
+            responseTimeout = "400s"
+        )
+        val incoming = proto.structValue?.fieldsMap?.get("incoming").toIncoming(snapshotProperties())
+
+        // expects
+        assertThat(incoming.endpoints).isEqualTo(null)
+    }
+
+    @Test
     fun `should parse allServiceDependency with timeouts configuration`() {
         // given
         val proto = outgoingDependenciesProto {

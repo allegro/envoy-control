@@ -127,7 +127,7 @@ class NodeMetadataValidator(
             return
         }
 
-        metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
+        metadata.proxySettings.incoming.endpoints?.forEach { incomingEndpoint ->
             val clients = incomingEndpoint.clients.map { it.name }
 
             if (clients.isEmpty() && incomingEndpoint.unlistedClientsPolicy != Incoming.UnlistedPolicy.LOG) {
@@ -171,7 +171,7 @@ class NodeMetadataValidator(
      */
     @Suppress("SwallowedException")
     private fun validateEndpointPermissionsMethods(metadata: NodeMetadata) {
-        metadata.proxySettings.incoming.endpoints.forEach { incomingEndpoint ->
+        metadata.proxySettings.incoming.endpoints?.forEach { incomingEndpoint ->
             incomingEndpoint.methods.forEach { method ->
                 try {
                     HttpMethod.valueOf(method)

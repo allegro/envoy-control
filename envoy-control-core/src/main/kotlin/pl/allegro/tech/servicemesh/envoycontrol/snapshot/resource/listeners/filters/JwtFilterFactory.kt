@@ -62,9 +62,9 @@ class JwtFilterFactory(
     }
 
     private fun shouldCreateFilter(group: Group): Boolean {
-        return properties.providers.isNotEmpty() && group.proxySettings.incoming.endpoints.any {
+        return properties.providers.isNotEmpty() && group.proxySettings.incoming.endpoints?.any {
             it.oauth != null || containsClientsWithSelector(it)
-        }
+        } ?: false
     }
 
     private fun containsClientsWithSelector(it: IncomingEndpoint) =
@@ -99,8 +99,8 @@ class JwtFilterFactory(
         return jwtProvider.build()
     }
 
-    private fun createRules(endpoints: List<IncomingEndpoint>): Set<RequirementRule> {
-        return endpoints.flatMap(this::createRulesForEndpoint).toSet()
+    private fun createRules(endpoints: List<IncomingEndpoint>?): Set<RequirementRule> {
+        return endpoints?.flatMap(this::createRulesForEndpoint)?.toSet() ?: emptySet()
     }
 
     private fun createRulesForEndpoint(endpoint: IncomingEndpoint): Set<RequirementRule> {
