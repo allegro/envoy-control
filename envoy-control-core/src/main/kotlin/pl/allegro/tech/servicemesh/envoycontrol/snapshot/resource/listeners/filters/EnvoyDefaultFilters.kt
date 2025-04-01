@@ -35,8 +35,6 @@ class EnvoyDefaultFilters(
     private val defaultHeaderToMetadataConfig = headerToMetadataConfig(defaultServiceTagHeaderToMetadataFilterRules)
     private val headerToMetadataHttpFilter = headerToMetadataHttpFilter(defaultHeaderToMetadataConfig)
     private val defaultHeaderToMetadataFilter = { _: Group, _: GlobalSnapshot -> headerToMetadataHttpFilter }
-    private val defaultServiceTagFilters = serviceTagFilterFactory.egressFilters()
-    private val defaultIngressServiceTagFilters = serviceTagFilterFactory.ingressFilters()
     private val envoyRouterHttpFilter = envoyRouterHttpFilter()
 
     /**
@@ -74,6 +72,9 @@ class EnvoyDefaultFilters(
     val defaultBrotliCompressionFilter = { group: Group, _: GlobalSnapshot ->
         compressionFilterFactory.brotliCompressionFilter(group)
     }
+
+    val defaultServiceTagFilters = serviceTagFilterFactory.egressFilters()
+    val defaultIngressServiceTagFilters = serviceTagFilterFactory.ingressFilters()
 
     val defaultEgressFilters: List<HttpFilterFactory> = listOf(
         defaultHeaderToMetadataFilter,
