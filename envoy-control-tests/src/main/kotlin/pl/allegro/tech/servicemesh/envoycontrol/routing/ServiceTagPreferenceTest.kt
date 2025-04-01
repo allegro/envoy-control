@@ -117,6 +117,8 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
                 .assertAllResponsesOkAndFrom(instance = echoVte12)
             envoyVte12.callServiceRepeatedly(service = "echo", serviceTag = "cz")
                 .assertAllResponsesOkAndFrom(instance = echoVte33)
+            envoyVte12.callServiceRepeatedly(service = "echo", serviceTag = "global")
+                .assertAllResponsesOkAndFrom(instance = echoGlobal)
 
             envoyVte12.callServiceRepeatedly(
                 service = "echo",
@@ -147,6 +149,12 @@ class ServiceTagPreferenceTest : ServiceTagPreferenceTestBase(allServices = allS
                 .asHttpsEchoResponse().let {
                     assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "lvte1|vte12|global")
                 }
+
+            // more specific DEFAULT_SERVICE_TAG_PREFERENCE is passed upstream
+            // instead of less specific preference from // the request
+            envoyVte12.callService(service = "echo", serviceTagPreference = "global").asHttpsEchoResponse().let {
+                assertThat(it.requestHeaders).containsEntry("x-service-tag-preference", "vte12|global")
+            }
         }
 
         @Test
