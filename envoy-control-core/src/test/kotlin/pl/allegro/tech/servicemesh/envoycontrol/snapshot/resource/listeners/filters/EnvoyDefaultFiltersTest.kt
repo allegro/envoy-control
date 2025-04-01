@@ -28,6 +28,7 @@ class EnvoyDefaultFiltersTest {
             defaultFilters.defaultRbacFilter,
             defaultFilters.defaultRateLimitLuaFilter,
             defaultFilters.defaultRateLimitFilter,
+            *defaultFilters.defaultIngressServiceTagFilters,
             defaultFilters.defaultEnvoyRouterHttpFilter
         )
 
@@ -57,6 +58,7 @@ class EnvoyDefaultFiltersTest {
             defaultFilters.defaultRbacFilter,
             defaultFilters.defaultRateLimitLuaFilter,
             defaultFilters.defaultRateLimitFilter,
+            *defaultFilters.defaultIngressServiceTagFilters,
             defaultFilters.defaultEnvoyRouterHttpFilter
         )
 

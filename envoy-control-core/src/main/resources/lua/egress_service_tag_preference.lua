@@ -9,7 +9,7 @@ if fallbackToAnyIfDefaultPreferenceEqualTo ~= "" then
     end
 end
 
-function parseServiceTagPreferenceToFallbackList(preferenceString)
+local parseServiceTagPreferenceToFallbackList = function(preferenceString)
     local fallbackList = {}
     local i = 1
     for tag in string.gmatch(preferenceString, "[^|]+") do
