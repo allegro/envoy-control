@@ -9,7 +9,6 @@ import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
-import reactor.core.scheduler.Schedulers
 import reactor.test.StepVerifier
 import java.net.URI
 import java.time.Duration
@@ -254,7 +253,6 @@ class RemoteServicesTest {
             .containsExactly("service-a")
         assertThat(successfulResult.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames())
             .containsExactly("service-c")
-
 
         Awaitility.await()
             .pollDelay(2, TimeUnit.SECONDS)
