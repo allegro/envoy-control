@@ -3,6 +3,11 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+
+## [0.22.14]
+### Changed
+- changed cache for remote services, to support cache expiration. 
+
 ## [0.22.13]
 ### Changed
 - establish x-service-tag-preference on ingress: use the default one if it's more specific, otherwise the request one
