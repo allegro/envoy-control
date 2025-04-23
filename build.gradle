@@ -46,7 +46,7 @@ allprojects {
     apply plugin: 'io.spring.dependency-management'
 
     project.ext.versions = [
-        java_controlplane: '1.0.48',
+        java_controlplane: '1.0.49',
         spring_boot      : '3.3.2',
         grpc             : '1.48.1',
         ecwid_consul     : '1.4.1',
