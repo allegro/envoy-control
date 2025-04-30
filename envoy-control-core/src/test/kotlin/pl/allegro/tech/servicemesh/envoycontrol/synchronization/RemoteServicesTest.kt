@@ -17,6 +17,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class RemoteServicesTest {
+
+    private val defaultCacheDuration = Duration.ofSeconds(30)
+
     @Test
     fun `should collect responses from all clusters`() {
         val controlPlaneClient = FakeAsyncControlPlane()
@@ -31,7 +34,7 @@ class RemoteServicesTest {
             SimpleMeterRegistry(),
             fetcher(),
             listOf("dc1", "dc2"),
-            Duration.ofSeconds(30)
+            defaultCacheDuration
         )
 
         val result = service
@@ -56,7 +59,7 @@ class RemoteServicesTest {
             SimpleMeterRegistry(),
             fetcher(),
             listOf("dc1"),
-            Duration.ofSeconds(30)
+            defaultCacheDuration
         )
 
         val result = service
@@ -79,7 +82,7 @@ class RemoteServicesTest {
             SimpleMeterRegistry(),
             fetcher(),
             listOf("dc1"),
-            Duration.ofSeconds(30)
+            defaultCacheDuration
         )
 
         val thrown = Assertions.catchThrowable {
@@ -105,7 +108,7 @@ class RemoteServicesTest {
                 SimpleMeterRegistry(),
                 fetcher(clusterWithNoInstance = listOf("dc2")),
                 listOf("dc1", "dc2"),
-                Duration.ofSeconds(30)
+                defaultCacheDuration
             )
 
         val result = service
@@ -132,7 +135,7 @@ class RemoteServicesTest {
             SimpleMeterRegistry(),
             fetcher(),
             listOf("dc1", "dc2"),
-            Duration.ofSeconds(30)
+            defaultCacheDuration
         )
 
         val result = service
@@ -167,8 +170,7 @@ class RemoteServicesTest {
             SimpleMeterRegistry(),
             fetcher(),
             listOf("dc1", "dc2", "dc3", "dc4"),
-            Duration.ofSeconds(30)
-
+            defaultCacheDuration
         )
 
         val result = service
@@ -198,12 +200,11 @@ class RemoteServicesTest {
             SimpleMeterRegistry(),
             fetcher(),
             listOf("dc1", "dc2"),
-            Duration.ofSeconds(30)
+            defaultCacheDuration
         )
 
         val stream = service
             .getChanges(1)
-        // Thread.sleep(Duration.ofSeconds(10).toMillis())
         val successfulResult = stream
             .blockFirst()
             ?: MultiClusterState.empty()
@@ -213,7 +214,6 @@ class RemoteServicesTest {
         assertThat(successfulResult.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames())
             .containsExactly("service-c")
 
-        Thread.sleep(Duration.ofSeconds(2).toMillis())
         val oneInstanceFailing = stream
             .blockFirst()
             ?: MultiClusterState.empty()
@@ -257,15 +257,15 @@ class RemoteServicesTest {
         Awaitility.await()
             .pollDelay(2, TimeUnit.SECONDS)
             .atMost(10, TimeUnit.SECONDS).untilAsserted {
-            val oneInstanceFailingAfterCacheInvalidation = service
-                .getChanges(1)
-                .blockFirst()
-                ?: MultiClusterState.empty()
+                val oneInstanceFailingAfterCacheInvalidation = service
+                    .getChanges(1)
+                    .blockFirst()
+                    ?: MultiClusterState.empty()
 
-            assertThat(oneInstanceFailingAfterCacheInvalidation.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames())
-                .containsExactly("service-b")
-            assertThat(oneInstanceFailingAfterCacheInvalidation.singleOrNull { it.cluster == "dc2" }).isNull()
-        }
+                assertThat(oneInstanceFailingAfterCacheInvalidation.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames())
+                    .containsExactly("service-b")
+                assertThat(oneInstanceFailingAfterCacheInvalidation.singleOrNull { it.cluster == "dc2" }).isNull()
+            }
     }
 
     @Test
@@ -282,7 +282,7 @@ class RemoteServicesTest {
             SimpleMeterRegistry(),
             fetcher(),
             listOf("dc2"),
-            Duration.ofSeconds(30)
+            defaultCacheDuration
         )
         val duration = 1L
 
