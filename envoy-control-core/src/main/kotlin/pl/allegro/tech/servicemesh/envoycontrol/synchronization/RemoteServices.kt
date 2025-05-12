@@ -80,7 +80,17 @@ class RemoteServices(
                     )
                 ).increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
-                clusterStateCache.getIfPresent(cluster)
+                val cachedState = clusterStateCache.getIfPresent(cluster)
+                if (cachedState == null) {
+                    logger.warn("Expired cache for cluster $cluster")
+                    ClusterState(
+                            ServicesState(),
+                            Locality.REMOTE,
+                            cluster
+                        )
+                } else {
+                    cachedState
+                }
             }
     }
 
