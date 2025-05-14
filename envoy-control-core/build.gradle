@@ -9,6 +9,7 @@ dependencies {
     api group: 'io.micrometer', name: 'micrometer-core'
 
     implementation group: 'com.google.re2j', name: 're2j', version: versions.re2j
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.0")
 
     api group: 'io.envoyproxy.controlplane', name: 'server', version: versions.java_controlplane
 

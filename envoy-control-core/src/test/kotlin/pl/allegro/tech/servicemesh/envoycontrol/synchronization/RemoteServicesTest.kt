@@ -3,8 +3,12 @@ package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions
 import org.assertj.core.api.Assertions.assertThat
+import org.awaitility.Awaitility
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.services.ClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.Locality
 import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState
+import pl.allegro.tech.servicemesh.envoycontrol.services.MultiClusterState.Companion.toMultiClusterState
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstance
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServiceInstances
 import pl.allegro.tech.servicemesh.envoycontrol.services.ServicesState
@@ -13,8 +17,12 @@ import java.net.URI
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 class RemoteServicesTest {
+
+    private val defaultCacheDuration = Duration.ofSeconds(30)
+
     @Test
     fun `should collect responses from all clusters`() {
         val controlPlaneClient = FakeAsyncControlPlane()
@@ -24,7 +32,13 @@ class RemoteServicesTest {
         controlPlaneClient.forCluster("dc2") {
             state(ServiceState(service = "service-1"))
         }
-        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
+        val service = RemoteServices(
+            controlPlaneClient,
+            SimpleMeterRegistry(),
+            fetcher(),
+            listOf("dc1", "dc2"),
+            defaultCacheDuration
+        )
 
         val result = service
             .getChanges(1)
@@ -37,37 +51,24 @@ class RemoteServicesTest {
     }
 
     @Test
-    fun `should timeout long running http call and try again`() {
-        val controlPlaneClient = FakeAsyncControlPlane()
-        controlPlaneClient.forClusterWithChangableState("dc1") {
-            delayedState(Duration.ofMillis(6000), ServiceState(service = "service-1"))
-            state(ServiceState(service = "service-2"))
-        }
-        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1"))
-
-        val result = service
-            .getChanges(1)
-            .blockFirst(Duration.ofMillis(3000))
-            ?: MultiClusterState.empty()
-
-        assertThat(result).hasSize(1)
-        assertThat(result.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("service-2")
-    }
-
-    @Test
-    fun `should not emit events when communication problem persists`() {
+    fun `should emit events when communication problem persists`() {
         val controlPlaneClient = FakeAsyncControlPlane()
         controlPlaneClient.forCluster("dc1") {
             delayedState(Duration.ofMillis(1100), ServiceState(service = "service-1"))
         }
-        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1"))
+        val service = RemoteServices(
+            controlPlaneClient,
+            SimpleMeterRegistry(),
+            fetcher(),
+            listOf("dc1"),
+            defaultCacheDuration
+        )
 
         val thrown = Assertions.catchThrowable {
             service.getChanges(1).blockFirst(Duration.ofMillis(1300))
         }
         assertThat(thrown)
-            .isInstanceOf(java.lang.IllegalStateException::class.java)
-            .hasMessageContaining("Timeout on blocking read for")
+            .isNull()
     }
 
     @Test
@@ -84,7 +85,8 @@ class RemoteServicesTest {
                 controlPlaneClient,
                 SimpleMeterRegistry(),
                 fetcher(clusterWithNoInstance = listOf("dc2")),
-                listOf("dc1", "dc2")
+                listOf("dc1", "dc2"),
+                defaultCacheDuration
             )
 
         val result = service
@@ -106,7 +108,13 @@ class RemoteServicesTest {
         controlPlaneClient.forCluster("dc2") {
             state(ServiceState(service = "service-c", withoutInstances = true))
         }
-        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
+        val service = RemoteServices(
+            controlPlaneClient,
+            SimpleMeterRegistry(),
+            fetcher(),
+            listOf("dc1", "dc2"),
+            defaultCacheDuration
+        )
 
         val result = service
             .getChanges(1)
@@ -139,7 +147,8 @@ class RemoteServicesTest {
             controlPlaneClient,
             SimpleMeterRegistry(),
             fetcher(),
-            listOf("dc1", "dc2", "dc3", "dc4")
+            listOf("dc1", "dc2", "dc3", "dc4"),
+            defaultCacheDuration
         )
 
         val result = service
@@ -147,9 +156,11 @@ class RemoteServicesTest {
             .blockFirst()
             ?: MultiClusterState.empty()
 
-        assertThat(result).hasSize(2)
+        assertThat(result).hasSize(4)
         assertThat(result.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames()).containsExactly("dc1")
+        assertThat(result.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames()).isEmpty()
         assertThat(result.singleOrNull { it.cluster == "dc3" }?.servicesState?.serviceNames()).containsExactly("dc3")
+        assertThat(result.singleOrNull { it.cluster == "dc4" }?.servicesState?.serviceNames()).isEmpty()
     }
 
     @Test
@@ -164,10 +175,17 @@ class RemoteServicesTest {
             state(ServiceState(service = "service-c"))
             stateError()
         }
-        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc1", "dc2"))
+        val service = RemoteServices(
+            controlPlaneClient,
+            SimpleMeterRegistry(),
+            fetcher(),
+            listOf("dc1", "dc2"),
+            defaultCacheDuration
+        )
 
-        val successfulResult = service
+        val stream = service
             .getChanges(1)
+        val successfulResult = stream
             .blockFirst()
             ?: MultiClusterState.empty()
 
@@ -176,8 +194,7 @@ class RemoteServicesTest {
         assertThat(successfulResult.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames())
             .containsExactly("service-c")
 
-        val oneInstanceFailing = service
-            .getChanges(1)
+        val oneInstanceFailing = stream
             .blockFirst()
             ?: MultiClusterState.empty()
 
@@ -188,7 +205,52 @@ class RemoteServicesTest {
     }
 
     @Test
-    fun `should not emit a value when all requests fail`() {
+    fun `should invalidate cache responses when a remote cluster is not responding for more than cache duration `() {
+        // given
+        val controlPlaneClient = FakeAsyncControlPlane()
+        controlPlaneClient.forClusterWithChangableState("dc1") {
+            state(ServiceState(service = "service-a"))
+            state(ServiceState(service = "service-b"))
+        }
+        controlPlaneClient.forClusterWithChangableState("dc2") {
+            state(ServiceState(service = "service-c"))
+            stateError()
+        }
+        val service = RemoteServices(
+            controlPlaneClient,
+            SimpleMeterRegistry(),
+            fetcher(),
+            listOf("dc1", "dc2"),
+            Duration.ofSeconds(1)
+        )
+
+        val successfulResult = service
+            .getChanges(10)
+            .blockFirst()
+            ?: MultiClusterState.empty()
+
+        assertThat(successfulResult.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames())
+            .containsExactly("service-a")
+        assertThat(successfulResult.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames())
+            .containsExactly("service-c")
+
+        Awaitility.await()
+            .pollDelay(2, TimeUnit.SECONDS)
+            .atMost(10, TimeUnit.SECONDS).untilAsserted {
+                val oneInstanceFailingAfterCacheInvalidation = service
+                    .getChanges(1)
+                    .blockFirst()
+                    ?: MultiClusterState.empty()
+
+                assertThat(oneInstanceFailingAfterCacheInvalidation.singleOrNull { it.cluster == "dc1" }?.servicesState?.serviceNames())
+                    .containsExactly("service-b")
+                assertThat(oneInstanceFailingAfterCacheInvalidation.singleOrNull { it.cluster == "dc2" }?.servicesState?.serviceNames())
+                    .isEmpty()
+            }
+    }
+
+    @Test
+    fun `should emit a default empty value when all requests fail`() {
         // given
 
         val controlPlaneClient = FakeAsyncControlPlane()
@@ -196,7 +258,13 @@ class RemoteServicesTest {
             stateError()
         }
 
-        val service = RemoteServices(controlPlaneClient, SimpleMeterRegistry(), fetcher(), listOf("dc2"))
+        val service = RemoteServices(
+            controlPlaneClient,
+            SimpleMeterRegistry(),
+            fetcher(),
+            listOf("dc2"),
+            defaultCacheDuration
+        )
         val duration = 1L
 
         StepVerifier.create(
@@ -206,7 +274,7 @@ class RemoteServicesTest {
         )
             // then
             .expectSubscription()
-            .expectNoEvent(Duration.ofSeconds(duration * 2))
+            .expectNext(ClusterState(ServicesState(), Locality.REMOTE, "dc2").toMultiClusterState())
             .thenCancel()
             .verify()
     }

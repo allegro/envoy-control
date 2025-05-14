@@ -211,13 +211,14 @@ Property                                                                        
 **envoy-control.envoy.snapshot.metrics.cache-set-snapshot**                                 | Report metrics for cache.setSnapshot operation                                                                                                                                            | false
 
 ## Cross DC synchronization
-Property                                                                                    | Description                                                                                                                                                                               | Default value
-------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------
-**envoy-control.sync.enabled**                                                              | Enable Cross DC Synchronization                                                                                                                                                           | false
-**envoy-control.sync.connection-timeout**                                                   | Connection timeout to other Envoy Controls                                                                                                                                                | 1s
-**envoy-control.sync.envoy-control-app-name**                                               | Envoy Control app name available in discovery service                                                                                                                                     | envoy-control
-**envoy-control.sync.polling-interval**                                                     | Polling interval in seconds                                                                                                                                                               | 1
-**envoy-control.sync.read-timeout**                                                         | Read timeout to other Envoy Controls                                                                                                                                                      | 500ms
+Property                                                                                    | Description                                                | Default value
+------------------------------------------------------------------------------------------- |------------------------------------------------------------| ---------
+**envoy-control.sync.enabled**                                                              | Enable Cross DC Synchronization                            | false
+**envoy-control.sync.cache-duration**                                                       | Time for how long Envoy control keep remote state in cache | 2min
+**envoy-control.sync.connection-timeout**                                                   | Connection timeout to other Envoy Controls                 | 1s
+**envoy-control.sync.envoy-control-app-name**                                               | Envoy Control app name available in discovery service      | envoy-control
+**envoy-control.sync.polling-interval**                                                     | Polling interval in seconds                                | 1
+**envoy-control.sync.read-timeout**                                                         | Read timeout to other Envoy Controls                       | 500ms
 
 ## Service filters
 Property                                                                                    | Description                                                                                                                                                                               | Default value

@@ -48,13 +48,14 @@ class SynchronizationConfig {
         meterRegistry: MeterRegistry,
         controlPlaneInstanceFetcher: ControlPlaneInstanceFetcher,
         properties: EnvoyControlProperties,
-        remoteClusters: RemoteClusters
+        remoteClusters: RemoteClusters,
     ): RemoteClusterStateChanges {
         val service = RemoteServices(
             controlPlaneClient = controlPlaneClient,
             meterRegistry = meterRegistry,
             controlPlaneInstanceFetcher = controlPlaneInstanceFetcher,
-            remoteClusters = remoteClusters.clusters
+            remoteClusters = remoteClusters.clusters,
+            cacheDuration = properties.sync.cacheDuration
         )
         return RemoteClusterStateChanges(properties, service)
     }
