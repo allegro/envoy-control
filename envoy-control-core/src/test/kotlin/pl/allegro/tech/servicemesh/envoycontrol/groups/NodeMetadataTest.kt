@@ -349,7 +349,7 @@ class NodeMetadataTest {
 
         // expects
         assertThat(outgoing.getDomainDependencies())
-            .anyMatch { it.domain == "http://google.pl"}
+            .anyMatch { it.domain == "http://google.pl" }
         assertThat(outgoing.getServiceDependencies()).anyMatch { it.service == "bar" }
     }
 

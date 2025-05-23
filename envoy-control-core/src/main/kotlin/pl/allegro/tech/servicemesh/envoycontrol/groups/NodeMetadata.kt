@@ -200,8 +200,7 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val domains = (
         rawDependencies.filter { it.domain != null }
             .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
-            .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettings)) }
-            +
+            .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettings)) } +
             properties.defaultDependencies.domains.map { DomainDependency(it, defaultSettings) }
         ).distinctBy { it.domain }
     val domainPatterns = rawDependencies.filter { it.domainPattern != null }
