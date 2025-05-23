@@ -179,6 +179,13 @@ Property                                                                        
 **envoy-control.envoy.snapshot.cluster-outlier-detection.success-rate-request-volume**           | The minimum number of total requests that must be collected in one interval (as defined by the interval duration above) to include this host * in success rate based outlier detection    | 100
 **envoy-control.envoy.snapshot.cluster-outlier-detection.success-rate-stdev-factor**             | This factor is used to determine the ejection threshold for success rate outlier ejection.                                                                                                | 1900
 
+## DefaultDependencies
+
+ Property                                                      | Description                                           | Default value 
+---------------------------------------------------------------|-------------------------------------------------------|---------------
+ **envoy-control.envoy.snapshot.defaultDependencies.services** | List of services which should be present in any group | empty list    
+ **envoy-control.envoy.snapshot.defaultDependencies.domains**    | List of domains which should be present in any group  | empty list    
+
 ## Retries
 
 ### Local Service

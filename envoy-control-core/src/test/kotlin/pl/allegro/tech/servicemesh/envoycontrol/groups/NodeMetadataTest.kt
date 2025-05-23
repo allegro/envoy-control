@@ -14,6 +14,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.MethodSource
+import pl.allegro.tech.servicemesh.envoycontrol.snapshot.DefaultDependenciesProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.SnapshotProperties
@@ -102,7 +103,9 @@ class NodeMetadataTest {
         handleInternalRedirect: Boolean = false,
         idleTimeout: String = "120s",
         connectionIdleTimeout: String = "120s",
-        requestTimeout: String = "120s"
+        requestTimeout: String = "120s",
+        defaultServices: List<String> = emptyList(),
+        defaultDomains: List<String> = emptyList(),
     ) = SnapshotProperties().apply {
         outgoingPermissions.allServicesDependencies.identifier = allServicesDependenciesIdentifier
         egress.handleInternalRedirect = handleInternalRedirect
@@ -110,6 +113,10 @@ class NodeMetadataTest {
         egress.commonHttp.connectionIdleTimeout =
             Duration.ofNanos(Durations.toNanos(Durations.parse(connectionIdleTimeout)))
         egress.commonHttp.requestTimeout = Duration.ofNanos(Durations.toNanos(Durations.parse(requestTimeout)))
+        defaultDependencies = DefaultDependenciesProperties().apply {
+            services = defaultServices
+            domains = defaultDomains
+        }
     }
 
     @Test
@@ -325,6 +332,25 @@ class NodeMetadataTest {
         assertThat(exception.status.description)
             .isEqualTo("Unsupported protocol for domain dependency for domain ftp://domain")
         assertThat(exception.status.code).isEqualTo(Status.Code.INVALID_ARGUMENT)
+    }
+
+    @Test
+    fun `should add default properties `() {
+        // given
+        val proto = outgoingDependenciesProto {
+            withService(serviceName = "foo")
+        }
+
+        // when
+        val outgoing = proto.toOutgoing(snapshotProperties(
+            defaultServices = listOf("bar"),
+            defaultDomains = listOf("http://google.pl")
+        ))
+
+        // expects
+        assertThat(outgoing.getDomainDependencies())
+            .anyMatch { it.domain == "http://google.pl"}
+        assertThat(outgoing.getServiceDependencies()).anyMatch { it.service == "bar" }
     }
 
     @Test

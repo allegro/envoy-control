@@ -182,16 +182,28 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val defaultSettingsFromProperties = defaultDependencySettings(properties)
     val defaultSettings = this.toSettings(defaultSettingsFromProperties)
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettings)
-    val services = rawDependencies.filter { it.service != null && it.service != allServiceDependenciesIdentifier }
-        .map {
-            ServiceDependency(
-                service = it.service.orEmpty(),
-                settings = it.value.toSettings(allServicesDefaultSettings)
-            )
-        }
-    val domains = rawDependencies.filter { it.domain != null }
-        .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
-        .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettings)) }
+    val services = (
+        rawDependencies
+            .filter { it.service != null && it.service != allServiceDependenciesIdentifier }
+            .map {
+                ServiceDependency(
+                    service = it.service.orEmpty(),
+                    settings = it.value.toSettings(allServicesDefaultSettings)
+                )
+            } +
+            properties.defaultDependencies.services.map {
+                ServiceDependency(
+                    service = it,
+                    settings = allServicesDefaultSettings
+                )
+            }).distinctBy { it.service }
+    val domains = (
+        rawDependencies.filter { it.domain != null }
+            .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
+            .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettings)) }
+            +
+            properties.defaultDependencies.domains.map { DomainDependency(it, defaultSettings) }
+        ).distinctBy { it.domain }
     val domainPatterns = rawDependencies.filter { it.domainPattern != null }
         .onEach { validateDomainPatternFormat(it) }
         .map { DomainPatternDependency(it.domainPattern.orEmpty(), it.value.toSettings(defaultSettings)) }
