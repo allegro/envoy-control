@@ -18,6 +18,7 @@ class SnapshotProperties {
     var ingress = IngressProperties()
     var incomingPermissions = IncomingPermissionsProperties()
     var outgoingPermissions = OutgoingPermissionsProperties()
+    var defaultDependencies = DefaultDependenciesProperties()
     var loadBalancing = LoadBalancingProperties()
     var clusterOutlierDetection = ClusterOutlierDetectionProperties()
     var routing = RoutingProperties()
@@ -39,6 +40,11 @@ class SnapshotProperties {
     var tcpDumpsEnabled: Boolean = true
     var shouldAuditGlobalSnapshot: Boolean = true
     var compression: CompressionProperties = CompressionProperties()
+}
+
+class DefaultDependenciesProperties {
+    var services = listOf<String>()
+    var domains = listOf<String>()
 }
 
 class PathNormalizationProperties {
