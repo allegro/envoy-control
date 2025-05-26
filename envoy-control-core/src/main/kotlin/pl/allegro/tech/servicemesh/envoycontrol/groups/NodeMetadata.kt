@@ -182,6 +182,18 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
     val defaultSettingsFromProperties = defaultDependencySettings(properties)
     val defaultSettings = this.toSettings(defaultSettingsFromProperties)
     val allServicesDefaultSettings = allServicesDependencies?.value.toSettings(defaultSettings)
+    val defaultServices = properties.defaultDependencies.services.map {
+        ServiceDependency(
+            service = it,
+            settings = allServicesDefaultSettings
+        )
+    }
+    val defaultDomains = properties.defaultDependencies.domains.map {
+        DomainDependency(
+            domain = it,
+            settings = defaultSettings
+        )
+    }
     val services = rawDependencies
         .filter { it.service != null && it.service != allServiceDependenciesIdentifier }
         .map {
@@ -189,24 +201,17 @@ fun Value?.toOutgoing(properties: SnapshotProperties): Outgoing {
                 service = it.service.orEmpty(),
                 settings = it.value.toSettings(allServicesDefaultSettings)
             )
-        } +
-        properties.defaultDependencies.services.map {
-            ServiceDependency(
-                service = it,
-                settings = allServicesDefaultSettings
-            )
         }
+
     val domains = rawDependencies.filter { it.domain != null }
         .onEach { validateDomainFormat(it, allServiceDependenciesIdentifier) }
-        .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettings)) } +
-        properties.defaultDependencies.domains.map { DomainDependency(it, defaultSettings) }
-
+        .map { DomainDependency(it.domain.orEmpty(), it.value.toSettings(defaultSettings)) }
     val domainPatterns = rawDependencies.filter { it.domainPattern != null }
         .onEach { validateDomainPatternFormat(it) }
         .map { DomainPatternDependency(it.domainPattern.orEmpty(), it.value.toSettings(defaultSettings)) }
     return Outgoing(
-        serviceDependencies = services,
-        domainDependencies = domains,
+        serviceDependencies = services + defaultServices,
+        domainDependencies = domains + defaultDomains,
         domainPatternDependencies = domainPatterns,
         defaultServiceSettings = allServicesDefaultSettings,
         allServicesDependencies = allServicesDependencies != null
