@@ -92,6 +92,34 @@ class EnvoySnapshotFactoryTest {
     }
 
     @Test
+    fun shouldGetTLSUpgradeIgnorePrefixInFilterChainWhenConfigured() {
+        // given
+        val properties = SnapshotProperties().also {
+            it.ignoreTLSUpgradeEnabled = true
+        }
+        val envoySnapshotFactory = createSnapshotFactory(properties)
+
+        val group: Group = createServicesGroup(snapshotProperties = properties)
+        val cluster = createCluster(properties)
+        val globalSnapshot = createGlobalSnapshot(cluster)
+
+        // when
+        val snapshot = envoySnapshotFactory.getSnapshotForGroup(group, globalSnapshot)
+
+        // then
+        val listeners = snapshot.listeners().resources()
+
+        assertThat(listeners.size).isEqualTo(2)
+
+        val egressListenerResult: Listener? = snapshot.listeners().resources()["egress_listener"]
+        val egressFilterChain = egressListenerResult?.filterChainsList?.get(0)
+        val httpProtocolOptions = egressFilterChain?.filtersList?.get(0)?.typedConfig
+            ?.unpack(io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager::class.java)
+            ?.httpProtocolOptions
+        assertThat(httpProtocolOptions?.ignoreHttp11UpgradeList?.firstOrNull()?.prefix).isEqualTo("TLS/")
+    }
+
+    @Test
     fun shouldGetEmptySnapshotListenersListForGroupWhenDynamicListenersPropertyIsNotEnabled() {
         // given
         val defaultProperties = SnapshotProperties().also { it.dynamicListeners.enabled = false }
