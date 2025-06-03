@@ -1,5 +1,6 @@
 package pl.allegro.tech.servicemesh.envoycontrol.synchronization
 
+import com.github.benmanes.caffeine.cache.Caffeine
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Tags
 import pl.allegro.tech.servicemesh.envoycontrol.logger
@@ -18,8 +19,8 @@ import reactor.core.publisher.Flux
 import reactor.core.publisher.FluxSink
 import java.lang.Integer.max
 import java.net.URI
+import java.time.Duration
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -27,10 +28,11 @@ class RemoteServices(
     private val controlPlaneClient: ControlPlaneClient,
     private val meterRegistry: MeterRegistry,
     private val controlPlaneInstanceFetcher: ControlPlaneInstanceFetcher,
-    private val remoteClusters: List<String>
+    private val remoteClusters: List<String>,
+    cacheDuration: Duration
 ) {
     private val logger by logger()
-    private val clusterStateCache = ConcurrentHashMap<String, ClusterState>()
+    private val clusterStateCache = Caffeine.newBuilder().expireAfterWrite(cacheDuration).build<String, ClusterState>()
     private val scheduler = Executors.newScheduledThreadPool(max(remoteClusters.size, 1))
 
     fun getChanges(interval: Long): Flux<MultiClusterState> {
@@ -78,7 +80,17 @@ class RemoteServices(
                     )
                 ).increment()
                 logger.warn("Error synchronizing instances ${it.message}", it)
-                clusterStateCache[cluster]
+                val cachedState = clusterStateCache.getIfPresent(cluster)
+                if (cachedState == null) {
+                    logger.warn("Expired cache for cluster $cluster")
+                    ClusterState(
+                            ServicesState(),
+                            Locality.REMOTE,
+                            cluster
+                        )
+                } else {
+                    cachedState
+                }
             }
     }
 
@@ -112,7 +124,7 @@ class RemoteServices(
             Locality.REMOTE,
             cluster
         )
-        clusterStateCache += cluster to clusterState
+        clusterStateCache.put(cluster, clusterState)
         return clusterState
     }
 
