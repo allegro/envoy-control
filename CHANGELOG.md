@@ -3,6 +3,11 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.22.17]
+### Changed
+- introduced `ignoreTLSUpgradeEnabled` flag to disable TLS upgrade for Egress HTTP Connection Manager filter
+  - it's enabled with prefix matcher for `TLS/` upgrade header values
+
 ## [0.22.16]
 ### Changed
 - default dependencies

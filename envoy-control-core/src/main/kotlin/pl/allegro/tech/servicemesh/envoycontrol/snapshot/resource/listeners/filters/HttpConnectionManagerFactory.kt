@@ -12,6 +12,7 @@ import io.envoyproxy.envoy.config.core.v3.Http1ProtocolOptions
 import io.envoyproxy.envoy.config.core.v3.HttpProtocolOptions
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.Rds
+import io.envoyproxy.envoy.type.matcher.v3.StringMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.CommunicationMode
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.GlobalSnapshot
@@ -86,7 +87,15 @@ class HttpConnectionManagerFactory(
             Direction.EGRESS -> {
                 connectionManagerBuilder
                     .setHttpProtocolOptions(
-                        Http1ProtocolOptions.newBuilder()
+                        Http1ProtocolOptions.newBuilder().apply {
+                                if (snapshotProperties.ignoreTLSUpgradeEnabled) {
+                                    addAllIgnoreHttp11Upgrade(
+                                        listOf(
+                                            StringMatcher.newBuilder().setPrefix("TLS/").build()
+                                        )
+                                    )
+                                }
+                            }
                             .setAllowAbsoluteUrl(BoolValue.newBuilder().setValue(true).build())
                             .build()
                     )
