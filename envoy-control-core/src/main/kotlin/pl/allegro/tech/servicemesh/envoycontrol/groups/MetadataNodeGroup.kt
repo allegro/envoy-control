@@ -11,6 +11,7 @@ import io.envoyproxy.envoy.config.core.v3.Node as NodeV3
 
 @Suppress("MagicNumber")
 val MIN_ENVOY_VERSION_SUPPORTING_JWT_FAILURE_STATUS = envoyVersion(1, 26)
+@Suppress("MagicNumber")
 val MIN_ENVOY_VERSION_SUPPORTING_IGNORE_HTTP_11_UPGRADES = envoyVersion(1, 34)
 
 class MetadataNodeGroup(
