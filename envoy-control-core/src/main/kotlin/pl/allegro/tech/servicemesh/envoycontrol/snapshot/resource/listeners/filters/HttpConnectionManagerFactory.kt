@@ -88,7 +88,7 @@ class HttpConnectionManagerFactory(
                 connectionManagerBuilder
                     .setHttpProtocolOptions(
                         Http1ProtocolOptions.newBuilder().apply {
-                                if (snapshotProperties.ignoreTLSUpgradeEnabled) {
+                                if (group.listenersConfig?.addIgnoreHttp11Upgrades == true && snapshotProperties.ignoreTLSUpgradeEnabled) {
                                     addAllIgnoreHttp11Upgrade(
                                         listOf(
                                             StringMatcher.newBuilder().setPrefix("TLS/").build()
