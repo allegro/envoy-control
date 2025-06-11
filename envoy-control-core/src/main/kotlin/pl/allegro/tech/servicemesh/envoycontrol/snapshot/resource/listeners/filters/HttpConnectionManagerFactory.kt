@@ -85,20 +85,7 @@ class HttpConnectionManagerFactory(
             }
 
             Direction.EGRESS -> {
-                connectionManagerBuilder
-                    .setHttpProtocolOptions(
-                        Http1ProtocolOptions.newBuilder().apply {
-                                if (snapshotProperties.ignoreTLSUpgradeEnabled) {
-                                    addAllIgnoreHttp11Upgrade(
-                                        listOf(
-                                            StringMatcher.newBuilder().setPrefix("TLS/").build()
-                                        )
-                                    )
-                                }
-                            }
-                            .setAllowAbsoluteUrl(BoolValue.newBuilder().setValue(true).build())
-                            .build()
-                    )
+                connectionManagerBuilder.httpProtocolOptions = egressHttp1ProtocolOptions(group)
                 if (group.proxySettings.outgoing.getDomainPatternDependencies().isNotEmpty()) {
                     connectionManagerBuilder.addHttpFilters(dynamicForwardProxyFilter)
                 }
@@ -148,6 +135,21 @@ class HttpConnectionManagerFactory(
             .setConfigSource(
                 configSource.build()
             )
+            .build()
+    }
+
+    private fun egressHttp1ProtocolOptions(group: Group): Http1ProtocolOptions {
+        return Http1ProtocolOptions.newBuilder().apply {
+                if (group.listenersConfig?.addIgnoreHttp11Upgrades == true &&
+                    snapshotProperties.ignoreTLSUpgradeEnabled) {
+                    addAllIgnoreHttp11Upgrade(
+                        listOf(
+                            StringMatcher.newBuilder().setPrefix("TLS/").build()
+                        )
+                    )
+                }
+            }
+            .setAllowAbsoluteUrl(BoolValue.newBuilder().setValue(true).build())
             .build()
     }
 
