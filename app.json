@@ -1,0 +1,8 @@
+{
+   "addons": [
+      {
+         "plan": "papertrail:choklad"
+      }
+   ],
+   "stack": "container"
+}
