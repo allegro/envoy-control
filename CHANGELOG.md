@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.22.18]
+### Changed
+- Backwards compatibility for `ignoreTLSUpgradeEnabled` flag for envoys that don't support `ignore_http_11_upgrade` field
+
 ## [0.22.17]
 ### Changed
 - introduced `ignoreTLSUpgradeEnabled` flag to disable TLS upgrade for Egress HTTP Connection Manager filter
