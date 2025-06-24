@@ -185,7 +185,3 @@ subprojects {
         buildUponDefaultConfig = true
     }
 }
-
-wrapper {
-    gradleVersion = '8.3'
-}
