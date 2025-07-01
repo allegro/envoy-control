@@ -1,8 +1,25 @@
 package pl.allegro.tech.servicemesh.envoycontrol.reliability
 
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 
 internal class LocalConsulAgentToMasterCutOff : ReliabilityTest() {
+    companion object {
+        @JvmStatic
+        @BeforeAll
+        fun setup() {
+            setup(
+                appFactoryForEc1 = {
+                    EnvoyControlRunnerTestApp(
+                        consulPort = Toxiproxy.externalConsulPort,
+                        grpcPort = Toxiproxy.toxiproxyGrpcPort
+                    )
+                },
+                envoyConnectGrpcPort = Toxiproxy.externalEnvoyControl1GrpcPort
+            )
+        }
+    }
 
     @Test
     fun `should register service when communication between local agent and master is restored`() {
