@@ -28,6 +28,9 @@ class EnvoyDefaultFilters(
     private val serviceTagFilterFactory = ServiceTagFilterFactory(
         properties = snapshotProperties.routing.serviceTags
     )
+    private val adaptiveConcurrencyFilterFactory = AdaptiveConcurrencyFilterFactory(
+        snapshotProperties.adaptiveConcurrencyProperties
+    )
 
     private val compressionFilterFactory = CompressionFilterFactory(snapshotProperties)
 
@@ -57,6 +60,10 @@ class EnvoyDefaultFilters(
 
     val defaultClientNameHeaderFilter = { _: Group, _: GlobalSnapshot ->
         luaFilterFactory.ingressClientNameHeaderFilter()
+    }
+
+    val defaultAdaptiveConcurrencyFilter = { _: Group, _: GlobalSnapshot ->
+        adaptiveConcurrencyFilterFactory.adaptiveConcurrencyFilter()
     }
 
     val defaultJwtHttpFilter = { group: Group, _: GlobalSnapshot -> jwtFilterFactory.createJwtFilter(group) }
@@ -106,9 +113,11 @@ class EnvoyDefaultFilters(
             defaultClientNameHeaderFilter,
             defaultAuthorizationHeaderFilter,
             defaultJwtHttpFilter,
-            defaultCurrentZoneHeaderFilter
+            defaultCurrentZoneHeaderFilter,
         )
+
         val postFilters = listOf(
+            defaultAdaptiveConcurrencyFilter,
             defaultRbacLoggingFilter,
             defaultRbacFilter,
             defaultRateLimitLuaFilter,
