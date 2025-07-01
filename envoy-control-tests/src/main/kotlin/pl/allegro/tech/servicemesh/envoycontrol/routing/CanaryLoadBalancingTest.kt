@@ -12,7 +12,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.ResponseWithBody
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-open class CanaryLoadBalancingTest {
+open class ImplCanaryLoadBalancingTest : CanaryLoadBalancingTest {
 
     companion object {
         private val properties = mapOf(
@@ -44,12 +44,23 @@ open class CanaryLoadBalancingTest {
         @RegisterExtension
         val envoy = EnvoyExtension(envoyControl)
     }
+    override fun envoyControl() = envoyControl
 
+    override fun envoy() = envoy
+
+    override fun consul() = consul
+
+    override fun canaryContainer() = canaryContainer
+
+    override fun regularContainer() = regularContainer
+}
+
+interface CanaryLoadBalancingTest {
     @Test
     fun `should balance load according to weights`() {
         // given
-        consul.server.operations.registerService(name = "echo", extension = canaryContainer(), tags = listOf("canary", "weight:1"))
-        consul.server.operations.registerService(name = "echo", extension = regularContainer(), tags = listOf("weight:20"))
+        consul().server.operations.registerService(name = "echo", extension = canaryContainer(), tags = listOf("canary", "weight:1"))
+        consul().server.operations.registerService(name = "echo", extension = regularContainer(), tags = listOf("weight:20"))
 
         untilAsserted {
             envoy().egressOperations.callService("echo").also {
@@ -92,8 +103,8 @@ open class CanaryLoadBalancingTest {
     @Test
     fun `should route request to canary instance only`() {
         // given
-        consul.server.operations.registerService(name = "echo", extension = canaryContainer(), tags = listOf("canary", "weight:1"))
-        consul.server.operations.registerService(name = "echo", extension = regularContainer(), tags = listOf("weight:20"))
+        consul().server.operations.registerService(name = "echo", extension = canaryContainer(), tags = listOf("canary", "weight:1"))
+        consul().server.operations.registerService(name = "echo", extension = regularContainer(), tags = listOf("weight:20"))
 
         untilAsserted {
             envoy().egressOperations.callService("echo").also {
@@ -115,9 +126,9 @@ open class CanaryLoadBalancingTest {
     }
 
     @Test
-    open fun `should route to both canary and regular instances when canary weight is 0`() {
-        consul.server.operations.registerService(name = "echo", extension = canaryContainer(), tags = listOf("canary", "weight:0"))
-        consul.server.operations.registerService(name = "echo", extension = regularContainer(), tags = listOf("weight:20"))
+    fun `should route to both canary and regular instances when canary weight is 0`() {
+        consul().server.operations.registerService(name = "echo", extension = canaryContainer(), tags = listOf("canary", "weight:0"))
+        consul().server.operations.registerService(name = "echo", extension = regularContainer(), tags = listOf("weight:20"))
 
         untilAsserted {
             envoy().egressOperations.callService("echo").also {
@@ -138,7 +149,7 @@ open class CanaryLoadBalancingTest {
         assertThat(stats.canaryHits).isGreaterThan(0)
     }
 
-    protected open fun callStats() = CallStats(listOf(canaryContainer(), regularContainer()))
+    fun callStats() = CallStats(listOf(canaryContainer(), regularContainer()))
 
     fun callEchoServiceRepeatedly(
         minRepeat: Int,
@@ -163,13 +174,13 @@ open class CanaryLoadBalancingTest {
     val CallStats.canaryHits: Int
         get() = this.hits(canaryContainer())
 
-    open fun envoyControl() = envoyControl
+    fun envoyControl(): EnvoyControlExtension
 
-    open fun envoy() = envoy
+    fun envoy(): EnvoyExtension
 
-    open fun consul() = consul
+    fun consul(): ConsulExtension
 
-    open fun canaryContainer() = canaryContainer
+    fun canaryContainer(): EchoServiceExtension
 
-    open fun regularContainer() = regularContainer
+    fun regularContainer(): EchoServiceExtension
 }

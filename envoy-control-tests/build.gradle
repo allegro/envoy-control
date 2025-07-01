@@ -5,7 +5,7 @@ dependencies {
     implementation group: 'org.junit.jupiter', name: 'junit-jupiter-api'
     implementation group: 'org.junit.jupiter', name: 'junit-jupiter-params'
     implementation group: 'org.awaitility', name: 'awaitility'
-    implementation group: 'com.squareup.okhttp3', name: 'okhttp'
+    implementation group: 'com.squareup.okhttp3', name: 'okhttp', version: versions.okhttp
 
     implementation group: 'org.apache.httpcomponents.core5', name: 'httpcore5'
     implementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5'

@@ -4,37 +4,19 @@ import com.google.common.base.Strings
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
-import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlRunnerTestApp
 import pl.allegro.tech.servicemesh.envoycontrol.config.EnvoyControlTestConfiguration
 import pl.allegro.tech.servicemesh.envoycontrol.config.consul.ConsulOperations
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.envoyControl1HttpProxy
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.envoyControl1Proxy
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.envoyControl2HttpProxy
 import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.envoyControl2Proxy
-import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.externalConsulPort
-import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.externalEnvoyControl1GrpcPort
-import pl.allegro.tech.servicemesh.envoycontrol.reliability.Toxiproxy.Companion.toxiproxyGrpcPort
 import java.time.Duration
 
 @Tag("reliability")
 open class ReliabilityTest : EnvoyControlTestConfiguration() {
 
     companion object {
-        @JvmStatic
-        @BeforeAll
-        fun setup() {
-            setup(
-                appFactoryForEc1 = {
-                    EnvoyControlRunnerTestApp(
-                        consulPort = externalConsulPort,
-                        grpcPort = toxiproxyGrpcPort
-                    )
-                },
-                envoyConnectGrpcPort = externalEnvoyControl1GrpcPort
-            )
-        }
 
         @JvmStatic
         @AfterAll

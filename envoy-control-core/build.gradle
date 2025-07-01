@@ -36,10 +36,6 @@ tasks.withType(GroovyCompile) {
     options.encoding = 'UTF-8'
 }
 
-tasks.withType(JavaCompile) {
-    options.encoding = 'UTF-8'
-}
-
 test {
     maxParallelForks = 1
     useJUnitPlatform()

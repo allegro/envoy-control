@@ -3,6 +3,11 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.22.19]
+### Changed
+- Updated Spring Boot to 3.4.5
+- Updated Gradle to 8.14.2
+
 ## [0.22.18]
 ### Changed
 - Backwards compatibility for `ignoreTLSUpgradeEnabled` flag for envoys that don't support `ignore_http_11_upgrade` field

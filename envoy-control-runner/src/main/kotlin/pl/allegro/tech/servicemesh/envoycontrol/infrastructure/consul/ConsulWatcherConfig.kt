@@ -5,7 +5,7 @@ import okhttp3.Dispatcher
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
-import okhttp3.internal.threadFactory
+import okhttp3.internal.Util.threadFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import pl.allegro.tech.discovery.consul.recipes.ConsulRecipes

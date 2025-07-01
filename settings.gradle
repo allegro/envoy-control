@@ -5,3 +5,9 @@ include 'envoy-control-core'
 include 'envoy-control-runner'
 include 'envoy-control-tests'
 include 'envoy-control-source-consul'
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+}

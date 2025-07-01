@@ -9,7 +9,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.config.envoy.EnvoyExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.envoycontrol.EnvoyControlExtension
 import pl.allegro.tech.servicemesh.envoycontrol.config.service.EchoServiceExtension
 
-open class ServiceTagsTest {
+open class ImplServiceTagsTest : ServiceTagsTest {
 
     companion object {
         private val properties = mapOf(
@@ -55,22 +55,35 @@ open class ServiceTagsTest {
         val envoy = EnvoyExtension(envoyControl, regularService)
     }
 
-    protected fun registerServices() {
-        consul.server.operations.registerService(name = "echo", extension = regularService, tags = emptyList())
-        consul.server.operations.registerService(
+    override fun envoy() = envoy
+
+    override fun envoyControl() = envoyControl
+
+    override fun consul() = consul
+    override fun regularService() = regularService
+    override fun loremService() = loremService
+    override fun loremIpsumService() = loremIpsumService
+    override fun genericService() = genericService
+}
+
+interface ServiceTagsTest {
+
+    fun registerServices() {
+        consul().server.operations.registerService(name = "echo", extension = regularService(), tags = emptyList())
+        consul().server.operations.registerService(
             name = "echo",
-            extension = loremService,
+            extension = loremService(),
             tags = listOf("lorem", "blacklisted")
         )
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "echo",
-            extension = loremIpsumService,
+            extension = loremIpsumService(),
             tags = listOf("lorem", "ipsum")
         )
     }
 
     @Test
-    open fun `should route requests to instance with tag ipsum`() {
+    fun `should route requests to instance with tag ipsum`() {
         // given
         registerServices()
         envoy().waitForReadyServices("echo")
@@ -80,13 +93,13 @@ open class ServiceTagsTest {
 
         // then
         assertThat(stats.totalHits).isEqualTo(10)
-        assertThat(stats.hits(regularService)).isEqualTo(0)
-        assertThat(stats.hits(loremService)).isEqualTo(0)
-        assertThat(stats.hits(loremIpsumService)).isEqualTo(10)
+        assertThat(stats.hits(regularService())).isEqualTo(0)
+        assertThat(stats.hits(loremService())).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumService())).isEqualTo(10)
     }
 
     @Test
-    open fun `should route requests to instances with tag lorem`() {
+    fun `should route requests to instances with tag lorem`() {
         // given
         registerServices()
         envoy().waitForReadyServices("echo")
@@ -96,14 +109,14 @@ open class ServiceTagsTest {
 
         // then
         assertThat(stats.totalHits).isEqualTo(20)
-        assertThat(stats.hits(regularService)).isEqualTo(0)
-        assertThat(stats.hits(loremService)).isGreaterThan(2)
-        assertThat(stats.hits(loremIpsumService)).isGreaterThan(2)
-        assertThat(stats.hits(loremService) + stats.hits(loremIpsumService)).isEqualTo(20)
+        assertThat(stats.hits(regularService())).isEqualTo(0)
+        assertThat(stats.hits(loremService())).isGreaterThan(2)
+        assertThat(stats.hits(loremIpsumService())).isGreaterThan(2)
+        assertThat(stats.hits(loremService()) + stats.hits(loremIpsumService())).isEqualTo(20)
     }
 
     @Test
-    open fun `should route requests to all instances`() {
+    fun `should route requests to all instances`() {
         // given
         registerServices()
         envoy().waitForReadyServices("echo")
@@ -113,12 +126,12 @@ open class ServiceTagsTest {
 
         // then
         assertThat(stats.totalHits).isEqualTo(20)
-        assertThat(stats.hits(regularService)).isGreaterThan(1)
-        assertThat(stats.hits(loremService)).isGreaterThan(1)
-        assertThat(stats.hits(loremIpsumService)).isGreaterThan(1)
+        assertThat(stats.hits(regularService())).isGreaterThan(1)
+        assertThat(stats.hits(loremService())).isGreaterThan(1)
+        assertThat(stats.hits(loremIpsumService())).isGreaterThan(1)
         assertThat(
-            stats.hits(regularService) + stats.hits(loremService) + stats.hits(
-                loremIpsumService
+            stats.hits(regularService()) + stats.hits(loremService()) + stats.hits(
+                loremIpsumService()
             )
         ).isEqualTo(
             20
@@ -126,7 +139,7 @@ open class ServiceTagsTest {
     }
 
     @Test
-    open fun `should return 503 if instance with requested tag is not found`() {
+    fun `should return 503 if instance with requested tag is not found`() {
         // given
         registerServices()
         envoy().waitForReadyServices("echo")
@@ -137,13 +150,13 @@ open class ServiceTagsTest {
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.hits(regularService)).isEqualTo(0)
-        assertThat(stats.hits(loremService)).isEqualTo(0)
-        assertThat(stats.hits(loremIpsumService)).isEqualTo(0)
+        assertThat(stats.hits(regularService())).isEqualTo(0)
+        assertThat(stats.hits(loremService())).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumService())).isEqualTo(0)
     }
 
     @Test
-    open fun `should return 503 if requested tag is blacklisted`() {
+    fun `should return 503 if requested tag is blacklisted`() {
         // given
         registerServices()
         envoy().waitForReadyServices("echo")
@@ -154,22 +167,22 @@ open class ServiceTagsTest {
         // then
         assertThat(stats.totalHits).isEqualTo(10)
         assertThat(stats.failedHits).isEqualTo(10)
-        assertThat(stats.hits(regularService)).isEqualTo(0)
-        assertThat(stats.hits(loremService)).isEqualTo(0)
-        assertThat(stats.hits(loremIpsumService)).isEqualTo(0)
+        assertThat(stats.hits(regularService())).isEqualTo(0)
+        assertThat(stats.hits(loremService())).isEqualTo(0)
+        assertThat(stats.hits(loremIpsumService())).isEqualTo(0)
     }
 
     @Test
-    open fun `should route request with three tags if combination is valid`() {
+    fun `should route request with three tags if combination is valid`() {
         // given
-        val matching = loremService
-        val notMatching = loremIpsumService
+        val matching = loremService()
+        val notMatching = loremIpsumService()
 
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-1", extension = matching,
             tags = listOf("version:v1.5", "hardware:c32", "role:master")
         )
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-1", extension = notMatching,
             tags = listOf("version:v1.5", "hardware:c64", "role:master")
         )
@@ -188,11 +201,11 @@ open class ServiceTagsTest {
     }
 
     @Test
-    open fun `should not route request with multiple tags if service is not whitelisted`() {
+    fun `should not route request with multiple tags if service is not whitelisted`() {
         // given
-        val matching = loremService
+        val matching = loremService()
 
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-3", extension = matching,
             tags = listOf("version:v1.5", "hardware:c32", "role:master")
         )
@@ -225,16 +238,16 @@ open class ServiceTagsTest {
     }
 
     @Test
-    open fun `should not route request with three tags if combination is not allowed`() {
+    fun `should not route request with three tags if combination is not allowed`() {
         // given
-        val service1Matching = loremService
-        val service2Matching = loremIpsumService
+        val service1Matching = loremService()
+        val service2Matching = loremIpsumService()
 
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-1", extension = service1Matching,
             tags = listOf("version:v1.5", "hardware:c32", "ram:512")
         )
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-2", extension = service2Matching,
             tags = listOf("version:v1.5", "hardware:c32", "role:master")
         )
@@ -260,26 +273,26 @@ open class ServiceTagsTest {
     }
 
     @Test
-    open fun `should route request with two tags if combination is valid`() {
+    fun `should route request with two tags if combination is valid`() {
         // given
-        val service1Matching = loremService
-        val service1NotMatching = regularService
-        val service2Master = loremIpsumService
-        val service2Secondary = genericService
+        val service1Matching = loremService()
+        val service1NotMatching = regularService()
+        val service2Master = loremIpsumService()
+        val service2Secondary = genericService()
 
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-1", extension = service1Matching,
             tags = listOf("version:v2.0", "hardware:c32", "role:master")
         )
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-1", extension = service1NotMatching,
             tags = listOf("version:v1.5", "hardware:c32", "role:master")
         )
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-2", extension = service2Master,
             tags = listOf("version:v1.5", "hardware:c32", "role:master")
         )
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-2", extension = service2Secondary,
             tags = listOf("version:v2.0", "hardware:c32", "role:secondary")
         )
@@ -309,11 +322,11 @@ open class ServiceTagsTest {
     }
 
     @Test
-    open fun `should not route request with two tags if combination is not allowed`() {
+    fun `should not route request with two tags if combination is not allowed`() {
         // given
-        val matching = loremService
+        val matching = loremService()
 
-        consul.server.operations.registerService(
+        consul().server.operations.registerService(
             name = "service-2", extension = matching,
             tags = listOf("version:v1.5", "hardware:c32", "role:master")
         )
@@ -331,7 +344,7 @@ open class ServiceTagsTest {
         assertThat(stats.hits(matching)).isEqualTo(0)
     }
 
-    protected fun callEchoServiceRepeatedly(
+    fun callEchoServiceRepeatedly(
         repeat: Int,
         tag: String? = null,
         assertNoErrors: Boolean = true
@@ -344,9 +357,9 @@ open class ServiceTagsTest {
         )
     }
 
-    protected open fun callStats() = CallStats(listOf(regularService, loremService, loremIpsumService, genericService))
+    fun callStats() = CallStats(listOf(regularService(), loremService(), loremIpsumService(), genericService()))
 
-    protected open fun callServiceRepeatedly(
+    fun callServiceRepeatedly(
         service: String,
         repeat: Int,
         tag: String? = null,
@@ -364,7 +377,11 @@ open class ServiceTagsTest {
         return stats
     }
 
-    open fun envoy() = envoy
-
-    open fun envoyControl() = envoyControl
+    fun consul(): ConsulExtension
+    fun envoyControl(): EnvoyControlExtension
+    fun regularService(): EchoServiceExtension
+    fun loremService(): EchoServiceExtension
+    fun loremIpsumService(): EchoServiceExtension
+    fun genericService(): EchoServiceExtension
+    fun envoy(): EnvoyExtension
 }
