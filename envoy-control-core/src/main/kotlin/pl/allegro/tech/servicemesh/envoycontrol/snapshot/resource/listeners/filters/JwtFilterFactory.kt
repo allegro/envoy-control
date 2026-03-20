@@ -16,7 +16,6 @@ import io.envoyproxy.envoy.extensions.filters.http.jwt_authn.v3.RequirementRule
 import io.envoyproxy.envoy.extensions.filters.network.http_connection_manager.v3.HttpFilter
 import io.envoyproxy.envoy.extensions.path.match.uri_template.v3.UriTemplateMatchConfig
 import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
-import pl.allegro.tech.servicemesh.envoycontrol.groups.ClientWithSelector
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
