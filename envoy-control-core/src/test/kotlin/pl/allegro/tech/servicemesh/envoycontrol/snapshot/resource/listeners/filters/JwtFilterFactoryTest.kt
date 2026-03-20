@@ -150,11 +150,12 @@ internal class JwtFilterFactoryTest {
     @Test
     fun `should create JWT filter when endpoint clients contain a role that resolves to an OAuth client`() {
         // given
-        val roleName = "test-role"
-        val oauthClientName = "oauth"
+        val roleName = "my-role"
+        val client = "oauth"
+        val selector = "team1"
         val role = Role(
             name = roleName,
-            clients = setOf(ClientWithSelector.create(oauthClientName, null))
+            clients = setOf(ClientWithSelector.create(client, selector))
         )
         val group = ServicesGroup(
             CommunicationMode.ADS, proxySettings = ProxySettings(
@@ -192,10 +193,12 @@ internal class JwtFilterFactoryTest {
     @Test
     fun `should not create JWT filter when role resolves to clients that are not OAuth clients`() {
         // given
-        val roleName = "test-role"
+        val roleName = "my-role"
+        val client = "non-oauth-client"
+        val selector = "team1"
         val role = Role(
             name = roleName,
-            clients = setOf(ClientWithSelector.create("non-oauth-client", null))
+            clients = setOf(ClientWithSelector.create(client, selector))
         )
         val group = ServicesGroup(
             CommunicationMode.ADS, proxySettings = ProxySettings(
