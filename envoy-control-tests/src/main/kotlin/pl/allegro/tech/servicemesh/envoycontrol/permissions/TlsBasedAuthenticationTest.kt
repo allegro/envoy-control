@@ -199,6 +199,10 @@ internal class TlsBasedAuthenticationTest {
             assertThat(echo2endpoints).isEqualTo(2)
         }
 
+        // snapshot cumulative counters before making requests
+        val plaintextMatchBefore = echo1Envoy.container.admin().statValue("cluster.echo2.plaintext_match.total_match_count")?.toInt() ?: 0
+        val mtlsMatchBefore = echo1Envoy.container.admin().statValue("cluster.echo2.mtls_match.total_match_count")?.toInt() ?: 0
+
         // when
         val callStats = echo1Envoy.egressOperations.callServiceRepeatedly(
                 service = "echo2",
@@ -214,11 +218,11 @@ internal class TlsBasedAuthenticationTest {
         assertThat(callStats.hits(service1)).isEqualTo(1)
         assertThat(callStats.hits(service2)).isEqualTo(1)
 
-        val defaultToPlaintextMatchesCount = echo1Envoy.container.admin().statValue("cluster.echo2.plaintext_match.total_match_count")?.toInt()
-        assertThat(defaultToPlaintextMatchesCount).isEqualTo(1)
+        val plaintextMatchAfter = echo1Envoy.container.admin().statValue("cluster.echo2.plaintext_match.total_match_count")?.toInt() ?: 0
+        assertThat(plaintextMatchAfter - plaintextMatchBefore).isEqualTo(1)
 
-        val enableMTLSMatchesCount = echo1Envoy.container.admin().statValue("cluster.echo2.mtls_match.total_match_count")?.toInt()
-        assertThat(enableMTLSMatchesCount).isEqualTo(1)
+        val mtlsMatchAfter = echo1Envoy.container.admin().statValue("cluster.echo2.mtls_match.total_match_count")?.toInt() ?: 0
+        assertThat(mtlsMatchAfter - mtlsMatchBefore).isEqualTo(1)
     }
 
     @Test
