@@ -3,6 +3,10 @@
 Lists all changes with user impact.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.22.20]
+### Fixed
+- Fixed JWT filter role resolution so role-based OAuth clients are expanded correctly when generating JWT authentication rules
+
 ## [0.22.19]
 ### Changed
 - Updated Spring Boot to 3.4.5

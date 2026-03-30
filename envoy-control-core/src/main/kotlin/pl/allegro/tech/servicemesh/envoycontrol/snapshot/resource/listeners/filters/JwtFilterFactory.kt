@@ -19,6 +19,7 @@ import io.envoyproxy.envoy.type.matcher.v3.RegexMatcher
 import pl.allegro.tech.servicemesh.envoycontrol.groups.Group
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.PathMatchingType
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.ProviderName
@@ -51,7 +52,9 @@ class JwtFilterFactory(
                         JwtAuthentication.newBuilder().putAllProviders(
                             selectedJwtProviders
                         )
-                            .addAllRules(createRules(group.proxySettings.incoming.endpoints))
+                            .addAllRules(createRules(
+                                group.proxySettings.incoming.endpoints,
+                                group.proxySettings.incoming.roles))
                             .build()
                     )
                 )
@@ -62,13 +65,29 @@ class JwtFilterFactory(
     }
 
     private fun shouldCreateFilter(group: Group): Boolean {
-        return properties.providers.isNotEmpty() && group.proxySettings.incoming.endpoints.any {
-            it.oauth != null || containsClientsWithSelector(it)
+        if (properties.providers.isEmpty()) {
+            return false
+        }
+
+        val roles = group.proxySettings.incoming.roles
+        return group.proxySettings.incoming.endpoints.any { endpoint ->
+            endpoint.oauth != null || containsClientsWithSelector(endpoint, roles)
         }
     }
 
-    private fun containsClientsWithSelector(it: IncomingEndpoint) =
-        clientToOAuthProviderName.keys.intersect(it.clients.map { it.name }).isNotEmpty()
+    private fun containsClientsWithSelector(endpoint: IncomingEndpoint, roles: List<Role>): Boolean {
+        return resolveClientNames(endpoint, roles).any(clientToOAuthProviderName::containsKey)
+    }
+
+    private fun resolveClientNames(endpoint: IncomingEndpoint, roles: List<Role>): Set<String> {
+        if (roles.isEmpty()) {
+            return endpoint.clients.map { it.name }.toSet()
+        }
+
+        return endpoint.clients.flatMap { clientOrRole ->
+            roles.find { it.name == clientOrRole.name }?.clients ?: setOf(clientOrRole)
+        }.map { it.name }.toSet()
+    }
 
     private fun getJwtProviders(failedStatusInMetadataEnabled: Boolean): Map<ProviderName, JwtProvider> =
         properties.providers.entries.associate {
@@ -99,19 +118,20 @@ class JwtFilterFactory(
         return jwtProvider.build()
     }
 
-    private fun createRules(endpoints: List<IncomingEndpoint>): Set<RequirementRule> {
-        return endpoints.flatMap(this::createRulesForEndpoint).toSet()
+    private fun createRules(endpoints: List<IncomingEndpoint>, roles: List<Role>): Set<RequirementRule> {
+        return endpoints.flatMap { createRulesForEndpoint(it, roles) }.toSet()
     }
 
-    private fun createRulesForEndpoint(endpoint: IncomingEndpoint): Set<RequirementRule> {
+    private fun createRulesForEndpoint(endpoint: IncomingEndpoint, roles: List<Role>): Set<RequirementRule> {
         val providers = mutableSetOf<String>()
 
         if (endpoint.oauth != null) {
             providers.add(endpoint.oauth.provider)
         }
 
-        providers.addAll(endpoint.clients.filter { it.name in clientToOAuthProviderName.keys }
-            .mapNotNull { clientToOAuthProviderName[it.name] })
+        val resolvedClientNames = resolveClientNames(endpoint, roles)
+        providers.addAll(resolvedClientNames.filter { it in clientToOAuthProviderName.keys }
+            .mapNotNull { clientToOAuthProviderName[it] })
 
         if (providers.isEmpty()) {
             return emptySet()

@@ -13,6 +13,7 @@ import pl.allegro.tech.servicemesh.envoycontrol.groups.Incoming
 import pl.allegro.tech.servicemesh.envoycontrol.groups.IncomingEndpoint
 import pl.allegro.tech.servicemesh.envoycontrol.groups.OAuth
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ProxySettings
+import pl.allegro.tech.servicemesh.envoycontrol.groups.Role
 import pl.allegro.tech.servicemesh.envoycontrol.groups.ServicesGroup
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.JwtFilterProperties
 import pl.allegro.tech.servicemesh.envoycontrol.snapshot.OAuthProvider
@@ -144,6 +145,81 @@ internal class JwtFilterFactoryTest {
         // then
         assertThat(generatedFilter).isNotNull
         assertThat(generatedFilter).isEqualTo(expectedJwtFilter)
+    }
+
+    @Test
+    fun `should create JWT filter when endpoint clients contain a role that resolves to an OAuth client`() {
+        // given
+        val roleName = "my-role"
+        val client = "oauth"
+        val selector = "team1"
+        val role = Role(
+            name = roleName,
+            clients = setOf(ClientWithSelector.create(client, selector))
+        )
+        val group = ServicesGroup(
+            CommunicationMode.ADS, proxySettings = ProxySettings(
+                Incoming(
+                    endpoints = listOf(
+                        IncomingEndpoint(
+                            path = "/",
+                            clients = setOf(ClientWithSelector.create(roleName, null)),
+                            oauth = null
+                        )
+                    ),
+                    roles = listOf(role)
+                )
+            )
+        )
+        val expectedJwtFilter = getJwtFilter(
+            singleProviderJson(
+                """ 
+            "requires": {
+                "requiresAny": {
+                    "requirements": [{"providerName": "provider"}, {"allowMissingOrFailed": {} }]
+                 }
+            }"""
+            )
+        )
+
+        // when
+        val generatedFilter = jwtFilterFactory.createJwtFilter(group)
+
+        // then
+        assertThat(generatedFilter).isNotNull
+        assertThat(generatedFilter).isEqualTo(expectedJwtFilter)
+    }
+
+    @Test
+    fun `should not create JWT filter when role resolves to clients that are not OAuth clients`() {
+        // given
+        val roleName = "my-role"
+        val client = "non-oauth-client"
+        val selector = "team1"
+        val role = Role(
+            name = roleName,
+            clients = setOf(ClientWithSelector.create(client, selector))
+        )
+        val group = ServicesGroup(
+            CommunicationMode.ADS, proxySettings = ProxySettings(
+                Incoming(
+                    endpoints = listOf(
+                        IncomingEndpoint(
+                            path = "/",
+                            clients = setOf(ClientWithSelector.create(roleName, null)),
+                            oauth = null
+                        )
+                    ),
+                    roles = listOf(role)
+                )
+            )
+        )
+
+        // when
+        val generatedFilter = jwtFilterFactory.createJwtFilter(group)
+
+        // then
+        assertThat(generatedFilter).isNull()
     }
 
     private fun getJwtFilter(providersJson: String): HttpFilter? {
