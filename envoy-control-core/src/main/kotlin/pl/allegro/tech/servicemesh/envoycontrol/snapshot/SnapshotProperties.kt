@@ -35,6 +35,7 @@ class SnapshotProperties {
     var jwt = JwtFilterProperties()
     var requireServiceName = false
     var rateLimit = RateLimitProperties()
+    var adaptiveConcurrencyProperties = AdaptiveConcurrencyProperties()
     var deltaXdsEnabled = false
     var retryPolicy = RetryPolicyProperties()
     var tcpDumpsEnabled: Boolean = true
@@ -466,6 +467,9 @@ class JwtFilterProperties {
     var providers = mapOf<ProviderName, OAuthProvider>()
 }
 
+data class AdaptiveConcurrencyProperties(
+    var enabled: Boolean = true,
+)
 data class RateLimitProperties(
     var domain: String = "rl",
     var serviceName: String = "ratelimit-grpc"
