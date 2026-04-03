@@ -4,7 +4,7 @@ import com.google.protobuf.BoolValue
 import com.google.protobuf.UInt32Value
 import io.envoyproxy.envoy.config.core.v3.RuntimeFeatureFlag
 import io.envoyproxy.envoy.config.core.v3.TypedExtensionConfig
-import io.envoyproxy.envoy.config.filter.http.gzip.v2.Gzip.CompressionLevel.Enum.BEST_VALUE
+
 import io.envoyproxy.envoy.extensions.compression.brotli.compressor.v3.Brotli
 import io.envoyproxy.envoy.extensions.compression.gzip.compressor.v3.Gzip
 import io.envoyproxy.envoy.extensions.filters.http.compressor.v3.Compressor
@@ -18,7 +18,7 @@ class CompressionFilterFactory(val properties: SnapshotProperties) {
         val compressionLevel = Gzip.CompressionLevel.forNumber(
             group.compressionConfig.gzip?.quality
                 ?: properties.compression.gzip.quality
-        ) ?: Gzip.CompressionLevel.forNumber(BEST_VALUE)
+        ) ?: Gzip.CompressionLevel.BEST_SPEED
         return if (group.compressionConfig.gzip?.enabled == true) {
             compressionFilter(
                 TypedExtensionConfig.newBuilder()
